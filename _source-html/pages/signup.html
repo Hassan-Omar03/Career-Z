@@ -1,0 +1,165 @@
+<!-- FILE: pages/signup.html -->
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Create Account — CareerZ.pk</title>
+<meta name="description" content="Create your free CareerZ.pk account — the complete AI-powered education ecosystem for students, parents, teachers, institutions, employers, agents and donors worldwide.">
+<meta name="robots" content="noindex, follow">
+<link rel="canonical" href="https://careerz.pk/pages/signup.html">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,300;0,9..144,500;0,9..144,600;0,9..144,700;1,9..144,500&family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../assets/css/style.css">
+</head>
+<body>
+
+<!-- ============ NAVBAR (minimal, auth pages) ============ -->
+<header class="nav">
+  <div class="container nav-inner">
+    <a href="../index.html" class="logo"><span class="dot"></span><span class="logo-text">Career<span class="pk">Z.pk</span></span></a>
+    <div class="nav-actions">
+      <button class="icon-btn" id="theme-toggle" aria-label="Toggle dark mode">☀️</button>
+    </div>
+  </div>
+</header>
+
+<!-- ============ SIGNUP ============ -->
+<section class="auth-shell">
+  <div class="auth-wrap auth-wrap-wide">
+    <a href="../index.html" class="auth-back">← Back to home</a>
+
+    <div class="auth-card reveal in">
+      <div class="auth-head">
+        <div class="eyebrow">Join CareerZ</div>
+        <h1>Create your account</h1>
+        <p>One account for the entire CareerZ ecosystem — personalize it below.</p>
+      </div>
+
+      <div class="auth-success" id="signup-success">
+        <span class="dot"></span>
+        <span>Account created. Welcome to CareerZ — check your inbox to verify your email.</span>
+      </div>
+
+      <form id="signup-form" novalidate>
+        <div class="form-group">
+          <label for="signup-name">Full name</label>
+          <input class="form-input" type="text" id="signup-name" name="fullName" placeholder="Your full name" autocomplete="name">
+          <div class="form-error" id="signup-name-error"></div>
+        </div>
+
+        <div class="form-group">
+          <label for="signup-email">Email address</label>
+          <input class="form-input" type="email" id="signup-email" name="email" placeholder="you@example.com" autocomplete="email">
+          <div class="form-error" id="signup-email-error"></div>
+        </div>
+
+        <div class="form-row-split">
+          <div class="form-group">
+            <label for="signup-password">Password</label>
+            <div class="password-wrap">
+              <input class="form-input" type="password" id="signup-password" name="password" placeholder="Create a password" autocomplete="new-password">
+              <button type="button" class="password-toggle" data-toggle-password="signup-password">Show</button>
+            </div>
+            <div class="password-strength"><div class="password-strength-bar" id="signup-strength-bar"></div></div>
+            <span class="password-strength-label" id="signup-strength-label"></span>
+            <div class="form-error" id="signup-password-error"></div>
+          </div>
+
+          <div class="form-group">
+            <label for="signup-confirm">Confirm password</label>
+            <div class="password-wrap">
+              <input class="form-input" type="password" id="signup-confirm" name="confirmPassword" placeholder="Re-enter your password" autocomplete="new-password">
+              <button type="button" class="password-toggle" data-toggle-password="signup-confirm">Show</button>
+            </div>
+            <div class="form-error" id="signup-confirm-error"></div>
+          </div>
+        </div>
+
+        <!-- ============ ACCOUNT TYPE ============
+             This only personalizes the dashboard — it never verifies the
+             user. Verified roles (Institution, Teacher, Employer, Donor,
+             Agent, Organization) are handled later in Phase 2, inside the
+             dashboard, without requiring any change to this page. -->
+        <div class="form-group">
+          <label>Account type</label>
+          <p class="form-hint" style="margin:0 0 12px;">Choose how you'll mainly use CareerZ. You can change this later — this does not verify your account.</p>
+          <div class="auth-role-grid">
+            <label class="role-option">
+              <span class="role-icon">🎓</span><span>Student</span>
+              <input type="radio" name="accountType" value="student" checked>
+            </label>
+            <label class="role-option">
+              <span class="role-icon">👪</span><span>Parent</span>
+              <input type="radio" name="accountType" value="parent">
+            </label>
+            <label class="role-option">
+              <span class="role-icon">🧑‍🏫</span><span>Teacher</span>
+              <input type="radio" name="accountType" value="teacher">
+            </label>
+            <label class="role-option">
+              <span class="role-icon">💼</span><span>Employer</span>
+              <input type="radio" name="accountType" value="employer">
+            </label>
+            <label class="role-option">
+              <span class="role-icon">🏫</span><span>Institution Representative</span>
+              <input type="radio" name="accountType" value="institution_representative">
+            </label>
+            <label class="role-option">
+              <span class="role-icon">🤝</span><span>Agent</span>
+              <input type="radio" name="accountType" value="agent">
+            </label>
+            <label class="role-option">
+              <span class="role-icon">❤️</span><span>Donor</span>
+              <input type="radio" name="accountType" value="donor">
+            </label>
+            <label class="role-option">
+              <span class="role-icon">👤</span><span>General User</span>
+              <input type="radio" name="accountType" value="general">
+            </label>
+          </div>
+        </div>
+
+        <div class="form-row-split">
+          <div class="form-group">
+            <label for="signup-country">Country</label>
+            <select class="form-select" id="signup-country" name="country">
+              <option value="">Select Country</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label for="signup-city">City</label>
+            <select class="form-select" id="signup-city" name="city" disabled>
+              <option value="">Select City</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label class="form-check">
+            <input type="checkbox" id="signup-terms" name="terms">
+            <span>I agree to the <a href="#terms">Terms &amp; Conditions</a></span>
+          </label>
+        </div>
+        <div class="form-group">
+          <label class="form-check">
+            <input type="checkbox" id="signup-privacy" name="privacy">
+            <span>I agree to the <a href="#privacy">Privacy Policy</a></span>
+          </label>
+          <div class="form-error" id="signup-terms-error">Please accept both the Terms &amp; Conditions and the Privacy Policy to continue.</div>
+        </div>
+
+        <button type="submit" class="btn btn-primary btn-block" id="signup-submit">Create Account</button>
+      </form>
+
+      <div class="auth-foot">
+        Already have an account? <a href="login.html">Sign In</a>
+      </div>
+    </div>
+  </div>
+</section>
+
+<script src="../assets/js/auth.js"></script>
+</body>
+</html>

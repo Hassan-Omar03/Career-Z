@@ -1,0 +1,600 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>QA Console - CareerZ (Milestone 1)</title>
+<link rel="stylesheet" href="../assets/css/style.css" />
+<style>
+  body { background: #eef1f5; }
+  .qa-header { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 10px; }
+  .qa-warn { background: #fff4dd; border: 1px solid #f2d59a; color: #7a5200; padding: 10px 14px; border-radius: 8px; font-size: 0.85rem; margin-bottom: 16px; }
+  .qa-layout { display: flex; gap: 18px; align-items: flex-start; }
+  .qa-sidebar { flex: 0 0 220px; position: sticky; top: 12px; }
+  .qa-sidebar button.qa-navbtn {
+    display: block; width: 100%; text-align: left; margin-bottom: 6px; background: #fff; color: var(--text);
+    border: 1px solid var(--border); font-weight: 600; font-size: 0.85rem;
+  }
+  .qa-sidebar button.qa-navbtn.active { background: var(--primary); color: #fff; border-color: var(--primary); }
+  .qa-main { flex: 1; min-width: 0; }
+  .qa-panel { display: none; }
+  .qa-panel.active { display: block; }
+  .qa-session { margin-bottom: 18px; }
+  .qa-session .row { display: flex; gap: 10px; flex-wrap: wrap; align-items: flex-end; }
+  .qa-session .field { flex: 1; min-width: 160px; }
+  .qa-session .field label { font-size: 0.8rem; margin-bottom: 4px; }
+  .qa-session .field input { margin-bottom: 0; }
+  .qa-userbox { background: #eefaf3; border: 1px solid #b9e8d4; border-radius: 8px; padding: 10px 14px; font-size: 0.85rem; margin-top: 10px; }
+  .qa-userbox.empty { background: #fdecec; border-color: #f8c9c9; }
+  .ep-card { border: 1px solid var(--border); border-radius: 10px; padding: 16px; margin-bottom: 14px; background: #fbfcfe; }
+  .ep-title { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin-bottom: 4px; }
+  .ep-method { font-size: 0.7rem; font-weight: 700; padding: 2px 8px; border-radius: 6px; color: #fff; letter-spacing: 0.03em; }
+  .ep-method.GET { background: #2563eb; }
+  .ep-method.POST { background: #17a673; }
+  .ep-method.PATCH { background: #d97706; }
+  .ep-method.DELETE { background: #dc2626; }
+  .ep-path { font-family: 'Consolas', monospace; font-size: 0.85rem; color: var(--text); }
+  .ep-note { color: var(--muted); font-size: 0.82rem; margin: 4px 0 10px; }
+  .ep-fields { display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 10px 12px; margin-bottom: 10px; }
+  .ep-fields .f label { display: block; font-size: 0.75rem; font-weight: 600; margin-bottom: 3px; color: var(--muted); }
+  .ep-fields .f input, .ep-fields .f select, .ep-fields .f textarea { margin-bottom: 0; font-size: 0.85rem; padding: 7px 9px; }
+  .ep-fields .f textarea { min-height: 56px; font-family: 'Consolas', monospace; font-size: 0.78rem; }
+  .ep-actions { display: flex; align-items: center; gap: 10px; }
+  .ep-actions button { font-size: 0.85rem; padding: 8px 16px; }
+  .ep-status { font-weight: 700; font-size: 0.8rem; padding: 2px 10px; border-radius: 999px; display: none; }
+  .ep-status.s2 { background: #e6f7ef; color: #0b6b45; display: inline-block; }
+  .ep-status.s4 { background: #fdecec; color: var(--danger); display: inline-block; }
+  .ep-status.s5 { background: #f3e8ff; color: #6b21a8; display: inline-block; }
+  .ep-status.serr { background: #eee; color: #555; display: inline-block; }
+  .ep-response { margin-top: 10px; background: #0f172a; color: #d1fae5; padding: 10px 12px; border-radius: 8px; font-family: 'Consolas', monospace; font-size: 0.78rem; white-space: pre-wrap; word-break: break-all; max-height: 260px; overflow: auto; display: none; }
+  .ep-ids { margin-top: 8px; display: none; flex-wrap: wrap; gap: 6px; }
+  .ep-ids .chip { background: #e0e7ff; color: #3730a3; border: 1px solid #c7d2fe; padding: 3px 9px; border-radius: 999px; font-size: 0.72rem; cursor: pointer; font-family: 'Consolas', monospace; }
+  .ep-ids .chip:hover { background: #c7d2fe; }
+  .qa-copied { color: #0b6b45; font-size: 0.72rem; margin-left: 6px; }
+  .group-title { margin-top: 0; }
+  .qa-toggle-danger { background: var(--danger) !important; }
+</style>
+</head>
+<body>
+  <header class="site-header qa-header">
+    <a class="brand" href="../index.html">CareerZ</a>
+    <nav>
+      <a href="dashboard.html">&larr; Dashboard pe wapas</a>
+    </nav>
+  </header>
+
+  <div class="container">
+    <h1 style="margin-bottom:4px;">QA Testing Console</h1>
+    <p class="muted" style="margin-top:0;">Milestone 1 mein bane har backend module/endpoint ko yahan se click karke test karo. Yeh page sirf testing ke liye hai, real app (dashboard.html) alag hai.</p>
+
+    <div class="qa-warn" id="corsWarn">
+      <strong>Zaroori:</strong> Yeh page usi tareeqe se khulna chahiye jaise <code>login.html</code> khulta hai (jaise VS Code "Live Server" se, ya <code>http://localhost:5500</code> pe) &mdash; seedha double-click karke file:// se khologe to backend requests CORS ki wajah se block ho jayengi.
+    </div>
+
+    <!-- SESSION PANEL -->
+    <section class="card qa-session">
+      <h2 style="margin-top:0;">1) Session (Login / Register)</h2>
+      <div class="row">
+        <div class="field"><label>API Base URL</label><input id="apiBase" /></div>
+      </div>
+      <div id="msg" class="msg" hidden></div>
+
+      <h3>Register (naya account)</h3>
+      <div class="row">
+        <div class="field"><label>Full Name</label><input id="regName" placeholder="Test Student" /></div>
+        <div class="field"><label>Email</label><input id="regEmail" type="email" placeholder="test@example.com" /></div>
+        <div class="field"><label>Password</label><input id="regPass" type="password" placeholder="Test@1234" /></div>
+        <div class="field"><button id="btnRegister">Register karo</button></div>
+      </div>
+
+      <h3>Login</h3>
+      <div class="row">
+        <div class="field"><label>Email</label><input id="loginEmail" type="email" placeholder="superadmin@careerz.local" /></div>
+        <div class="field"><label>Password</label><input id="loginPass" type="password" placeholder="SuperAdmin@123" /></div>
+        <div class="field"><button id="btnLogin">Login karo</button></div>
+        <div class="field"><button id="btnLogout" class="secondary">Logout</button></div>
+      </div>
+
+      <div id="userBox" class="qa-userbox empty">Abhi koi login nahi hai. Upar login karo, phir neeche modules test karo.</div>
+    </section>
+
+    <div class="qa-layout">
+      <div class="qa-sidebar" id="sidebar"></div>
+      <div class="qa-main" id="mainPanels"></div>
+    </div>
+  </div>
+
+  <script>
+    // ---------------- Session helpers (independent from the main app's login) ----------------
+    const K_TOKEN = 'qa_access_token', K_REFRESH = 'qa_refresh_token', K_USER = 'qa_user', K_BASE = 'qa_api_base';
+    let API_BASE = localStorage.getItem(K_BASE) || 'http://localhost:5000/api';
+    document.getElementById('apiBase').value = API_BASE;
+    document.getElementById('apiBase').addEventListener('change', (e) => {
+      API_BASE = e.target.value.trim() || 'http://localhost:5000/api';
+      localStorage.setItem(K_BASE, API_BASE);
+    });
+
+    function getToken() { return localStorage.getItem(K_TOKEN); }
+    function getRefresh() { return localStorage.getItem(K_REFRESH); }
+    function getUser() { try { return JSON.parse(localStorage.getItem(K_USER) || 'null'); } catch (e) { return null; } }
+    function setSession(user, accessToken, refreshToken) {
+      if (user) localStorage.setItem(K_USER, JSON.stringify(user));
+      if (accessToken) localStorage.setItem(K_TOKEN, accessToken);
+      if (refreshToken) localStorage.setItem(K_REFRESH, refreshToken);
+      renderSession();
+    }
+    function clearSession() {
+      localStorage.removeItem(K_TOKEN); localStorage.removeItem(K_REFRESH); localStorage.removeItem(K_USER);
+      renderSession();
+    }
+    function renderSession() {
+      const box = document.getElementById('userBox');
+      const user = getUser();
+      if (user && getToken()) {
+        box.className = 'qa-userbox';
+        box.innerHTML = `<strong>${user.fullName || ''}</strong> (${user.email || ''}) &mdash; Roles: <code>${(user.roles || []).join(', ')}</code> &mdash; Email verified: ${user.emailVerified ? 'haan' : 'nahi'}`;
+      } else {
+        box.className = 'qa-userbox empty';
+        box.innerHTML = 'Abhi koi login nahi hai. Upar login karo, phir neeche modules test karo.';
+      }
+    }
+    function showMsg(text, type) {
+      const el = document.getElementById('msg');
+      el.textContent = text; el.className = 'msg ' + (type || 'error'); el.hidden = false;
+      setTimeout(() => (el.hidden = true), 4000);
+    }
+
+    document.getElementById('btnRegister').addEventListener('click', async () => {
+      const r = await rawRequest('POST', '/auth/register', { body: {
+        fullName: document.getElementById('regName').value,
+        email: document.getElementById('regEmail').value,
+        password: document.getElementById('regPass').value
+      }});
+      if (r.ok && r.json.data) {
+        setSession(r.json.data.user, r.json.data.accessToken, r.json.data.refreshToken);
+        showMsg('Account bana aur login ho gaya. Verification code backend console mein dekho.', 'success');
+      } else {
+        showMsg(r.json.message || 'Register fail ho gaya.', 'error');
+      }
+    });
+
+    document.getElementById('btnLogin').addEventListener('click', async () => {
+      const r = await rawRequest('POST', '/auth/login', { body: {
+        email: document.getElementById('loginEmail').value,
+        password: document.getElementById('loginPass').value
+      }});
+      if (r.ok && r.json.data) {
+        setSession(r.json.data.user, r.json.data.accessToken, r.json.data.refreshToken);
+        showMsg('Login ho gaya.', 'success');
+      } else {
+        showMsg(r.json.message || 'Login fail ho gaya.', 'error');
+      }
+    });
+
+    document.getElementById('btnLogout').addEventListener('click', async () => {
+      await rawRequest('POST', '/auth/logout', { body: { refreshToken: getRefresh() } });
+      clearSession();
+      showMsg('Logout ho gaya.', 'success');
+    });
+
+    // ---------------- Raw request helper (shows real status + full JSON, doesn't hide errors) ----------------
+    async function rawRequest(method, path, { query, body } = {}) {
+      let url = API_BASE + path;
+      if (query) {
+        const qs = Object.entries(query)
+          .filter(([, v]) => v !== undefined && v !== '')
+          .map(([k, v]) => encodeURIComponent(k) + '=' + encodeURIComponent(v))
+          .join('&');
+        if (qs) url += '?' + qs;
+      }
+      const headers = { 'Content-Type': 'application/json' };
+      const token = getToken();
+      if (token) headers.Authorization = 'Bearer ' + token;
+
+      let res, json;
+      try {
+        res = await fetch(url, {
+          method,
+          headers,
+          body: method === 'GET' ? undefined : JSON.stringify(body || {})
+        });
+      } catch (netErr) {
+        return { status: 0, ok: false, json: { success: false, message: 'Network error: backend tak pahunch nahi (server band hai ya CORS block kar raha hai?). Details: ' + netErr.message } };
+      }
+      try { json = await res.json(); } catch (e) { json = { success: false, message: 'Server ne valid JSON nahi bheja.' }; }
+      return { status: res.status, ok: res.ok, json };
+    }
+
+    // ================= ENDPOINT SPEC (matches every backend route file) =================
+    const GROUPS = [
+      { key: 'health', label: '0. Health / Config (public)', endpoints: [
+        { method: 'GET', path: '/health', title: 'API Health Check', note: 'Server chal raha hai ya nahi. Login zaroori nahi.', fields: [] },
+        { method: 'GET', path: '/config/public', title: 'Public Config', note: 'Countries / Languages / Currencies / Feature Flags jo har visitor dekh sakta hai (localization foundation).', fields: [] }
+      ]},
+      { key: 'auth', label: '1. Auth (extra)', endpoints: [
+        { method: 'POST', path: '/auth/verify-email', title: 'Email Verify Karo', note: 'Login hona zaroori hai. Signup/resend se mila code daalo (backend console mein dikhta hai).', fields: [
+          { name: 'code', label: 'Verification Code' }
+        ]},
+        { method: 'POST', path: '/auth/resend-verification', title: 'Verification Code Dobara Bhejo', note: 'Login hona zaroori hai.', fields: [] },
+        { method: 'POST', path: '/auth/forgot-password', title: 'Forgot Password', note: 'Reset code backend console mein log hoga (SMTP off hai).', fields: [
+          { name: 'email', type: 'email', label: 'Email' }
+        ]},
+        { method: 'POST', path: '/auth/reset-password', title: 'Reset Password', note: 'forgot-password wala code use karo.', fields: [
+          { name: 'email', type: 'email', label: 'Email' },
+          { name: 'code', label: 'Code' },
+          { name: 'newPassword', type: 'password', label: 'New Password' }
+        ]},
+        { method: 'POST', path: '/auth/refresh', title: 'Access Token Refresh', note: 'Login karne par refresh token khud bhar jayega.', fields: [
+          { name: 'refreshToken', label: 'Refresh Token', autofillRefresh: true }
+        ]},
+        { method: 'POST', path: '/auth/logout', title: 'Logout (is device ka refresh token revoke)', note: '', fields: [
+          { name: 'refreshToken', label: 'Refresh Token', autofillRefresh: true }
+        ]}
+      ]},
+      { key: 'roles', label: '2. Roles / RBAC', endpoints: [
+        { method: 'POST', path: '/roles/request', title: 'Naya Role Request Karo', note: 'Login hona zaroori hai. "parent" turant mil jata hai, baaki roles admin approval ke baad.', fields: [
+          { name: 'requestedRole', type: 'select', label: 'Role', options: ['parent','teacher','institution_owner','institution_staff','employer','education_agent','donor','academy_owner','marketplace_seller'] }
+        ]},
+        { method: 'GET', path: '/roles/my-requests', title: 'Meri Role Requests', note: 'Login hona zaroori hai.', fields: [] },
+        { method: 'GET', path: '/roles/pending', title: 'Pending Role Requests (Admin)', note: 'Sirf admin/super_admin/platform_staff.', fields: [] },
+        { method: 'PATCH', path: '/roles/:id/review', title: 'Role Request Approve/Reject (Admin)', note: 'ID "pending" list ke response se copy karo.', fields: [
+          { name: 'id', inPath: true, label: 'Role Request ID' },
+          { name: 'decision', type: 'select', options: ['approved','rejected'] },
+          { name: 'reviewNotes', label: 'Notes (optional)' }
+        ]}
+      ]},
+      { key: 'configAdmin', label: '3. Config (Super Admin)', endpoints: [
+        { method: 'GET', path: '/config/countries', title: 'Countries List', fields: [] },
+        { method: 'POST', path: '/config/countries', title: 'Naya Country Add', fields: [
+          { name: 'name' }, { name: 'code', label: 'Code (e.g. PK)' }, { name: 'dialCode', label: 'Dial Code' },
+          { name: 'defaultCurrency' }, { name: 'defaultLanguage' }, { name: 'timeZone' }, { name: 'dateFormat' }
+        ]},
+        { method: 'PATCH', path: '/config/countries/:id', title: 'Country Update', fields: [
+          { name: 'id', inPath: true, label: 'Country ID' }, { name: 'name' },
+          { name: 'active', type: 'select', options: ['','true','false'], label: 'Active (leave blank = no change)' },
+          { name: 'hidden', type: 'select', options: ['','true','false'] }
+        ]},
+        { method: 'GET', path: '/config/languages', title: 'Languages List', fields: [] },
+        { method: 'POST', path: '/config/languages', title: 'Nayi Language Add', fields: [
+          { name: 'name' }, { name: 'code', label: 'Code (e.g. fr)' },
+          { name: 'direction', type: 'select', options: ['ltr','rtl'] },
+          { name: 'isDefault', type: 'select', options: ['','true','false'] }
+        ]},
+        { method: 'PATCH', path: '/config/languages/:id', title: 'Language Update', fields: [
+          { name: 'id', inPath: true, label: 'Language ID' }, { name: 'name' },
+          { name: 'active', type: 'select', options: ['','true','false'] }
+        ]},
+        { method: 'GET', path: '/config/currencies', title: 'Currencies List', fields: [] },
+        { method: 'POST', path: '/config/currencies', title: 'Nayi Currency Add', fields: [
+          { name: 'name' }, { name: 'code', label: 'Code (e.g. EUR)' }, { name: 'symbol' },
+          { name: 'symbolPosition', type: 'select', options: ['left','right'] },
+          { name: 'exchangeRateToUSD', type: 'number' }
+        ]},
+        { method: 'PATCH', path: '/config/currencies/:id', title: 'Currency Update', fields: [
+          { name: 'id', inPath: true, label: 'Currency ID' }, { name: 'exchangeRateToUSD', type: 'number' },
+          { name: 'active', type: 'select', options: ['','true','false'] }
+        ]},
+        { method: 'GET', path: '/config/feature-flags', title: 'Feature Flags List', fields: [] },
+        { method: 'POST', path: '/config/feature-flags', title: 'Feature Flag Set (create/update)', fields: [
+          { name: 'key', label: 'Key (e.g. jobs)' }, { name: 'label' },
+          { name: 'enabled', type: 'select', options: ['true','false'] },
+          { name: 'scope', type: 'select', options: ['global','country','institution'] },
+          { name: 'scopeValue', label: 'Scope Value (agar global nahi)' }
+        ]}
+      ]},
+      { key: 'institutions', label: '4. Institutions', endpoints: [
+        { method: 'GET', path: '/institutions', title: 'Approved Institutions List (public)', fields: [
+          { name: 'country', label: 'Country code (optional)' }, { name: 'type', label: 'Type (optional)' }, { name: 'q', label: 'Search (optional)' }
+        ]},
+        { method: 'GET', path: '/institutions/:id', title: 'Institution Details', fields: [ { name: 'id', inPath: true } ] },
+        { method: 'GET', path: '/institutions/:id/campuses', title: 'Institution ke Campuses', fields: [ { name: 'id', inPath: true, label: 'Institution ID' } ] },
+        { method: 'GET', path: '/institutions/:id/class-sections', title: 'Institution ke Class Sections', fields: [ { name: 'id', inPath: true, label: 'Institution ID' } ] },
+        { method: 'POST', path: '/institutions', title: 'Institution Register Karo', note: 'Login hona zaroori hai. Owner ko institution_owner role mil jayega.', fields: [
+          { name: 'name' },
+          { name: 'type', type: 'select', options: ['school','college','university','academy','madrasa','tuition_center','training_institute','online_institute'] },
+          { name: 'country', label: 'Country code (e.g. PK)' }, { name: 'city' }, { name: 'address' },
+          { name: 'contactEmail' }, { name: 'contactPhone' }, { name: 'website' }
+        ]},
+        { method: 'GET', path: '/institutions/mine/list', title: 'Meri Institutions', note: 'Login hona zaroori hai.', fields: [] },
+        { method: 'PATCH', path: '/institutions/:id', title: 'Institution Update', note: 'Sirf owner/staff.', fields: [
+          { name: 'id', inPath: true, label: 'Institution ID' }, { name: 'city' }, { name: 'address' }, { name: 'description' }
+        ]},
+        { method: 'POST', path: '/institutions/:id/verification-documents', title: 'Verification Documents Submit', note: 'Sirf owner. Status "under_review" ho jayega.', fields: [
+          { name: 'id', inPath: true, label: 'Institution ID' },
+          { name: 'documents', type: 'json', placeholder: '["https://example.com/registration.pdf"]' }
+        ]},
+        { method: 'PATCH', path: '/institutions/:id/verify', title: 'Institution Verify (Admin)', note: 'Sirf admin/super_admin/platform_staff.', fields: [
+          { name: 'id', inPath: true, label: 'Institution ID' },
+          { name: 'decision', type: 'select', options: ['approved','rejected'] }, { name: 'notes' }
+        ]},
+        { method: 'POST', path: '/institutions/:id/staff', title: 'Staff Add Karo', note: 'Sirf owner.', fields: [
+          { name: 'id', inPath: true, label: 'Institution ID' }, { name: 'userId', label: 'Staff User ID' },
+          { name: 'role', label: 'Role label (e.g. principal)' }
+        ]},
+        { method: 'DELETE', path: '/institutions/:id/staff/:userId', title: 'Staff Remove Karo', note: 'Sirf owner.', fields: [
+          { name: 'id', inPath: true, label: 'Institution ID' }, { name: 'userId', inPath: true, label: 'Staff User ID' }
+        ]},
+        { method: 'POST', path: '/institutions/:id/campuses', title: 'Campus Add Karo', fields: [
+          { name: 'id', inPath: true, label: 'Institution ID' }, { name: 'name' }, { name: 'city' }, { name: 'address' }
+        ]},
+        { method: 'POST', path: '/institutions/:id/class-sections', title: 'Class Section Add Karo', fields: [
+          { name: 'id', inPath: true, label: 'Institution ID' }, { name: 'name', label: 'e.g. Grade 10 - A' }, { name: 'academicYear', label: 'e.g. 2025-2026' }
+        ]}
+      ]},
+      { key: 'students', label: '5. Student Portal', endpoints: [
+        { method: 'GET', path: '/students/me', title: 'Mera Student Profile', fields: [] },
+        { method: 'PATCH', path: '/students/me', title: 'Profile Update', fields: [
+          { name: 'careerGoal' }, { name: 'skills', type: 'json', placeholder: '["python","design"]' }, { name: 'languages', type: 'json', placeholder: '["en","ur"]' }
+        ]},
+        { method: 'POST', path: '/students/me/connect-institution', title: 'Institution se Connect', fields: [
+          { name: 'institutionId' }, { name: 'classSectionId', label: 'Class Section ID (optional)' }, { name: 'rollNumber', label: 'Roll Number (optional)' }
+        ]},
+        { method: 'GET', path: '/students/me/attendance', title: 'Meri Attendance', fields: [] },
+        { method: 'GET', path: '/students/me/results', title: 'Mere Results', fields: [] },
+        { method: 'GET', path: '/students/me/enrollments', title: 'Meri Enrollments', fields: [] },
+        { method: 'GET', path: '/students/me/submissions', title: 'Meri Assignment Submissions', fields: [] }
+      ]},
+      { key: 'teachers', label: '6. Teacher Portal', endpoints: [
+        { method: 'GET', path: '/teachers/me', title: 'Mera Teacher Profile', fields: [] },
+        { method: 'PATCH', path: '/teachers/me', title: 'Profile Update', fields: [
+          { name: 'bio' }, { name: 'experienceYears', type: 'number' }, { name: 'subjects', type: 'json', placeholder: '["Math","Physics"]' }
+        ]},
+        { method: 'GET', path: '/teachers/me/classes', title: 'Meri Classes (course se derive)', fields: [] },
+        { method: 'POST', path: '/teachers/me/attendance', title: 'Attendance Mark Karo', note: 'course diya to ownership check hoga.', fields: [
+          { name: 'course', label: 'Course ID (optional)' }, { name: 'date', type: 'text', placeholder: '2026-09-06' },
+          { name: 'records', type: 'json', placeholder: '[{"student":"<studentUserId>","status":"present"}]' }
+        ]},
+        { method: 'GET', path: '/teachers/me/attendance', title: 'Attendance History', fields: [] }
+      ]},
+      { key: 'parents', label: '7. Parent Portal', endpoints: [
+        { method: 'POST', path: '/parents/link-requests', title: 'Bacchay ko Link Karne ki Request', fields: [
+          { name: 'studentEmail', type: 'email' }, { name: 'relationship', type: 'select', options: ['guardian','father','mother','sponsor'] }
+        ]},
+        { method: 'GET', path: '/parents/link-requests', title: 'Meri Bheji Hui Requests (sab status)', fields: [] },
+        { method: 'GET', path: '/parents/incoming-requests', title: 'Mujhay Link Karne ki Requests (Student ke roop mein)', note: 'Yeh dekhne ke liye student wale account se login karo.', fields: [] },
+        { method: 'PATCH', path: '/parents/link-requests/:id/respond', title: 'Link Request Approve/Reject (Student karta hai)', fields: [
+          { name: 'id', inPath: true, label: 'Link Request ID' }, { name: 'decision', type: 'select', options: ['approved','rejected'] }
+        ]},
+        { method: 'GET', path: '/parents/children', title: 'Mere Approved Bacchay', fields: [] },
+        { method: 'GET', path: '/parents/children/:studentId/attendance', title: 'Bacchay ki Attendance', fields: [ { name: 'studentId', inPath: true } ] },
+        { method: 'GET', path: '/parents/children/:studentId/results', title: 'Bacchay ke Results', fields: [ { name: 'studentId', inPath: true } ] }
+      ]},
+      { key: 'courses', label: '8. Courses / LMS', endpoints: [
+        { method: 'GET', path: '/courses', title: 'Published Courses (public)', fields: [
+          { name: 'subject', label: 'Subject (optional)' }, { name: 'q', label: 'Search (optional)' }
+        ]},
+        { method: 'GET', path: '/courses/:id', title: 'Course Details + Lessons', fields: [ { name: 'id', inPath: true } ] },
+        { method: 'POST', path: '/courses', title: 'Naya Course Banao (Teacher)', fields: [
+          { name: 'title' }, { name: 'subject' }, { name: 'level' },
+          { name: 'isFree', type: 'select', options: ['true','false'] }, { name: 'price', type: 'number' }
+        ]},
+        { method: 'GET', path: '/courses/mine/list', title: 'Mere Courses (draft + published)', fields: [] },
+        { method: 'PATCH', path: '/courses/:id', title: 'Course Update / Publish', fields: [
+          { name: 'id', inPath: true, label: 'Course ID' },
+          { name: 'published', type: 'select', options: ['','true','false'] },
+          { name: 'certificateEnabled', type: 'select', options: ['','true','false'] }
+        ]},
+        { method: 'POST', path: '/courses/:id/lessons', title: 'Lesson Add Karo', fields: [
+          { name: 'id', inPath: true, label: 'Course ID' }, { name: 'title' }, { name: 'content' }, { name: 'videoUrl' }
+        ]},
+        { method: 'PATCH', path: '/courses/lessons/:lessonId', title: 'Lesson Update', fields: [
+          { name: 'lessonId', inPath: true }, { name: 'title' }, { name: 'content' }
+        ]},
+        { method: 'POST', path: '/courses/:id/enroll', title: 'Course mein Enroll (Student)', fields: [ { name: 'id', inPath: true, label: 'Course ID' } ] },
+        { method: 'GET', path: '/courses/:id/students', title: 'Enrolled Students (Teacher)', fields: [ { name: 'id', inPath: true, label: 'Course ID' } ] },
+        { method: 'POST', path: '/courses/:id/assignments', title: 'Assignment Banao', fields: [
+          { name: 'id', inPath: true, label: 'Course ID' }, { name: 'title' }, { name: 'maxMarks', type: 'number' }
+        ]},
+        { method: 'GET', path: '/courses/:id/assignments', title: 'Course ke Assignments', fields: [ { name: 'id', inPath: true, label: 'Course ID' } ] },
+        { method: 'POST', path: '/courses/assignments/:assignmentId/submit', title: 'Assignment Submit (Student)', fields: [
+          { name: 'assignmentId', inPath: true }, { name: 'text', type: 'json', placeholder: '"Mera jawab yahan hai"' }
+        ]},
+        { method: 'GET', path: '/courses/assignments/:assignmentId/submissions', title: 'Submissions Dekho (Teacher)', fields: [ { name: 'assignmentId', inPath: true } ] },
+        { method: 'PATCH', path: '/courses/submissions/:submissionId/grade', title: 'Submission Grade Karo (Teacher)', fields: [
+          { name: 'submissionId', inPath: true }, { name: 'marksObtained', type: 'number' }, { name: 'feedback' }
+        ]},
+        { method: 'POST', path: '/courses/:id/results', title: 'Result Record Karo (Teacher)', fields: [
+          { name: 'id', inPath: true, label: 'Course ID' }, { name: 'student', label: 'Student User ID' },
+          { name: 'marksObtained', type: 'number' }, { name: 'totalMarks', type: 'number' }, { name: 'term' }
+        ]}
+      ]},
+      { key: 'users', label: '9. Users / Admin', endpoints: [
+        { method: 'PATCH', path: '/users/me', title: 'Apni Basic Info Update', fields: [
+          { name: 'fullName' }, { name: 'phone' }, { name: 'country' }
+        ]},
+        { method: 'PATCH', path: '/users/me/password', title: 'Password Change', fields: [
+          { name: 'currentPassword', type: 'password' }, { name: 'newPassword', type: 'password' }
+        ]},
+        { method: 'GET', path: '/users', title: 'Sab Users (Admin)', fields: [
+          { name: 'role', label: 'Filter by role (optional)' }, { name: 'q', label: 'Search (optional)' }
+        ]},
+        { method: 'GET', path: '/users/:id', title: 'Ek User ki Detail (Admin)', fields: [ { name: 'id', inPath: true } ] },
+        { method: 'PATCH', path: '/users/:id/status', title: 'User Suspend/Activate (Admin)', fields: [
+          { name: 'id', inPath: true, label: 'User ID' }, { name: 'status', type: 'select', options: ['active','suspended','disabled'] }
+        ]}
+      ]}
+    ];
+
+    // ================= RENDERING =================
+    const sidebar = document.getElementById('sidebar');
+    const mainPanels = document.getElementById('mainPanels');
+
+    GROUPS.forEach((g, gi) => {
+      const btn = document.createElement('button');
+      btn.className = 'qa-navbtn' + (gi === 0 ? ' active' : '');
+      btn.textContent = g.label;
+      btn.addEventListener('click', () => selectGroup(g.key));
+      sidebar.appendChild(btn);
+
+      const panel = document.createElement('div');
+      panel.className = 'qa-panel' + (gi === 0 ? ' active' : '');
+      panel.id = 'panel-' + g.key;
+      const h = document.createElement('h2');
+      h.className = 'group-title';
+      h.textContent = g.label;
+      panel.appendChild(h);
+
+      g.endpoints.forEach((ep, ei) => panel.appendChild(buildCard(g.key, ep, ei)));
+      mainPanels.appendChild(panel);
+    });
+
+    function selectGroup(key) {
+      document.querySelectorAll('.qa-navbtn').forEach((b) => b.classList.remove('active'));
+      document.querySelectorAll('.qa-panel').forEach((p) => p.classList.remove('active'));
+      [...sidebar.children].find((b, i) => GROUPS[i].key === key).classList.add('active');
+      document.getElementById('panel-' + key).classList.add('active');
+    }
+
+    function buildCard(groupKey, ep, idx) {
+      const cardId = groupKey + '-' + idx;
+      const card = document.createElement('div');
+      card.className = 'ep-card';
+
+      const title = document.createElement('div');
+      title.className = 'ep-title';
+      title.innerHTML = `<span class="ep-method ${ep.method}">${ep.method}</span><span class="ep-path">${ep.path}</span><strong>${ep.title}</strong>`;
+      card.appendChild(title);
+
+      if (ep.note) {
+        const note = document.createElement('div');
+        note.className = 'ep-note';
+        note.textContent = ep.note;
+        card.appendChild(note);
+      }
+
+      const fieldsWrap = document.createElement('div');
+      fieldsWrap.className = 'ep-fields';
+      const inputs = {};
+      ep.fields.forEach((f) => {
+        const wrap = document.createElement('div');
+        wrap.className = 'f';
+        const label = document.createElement('label');
+        label.textContent = f.label || f.name;
+        wrap.appendChild(label);
+
+        let input;
+        if (f.type === 'select') {
+          input = document.createElement('select');
+          f.options.forEach((opt) => {
+            const o = document.createElement('option');
+            o.value = opt; o.textContent = opt === '' ? '(leave blank)' : opt;
+            input.appendChild(o);
+          });
+        } else if (f.type === 'json') {
+          input = document.createElement('textarea');
+          input.placeholder = f.placeholder || '';
+        } else {
+          input = document.createElement('input');
+          input.type = f.type === 'password' ? 'password' : (f.type === 'number' ? 'number' : (f.type === 'email' ? 'email' : 'text'));
+          input.placeholder = f.placeholder || '';
+        }
+        input.id = cardId + '-' + f.name;
+        wrap.appendChild(input);
+
+        if (f.autofillRefresh) {
+          const link = document.createElement('a');
+          link.href = '#'; link.textContent = 'stored refresh token bharo';
+          link.style.fontSize = '0.72rem';
+          link.addEventListener('click', (e) => { e.preventDefault(); input.value = getRefresh() || ''; });
+          wrap.appendChild(document.createElement('br'));
+          wrap.appendChild(link);
+        }
+
+        inputs[f.name] = { el: input, def: f };
+        fieldsWrap.appendChild(wrap);
+      });
+      if (ep.fields.length) card.appendChild(fieldsWrap);
+
+      const actions = document.createElement('div');
+      actions.className = 'ep-actions';
+      const btn = document.createElement('button');
+      btn.textContent = 'Test karo';
+      const status = document.createElement('span');
+      status.className = 'ep-status';
+      actions.appendChild(btn);
+      actions.appendChild(status);
+      card.appendChild(actions);
+
+      const respBox = document.createElement('div');
+      respBox.className = 'ep-response';
+      card.appendChild(respBox);
+
+      const idsBox = document.createElement('div');
+      idsBox.className = 'ep-ids';
+      card.appendChild(idsBox);
+
+      btn.addEventListener('click', async () => {
+        btn.disabled = true; btn.textContent = 'Test ho raha hai...';
+        status.className = 'ep-status'; status.style.display = 'none';
+        respBox.style.display = 'none'; idsBox.style.display = 'none'; idsBox.innerHTML = '';
+
+        let pathValues = {};
+        let payload = {};
+        let bad = null;
+
+        ep.fields.forEach((f) => {
+          const raw = inputs[f.name].el.value;
+          if (f.inPath) { pathValues[f.name] = raw; return; }
+          if (raw === '' || raw === undefined) return; // omit empty optional fields
+          if (f.type === 'json') {
+            try { payload[f.name] = JSON.parse(raw); } catch (e) { bad = f.name; }
+          } else if (f.type === 'select' && (raw === 'true' || raw === 'false')) {
+            payload[f.name] = raw === 'true';
+          } else if (f.type === 'number') {
+            payload[f.name] = Number(raw);
+          } else {
+            payload[f.name] = raw;
+          }
+        });
+
+        if (bad) {
+          respBox.style.display = 'block';
+          respBox.textContent = `Field "${bad}" mein valid JSON nahi hai. Example dekho placeholder mein.`;
+          btn.disabled = false; btn.textContent = 'Test karo';
+          return;
+        }
+
+        let finalPath = ep.path.replace(/:([a-zA-Z0-9]+)/g, (m, key) => encodeURIComponent(pathValues[key] || ''));
+
+        const opts = (ep.method === 'GET') ? { query: payload } : { body: payload };
+        const result = await rawRequest(ep.method, finalPath, opts);
+
+        btn.disabled = false; btn.textContent = 'Test karo';
+
+        status.style.display = 'inline-block';
+        if (result.status === 0) status.className = 'ep-status serr';
+        else if (result.status >= 200 && result.status < 300) status.className = 'ep-status s2';
+        else if (result.status >= 500) status.className = 'ep-status s5';
+        else status.className = 'ep-status s4';
+        status.textContent = result.status === 0 ? 'NETWORK ERROR' : ('HTTP ' + result.status);
+
+        respBox.style.display = 'block';
+        const text = JSON.stringify(result.json, null, 2);
+        respBox.textContent = text;
+
+        const ids = Array.from(new Set((text.match(/[0-9a-fA-F]{24}/g) || [])));
+        if (ids.length) {
+          idsBox.style.display = 'flex';
+          ids.forEach((id) => {
+            const chip = document.createElement('span');
+            chip.className = 'chip';
+            chip.textContent = '📋 ' + id;
+            chip.title = 'Click to copy';
+            chip.addEventListener('click', () => {
+              navigator.clipboard.writeText(id).then(() => {
+                chip.textContent = '✔ Copied!';
+                setTimeout(() => (chip.textContent = '📋 ' + id), 1200);
+              });
+            });
+            idsBox.appendChild(chip);
+          });
+        }
+      });
+
+      return card;
+    }
+
+    renderSession();
+  </script>
+</body>
+</html>

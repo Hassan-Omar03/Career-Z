@@ -1,0 +1,576 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>CareerZ.pk — The Complete AI-Powered Education Ecosystem</title>
+<meta name="description" content="CareerZ.pk connects students, parents, teachers, institutions, employers, agents and donors on one intelligent AI-powered education platform — built for students, institutions and educators worldwide.">
+<meta name="robots" content="index, follow">
+<link rel="canonical" href="https://careerz.pk/">
+<!-- Open Graph -->
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="CareerZ.pk">
+<meta property="og:title" content="CareerZ.pk — The Complete AI-Powered Education Ecosystem">
+<meta property="og:description" content="CareerZ.pk connects students, parents, teachers, institutions, employers, agents and donors on one intelligent AI-powered education platform — built for students, institutions and educators worldwide.">
+<meta property="og:url" content="https://careerz.pk/">
+<!-- Twitter Card -->
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:site" content="@careerzpk">
+<meta name="twitter:title" content="CareerZ.pk — The Complete AI-Powered Education Ecosystem">
+<meta name="twitter:description" content="CareerZ.pk connects students, parents, teachers, institutions, employers, agents and donors on one intelligent AI-powered education platform — built for students, institutions and educators worldwide.">
+<!-- Structured Data -->
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "Organization",
+  "name": "CareerZ.pk",
+  "url": "https://careerz.pk",
+  "email": "info@careerz.pk",
+  "description": "The complete AI-powered education ecosystem connecting students, parents, teachers, institutions, employers, agents and donors worldwide.",
+  "sameAs": ["https://careerz.pk"]
+}
+</script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,300;0,9..144,500;0,9..144,600;0,9..144,700;1,9..144,500&family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="assets/css/style.css">
+</head>
+<body>
+
+<div id="scroll-progress"></div>
+
+<!-- ============ LIVE ACTIVITY TICKER ============ -->
+<div class="ticker-bar">
+  <div class="ticker-track" id="ticker-track"></div>
+</div>
+
+<!-- ============ NAVBAR ============ -->
+<header class="nav">
+  <div class="container nav-inner">
+    <div class="logo"><span class="dot"></span><span class="logo-text">Career<span class="pk">Z.pk</span></span></div>
+    <nav class="nav-links">
+      <a href="#courses">Courses</a>
+      <a href="#institutions">Institutions</a>
+      <a href="#jobs">Jobs</a>
+      <a href="#scholarships">Scholarships</a>
+      <a href="#marketplace">Marketplace</a>
+      <a href="#ai-ecosystem">AI Ecosystem</a>
+      <a href="#blog">Blog</a>
+    </nav>
+    <div class="nav-actions">
+      <div class="lang-select-wrap" id="lang-select-wrap">
+        <button class="lang-select-btn" id="lang-select-btn" aria-label="Select language" aria-haspopup="listbox" aria-expanded="false">
+          <span class="globe">🌐</span><span class="lang-label" id="lang-label">EN</span><span style="font-size:10px; opacity:.6;">▾</span>
+        </button>
+        <div class="lang-dropdown" id="lang-dropdown" role="listbox" aria-label="Language options">
+          <button class="active" data-lang="en" data-label="EN"><span class="flag">🇬🇧</span> English</button>
+          <button data-lang="ur" data-label="اردو"><span class="flag">🇵🇰</span> اردو</button>
+          <button data-lang="ar" data-label="AR"><span class="flag">🇸🇦</span> Arabic</button>
+          <button data-lang="zh" data-label="中文"><span class="flag">🇨🇳</span> Chinese</button>
+          <button data-lang="fr" data-label="FR"><span class="flag">🇫🇷</span> French</button>
+          <button data-lang="de" data-label="DE"><span class="flag">🇩🇪</span> German</button>
+          <button data-lang="es" data-label="ES"><span class="flag">🇪🇸</span> Spanish</button>
+          <button data-lang="tr" data-label="TR"><span class="flag">🇹🇷</span> Turkish</button>
+          <button data-lang="hi" data-label="HI"><span class="flag">🇮🇳</span> Hindi</button>
+          <button data-lang="bn" data-label="BN"><span class="flag">🇧🇩</span> Bengali</button>
+          <button data-lang="fa" data-label="FA"><span class="flag">🇮🇷</span> Persian</button>
+          <button data-lang="ru" data-label="RU"><span class="flag">🇷🇺</span> Russian</button>
+          <button data-lang="ms" data-label="MS"><span class="flag">🇲🇾</span> Malay</button>
+          <button data-lang="id" data-label="ID"><span class="flag">🇮🇩</span> Indonesian</button>
+          <button data-lang="pt" data-label="PT"><span class="flag">🇵🇹</span> Portuguese</button>
+          <button data-lang="it" data-label="IT"><span class="flag">🇮🇹</span> Italian</button>
+          <button data-lang="ja" data-label="JA"><span class="flag">🇯🇵</span> Japanese</button>
+          <button data-lang="ko" data-label="KO"><span class="flag">🇰🇷</span> Korean</button>
+        </div>
+      </div>
+      <button class="icon-btn" id="theme-toggle" aria-label="Toggle dark mode">☀️</button>
+      <button class="btn btn-primary" style="padding:10px 20px; font-size:13.5px;">Sign In</button>
+      <button class="mobile-toggle" aria-label="Menu">☰</button>
+    </div>
+  </div>
+</header>
+
+<!-- ============ HERO with AI CONSOLE ============ -->
+<section class="hero">
+  <div class="container hero-grid">
+    <div class="reveal in">
+      <div class="eyebrow">The Global AI Education Ecosystem</div>
+      <h1>The Complete <em>AI-Powered</em> Education Ecosystem</h1>
+      <p class="lead">CareerZ.pk connects students, parents, teachers, institutions, employers, agents and donors — guided by AI, from admission to career. Built for students, institutions and educators worldwide.</p>
+      <div class="hero-actions">
+        <button class="btn btn-primary">Explore CareerZ</button>
+        <button class="btn btn-outline">Register Your Institution</button>
+      </div>
+      <div class="hero-roles">
+        <span class="role-chip">Students</span>
+        <span class="role-chip">Parents</span>
+        <span class="role-chip">Teachers</span>
+        <span class="role-chip">Institutions</span>
+        <span class="role-chip">Employers</span>
+        <span class="role-chip">Agents</span>
+        <span class="role-chip">Donors</span>
+      </div>
+    </div>
+
+    <div class="ai-console reveal in">
+      <div class="console-top">
+        <div class="console-dot-row"><span></span><span></span><span></span></div>
+        <div class="console-label">CAREERZ AI · LIVE</div>
+      </div>
+      <div class="console-body">
+        <div class="console-q" id="console-q">Ask CareerZ AI: "Suggest universities for me"</div>
+        <div class="console-a" id="console-a"></div>
+        <div class="console-prompts">
+          <button class="active" data-prompt="0">Suggest Universities</button>
+          <button data-prompt="1">Find Scholarships</button>
+          <button data-prompt="2">Recommend Courses</button>
+          <button data-prompt="3">Career Advice</button>
+          <button data-prompt="4">Admission Guidance</button>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ SEARCH ============ -->
+<section class="search-section">
+  <div class="container">
+    <div class="search-box reveal">
+      <div class="search-tabs">
+        <button class="active" data-tab="inst">Institutions</button>
+        <button data-tab="course">Courses</button>
+        <button data-tab="job">Jobs</button>
+        <button data-tab="scholar">Scholarships</button>
+      </div>
+      <div class="search-row">
+        <input type="text" placeholder="Search by name, city or program...">
+        <select id="search-country"><option value="">All Countries</option></select>
+        <select id="search-city"><option value="">All Cities</option></select>
+        <select><option>All Levels</option><option>School</option><option>College</option><option>University</option><option>Vocational</option></select>
+        <button class="btn btn-primary">Search</button>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ ANIMATED STATISTICS ============ -->
+<section class="stats-band section-pad" id="stats">
+  <div class="container">
+    <div class="stat-grid" id="stat-grid">
+      <!-- injected by JS -->
+    </div>
+  </div>
+</section>
+
+<!-- ============ FEATURED INSTITUTIONS ============ -->
+<section class="section-pad" id="institutions">
+  <div class="container">
+    <div class="section-head reveal">
+      <div class="eyebrow">Verified Network</div>
+      <h2>Featured institutions across our global network</h2>
+      <p>Verified schools, colleges, universities and academies — all in one place.</p>
+    </div>
+    <div class="grid g4" id="institutions-grid"></div>
+  </div>
+</section>
+
+<!-- ============ AI FEATURES ============ -->
+<section class="section-pad" style="background:var(--sand);">
+  <div class="container">
+    <div class="section-head reveal">
+      <div class="eyebrow">Why CareerZ AI</div>
+      <h2>Intelligence built into every decision</h2>
+      <p>From choosing a university to preparing for an exam, CareerZ AI guides every stakeholder.</p>
+    </div>
+    <div class="grid g4" id="ai-features-grid"></div>
+  </div>
+</section>
+
+<!-- ============ PORTALS ============ -->
+<section class="section-pad">
+  <div class="container">
+    <div class="section-head reveal">
+      <div class="eyebrow">Built For Everyone</div>
+      <h2>A dedicated portal for every role</h2>
+      <p>Switch roles to see what CareerZ offers you specifically.</p>
+    </div>
+    <div class="portal-tabs" id="portal-tabs"></div>
+    <div id="portal-panels"></div>
+  </div>
+</section>
+
+<!-- ============ INSTITUTION MODULES ============ -->
+<section class="section-pad" style="background:var(--sand);">
+  <div class="container">
+    <div class="section-head reveal">
+      <div class="eyebrow">For Institutions</div>
+      <h2>Every module an institution needs</h2>
+      <p>Admissions, fee management, attendance, exams and analytics — unified.</p>
+    </div>
+    <div class="grid g4" id="modules-grid"></div>
+  </div>
+</section>
+
+<!-- ============ FEATURED COURSES ============ -->
+<section class="section-pad" id="courses">
+  <div class="container">
+    <div class="section-head reveal" style="display:flex; justify-content:space-between; align-items:flex-end; max-width:none; flex-wrap:wrap; gap:16px;">
+      <div>
+        <div class="eyebrow">Learn Something New</div>
+        <h2>Featured courses</h2>
+      </div>
+      <a href="#" class="btn-ghost">View All Courses →</a>
+    </div>
+    <div class="grid g4" id="courses-grid"></div>
+  </div>
+</section>
+
+<!-- ============ FEATURED TEACHERS ============ -->
+<section class="section-pad" style="background:var(--sand);">
+  <div class="container">
+    <div class="section-head reveal">
+      <div class="eyebrow">Meet The Educators</div>
+      <h2>Featured teachers</h2>
+      <p>Rated and reviewed by thousands of students across our global network.</p>
+    </div>
+    <div class="grid g4" id="teachers-grid"></div>
+  </div>
+</section>
+
+<!-- ============ FEATURED TRAINERS ============ -->
+<section class="section-pad">
+  <div class="container">
+    <div class="section-head reveal">
+      <div class="eyebrow">Skill Building</div>
+      <h2>Featured trainers</h2>
+      <p>Professional trainers for career and skill development programs.</p>
+    </div>
+    <div class="grid g4" id="trainers-grid"></div>
+  </div>
+</section>
+
+<!-- ============ FEATURED ACADEMIES ============ -->
+<section class="section-pad" style="background:var(--sand);">
+  <div class="container">
+    <div class="section-head reveal">
+      <div class="eyebrow">Test Prep & Coaching</div>
+      <h2>Featured academies</h2>
+      <p>Top academies for entry tests, IELTS, board exams and more.</p>
+    </div>
+    <div class="grid g4" id="academies-grid"></div>
+  </div>
+</section>
+
+<!-- ============ JOBS ============ -->
+<section class="section-pad" id="jobs">
+  <div class="container">
+    <div class="section-head reveal">
+      <div class="eyebrow">Career Opportunities</div>
+      <h2>Jobs from verified employers</h2>
+      <p>Education and entry-level roles, posted directly by employers.</p>
+    </div>
+    <div class="grid g3" id="jobs-grid"></div>
+  </div>
+</section>
+
+<!-- ============ FEATURED EMPLOYERS ============ -->
+<section class="section-pad" style="background:var(--sand);">
+  <div class="container">
+    <div class="section-head reveal">
+      <div class="eyebrow">Hiring Now</div>
+      <h2>Featured employers</h2>
+      <p>Companies hiring graduates and professionals through CareerZ.</p>
+    </div>
+    <div class="grid g4" id="employers-grid"></div>
+  </div>
+</section>
+
+<!-- ============ SCHOLARSHIPS ============ -->
+<section class="section-pad" id="scholarships">
+  <div class="container">
+    <div class="section-head reveal">
+      <div class="eyebrow">Funding Your Future</div>
+      <h2>Active scholarships</h2>
+      <p>Need-based and merit-based scholarships from institutions and donors.</p>
+    </div>
+    <div class="grid g3" id="scholarships-grid"></div>
+  </div>
+</section>
+
+<!-- ============ EDUCATIONAL MARKETPLACE PREVIEW ============ -->
+<section class="section-pad" id="marketplace">
+  <div class="container">
+    <div class="section-head reveal">
+      <div class="eyebrow">Coming Soon · Powered by Sovaad.com</div>
+      <h2>Educational marketplace preview</h2>
+      <p>Books, notes, past papers, templates and tools — the full marketplace lives on Sovaad.com.</p>
+    </div>
+    <div class="grid g4" id="market-grid"></div>
+    <div class="market-banner reveal">
+      <div>
+        <h3 style="color:#fff; font-size:24px;">The complete marketplace lives on Sovaad.com</h3>
+        <p style="color:rgba(255,255,255,.75); margin-top:8px;">Browse, buy and sell educational products — books, courses, software and more.</p>
+      </div>
+      <button class="btn btn-gold">Explore Marketplace ↗</button>
+    </div>
+  </div>
+</section>
+
+<!-- ============ BECOME A SELLER ============ -->
+<section class="section-pad" style="background:var(--sand);">
+  <div class="container">
+    <div class="section-head reveal">
+      <div class="eyebrow">Earn On CareerZ</div>
+      <h2>Become a seller</h2>
+      <p>Turn your notes, courses or institutional material into income.</p>
+    </div>
+    <div class="grid g3" id="seller-grid"></div>
+  </div>
+</section>
+
+<!-- ============ INSTITUTION PARTNERSHIP CTA ============ -->
+<section class="section-pad">
+  <div class="container">
+    <div class="cta-band glass reveal" style="background:linear-gradient(120deg,var(--forest-deep),var(--forest)); color:#fff;">
+      <div>
+        <h3 style="color:#fff;">Bring your institution onto CareerZ.pk</h3>
+        <p style="color:rgba(255,255,255,.75);">Reach verified students, manage admissions and run your institution smarter — with AI built in.</p>
+      </div>
+      <button class="btn btn-gold">Register Your Institution</button>
+    </div>
+  </div>
+</section>
+
+<!-- ============ EDUCATION AGENT PROGRAM ============ -->
+<section class="section-pad" style="background:var(--sand);">
+  <div class="container">
+    <div class="split-panel">
+      <div class="reveal">
+        <div class="eyebrow">Earn By Connecting Students</div>
+        <h2>Education Agent Program</h2>
+        <p style="color:var(--ink-soft); margin:16px 0 26px; max-width:480px;">Help students find the right institution and earn commission for every successful admission — with full transparency.</p>
+        <button class="btn btn-primary">Become an Agent</button>
+      </div>
+      <div class="visual reveal" style="background:var(--forest-deep);">
+        <div class="metric-row"><span>Commission per admission</span><strong>Up to 15%</strong></div>
+        <div class="metric-row"><span>Application tracking</span><strong>Real-time</strong></div>
+        <div class="metric-row"><span>Withdraw earnings</span><strong>Anytime</strong></div>
+        <div class="metric-row"><span>Active agents across our global network</span><strong>1,200+</strong></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ DONOR PROGRAM ============ -->
+<section class="section-pad">
+  <div class="container">
+    <div class="split-panel">
+      <div class="visual reveal" style="background:var(--gold); order:2;">
+        <div class="metric-row" style="border-bottom-color:rgba(15,26,23,.12);"><span style="color:rgba(15,26,23,.7);">Students sponsored</span><strong style="color:var(--forest-deep);">3,400+</strong></div>
+        <div class="metric-row" style="border-bottom-color:rgba(15,26,23,.12);"><span style="color:rgba(15,26,23,.7);">Scholarships funded</span><strong style="color:var(--forest-deep);">820</strong></div>
+        <div class="metric-row" style="border-bottom:none;"><span style="color:rgba(15,26,23,.7);">Cities reached</span><strong style="color:var(--forest-deep);">62</strong></div>
+      </div>
+      <div class="reveal" style="order:1;">
+        <div class="eyebrow">Give The Gift Of Education</div>
+        <h2>Donor Program</h2>
+        <p style="color:var(--ink-soft); margin:16px 0 26px; max-width:480px;">Sponsor a student directly or fund a scholarship pool. Track the real impact of every contribution.</p>
+        <button class="btn btn-primary">Become a Donor</button>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ STUDENT SUCCESS STORIES ============ -->
+<section class="section-pad" style="background:var(--sand);">
+  <div class="container">
+    <div class="section-head reveal" style="margin:0 auto 48px; text-align:center;">
+      <div class="eyebrow" style="justify-content:center;">Real Outcomes</div>
+      <h2>Student success stories</h2>
+    </div>
+    <div class="story-carousel">
+      <div class="story-track" id="story-track"></div>
+      <div class="carousel-dots" id="story-dots"></div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ EDUCATION BLOG ============ -->
+<section class="section-pad" id="blog">
+  <div class="container">
+    <div class="section-head reveal">
+      <div class="eyebrow">CareerZ Journal</div>
+      <h2>Latest from the education blog</h2>
+    </div>
+    <div class="grid g4" id="blog-grid"></div>
+  </div>
+</section>
+
+<!-- ============ UPCOMING EVENTS ============ -->
+<section class="section-pad" style="background:var(--sand);">
+  <div class="container">
+    <div class="section-head reveal">
+      <div class="eyebrow">Mark Your Calendar</div>
+      <h2>Upcoming events</h2>
+    </div>
+    <div class="grid g2" id="events-grid"></div>
+  </div>
+</section>
+
+<!-- ============ AI-POWERED TEACHING & LEARNING ECOSYSTEM ============ -->
+<section class="section-pad" id="ai-ecosystem" style="background:var(--forest-deep);">
+  <div class="container">
+    <div class="section-head reveal" style="margin:0 auto 40px; text-align:center; max-width:680px;">
+      <div class="eyebrow" style="justify-content:center; color:var(--gold);">The Core Of CareerZ</div>
+      <h2 style="color:#fff;">AI-powered teaching & learning ecosystem</h2>
+      <p style="color:rgba(255,255,255,.7);">A dedicated AI assistant for every role in the education journey. Preview only — full functionality lives inside each portal.</p>
+    </div>
+    <div class="ai-eco-tabs" id="ai-eco-tabs"></div>
+    <div id="ai-eco-panels"></div>
+  </div>
+</section>
+
+<!-- ============ AI LIVE DEMO ============ -->
+<section class="section-pad">
+  <div class="container">
+    <div class="section-head reveal" style="margin:0 auto 8px; text-align:center; max-width:680px;">
+      <div class="eyebrow" style="justify-content:center;">Try It Yourself</div>
+      <h2>Ask CareerZ AI anything about your education path</h2>
+    </div>
+  </div>
+  <div class="container" style="max-width:780px;">
+    <div class="ai-console reveal" style="margin-top:32px;">
+      <div class="console-top">
+        <div class="console-dot-row"><span></span><span></span><span></span></div>
+        <div class="console-label">CAREERZ AI · DEMO</div>
+      </div>
+      <div class="console-body">
+        <div class="console-q" id="demo-q">Pick a question below to see CareerZ AI respond.</div>
+        <div class="console-a" id="demo-a">Select a prompt to begin…</div>
+        <div class="console-prompts">
+          <button data-demo="0">Suggest Universities</button>
+          <button data-demo="1">Find Scholarships</button>
+          <button data-demo="2">Recommend Courses</button>
+          <button data-demo="3">Career Advice</button>
+          <button data-demo="4">Admission Guidance</button>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ WHY CHOOSE US ============ -->
+<section class="section-pad" style="background:var(--sand);">
+  <div class="container">
+    <div class="section-head reveal">
+      <div class="eyebrow">The CareerZ Difference</div>
+      <h2>Why choose CareerZ.pk</h2>
+    </div>
+    <div class="grid g4" id="why-grid"></div>
+  </div>
+</section>
+
+<!-- ============ PARTNER LOGOS ============ -->
+<section class="section-pad" style="padding:64px 0;">
+  <div class="container">
+    <p style="text-align:center; color:var(--ink-soft); font-size:13px; font-family:'JetBrains Mono',monospace; letter-spacing:.08em; margin-bottom:28px;">TRUSTED BY SCHOOLS, UNIVERSITIES, COMPANIES & TRAINING INSTITUTES</p>
+  </div>
+  <div class="logo-marquee">
+    <div class="logo-track" id="logo-track"></div>
+  </div>
+</section>
+
+<!-- ============ TRUST ============ -->
+<section class="section-pad">
+  <div class="container">
+    <div class="section-head reveal">
+      <div class="eyebrow">Safety & Verification</div>
+      <h2>Built on trust</h2>
+    </div>
+    <div class="trust-grid">
+      <div class="card trust-card reveal"><div class="ic">🛡️</div><h4>Verified institutions only</h4><p style="color:var(--ink-soft); font-size:14.5px; margin-top:8px;">Every institution is manually verified before going live on the platform.</p></div>
+      <div class="card trust-card reveal"><div class="ic">🔒</div><h4>Secure data handling</h4><p style="color:var(--ink-soft); font-size:14.5px; margin-top:8px;">Student and institution data is encrypted and never sold to third parties.</p></div>
+      <div class="card trust-card reveal"><div class="ic">⭐</div><h4>Transparent reviews</h4><p style="color:var(--ink-soft); font-size:14.5px; margin-top:8px;">Ratings come only from verified students and parents.</p></div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ DOWNLOAD MOBILE APP ============ -->
+<section class="section-pad" style="background:var(--sand);">
+  <div class="container">
+    <div class="app-band glass reveal">
+      <div>
+        <div class="eyebrow">Take CareerZ With You</div>
+        <h2>Download the CareerZ mobile app</h2>
+        <p style="color:var(--ink-soft); margin-top:10px; max-width:440px;">Track admissions, chat with CareerZ AI and get live updates — right from your phone.</p>
+        <div class="store-row">
+          <div class="store-btn">📱 <span>Google Play</span></div>
+          <div class="store-btn">🍎 <span>App Store</span></div>
+        </div>
+      </div>
+      <div class="qr-box">QR CODE<br>Scan to download</div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ FAQ ============ -->
+<section class="section-pad">
+  <div class="container" style="max-width:760px;">
+    <div class="section-head reveal" style="text-align:center; margin:0 auto 36px;">
+      <div class="eyebrow" style="justify-content:center;">Common Questions</div>
+      <h2>Frequently asked questions</h2>
+    </div>
+    <div id="faq-list"></div>
+  </div>
+</section>
+
+<!-- ============ FINAL CTA ============ -->
+<section class="section-pad">
+  <div class="container">
+    <div class="cta-band reveal" style="background:var(--gold);">
+      <div>
+        <h3 style="color:var(--forest-deep);">Ready to take the next step in your education journey?</h3>
+        <p style="color:rgba(15,26,23,.7);">Join thousands of students, teachers and institutions already on CareerZ.pk.</p>
+      </div>
+      <div style="display:flex; gap:12px; flex-wrap:wrap;">
+        <button class="btn btn-primary">Get Started Free</button>
+        <button class="btn btn-outline">Talk to Us</button>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ FOOTER ============ -->
+<footer>
+  <div class="container">
+    <div class="footer-grid">
+      <div>
+        <div class="logo" style="color:#fff;"><span class="dot"></span><span class="logo-text">Career<span class="pk" style="color:var(--gold);">Z.pk</span></span></div>
+        <p style="margin-top:14px; max-width:280px; font-size:14px; color:rgba(255,255,255,.65);">The complete AI-powered education ecosystem — connecting every stakeholder in one intelligent platform, worldwide.</p>
+        <div class="social-row" style="margin-top:20px;">
+          <a href="#">𝕏</a><a href="#">f</a><a href="#">in</a><a href="#">▶</a>
+        </div>
+      </div>
+      <div><h5>PLATFORM</h5><ul><li><a href="#institutions">Institutions</a></li><li><a href="#courses">Courses</a></li><li><a href="#jobs">Jobs</a></li><li><a href="#scholarships">Scholarships</a></li></ul></div>
+      <div><h5>PROGRAMS</h5><ul><li><a href="#">Agent Program</a></li><li><a href="#">Donor Program</a></li><li><a href="#">Become a Seller</a></li><li><a href="#">Marketplace</a></li></ul></div>
+      <div><h5>COMPANY</h5><ul><li><a href="#">About</a></li><li><a href="#blog">Blog</a></li><li><a href="#">Careers</a></li><li><a href="#">Contact</a></li></ul></div>
+      <div><h5>CONTACT</h5><ul><li><a href="mailto:info@careerz.pk">info@careerz.pk</a></li><li><a href="https://careerz.pk">CareerZ.pk</a></li></ul></div>
+      <div><h5>LEGAL</h5><ul><li><a href="#">Privacy Policy</a></li><li><a href="#">Terms of Service</a></li><li><a href="#">Cookie Policy</a></li></ul></div>
+    </div>
+    <div class="footer-bottom">
+      <span>© 2026 CareerZ.pk — All rights reserved.</span>
+      <span>Marketplace powered by Sovaad.com</span>
+    </div>
+  </div>
+</footer>
+
+<!-- ============ FLOATING ELEMENTS ============ -->
+<!-- WhatsApp removed: communication handled via CareerZ AI, messaging & chat portals -->
+<div class="toast-stack" id="toast-stack"></div>
+<div class="sticky-cta">
+  <span>Ready to begin your admission journey?</span>
+  <button>Apply Now</button>
+</div>
+
+<script src="assets/js/app.js"></script>
+</body>
+</html>

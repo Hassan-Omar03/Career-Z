@@ -1,0 +1,979 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<!-- Runs before first paint so a returning visitor's saved theme/language
+     applies immediately instead of flashing the markup defaults (light/en)
+     and then snapping to the stored preference once dashboard-framework.js
+     loads. Keys must match THEME_STORAGE_KEY / LANG_STORAGE_KEY in
+     assets/js/dashboard-framework.js. Silently no-ops if storage is blocked. -->
+<script>
+(function(){
+  try{
+    var theme = localStorage.getItem('careerz_theme_preference');
+    if (theme){ document.documentElement.setAttribute('data-theme', theme); }
+    else if (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches){
+      document.documentElement.setAttribute('data-theme', 'dark');
+    }
+    var lang = localStorage.getItem('careerz_language_preference');
+    if (lang){
+      document.documentElement.lang = lang;
+      document.documentElement.dir = ['ur','ar','fa','he'].indexOf(lang) > -1 ? 'rtl' : 'ltr';
+    }
+  } catch (e) { /* localStorage unavailable — fall back to markup defaults */ }
+})();
+</script>
+<title>Dashboard — CareerZ.pk</title>
+<meta name="description" content="Your CareerZ.pk dashboard — applications, courses, jobs, scholarships and more, in one place.">
+<meta name="robots" content="noindex, nofollow">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,300;0,9..144,500;0,9..144,600;0,9..144,700;1,9..144,500&family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../../assets/css/style.css">
+<link rel="stylesheet" href="../../assets/css/dashboard-framework.css">
+<link rel="stylesheet" href="dashboard.css">
+</head>
+<body class="dash-body">
+
+<!-- ============ MOBILE OVERLAY (sidebar + notification drawer) ============ -->
+<div class="dash-overlay" id="dash-overlay"></div>
+
+<div class="dash-shell">
+
+  <!-- ============ SIDEBAR ============ -->
+  <aside class="dash-sidebar" id="dash-sidebar" aria-label="Dashboard navigation">
+    <div class="dash-sidebar-brand">
+      <a href="../../index.html" class="logo"><span class="dot"></span><span class="logo-text">Career<span class="pk">Z.pk</span></span></a>
+      <button class="icon-btn dash-sidebar-collapse-btn" id="sidebar-collapse-btn" aria-label="Collapse sidebar" aria-pressed="false">
+        <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 6l-6 6 6 6"/></svg>
+      </button>
+      <button class="icon-btn dash-sidebar-close-btn" id="sidebar-close-btn" aria-label="Close menu">✕</button>
+    </div>
+
+    <nav class="dash-sidebar-nav" aria-label="Primary">
+      <a href="index.html" class="dash-nav-link active">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/></svg>
+        <span data-i18n="nav.dashboard">Dashboard</span>
+      </a>
+      <a href="#" class="dash-nav-link">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="3.4"/><path d="M5 20c0-3.5 3-6 7-6s7 2.5 7 6"/></svg>
+        <span data-i18n="nav.profile">My Profile</span>
+      </a>
+      <a href="#sec-institutions" class="dash-nav-link">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="3" width="14" height="18" rx="1"/><path d="M9 7h2M13 7h2M9 11h2M13 11h2M9 15h2M13 15h2"/><path d="M10 21v-4h4v4"/></svg>
+        <span data-i18n="nav.institutions">My Institutions</span>
+      </a>
+      <a href="#sec-tutors" class="dash-nav-link">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="8" r="3.2"/><path d="M3.5 20c0-3.2 2.5-5.5 5.5-5.5s5.5 2.3 5.5 5.5"/><circle cx="18" cy="7" r="2.3"/><path d="M14.5 14.2c2 .3 4 1.8 4 4.8"/></svg>
+        <span data-i18n="tutor.findTutor">Find a Tutor</span>
+      </a>
+      <a href="#sec-tuition" class="dash-nav-link">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg>
+        <span data-i18n="tutor.myTuition">My Tuition</span>
+      </a>
+      <a href="#sec-classes" class="dash-nav-link">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M15 10 20 7v10l-5-3z"/><rect x="3" y="6" width="12" height="12" rx="1.5"/></svg>
+        <span data-i18n="nav.classes">My Classes</span>
+      </a>
+      <a href="#sec-courses" class="dash-nav-link">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 5.5c2-1 5-1 7 0v13c-2-1-5-1-7 0z"/><path d="M21 5.5c-2-1-5-1-7 0v13c2-1 5-1 7 0z"/></svg>
+        <span data-i18n="nav.courses">My Courses</span>
+      </a>
+      <a href="#sec-assignments" class="dash-nav-link">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M7 3h7l4 4v14H7z"/><path d="M14 3v4h4"/><path d="M9.5 12.5h6"/><path d="M9.5 16h6"/></svg>
+        <span data-i18n="nav.assignments">Assignments &amp; Tests</span>
+      </a>
+      <a href="#sec-certificates" class="dash-nav-link">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="9" r="5.2"/><path d="M8.5 13.5 7 21l5-2.6L17 21l-1.5-7.5"/></svg>
+        <span data-i18n="nav.certificates">Certificates</span>
+      </a>
+      <a href="#sec-applications" class="dash-nav-link">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="3" width="16" height="18" rx="1.5"/><path d="M8 8h8M8 12h8M8 16h5"/></svg>
+        <span data-i18n="nav.applications">Applications</span>
+        <span class="dash-nav-badge">4</span>
+      </a>
+      <a href="#sec-scholarships" class="dash-nav-link">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="9" r="5.2"/><path d="M8.5 13.5 7 21l5-2.6L17 21l-1.5-7.5"/></svg>
+        <span data-i18n="nav.scholarships">Scholarships</span>
+      </a>
+      <a href="#sec-jobs" class="dash-nav-link">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="7.5" width="18" height="12" rx="1.5"/><path d="M8 7.5V5.5A2 2 0 0 1 10 3.5h4a2 2 0 0 1 2 2v2"/><path d="M3 12h18"/></svg>
+        <span data-i18n="nav.jobs">Jobs</span>
+      </a>
+      <a href="#sec-marketplace" class="dash-nav-link">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M6 8h12l-1 12H7z"/><path d="M9 8V6a3 3 0 0 1 6 0v2"/></svg>
+        <span data-i18n="nav.marketplace">Marketplace</span>
+      </a>
+      <a href="#sec-wallet" class="dash-nav-link">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="6" width="18" height="13" rx="2"/><path d="M3 10h18"/><circle cx="16.5" cy="14.5" r="1"/></svg>
+        <span data-i18n="nav.wallet">Wallet</span>
+      </a>
+
+      <div class="dash-sidebar-divider"></div>
+
+      <a href="#" class="dash-nav-link" data-modal-open="messages-modal">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 5h16v11H8l-4 4z"/></svg>
+        <span data-i18n="nav.messages">Messages</span>
+        <span class="dash-nav-badge">5</span>
+      </a>
+      <a href="#" class="dash-nav-link" id="sidebar-notif-link">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M6 10a6 6 0 0 1 12 0c0 4 1.5 5.5 2 6H4c.5-.5 2-2 2-6z"/><path d="M10 20a2 2 0 0 0 4 0"/></svg>
+        <span data-i18n="nav.notifications">Notifications</span>
+        <span class="dash-nav-badge">9</span>
+      </a>
+      <a href="#sec-calendar" class="dash-nav-link">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 10h18M8 3v4M16 3v4"/></svg>
+        <span data-i18n="nav.calendar">Calendar</span>
+      </a>
+      <a href="#" class="dash-nav-link">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19 12a7 7 0 0 0-.1-1.2l2-1.5-2-3.4-2.3.9a7 7 0 0 0-2-1.2L14 3h-4l-.5 2.6a7 7 0 0 0-2 1.2l-2.3-.9-2 3.4 2 1.5A7 7 0 0 0 5 12a7 7 0 0 0 .1 1.2l-2 1.5 2 3.4 2.3-.9c.6.5 1.3.9 2 1.2L10 21h4l.5-2.6a7 7 0 0 0 2-1.2l2.3.9 2-3.4-2-1.5c.1-.4.1-.8.1-1.2z"/></svg>
+        <span data-i18n="nav.settings">Settings</span>
+      </a>
+      <a href="#" class="dash-nav-link">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M9.2 9.2a2.8 2.8 0 1 1 4.6 2.1c-.9.7-1.3 1.2-1.3 2.2"/><circle cx="12" cy="17" r=".6" fill="currentColor"/></svg>
+        <span data-i18n="nav.help">Help Center</span>
+      </a>
+    </nav>
+
+    <div class="dash-sidebar-foot">
+      <div class="dash-sidebar-divider" style="margin-top:0;"></div>
+      <a href="../../pages/login.html" class="dash-nav-link" data-logout>
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M9 4H5a1 1 0 0 0-1 1v14a1 1 0 0 0 1 1h4"/><path d="M16 17l5-5-5-5"/><path d="M21 12H9"/></svg>
+        <span data-i18n="nav.logout">Logout</span>
+      </a>
+    </div>
+  </aside>
+
+  <!-- ============ HEADER ============ -->
+  <header class="dash-header">
+    <div class="dash-header-left">
+      <button class="icon-btn dash-sidebar-toggle" id="sidebar-toggle" aria-label="Toggle sidebar">☰</button>
+      <a href="../../index.html" class="logo dash-header-brand" aria-label="CareerZ.pk Home">
+        <span class="dot"></span><span class="logo-text">Career<span class="pk">Z.pk</span></span>
+      </a>
+      <div class="dash-search-wrap">
+        <label class="dash-search" for="dash-search-input">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="6.5"/><path d="M20 20l-3.5-3.5"/></svg>
+          <input type="text" id="dash-search-input" placeholder="Search institutions, courses, jobs…" data-i18n-placeholder="search.placeholder" role="combobox" aria-expanded="false" aria-controls="dash-search-results" autocomplete="off">
+        </label>
+        <div class="dash-search-results" id="dash-search-results" role="listbox">
+          <div class="u-empty">
+            <div class="u-empty-ic">🔍</div>
+            <h4 data-i18n="search.emptyTitle">Start typing to search</h4>
+            <p data-i18n="search.emptyBody">Institutions, courses, jobs and scholarships will appear here.</p>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="dash-header-right">
+      <!-- Quick Actions (generic — real shortcuts differ per role, wired later) -->
+      <div style="position:relative;">
+        <button class="icon-btn" id="quick-actions-btn" aria-haspopup="true" aria-expanded="false" aria-label="Quick actions" data-i18n-aria="header.quickActions">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14M5 12h14"/></svg>
+        </button>
+        <div class="dash-user-menu" id="quick-actions-menu" role="menu" aria-label="Quick actions">
+          <div class="dash-role-note" data-i18n="header.quickActionsHint">Example shortcuts — final list is role-specific</div>
+          <a href="#" role="menuitem" data-i18n="quick.newApplication">New Application</a>
+          <a href="#" role="menuitem" data-i18n="quick.newMessage">New Message</a>
+          <a href="#" role="menuitem" data-i18n="quick.newSupportTicket">New Support Ticket</a>
+        </div>
+      </div>
+
+      <!-- Wallet Summary (UI placeholder only — no calculations, no backend.
+           Label/amount/currency come from data attributes so no dashboard
+           for any future role or currency is hardcoded here; Student sees
+           "Balance", Teacher will see "Salary", Institution "Revenue", Admin
+           "Platform Earnings" once wired to real data.) -->
+      <div class="dash-wallet-chip" id="wallet-chip"
+           data-wallet-label="Balance" data-wallet-amount="0" data-wallet-currency="—">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="6" width="18" height="13" rx="2"/><path d="M3 10h18"/><circle cx="16.5" cy="14.5" r="1"/></svg>
+        <span class="w-text">
+          <span class="w-label" data-i18n="wallet.label">Balance</span>
+          <span class="w-amount" id="wallet-amount">—</span>
+        </span>
+      </div>
+
+      <div class="lang-select-wrap" id="lang-select-wrap">
+        <button class="lang-select-btn" id="lang-select-btn" aria-label="Select language" aria-haspopup="listbox" aria-expanded="false">
+          <span class="globe">🌐</span><span class="lang-label" id="lang-label">EN</span><span style="font-size:10px; opacity:.6;">▾</span>
+        </button>
+        <div class="lang-dropdown" id="lang-dropdown" role="listbox" aria-label="Language options">
+          <button class="active" data-lang="en" data-label="EN"><span class="flag">🇬🇧</span> English</button>
+          <button data-lang="ur" data-label="اردو"><span class="flag">🇵🇰</span> اردو</button>
+          <button data-lang="ar" data-label="AR"><span class="flag">🇸🇦</span> Arabic</button>
+          <button data-lang="fr" data-label="FR"><span class="flag">🇫🇷</span> French</button>
+          <button data-lang="es" data-label="ES"><span class="flag">🇪🇸</span> Spanish</button>
+        </div>
+      </div>
+
+      <button class="icon-btn" id="theme-toggle" aria-label="Toggle dark mode" data-i18n-aria="header.themeToggle">☀️</button>
+
+      <div class="dash-icon-btn-wrap">
+        <button class="icon-btn" id="messages-btn" aria-label="Messages" data-i18n-aria="header.messages" data-modal-open="messages-modal">
+          <svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 5h16v11H8l-4 4z"/></svg>
+        </button>
+        <span class="dash-badge-dot"></span>
+      </div>
+
+      <div class="dash-icon-btn-wrap">
+        <button class="icon-btn" id="notif-bell" aria-label="Notifications" data-i18n-aria="header.notifications">
+          <svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M6 10a6 6 0 0 1 12 0c0 4 1.5 5.5 2 6H4c.5-.5 2-2 2-6z"/><path d="M10 20a2 2 0 0 0 4 0"/></svg>
+        </button>
+        <span class="dash-badge-dot"></span>
+      </div>
+
+      <div style="position:relative;">
+        <button class="dash-profile-btn" id="profile-btn" aria-haspopup="true" aria-expanded="false">
+          <span class="dash-avatar">A</span>
+          <span class="name">Ahmed Raza</span>
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg>
+        </button>
+        <div class="dash-user-menu" id="user-menu" role="menu">
+          <div class="dash-role-note">Signed in as <strong>General User</strong></div>
+          <a href="#" role="menuitem">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="3.4"/><path d="M5 20c0-3.5 3-6 7-6s7 2.5 7 6"/></svg>
+            <span data-i18n="nav.profile">My Profile</span>
+          </a>
+          <a href="#" role="menuitem">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19 12a7 7 0 0 0-.1-1.2l2-1.5-2-3.4-2.3.9a7 7 0 0 0-2-1.2L14 3h-4l-.5 2.6a7 7 0 0 0-2 1.2l-2.3-.9-2 3.4 2 1.5A7 7 0 0 0 5 12a7 7 0 0 0 .1 1.2l-2 1.5 2 3.4 2.3-.9c.6.5 1.3.9 2 1.2L10 21h4l.5-2.6a7 7 0 0 0 2-1.2l2.3.9 2-3.4-2-1.5c.1-.4.1-.8.1-1.2z"/></svg>
+            <span data-i18n="nav.settings">Settings</span>
+          </a>
+          <a href="#" role="menuitem">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M9.2 9.2a2.8 2.8 0 1 1 4.6 2.1c-.9.7-1.3 1.2-1.3 2.2"/><circle cx="12" cy="17" r=".6" fill="currentColor"/></svg>
+            <span data-i18n="nav.help">Help Center</span>
+          </a>
+          <hr>
+          <button type="button" data-logout role="menuitem">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M9 4H5a1 1 0 0 0-1 1v14a1 1 0 0 0 1 1h4"/><path d="M16 17l5-5-5-5"/><path d="M21 12H9"/></svg>
+            <span data-i18n="nav.logout">Logout</span>
+          </button>
+        </div>
+      </div>
+    </div>
+  </header>
+
+  <!-- ============ MAIN CONTENT ============ -->
+  <main class="dash-main">
+
+    <!-- Breadcrumb (framework component — see dashboard-framework.js
+         initBreadcrumb(); every future page just changes data-trail) -->
+    <nav class="dash-breadcrumb" id="dash-breadcrumb" data-trail='[{"label":"Dashboard"}]' aria-label="Breadcrumb"></nav>
+
+    <!-- Welcome Banner + Role Placeholder -->
+    <div class="dash-welcome reveal in">
+      <div class="dash-welcome-text">
+        <h1>Welcome back, Ahmed 👋 <span id="welcome-role-label" class="tag" style="vertical-align:middle; font-size:11px;">Student</span></h1>
+        <p>Here's what's happening across your CareerZ account today.</p>
+      </div>
+      <div class="dash-welcome-actions">
+        <label class="dash-role-select">
+          Viewing as
+          <select id="role-select" aria-label="Viewing as (demo only — does not change access)">
+            <option>Student</option>
+            <option>Parent</option>
+            <option>Teacher</option>
+            <option>Institution</option>
+            <option>Employer</option>
+            <option>Agent</option>
+            <option>Trainer</option>
+            <option>Donor</option>
+            <option>Admin</option>
+            <option>Owner</option>
+          </select>
+        </label>
+      </div>
+    </div>
+
+    <!-- Statistics Cards -->
+    <div class="dash-section-title">
+      <h2>Overview</h2>
+    </div>
+    <div class="grid g4">
+      <div class="card dash-stat-card reveal in">
+        <div class="top-row">
+          <div class="dash-stat-icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M7 3h7l4 4v14H7z"/><path d="M14 3v4h4"/></svg>
+          </div>
+          <span class="dash-stat-trend up">+2</span>
+        </div>
+        <div class="num">7</div>
+        <div class="label">Active Applications</div>
+      </div>
+      <div class="card dash-stat-card reveal in">
+        <div class="top-row">
+          <div class="dash-stat-icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 5.5c2-1 5-1 7 0v13c-2-1-5-1-7 0z"/><path d="M21 5.5c-2-1-5-1-7 0v13c2-1 5-1 7 0z"/></svg>
+          </div>
+          <span class="dash-stat-trend up">+1</span>
+        </div>
+        <div class="num">4</div>
+        <div class="label">Enrolled Courses</div>
+      </div>
+      <div class="card dash-stat-card reveal in">
+        <div class="top-row">
+          <div class="dash-stat-icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="9" r="5.2"/><path d="M8.5 13.5 7 21l5-2.6L17 21l-1.5-7.5"/></svg>
+          </div>
+          <span class="dash-stat-trend up">New</span>
+        </div>
+        <div class="num">2</div>
+        <div class="label">Scholarships Saved</div>
+      </div>
+      <div class="card dash-stat-card reveal in">
+        <div class="top-row">
+          <div class="dash-stat-icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="7.5" width="18" height="12" rx="1.5"/><path d="M8 7.5V5.5A2 2 0 0 1 10 3.5h4a2 2 0 0 1 2 2v2"/></svg>
+          </div>
+          <span class="dash-stat-trend down">-1</span>
+        </div>
+        <div class="num">3</div>
+        <div class="label">Saved Jobs</div>
+      </div>
+    </div>
+
+    <!-- Wallet (Universal Wallet Card — UI placeholder only, no
+         calculations, no backend. Balance figures below are static
+         demo numbers; formatCurrencyAmount() in dashboard-framework.js
+         is the single place a later phase swaps in real values.) -->
+    <div class="dash-section-title" id="sec-wallet">
+      <h2 data-i18n="wallet.title">Wallet</h2>
+    </div>
+    <div class="card u-wallet-card reveal in">
+      <div class="u-wallet-head">
+        <h4 data-i18n="wallet.title">Wallet</h4>
+        <select class="form-select u-wallet-currency-select" id="wallet-currency-select" aria-label="Preferred currency">
+          <option value="USD">USD — US Dollar</option>
+          <option value="EUR">EUR — Euro</option>
+          <option value="GBP">GBP — British Pound</option>
+          <option value="SAR">SAR — Saudi Riyal</option>
+          <option value="AED">AED — UAE Dirham</option>
+          <option value="PKR">PKR — Pakistani Rupee</option>
+          <option value="INR">INR — Indian Rupee</option>
+          <option value="TRY">TRY — Turkish Lira</option>
+          <option value="JPY">JPY — Japanese Yen</option>
+          <option value="CAD">CAD — Canadian Dollar</option>
+          <option value="AUD">AUD — Australian Dollar</option>
+          <option value="CNY">CNY — Chinese Yuan</option>
+        </select>
+      </div>
+      <div class="u-wallet-balances">
+        <div class="u-wallet-balance-item">
+          <span class="label" data-i18n="wallet.available">Available Balance</span>
+          <span class="amount" data-amount="42500">—</span>
+        </div>
+        <div class="u-wallet-balance-item pending">
+          <span class="label" data-i18n="wallet.pending">Pending Balance</span>
+          <span class="amount" data-amount="3200">—</span>
+        </div>
+      </div>
+      <div class="u-wallet-actions">
+        <button class="dash-quick-btn" type="button">
+          <span class="dash-mini-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14M5 12h14"/></svg></span>
+          <span class="txt" data-i18n="wallet.addFunds">Add Funds</span>
+        </button>
+        <button class="dash-quick-btn" type="button">
+          <span class="dash-mini-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 19V5M5 12l7-7 7 7"/></svg></span>
+          <span class="txt" data-i18n="wallet.withdraw">Withdraw</span>
+        </button>
+        <button class="dash-quick-btn" type="button">
+          <span class="dash-mini-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M7 7h10M7 12h10M7 17h6"/></svg></span>
+          <span class="txt" data-i18n="wallet.transfer">Transfer</span>
+        </button>
+      </div>
+      <div class="u-wallet-transactions-head">
+        <h5 data-i18n="wallet.recentTransactions">Recent Transactions</h5>
+      </div>
+      <div class="dash-list">
+        <div class="dash-list-item">
+          <span class="dash-list-icon c-emerald"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14M5 12h14"/></svg></span>
+          <div class="dash-list-body"><div class="title">Scholarship disbursement</div><div class="desc">NUST Merit Award</div></div>
+          <div class="dash-list-time">2d ago</div>
+        </div>
+        <div class="dash-list-item">
+          <span class="dash-list-icon c-gold"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M6 8h12l-1 12H7z"/></svg></span>
+          <div class="dash-list-body"><div class="title">Marketplace purchase</div><div class="desc">Past Papers Bundle</div></div>
+          <div class="dash-list-time">5d ago</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Academic Overview -->
+    <div class="dash-section-title" id="academic-overview">
+      <h2 data-i18n="section.academicOverview">Academic Overview</h2>
+    </div>
+    <div class="card reveal in" style="padding:24px;">
+      <div class="academic-grid" id="academic-overview-grid"></div>
+    </div>
+
+    <!-- My Classes — single central entry point for live + upcoming
+         classes (no separate "Live Video" / "Live Audio" sections;
+         the classroom provider is decided by data, never hard-coded
+         to a specific meeting service in this frontend). -->
+    <div class="dash-section-title" id="sec-classes">
+      <div><h2 data-i18n="section.classes">My Classes</h2><p class="section-sub" data-i18n="section.classesSub">Live and upcoming sessions across every institution and teacher you study with.</p></div>
+    </div>
+    <div id="current-class-slot" class="reveal in" style="margin-bottom:22px;"></div>
+    <h3 style="font-size:12.5px; color:var(--ink-soft); text-transform:uppercase; letter-spacing:.05em; margin-bottom:12px;" data-i18n="class.upcoming">Upcoming Classes</h3>
+    <div id="upcoming-classes-list"></div>
+
+    <!-- My Courses — each card opens its own centralized Resources
+         modal (Video/Audio/PDF/Docs together) instead of separate
+         Dashboard nav items per file type. -->
+    <div class="dash-section-title" id="sec-courses">
+      <div><h2 data-i18n="section.courses">My Courses</h2><p class="section-sub" data-i18n="section.coursesSub">Everything you are enrolled in, across every provider.</p></div>
+    </div>
+    <div class="grid g3" id="mycourses-grid"></div>
+
+    <!-- Assignments & Tests -->
+    <div class="dash-section-title" id="sec-assignments">
+      <h2 data-i18n="section.assignments">Assignments &amp; Tests</h2>
+    </div>
+    <div class="u-table-wrap" style="margin-bottom:8px;">
+      <table class="u-table">
+        <thead>
+          <tr><th>Title</th><th data-i18n="table.course">Course</th><th data-i18n="table.type">Type</th><th data-i18n="table.due">Due</th><th data-i18n="table.status">Status</th><th data-i18n="table.grade">Grade</th></tr>
+        </thead>
+        <tbody id="assignments-table-body"></tbody>
+      </table>
+    </div>
+
+    <!-- Certificates -->
+    <div class="dash-section-title" id="sec-certificates">
+      <h2 data-i18n="nav.certificates">Certificates</h2>
+    </div>
+    <div class="grid g3" id="certificates-grid"></div>
+
+    <!-- Applications — status summary reuses the same dash-status-grid
+         pattern as "Account & Listing Status" below, scoped here to
+         application submissions specifically (Institution/Scholarship/
+         Job/Course applications together, per spec). -->
+    <div class="dash-section-title" id="sec-applications">
+      <div><h2 data-i18n="section.applications">Applications</h2><p class="section-sub" data-i18n="section.applicationsSub">Institution, course, job and scholarship applications in one place.</p></div>
+    </div>
+    <div class="dash-status-grid" id="applications-status-grid" style="margin-bottom:20px;"></div>
+    <div class="u-table-wrap" style="margin-bottom:8px;">
+      <table class="u-table">
+        <thead>
+          <tr><th data-i18n="table.application">Application</th><th data-i18n="table.target">Applied To</th><th data-i18n="table.submitted">Submitted</th><th data-i18n="table.status">Status</th></tr>
+        </thead>
+        <tbody id="applications-table-body"></tbody>
+      </table>
+    </div>
+
+    <!-- Scholarships (browsing — distinct from the Applications
+         tracker above, which shows status of ones already submitted) -->
+    <div class="dash-section-title" id="sec-scholarships">
+      <h2 data-i18n="nav.scholarships">Scholarships</h2>
+    </div>
+    <div class="grid g3" id="scholarships-browse-grid"></div>
+
+    <!-- Jobs (browsing — same distinction as Scholarships above) -->
+    <div class="dash-section-title" id="sec-jobs">
+      <h2 data-i18n="nav.jobs">Jobs</h2>
+    </div>
+    <div class="grid g3" id="jobs-browse-grid"></div>
+
+    <!-- My Institutions — a Student may be enrolled with more than
+         one provider at once (primary institution + tuition center +
+         online academy, etc.); each card names its own provider. -->
+    <div class="dash-section-title" id="sec-institutions">
+      <div><h2 data-i18n="section.institutions">My Institutions</h2><p class="section-sub" data-i18n="section.institutionsSub">Every school, college, academy or teacher you are currently enrolled with.</p></div>
+    </div>
+    <div class="grid g3" id="my-institutions-grid"></div>
+
+    <!-- Find a Tutor — a separate marketplace from school/institution
+         enrollment above: a student can have any number of tutors at
+         once, independent of their primary school/college. -->
+    <div class="dash-section-title" id="sec-tutors">
+      <h2 data-i18n="tutor.findTutor">Find a Tutor</h2>
+    </div>
+    <div class="card reveal in" style="padding:18px 20px; margin-bottom:20px;">
+      <div style="display:flex; gap:12px; flex-wrap:wrap; align-items:center;">
+        <select class="form-select" id="tutor-filter-subject" style="max-width:200px; width:auto;"><option value="">All Subjects</option></select>
+        <select class="form-select" id="tutor-filter-mode" style="max-width:190px; width:auto;">
+          <option value="">Online or Offline</option>
+          <option value="online">Online</option>
+          <option value="offline">Offline</option>
+          <option value="both">Online + Offline</option>
+        </select>
+        <select class="form-select" id="tutor-filter-format" style="max-width:190px; width:auto;">
+          <option value="">Individual or Group</option>
+          <option value="individual">Individual</option>
+          <option value="group">Group</option>
+        </select>
+      </div>
+    </div>
+    <div class="grid g3" id="tutors-grid"></div>
+
+    <!-- My Tuition — status of tuition requests/relationships, kept
+         separate from the Applications tracker and from My Courses
+         (private tuition is not a school enrollment). -->
+    <div class="dash-section-title" id="sec-tuition">
+      <h2 data-i18n="tutor.myTuition">My Tuition</h2>
+    </div>
+    <div class="card reveal in" style="padding:8px 12px;">
+      <div class="dash-list" id="my-tuition-list"></div>
+    </div>
+
+    <!-- Marketplace — Student is both buyer and seller, so this is
+         two tabs on one section rather than two separate pages. -->
+    <div class="dash-section-title" id="sec-marketplace">
+      <h2 data-i18n="section.marketplace">Marketplace</h2>
+      <a href="#" data-i18n="market.createListing">Create Listing</a>
+    </div>
+    <div class="u-tabs" data-tabs>
+      <div class="u-tab-list" role="tablist">
+        <button class="u-tab-btn active" data-tab-target="market-purchases" role="tab" aria-selected="true" data-i18n="market.myOrders">My Orders</button>
+        <button class="u-tab-btn" data-tab-target="market-listings" role="tab" aria-selected="false" data-i18n="market.myListings">My Listings</button>
+      </div>
+      <div class="u-tab-panel active" data-tab-panel="market-purchases" role="tabpanel">
+        <div id="my-orders-list"></div>
+      </div>
+      <div class="u-tab-panel" data-tab-panel="market-listings" role="tabpanel">
+        <div class="grid g3" id="my-listings-grid"></div>
+      </div>
+    </div>
+
+    <!-- Status Overview -->
+    <div class="dash-section-title">
+      <h2>Account &amp; Listing Status</h2>
+      <a href="#">View all</a>
+    </div>
+    <div class="dash-status-grid">
+      <div class="card dash-status-card status-pending reveal in">
+        <span class="dash-status-dot"></span>
+        <div><div class="label">Pending Verification</div><div class="count">2 items</div></div>
+      </div>
+      <div class="card dash-status-card status-approved reveal in">
+        <span class="dash-status-dot"></span>
+        <div><div class="label">Approved</div><div class="count">6 items</div></div>
+      </div>
+      <div class="card dash-status-card status-rejected reveal in">
+        <span class="dash-status-dot"></span>
+        <div><div class="label">Rejected</div><div class="count">0 items</div></div>
+      </div>
+      <div class="card dash-status-card status-draft reveal in">
+        <span class="dash-status-dot"></span>
+        <div><div class="label">Draft</div><div class="count">1 item</div></div>
+      </div>
+      <div class="card dash-status-card status-suspended reveal in">
+        <span class="dash-status-dot"></span>
+        <div><div class="label">Suspended</div><div class="count">0 items</div></div>
+      </div>
+    </div>
+
+    <!-- Fees & Payments (CareerZ payment marked Recommended, never
+         claimed "secure"/"guaranteed" beyond what's implemented) -->
+    <div class="dash-section-title">
+      <h2>Fees &amp; Payments</h2>
+    </div>
+    <div class="card reveal in" style="padding:6px 20px;">
+      <div id="fees-list"></div>
+    </div>
+
+    <!-- Quick Actions -->
+    <div class="dash-section-title">
+      <h2>Quick Actions</h2>
+    </div>
+    <div class="dash-quick-actions">
+      <a href="#" class="dash-quick-btn reveal in">
+        <span class="dash-mini-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="3" width="14" height="18" rx="1"/><path d="M10 21v-4h4v4"/></svg></span>
+        <span class="txt">Apply for Institution</span>
+      </a>
+      <a href="#" class="dash-quick-btn reveal in">
+        <span class="dash-mini-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="3.4"/><path d="M5 20c0-3.5 3-6 7-6s7 2.5 7 6"/></svg></span>
+        <span class="txt">Become Teacher</span>
+      </a>
+      <a href="#" class="dash-quick-btn reveal in">
+        <span class="dash-mini-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="7.5" width="18" height="12" rx="1.5"/><path d="M8 7.5V5.5A2 2 0 0 1 10 3.5h4a2 2 0 0 1 2 2v2"/></svg></span>
+        <span class="txt">Become Employer</span>
+      </a>
+      <a href="#" class="dash-quick-btn reveal in">
+        <span class="dash-mini-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="8" r="3"/><circle cx="17" cy="9" r="2.6"/><path d="M3 20c0-3 2.5-5 6-5s6 2 6 5"/><path d="M15.5 15.2c2.5.4 4.5 2 4.5 4.8"/></svg></span>
+        <span class="txt">Become Agent</span>
+      </a>
+      <a href="#" class="dash-quick-btn reveal in">
+        <span class="dash-mini-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20s-7-4.35-7-9.5A4.5 4.5 0 0 1 12 7a4.5 4.5 0 0 1 7 3.5C19 15.65 12 20 12 20z"/></svg></span>
+        <span class="txt">Become Donor</span>
+      </a>
+      <a href="#" class="dash-quick-btn reveal in">
+        <span class="dash-mini-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 5.5c2-1 5-1 7 0v13c-2-1-5-1-7 0z"/><path d="M21 5.5c-2-1-5-1-7 0v13c2-1 5-1 7 0z"/><path d="M12 5.5v13"/></svg></span>
+        <span class="txt">Become Trainer</span>
+      </a>
+      <a href="#" class="dash-quick-btn reveal in">
+        <span class="dash-mini-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M6 8h12l-1 12H7z"/><path d="M9 8V6a3 3 0 0 1 6 0v2"/><path d="M12 12v4"/></svg></span>
+        <span class="txt">Create Marketplace Store</span>
+      </a>
+    </div>
+
+    <!-- Profile Completion + Calendar -->
+    <div class="grid g2" style="margin-top:32px;">
+      <div class="card reveal in" style="padding:24px;">
+        <h3 style="font-size:16px; margin-bottom:18px;">Profile Completion</h3>
+        <div class="dash-progress-ring-wrap">
+          <svg class="dash-progress-ring" width="96" height="96" viewBox="0 0 96 96">
+            <circle cx="48" cy="48" r="42" fill="none" stroke="var(--sand-line)" stroke-width="9"/>
+            <circle id="profile-ring-fg" data-percent="70" cx="48" cy="48" r="42" fill="none" stroke="var(--emerald)" stroke-width="9" stroke-linecap="round" transform="rotate(-90 48 48)"/>
+            <text x="48" y="53" text-anchor="middle" font-family="Fraunces, serif" font-size="18" font-weight="700" fill="var(--ink)">70%</text>
+          </svg>
+          <ul class="dash-progress-list">
+            <li class="ok"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg> Basic details added</li>
+            <li class="ok"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg> Email verified</li>
+            <li class="pending"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/></svg> Add profile photo</li>
+            <li class="pending"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/></svg> Complete academic history</li>
+          </ul>
+        </div>
+      </div>
+
+      <div class="card reveal in" id="sec-calendar" style="padding:24px;">
+        <div class="dash-calendar-head">
+          <strong id="calendar-label">—</strong>
+          <div class="dash-calendar-nav">
+            <button aria-label="Previous month"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 6l-6 6 6 6"/></svg></button>
+            <button aria-label="Next month"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6l6 6-6 6"/></svg></button>
+          </div>
+        </div>
+        <div class="dash-calendar-grid" id="calendar-grid"></div>
+      </div>
+    </div>
+
+    <!-- Recommended Courses / Saved Jobs / Scholarships -->
+    <div class="dash-section-title">
+      <h2>Recommended For You</h2>
+      <a href="#">View all</a>
+    </div>
+    <div class="grid g3">
+      <div class="card dash-mini-card reveal in">
+        <div class="mini-top">
+          <span class="dash-mini-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 5.5c2-1 5-1 7 0v13c-2-1-5-1-7 0z"/><path d="M21 5.5c-2-1-5-1-7 0v13c2-1 5-1 7 0z"/></svg></span>
+          <div><h4>Intro to Data Science</h4><div class="meta">CareerZ Academy · Self-paced</div></div>
+        </div>
+        <div class="bottom-row">
+          <span class="tag">Recommended</span>
+          <a href="#" class="link-muted" style="font-size:12.5px;">View course →</a>
+        </div>
+      </div>
+      <div class="card dash-mini-card reveal in">
+        <div class="mini-top">
+          <span class="dash-mini-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="7.5" width="18" height="12" rx="1.5"/><path d="M8 7.5V5.5A2 2 0 0 1 10 3.5h4a2 2 0 0 1 2 2v2"/></svg></span>
+          <div><h4>Junior Frontend Developer</h4><div class="meta">Systems Ltd · Remote</div></div>
+        </div>
+        <div class="bottom-row">
+          <span class="tag">Saved</span>
+          <a href="#" class="link-muted" style="font-size:12.5px;">View job →</a>
+        </div>
+      </div>
+      <div class="card dash-mini-card reveal in">
+        <div class="mini-top">
+          <span class="dash-mini-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="9" r="5.2"/><path d="M8.5 13.5 7 21l5-2.6L17 21l-1.5-7.5"/></svg></span>
+          <div><h4>National Need-Based Scholarship</h4><div class="meta">Closes in 18 days</div></div>
+        </div>
+        <div class="bottom-row">
+          <span class="dash-pill pending">Pending</span>
+          <a href="#" class="link-muted" style="font-size:12.5px;">View details →</a>
+        </div>
+      </div>
+    </div>
+
+    <!-- Recent Activity -->
+    <div class="dash-section-title">
+      <h2>Recent Activity</h2>
+      <a href="#">View all</a>
+    </div>
+    <div class="card reveal in" style="padding:8px 12px;">
+      <div class="dash-list">
+        <div class="dash-list-item unread">
+          <span class="dash-list-icon c-emerald"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg></span>
+          <div class="dash-list-body"><div class="title">Institution approved</div><div class="desc">Your application to FAST-NU was approved.</div></div>
+          <span class="dash-list-time">2h ago</span>
+        </div>
+        <div class="dash-list-item">
+          <span class="dash-list-icon c-forest"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M7 3h7l4 4v14H7z"/><path d="M14 3v4h4"/></svg></span>
+          <div class="dash-list-body"><div class="title">Application submitted</div><div class="desc">Scholarship application sent for review.</div></div>
+          <span class="dash-list-time">5h ago</span>
+        </div>
+        <div class="dash-list-item">
+          <span class="dash-list-icon c-gold"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 5.5c2-1 5-1 7 0v13c-2-1-5-1-7 0z"/><path d="M21 5.5c-2-1-5-1-7 0v13c2-1 5-1 7 0z"/></svg></span>
+          <div class="dash-list-body"><div class="title">Course enrolled</div><div class="desc">You enrolled in "Intro to Data Science".</div></div>
+          <span class="dash-list-time">1d ago</span>
+        </div>
+        <div class="dash-list-item">
+          <span class="dash-list-icon c-forest"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="7.5" width="18" height="12" rx="1.5"/><path d="M8 7.5V5.5A2 2 0 0 1 10 3.5h4a2 2 0 0 1 2 2v2"/></svg></span>
+          <div class="dash-list-body"><div class="title">Job application sent</div><div class="desc">Applied to Junior Frontend Developer at Systems Ltd.</div></div>
+          <span class="dash-list-time">2d ago</span>
+        </div>
+        <div class="dash-list-item">
+          <span class="dash-list-icon c-rose"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M6 8h12l-1 12H7z"/><path d="M9 8V6a3 3 0 0 1 6 0v2"/></svg></span>
+          <div class="dash-list-body"><div class="title">Marketplace order placed</div><div class="desc">Your order for "Past Papers Bundle" was placed.</div></div>
+          <span class="dash-list-time">3d ago</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Institution & Marketplace Updates -->
+    <div class="dash-section-title">
+      <h2>Institution &amp; Marketplace Updates</h2>
+    </div>
+    <div class="grid g2">
+      <div class="card reveal in" style="padding:22px;">
+        <h4 style="font-size:14.5px; margin-bottom:14px;">Institution Updates</h4>
+        <div class="dash-list">
+          <div class="dash-list-item">
+            <span class="dash-list-icon c-forest"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="3" width="14" height="18" rx="1"/></svg></span>
+            <div class="dash-list-body"><div class="title">Admissions open — Fall 2026</div><div class="desc">FAST-NU Lahore is now accepting applications.</div></div>
+          </div>
+          <div class="dash-list-item">
+            <span class="dash-list-icon c-emerald"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="3" width="14" height="18" rx="1"/></svg></span>
+            <div class="dash-list-body"><div class="title">New scholarship added</div><div class="desc">NUST added a new merit-based scholarship.</div></div>
+          </div>
+        </div>
+      </div>
+      <div class="card reveal in" style="padding:22px;">
+        <h4 style="font-size:14.5px; margin-bottom:14px;">Marketplace Updates</h4>
+        <div class="dash-list">
+          <div class="dash-list-item">
+            <span class="dash-list-icon c-gold"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M6 8h12l-1 12H7z"/></svg></span>
+            <div class="dash-list-body"><div class="title">Order shipped</div><div class="desc">Your "Past Papers Bundle" order has shipped.</div></div>
+          </div>
+          <div class="dash-list-item">
+            <span class="dash-list-icon c-rose"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M6 8h12l-1 12H7z"/></svg></span>
+            <div class="dash-list-body"><div class="title">New seller item</div><div class="desc">A seller you follow added new study notes.</div></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </main>
+
+  <!-- ============ RIGHT NOTIFICATION PANEL ============ -->
+  <aside class="dash-panel" id="dash-panel" aria-label="Notifications">
+    <div class="dash-panel-head">
+      <h3 data-i18n="header.notifications">Notifications</h3>
+      <span class="tag">6 new</span>
+    </div>
+
+    <div class="u-tabs" data-tabs>
+      <div class="u-tab-list" role="tablist">
+        <button class="u-tab-btn active" data-tab-target="notif-all" role="tab" aria-selected="true" data-i18n="notifications.allTab">All</button>
+        <button class="u-tab-btn" data-tab-target="notif-unread" role="tab" aria-selected="false" data-i18n="notifications.unreadTab">Unread</button>
+      </div>
+
+      <div class="u-tab-panel active" data-tab-panel="notif-all" role="tabpanel">
+        <div class="dash-list">
+        <div class="dash-list-item unread">
+          <span class="dash-list-icon c-emerald"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="3" width="14" height="18" rx="1"/></svg></span>
+          <div class="dash-list-body"><div class="title">Institution Approved</div><div class="desc">FAST-NU accepted your application.</div></div>
+        </div>
+        <div class="dash-list-item unread">
+          <span class="dash-list-icon c-forest"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M7 3h7l4 4v14H7z"/></svg></span>
+          <div class="dash-list-body"><div class="title">Application Submitted</div><div class="desc">Scholarship form sent for review.</div></div>
+        </div>
+        <div class="dash-list-item unread">
+          <span class="dash-list-icon c-gold"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 5.5c2-1 5-1 7 0v13c-2-1-5-1-7 0z"/></svg></span>
+          <div class="dash-list-body"><div class="title">Course Enrolled</div><div class="desc">"Intro to Data Science" added to My Courses.</div></div>
+        </div>
+        <div class="dash-list-item">
+          <span class="dash-list-icon c-forest"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="7.5" width="18" height="12" rx="1.5"/></svg></span>
+          <div class="dash-list-body"><div class="title">Job Application</div><div class="desc">Your application was viewed by the employer.</div></div>
+        </div>
+        <div class="dash-list-item">
+          <span class="dash-list-icon c-gold"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="9" r="5.2"/></svg></span>
+          <div class="dash-list-body"><div class="title">Scholarship Update</div><div class="desc">Deadline extended by 7 days.</div></div>
+        </div>
+        <div class="dash-list-item">
+          <span class="dash-list-icon c-rose"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M6 8h12l-1 12H7z"/></svg></span>
+          <div class="dash-list-body"><div class="title">Marketplace Order</div><div class="desc">Your order confirmation is ready.</div></div>
+        </div>
+        </div>
+      </div>
+
+      <div class="u-tab-panel" data-tab-panel="notif-unread" role="tabpanel">
+        <div class="dash-list">
+        <div class="dash-list-item unread">
+          <span class="dash-list-icon c-emerald"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="3" width="14" height="18" rx="1"/></svg></span>
+          <div class="dash-list-body"><div class="title">Institution Approved</div><div class="desc">FAST-NU accepted your application.</div></div>
+        </div>
+        <div class="dash-list-item unread">
+          <span class="dash-list-icon c-forest"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M7 3h7l4 4v14H7z"/></svg></span>
+          <div class="dash-list-body"><div class="title">Application Submitted</div><div class="desc">Scholarship form sent for review.</div></div>
+        </div>
+        <div class="dash-list-item unread">
+          <span class="dash-list-icon c-gold"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 5.5c2-1 5-1 7 0v13c-2-1-5-1-7 0z"/></svg></span>
+          <div class="dash-list-body"><div class="title">Course Enrolled</div><div class="desc">"Intro to Data Science" added to My Courses.</div></div>
+        </div>
+        </div>
+      </div>
+    </div>
+  </aside>
+
+  <!-- ============ FOOTER ============ -->
+  <footer class="dash-footer">
+    <span data-i18n="footer.rights">© 2026 CareerZ.pk — All rights reserved.</span>
+    <div class="dash-footer-links">
+      <a href="#" data-i18n="footer.help">Help Center</a>
+      <a href="#" data-i18n="footer.privacy">Privacy Policy</a>
+      <a href="#" data-i18n="footer.terms">Terms of Service</a>
+      <a href="../../index.html" data-i18n="footer.home">Back to Homepage</a>
+    </div>
+  </footer>
+
+</div>
+
+<!-- ============ MOBILE BOTTOM TAB BAR (framework component) ============ -->
+<nav class="dash-mobile-nav" aria-label="Mobile navigation">
+  <a href="index.html" class="active">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/></svg>
+    <span data-i18n="mobilenav.home">Home</span>
+  </a>
+  <button type="button" data-modal-open="mobile-search-modal">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="6.5"/><path d="M20 20l-3.5-3.5"/></svg>
+    <span data-i18n="mobilenav.search">Search</span>
+  </button>
+  <button type="button" id="mobile-notif-btn" aria-label="Notifications">
+    <span class="dot"></span>
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M6 10a6 6 0 0 1 12 0c0 4 1.5 5.5 2 6H4c.5-.5 2-2 2-6z"/><path d="M10 20a2 2 0 0 0 4 0"/></svg>
+    <span data-i18n="mobilenav.alerts">Alerts</span>
+  </button>
+  <button type="button" id="mobile-menu-btn" aria-label="Menu">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7h16M4 12h16M4 17h16"/></svg>
+    <span data-i18n="mobilenav.menu">Menu</span>
+  </button>
+  <a href="#">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="3.4"/><path d="M5 20c0-3.5 3-6 7-6s7 2.5 7 6"/></svg>
+    <span data-i18n="mobilenav.profile">Profile</span>
+  </a>
+</nav>
+
+<!-- ============ MESSAGES MODAL (fixes: Messages icon previously did nothing) ============ -->
+<!-- ============ MESSAGE CENTER (fixes: Messages icon previously did nothing;
+     now a reusable placeholder with Inbox/Unread tabs, unread counter,
+     loading state and empty state — see "Future Chat integration point"
+     note below for where real messaging plugs in) ============ -->
+<!-- ============ COURSE RESOURCES MODAL (centralized Video/Audio/PDF/
+     Docs viewer — no separate Dashboard nav items per file type) ============ -->
+<div class="u-modal-overlay" id="course-resources-modal">
+  <div class="u-modal" role="dialog" aria-modal="true" aria-labelledby="resources-modal-title">
+    <div class="u-modal-head">
+      <h3 id="resources-modal-title"><span data-i18n="course.viewResources">Resources</span> <span id="resources-modal-course-name"></span></h3>
+      <button class="u-modal-close" data-modal-close aria-label="Close">✕</button>
+    </div>
+    <div class="u-modal-body" id="resources-modal-body"></div>
+  </div>
+</div>
+
+<!-- ============ TUTOR REQUEST MODAL (reuses the existing modal + form
+     components — no second messaging/booking system) ============ -->
+<div class="u-modal-overlay" id="tutor-request-modal">
+  <div class="u-modal" role="dialog" aria-modal="true" aria-labelledby="tutor-request-title">
+    <div class="u-modal-head">
+      <h3 id="tutor-request-title">Request Tuition</h3>
+      <button class="u-modal-close" data-modal-close aria-label="Close">✕</button>
+    </div>
+    <div class="u-modal-body">
+      <div class="u-form">
+        <div class="form-group">
+          <label for="tutor-request-subject">Subject</label>
+          <select class="form-select" id="tutor-request-subject"></select>
+        </div>
+        <div class="u-form-row">
+          <div class="form-group">
+            <label for="tutor-request-mode">Preferred mode</label>
+            <select class="form-select" id="tutor-request-mode">
+              <option value="online">Online</option>
+              <option value="offline">Offline</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label for="tutor-request-schedule">Preferred schedule</label>
+            <input class="form-input" type="text" id="tutor-request-schedule" placeholder="e.g. Weekday evenings">
+          </div>
+        </div>
+        <div class="form-group">
+          <label class="form-check">
+            <input type="checkbox" id="tutor-request-trial">
+            <span>Request a trial lesson first</span>
+          </label>
+        </div>
+        <div class="form-group">
+          <label for="tutor-request-message">Message (optional)</label>
+          <textarea class="form-input" id="tutor-request-message" rows="3" placeholder="Ask a question or add context for the tutor…"></textarea>
+        </div>
+      </div>
+    </div>
+    <div class="u-modal-foot">
+      <button class="btn btn-outline" data-modal-close type="button">Cancel</button>
+      <button class="btn btn-primary" id="tutor-request-submit" type="button">Send Request</button>
+    </div>
+  </div>
+</div>
+
+<div class="u-modal-overlay" id="messages-modal">
+  <div class="u-modal" role="dialog" aria-modal="true" aria-labelledby="messages-modal-title">
+    <div class="u-modal-head">
+      <h3 id="messages-modal-title">
+        <span data-i18n="messages.title">Messages</span>
+        <span class="dash-nav-badge" id="messages-unread-count" style="margin-inline-start:8px;">5</span>
+      </h3>
+      <button class="u-modal-close" data-modal-close aria-label="Close">✕</button>
+    </div>
+    <div class="u-modal-body">
+      <div class="u-tabs" data-tabs>
+        <div class="u-tab-list" role="tablist">
+          <button class="u-tab-btn active" data-tab-target="messages-inbox" role="tab" aria-selected="true" data-i18n="messages.inboxTab">Inbox</button>
+          <button class="u-tab-btn" data-tab-target="messages-unread" role="tab" aria-selected="false" data-i18n="messages.unreadTab">Unread</button>
+        </div>
+
+        <!-- Inbox tab: loading-state demo, since there is no real message
+             feed yet. Future integration point: replace this skeleton
+             block with a real fetch + .dash-list of message rows in
+             fetchNotifications()-style function once a backend exists. -->
+        <div class="u-tab-panel active" data-tab-panel="messages-inbox" role="tabpanel">
+          <div class="u-skeleton u-skeleton-line w-80"></div>
+          <div class="u-skeleton u-skeleton-line w-60"></div>
+          <div class="u-skeleton u-skeleton-line w-40" style="margin-block-end:0;"></div>
+        </div>
+
+        <div class="u-tab-panel" data-tab-panel="messages-unread" role="tabpanel">
+          <div class="u-empty">
+            <div class="u-empty-ic">✉️</div>
+            <h4 data-i18n="messages.emptyTitle">No messages yet</h4>
+            <p data-i18n="messages.emptyBody">When institutions, employers or teachers message you, conversations will appear here.</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ============ MOBILE SEARCH MODAL (the header search box is hidden
+     below 980px — this replaces it so search is never unreachable) ============ -->
+<div class="u-modal-overlay" id="mobile-search-modal">
+  <div class="u-modal u-modal-sm" role="dialog" aria-modal="true" aria-labelledby="mobile-search-title">
+    <div class="u-modal-head">
+      <h3 id="mobile-search-title" data-i18n="search.title">Search</h3>
+      <button class="u-modal-close" data-modal-close aria-label="Close">✕</button>
+    </div>
+    <div class="u-modal-body">
+      <div class="dash-search-wrap">
+        <div class="dash-search" style="margin:0; width:100%;">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="6.5"/><path d="M20 20l-3.5-3.5"/></svg>
+          <input type="text" id="mobile-search-input" placeholder="Search institutions, courses, jobs…" data-i18n-placeholder="search.placeholder" role="combobox" aria-expanded="false" aria-controls="mobile-search-results" autocomplete="off">
+        </div>
+        <div class="dash-search-results" id="mobile-search-results" role="listbox" style="position:static; box-shadow:none; border:none; margin-block-start:8px;">
+          <div class="u-empty">
+            <div class="u-empty-ic">🔍</div>
+            <h4 data-i18n="search.emptyTitle">Start typing to search</h4>
+            <p data-i18n="search.emptyBody">Institutions, courses, jobs and scholarships will appear here.</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script src="../../assets/js/dashboard-framework.js"></script>
+<script src="dashboard.js"></script>
+</body>
+</html>

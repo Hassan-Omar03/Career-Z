@@ -1,0 +1,713 @@
+
+/* --- Added 2026-08-05 22:29:02 --- */
+/* =============================================================
+   CAREERZ AI — UNIVERSAL DASHBOARD FRAMEWORK
+   ---------------------------------------------------------------
+   This is the SHARED, REUSABLE base layout for every future
+   role-based dashboard (Super Admin, Institution Owner, Branch
+   Admin, Teacher, Student, Parent, Accountant, Librarian,
+   Receptionist, HR, Employee, AI Assistant, ...).
+
+   Scope of this file: STRUCTURE ONLY.
+     - Shell grid, Header, Sidebar (collapsible + nested menus),
+       Breadcrumb, Footer, Right Notification Panel
+     - Universal Card / Table / Form / Modal / Alert / Tabs primitives
+     - Loading / Empty / Error states
+     - Mobile navigation (drawer + bottom tab bar)
+
+   Refactoring-audit pass (v1.0): removed dead/redundant CSS (breadcrumb had
+   a no-op grid-area rule; sidebar-collapse button redeclared a
+   display value already inherited from .icon-btn), added the
+   previously-missing Alert and Tabs components, and an .u-sr-only
+   accessibility utility.
+
+   v1.1 refinement pass: added the previously-missing Wallet Summary
+   chip (UI placeholder, currency-agnostic — see component block),
+   a mobile-only header brand mark (header had zero branding once the
+   sidebar goes off-canvas), a Chart placeholder component, large-screen
+   content-width capping, and an RTL mirror for the sidebar-collapse
+   icon. No existing selector's behavior changed.
+
+   v1.2 refinement pass:
+     - Relocated .dash-list*, .dash-pill, .dash-mini-icon and
+       .dash-quick-btn here from dashboard.css: these are genuinely
+       role-agnostic patterns that framework-level components (Wallet
+       Card, Message Center, Notification panel) now depend on directly,
+       so they belong at this layer. Zero class-name or markup changes —
+       ownership relocation only.
+     - Wallet Summary upgraded into a full Universal Wallet Card
+       (Available/Pending balance, Quick Actions, transaction-list slot,
+       currency selector) — still UI-only, still no calculations.
+     - Added the Global Search results dropdown, a Calendar placeholder
+       component, and a mobile sidebar close button (previously only
+       closable via backdrop tap or Escape).
+     - Mobile header-icon crowding fix at very narrow widths.
+
+   NOT in scope here (kept in dashboard.css, page-specific):
+     - Welcome banner, stat cards content, quick actions grid,
+       calendar widget visuals, recommended/mini cards, activity
+       feed styling specific to the Student/General overview page.
+
+   All design tokens (colors, radii, shadows, fonts, spacing
+   scale) are inherited from assets/css/style.css. Nothing here
+   redefines --forest, --gold, --sand, etc.
+
+   RTL / LTR:
+     Every directional property in this file uses CSS LOGICAL
+     properties (inset-inline-*, margin-inline-*, padding-inline-*,
+     border-inline-*, text-align:start/end) instead of left/right,
+     so the entire framework mirrors correctly for Arabic and Urdu
+     (dir="rtl") with zero separate RTL stylesheet.
+================================================================= */
+
+/* =========================================================
+   SHELL LAYOUT
+========================================================= */
+.dash-body{background:var(--paper); color:var(--ink);}
+
+.dash-shell{
+  display:grid;
+  grid-template-columns:260px 1fr 320px;
+  grid-template-rows:var(--nav-h) 1fr auto;
+  grid-template-areas:
+    "sidebar header header"
+    "sidebar main   panel"
+    "sidebar footer footer";
+  min-height:100vh;
+  transition:grid-template-columns .25s ease;
+}
+/* Collapsed desktop sidebar (icon-only rail) */
+.dash-shell[data-sidebar-collapsed="true"]{
+  grid-template-columns:76px 1fr 320px;
+}
+@media(max-width:1200px){
+  .dash-shell{grid-template-columns:260px 1fr; grid-template-areas:"sidebar header" "sidebar main" "sidebar footer";}
+  .dash-shell[data-sidebar-collapsed="true"]{grid-template-columns:76px 1fr;}
+  .dash-panel{display:none;}
+}
+@media(max-width:980px){
+  .dash-shell, .dash-shell[data-sidebar-collapsed="true"]{grid-template-columns:1fr; grid-template-areas:"header" "main" "footer";}
+  .dash-sidebar{display:none;}
+  .dash-sidebar.dash-sidebar-open{display:flex;}
+}
+
+/* =========================================================
+   HEADER
+========================================================= */
+.dash-header{
+  grid-area:header;
+  position:sticky; inset-block-start:0; z-index:95;
+  display:flex; align-items:center; justify-content:space-between; gap:16px;
+  height:var(--nav-h); padding-inline:24px;
+  background:var(--paper); border-block-end:1px solid var(--sand-line);
+}
+.dash-header-left{display:flex; align-items:center; gap:14px; flex:1; min-width:0;}
+.dash-sidebar-toggle{display:none;}
+
+/* Header brand mark: the sidebar already carries the logo on desktop, so
+   this stays hidden there to avoid double branding. On mobile the sidebar
+   is off-canvas by default, which previously left the header with zero
+   CareerZ branding at all — this fills that gap. */
+.dash-header-brand{display:none; flex-shrink:0;}
+@media(max-width:980px){ .dash-header-brand{display:flex;} }
+@media(max-width:640px){ .dash-header-brand .logo-text{display:none;} } /* icon-only on very small screens */
+
+/* .dash-sidebar-collapse-btn already gets display:flex from the shared
+   .icon-btn class in style.css — only the mobile override is needed here. */
+@media(max-width:980px){ .dash-sidebar-collapse-btn{display:none;} }
+
+.dash-search{
+  display:flex; align-items:center; gap:10px; flex:1; max-width:440px;
+  background:var(--sand); border:1px solid var(--sand-line); border-radius:100px;
+  padding-block:9px; padding-inline:16px; transition:border-color .15s, box-shadow .15s;
+}
+.dash-search:focus-within{border-color:var(--emerald); box-shadow:0 0 0 3px rgba(27,138,99,.14);}
+.dash-search svg{width:17px; height:17px; color:var(--ink-soft); flex-shrink:0;}
+.dash-search input{
+  border:none; background:none; outline:none; font-family:inherit; font-size:13.5px;
+  color:var(--ink); width:100%; text-align:start;
+}
+.dash-search input::placeholder{color:var(--ink-soft); opacity:.75;}
+.dash-header-right{display:flex; align-items:center; gap:10px; flex-shrink:0;}
+
+.dash-icon-btn-wrap{position:relative;}
+.dash-badge-dot{
+  position:absolute; inset-block-start:4px; inset-inline-end:4px; width:8px; height:8px; border-radius:50%;
+  background:var(--rose); border:2px solid var(--paper);
+}
+
+.dash-profile-btn{
+  display:flex; align-items:center; gap:8px; padding-block:5px; padding-inline:5px 10px; border-radius:100px;
+  background:var(--sand); border:1px solid var(--sand-line); transition:background .2s;
+}
+.dash-avatar{
+  width:32px; height:32px; border-radius:50%; display:flex; align-items:center; justify-content:center;
+  background:var(--forest-deep); color:#fff; font-family:'Fraunces',serif; font-weight:700; font-size:14px;
+  flex-shrink:0;
+}
+.dash-profile-btn .name{font-size:13px; font-weight:600; color:var(--ink);}
+.dash-profile-btn svg{width:14px; height:14px; color:var(--ink-soft);}
+
+.dash-user-menu{
+  display:none; position:absolute; inset-block-start:calc(100% + 10px); inset-inline-end:24px; z-index:200;
+  background:var(--paper-raised); border:1px solid var(--sand-line); border-radius:var(--r-md);
+  box-shadow:var(--shadow-lg); min-width:220px; overflow:hidden; padding:8px;
+}
+.dash-user-menu.open{display:block;}
+.dash-user-menu a, .dash-user-menu button{
+  display:flex; align-items:center; gap:10px; width:100%; padding-block:10px; padding-inline:12px; border-radius:var(--r-sm);
+  font-size:13.5px; color:var(--ink); text-align:start; transition:background .15s;
+}
+.dash-user-menu svg{width:16px; height:16px; color:var(--ink-soft); flex-shrink:0;}
+.dash-user-menu hr{border:none; border-block-start:1px solid var(--sand-line); margin:6px 4px;}
+.dash-role-note{font-size:11.5px; color:var(--ink-soft); padding-block:8px 2px; padding-inline:12px;}
+
+/* style.css (shared with the homepage/auth pages, out of this framework's
+   scope) hides .lang-select-wrap entirely below 560px for the marketing
+   nav. The dashboard needs language switching reachable at every width —
+   this scoped override (a two-class selector beats style.css's bare
+   .lang-select-wrap on specificity, so no !important is needed) keeps it
+   visible and shrinks it to an icon-only control instead of removing the
+   feature. */
+.dash-header .lang-select-wrap{display:flex;}
+@media(max-width:480px){
+  .dash-header .lang-select-btn .lang-label{display:none;}
+  .dash-header .lang-select-btn{padding-inline:9px;}
+}
+
+/* The quick-actions trigger sits near the START of the header, not the end
+   like the profile menu — .dash-user-menu's inset-inline-end:24px is tuned
+   for the profile button being the last header item, so it would misplace
+   here. Anchor this one to its own trigger's start edge instead. */
+#quick-actions-menu{inset-inline-end:auto; inset-inline-start:0; min-width:200px;}
+
+/* =========================================================
+   WALLET SUMMARY (header) — UI placeholder only.
+   No calculations, no backend, no hardcoded currency: label,
+   amount and currency all come from data-wallet-* attributes so
+   Student/Teacher/Institution/Admin dashboards can each show their
+   own label ("Balance" / "Salary" / "Revenue" / "Platform Earnings")
+   and any currency once wired to real data in a later phase.
+========================================================= */
+.dash-wallet-chip{
+  display:flex; align-items:center; gap:8px; padding:7px 13px; border-radius:100px;
+  background:var(--sand); border:1px solid var(--sand-line); color:var(--ink); flex-shrink:0;
+}
+.dash-wallet-chip svg{width:17px; height:17px; color:var(--forest); flex-shrink:0;}
+.dash-wallet-chip .w-text{display:flex; flex-direction:column; line-height:1.2;}
+.dash-wallet-chip .w-label{font-size:10.5px; color:var(--ink-soft); font-weight:600; text-transform:uppercase; letter-spacing:.04em;}
+.dash-wallet-chip .w-amount{font-family:'JetBrains Mono',monospace; font-size:13px; font-weight:700; color:var(--ink);}
+@media(max-width:900px){ .dash-wallet-chip .w-label{display:none;} }
+@media(max-width:640px){ .dash-wallet-chip{display:none;} } /* header is tight on mobile; wallet still reachable from the sidebar */
+
+/* =========================================================
+   ACTIVITY / NOTIFICATION / MESSAGE LIST ITEMS
+   Relocated here from dashboard.css in the v1.2 pass: this pattern
+   is genuinely role-agnostic (activity feed, notification panel,
+   Message Center inbox all use it) and framework-level components
+   now depend on it directly, so it belongs at this layer. No class
+   name or markup contract changed.
+========================================================= */
+.dash-list{display:flex; flex-direction:column; gap:4px;}
+.dash-list-item{
+  display:flex; align-items:flex-start; gap:12px; padding:13px 10px; border-radius:var(--r-md);
+  transition:background .15s;
+}
+.dash-list-icon{
+  width:36px; height:36px; border-radius:10px; display:flex; align-items:center; justify-content:center;
+  flex-shrink:0; color:#fff;
+}
+.dash-list-icon svg{width:17px; height:17px;}
+.dash-list-icon.c-emerald{background:var(--emerald);}
+.dash-list-icon.c-gold{background:var(--gold);}
+.dash-list-icon.c-forest{background:var(--forest);}
+.dash-list-icon.c-rose{background:var(--rose);}
+.dash-list-body{flex:1; min-width:0;}
+.dash-list-body .title{font-size:13.5px; font-weight:600; color:var(--ink);}
+.dash-list-body .desc{font-size:12.5px; color:var(--ink-soft); margin-block-start:2px;}
+.dash-list-time{font-size:11.5px; color:var(--ink-soft); white-space:nowrap; flex-shrink:0; margin-block-start:2px;}
+.dash-list-item.unread{background:rgba(27,138,99,0.06);}
+.dash-list-item.unread .dash-list-body .title::after{
+  content:''; display:inline-block; width:6px; height:6px; border-radius:50%; background:var(--emerald);
+  margin-inline-start:8px; vertical-align:middle;
+}
+
+/* =========================================================
+   STATUS BADGE (relocated from dashboard.css — same reasoning:
+   application/order/institution status is a framework-wide concept)
+========================================================= */
+.dash-pill{
+  display:inline-flex; align-items:center; gap:6px; font-size:11.5px; font-weight:700;
+  padding:4px 10px; border-radius:100px; font-family:'JetBrains Mono',monospace;
+}
+.dash-pill.pending{background:var(--gold-soft); color:var(--forest-deep);}
+.dash-pill.approved{background:rgba(27,138,99,0.14); color:var(--emerald);}
+.dash-pill.rejected{background:rgba(199,92,77,0.14); color:var(--rose);}
+.dash-pill.draft{background:var(--sand-line); color:var(--ink-soft);}
+.dash-pill.suspended{background:var(--forest-deep); color:#fff;}
+
+/* =========================================================
+   ICON-LABELLED ACTION BUTTON (relocated from dashboard.css — used
+   by both the page's "Quick Actions" grid and the Wallet Card below)
+========================================================= */
+.dash-mini-icon{
+  width:40px; height:40px; border-radius:12px; background:var(--sand); color:var(--forest);
+  display:flex; align-items:center; justify-content:center; flex-shrink:0;
+}
+.dash-mini-icon svg{width:19px; height:19px;}
+.dash-quick-btn{
+  display:flex; align-items:center; gap:12px; padding:16px; border-radius:var(--r-lg);
+  border:1px solid var(--sand-line); background:var(--paper-raised); transition:transform .2s, box-shadow .2s, border-color .2s;
+}
+.dash-quick-btn:hover{transform:translateY(-3px); box-shadow:var(--shadow-md);}
+.dash-quick-btn .dash-mini-icon{background:var(--sand);}
+.dash-quick-btn span.txt{font-size:13.5px; font-weight:600; color:var(--ink);}
+
+/* =========================================================
+   UNIVERSAL WALLET CARD — UI placeholder only, no calculations,
+   no backend. Available/Pending balances, the transaction list and
+   the currency selector all render from data attributes / markup
+   so a future role plugs in real numbers without touching this CSS.
+   Usage: see initWalletFramework() in dashboard-framework.js.
+========================================================= */
+.u-wallet-card{padding:24px;}
+.u-wallet-head{display:flex; align-items:center; justify-content:space-between; gap:12px; margin-block-end:18px; flex-wrap:wrap;}
+.u-wallet-head h4{font-size:16px;}
+.u-wallet-currency-select{width:auto; padding:8px 30px 8px 12px; font-size:12.5px;}
+.u-wallet-balances{display:grid; grid-template-columns:1fr 1fr; gap:14px; margin-block-end:20px;}
+@media(max-width:560px){.u-wallet-balances{grid-template-columns:1fr;}}
+.u-wallet-balance-item{padding:16px; border-radius:var(--r-md); background:var(--sand);}
+.u-wallet-balance-item .label{font-size:12px; color:var(--ink-soft); font-weight:600;}
+.u-wallet-balance-item .amount{display:block; font-family:'Fraunces',serif; font-size:22px; font-weight:600; color:var(--ink); margin-block-start:6px;}
+.u-wallet-balance-item.pending{background:var(--gold-soft);}
+.u-wallet-balance-item.pending .amount{color:var(--forest-deep);}
+.u-wallet-actions{display:grid; grid-template-columns:repeat(3,1fr); gap:10px; margin-block-end:22px;}
+@media(max-width:560px){.u-wallet-actions{grid-template-columns:1fr;}}
+.u-wallet-actions .dash-quick-btn{padding:12px;}
+.u-wallet-actions .dash-mini-icon{width:34px; height:34px;}
+.u-wallet-actions .dash-mini-icon svg{width:16px; height:16px;}
+.u-wallet-transactions-head{display:flex; align-items:center; justify-content:space-between; margin-block-end:8px;}
+.u-wallet-transactions-head h5{font-size:13.5px; color:var(--ink-soft); font-weight:700; text-transform:uppercase; letter-spacing:.04em;}
+
+/* =========================================================
+   GLOBAL SEARCH — results/status dropdown
+   Attaches below any .dash-search input (desktop header search or
+   the mobile search modal's input). UI only: shows a prompt/empty
+   state until a real search backend exists. See performSearch() in
+   dashboard-framework.js for the documented future integration point.
+========================================================= */
+.dash-search-wrap{position:relative; flex:1;}
+.dash-search-results{
+  display:none; position:absolute; inset-inline-start:0; inset-inline-end:0; inset-block-start:calc(100% + 8px);
+  z-index:120; background:var(--paper-raised); border:1px solid var(--sand-line); border-radius:var(--r-md);
+  box-shadow:var(--shadow-lg); max-height:320px; overflow-y:auto; padding:6px;
+}
+.dash-search-results.open{display:block;}
+.dash-search-results .u-empty{padding:28px 16px;}
+.dash-search-results .u-empty .u-empty-ic{width:44px; height:44px; font-size:18px;}
+
+/* =========================================================
+   CALENDAR PLACEHOLDER (framework-level container only — the fully
+   functional date-computing calendar on the Student overview page
+   stays in dashboard.js/.css since date math is page content, not
+   shell structure. Future role dashboards that just need an empty,
+   correctly-sized calendar slot can use this instead.)
+========================================================= */
+.u-calendar-placeholder{
+  min-height:220px; border-radius:var(--r-md); background:var(--sand); border:1px dashed var(--sand-line);
+  display:flex; align-items:center; justify-content:center; color:var(--ink-soft); font-size:13px; text-align:center; padding:16px;
+}
+
+/* =========================================================
+   BREADCRUMB
+========================================================= */
+.dash-breadcrumb{
+  display:flex; align-items:center; flex-wrap:wrap; gap:6px; margin-block-end:20px;
+  font-size:12.5px; color:var(--ink-soft);
+}
+.dash-breadcrumb a{color:var(--ink-soft); font-weight:500; transition:color .15s;}
+.dash-breadcrumb .sep{opacity:.5;}
+.dash-breadcrumb .current{color:var(--ink); font-weight:600;}
+
+/* =========================================================
+   SIDEBAR (collapsible + nested menus)
+========================================================= */
+.dash-sidebar{
+  grid-area:sidebar; position:sticky; inset-block-start:0; height:100vh; z-index:90;
+  display:flex; flex-direction:column; background:var(--paper-raised);
+  border-inline-end:1px solid var(--sand-line); padding:20px 14px;
+  transition:padding .2s ease;
+}
+.dash-sidebar-brand{display:flex; align-items:center; justify-content:space-between; gap:10px; padding-inline:8px; padding-block-end:24px; flex-shrink:0;}
+
+/* Mobile-only explicit close control for the off-canvas sidebar drawer —
+   previously only closable via the backdrop, re-tapping the hamburger, or
+   Escape, none of which is visually obvious once the drawer is open. */
+.dash-sidebar-close-btn{display:none;}
+@media(max-width:980px){ .dash-sidebar-close-btn{display:flex;} }
+.dash-sidebar-nav{flex:1; overflow-y:auto; display:flex; flex-direction:column; gap:2px;}
+
+.dash-nav-link{
+  display:flex; align-items:center; gap:12px; padding-block:11px; padding-inline:12px; border-radius:var(--r-md);
+  font-size:13.5px; font-weight:500; color:var(--ink-soft); transition:background .18s, color .18s;
+  width:100%; text-align:start;
+}
+.dash-nav-link svg{width:19px; height:19px; flex-shrink:0;}
+.dash-nav-link.active{background:var(--forest); color:#fff; font-weight:600;}
+.dash-nav-link .dash-nav-badge{
+  margin-inline-start:auto; font-size:10.5px; font-family:'JetBrains Mono',monospace; padding:2px 7px;
+  border-radius:100px; background:var(--gold-soft); color:var(--forest-deep); font-weight:700;
+}
+.dash-nav-link.active .dash-nav-badge{background:rgba(255,255,255,.22); color:#fff;}
+.dash-sidebar-divider{height:1px; background:var(--sand-line); margin-block:14px; margin-inline:8px;}
+.dash-sidebar-foot{flex-shrink:0; padding-block-start:10px;}
+
+/* Nested / grouped menu (role-ready: any role can nest submenus) */
+.dash-nav-group{display:flex; flex-direction:column;}
+.dash-nav-group-toggle{
+  display:flex; align-items:center; gap:12px; width:100%; padding-block:11px; padding-inline:12px;
+  border-radius:var(--r-md); font-size:13.5px; font-weight:500; color:var(--ink-soft); text-align:start;
+  transition:background .18s, color .18s;
+}
+.dash-nav-group-toggle svg.chev{width:14px; height:14px; margin-inline-start:auto; flex-shrink:0; transition:transform .2s ease;}
+.dash-nav-group[data-open="true"] .dash-nav-group-toggle svg.chev{transform:rotate(90deg);}
+.dash-nav-submenu{
+  display:grid; grid-template-rows:0fr; overflow:hidden; transition:grid-template-rows .22s ease;
+  padding-inline-start:14px;
+}
+.dash-nav-submenu > div{overflow:hidden;}
+.dash-nav-group[data-open="true"] .dash-nav-submenu{grid-template-rows:1fr;}
+.dash-nav-submenu .dash-nav-link{font-size:13px; padding-block:9px;}
+.dash-nav-submenu .dash-nav-link::before{
+  content:''; width:5px; height:5px; border-radius:50%; background:var(--sand-line); flex-shrink:0;
+}
+.dash-nav-submenu .dash-nav-link.active::before{background:#fff;}
+
+/* Collapsed sidebar: icon-only rail */
+[dir="rtl"] .dash-sidebar-collapse-btn svg{transform:scaleX(-1);}
+.dash-shell[data-sidebar-collapsed="true"] .dash-sidebar{padding-inline:10px;}
+.dash-shell[data-sidebar-collapsed="true"] .dash-sidebar-brand .logo-text,
+.dash-shell[data-sidebar-collapsed="true"] .dash-nav-link span:not(.dash-nav-badge),
+.dash-shell[data-sidebar-collapsed="true"] .dash-nav-group-toggle span:not(.chev),
+.dash-shell[data-sidebar-collapsed="true"] .dash-nav-submenu,
+.dash-shell[data-sidebar-collapsed="true"] .dash-nav-group-toggle svg.chev{display:none;}
+.dash-shell[data-sidebar-collapsed="true"] .dash-nav-link,
+.dash-shell[data-sidebar-collapsed="true"] .dash-nav-group-toggle{justify-content:center; padding-inline:0;}
+.dash-shell[data-sidebar-collapsed="true"] .dash-nav-link .dash-nav-badge{display:none;}
+
+/* =========================================================
+   MAIN CONTENT
+========================================================= */
+.dash-main{grid-area:main; padding:28px; min-width:0;}
+@media(min-width:1760px){
+  /* Large screens: keep line-length readable instead of stretching cards
+     edge-to-edge across an ultra-wide viewport. Padding trick avoids
+     needing a new inner wrapper element in every dashboard page. */
+  .dash-main{padding-inline:max(28px, calc((100% - 1500px) / 2));}
+}
+.dash-panel{
+  grid-area:panel; border-inline-start:1px solid var(--sand-line); background:var(--paper-raised);
+  padding:24px 20px; overflow-y:auto; height:100vh; position:sticky; inset-block-start:0;
+}
+.dash-panel-head{display:flex; align-items:center; justify-content:space-between; margin-block-end:18px; gap:10px;}
+.dash-panel-head h3{font-size:16px; flex:1;}
+.dash-panel-close-btn{display:none; flex-shrink:0;}
+@media(max-width:1200px){ .dash-panel-close-btn{display:flex;} }
+
+.dash-section-title{display:flex; align-items:center; justify-content:space-between; margin-block:32px 16px;}
+.dash-section-title:first-child{margin-block-start:0;}
+.dash-section-title h2{font-size:19px;}
+.dash-section-title a{font-size:13px; font-weight:600; color:var(--forest);}
+.dash-section-title a:hover{text-decoration:underline;}
+
+/* =========================================================
+   FOOTER
+========================================================= */
+.dash-footer{
+  grid-area:footer; border-block-start:1px solid var(--sand-line); background:var(--paper);
+  padding:18px 28px; display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:10px;
+  font-size:12.5px; color:var(--ink-soft);
+}
+.dash-footer a{color:var(--ink-soft); font-weight:600;}
+.dash-footer-links{display:flex; gap:16px; flex-wrap:wrap;}
+
+/* =========================================================
+   UNIVERSAL TABLE
+========================================================= */
+.u-table-wrap{
+  background:var(--paper-raised); border:1px solid var(--sand-line); border-radius:var(--r-lg);
+  overflow-x:auto; box-shadow:var(--shadow-sm);
+}
+table.u-table{width:100%; border-collapse:collapse; font-size:13.5px; min-width:560px;}
+table.u-table thead th{
+  text-align:start; font-size:11.5px; text-transform:uppercase; letter-spacing:.05em; font-weight:700;
+  color:var(--ink-soft); background:var(--sand); padding:14px 16px; position:sticky; inset-block-start:0;
+  white-space:nowrap;
+}
+table.u-table thead th.sortable{cursor:pointer; user-select:none;}
+table.u-table thead th.sortable .sort-ic{margin-inline-start:5px; opacity:.5; font-size:10px;}
+table.u-table tbody td{padding:14px 16px; border-block-start:1px solid var(--sand-line); color:var(--ink); vertical-align:middle;}
+table.u-table tbody tr{transition:background .15s;}
+table.u-table tbody tr.is-selected{background:rgba(27,138,99,0.08);}
+.u-table-checkbox{accent-color:var(--forest); width:16px; height:16px;}
+
+.u-table-toolbar{display:flex; align-items:center; justify-content:space-between; gap:14px; flex-wrap:wrap; margin-block-end:14px;}
+.u-pagination{display:flex; align-items:center; justify-content:space-between; gap:14px; flex-wrap:wrap; padding:14px 16px; border-block-start:1px solid var(--sand-line); font-size:12.5px; color:var(--ink-soft);}
+.u-pagination-btns{display:flex; gap:6px;}
+.u-pagination-btns button{
+  width:30px; height:30px; border-radius:8px; background:var(--sand); border:1px solid var(--sand-line);
+  color:var(--ink); font-size:12.5px; font-weight:600;
+}
+.u-pagination-btns button.active{background:var(--forest); color:#fff; border-color:var(--forest);}
+.u-pagination-btns button:disabled{opacity:.45; pointer-events:none;}
+
+/* =========================================================
+   UNIVERSAL FORM (wraps existing auth-module form primitives
+   from assets/css/1-auth-styles.css so dashboards, modals and
+   drawers share the exact same inputs / selects / checks)
+========================================================= */
+.u-form{display:flex; flex-direction:column; gap:18px;}
+.u-form-row{display:grid; grid-template-columns:1fr 1fr; gap:14px;}
+@media(max-width:560px){.u-form-row{grid-template-columns:1fr;}}
+.u-form-actions{display:flex; justify-content:flex-end; gap:10px; padding-block-start:6px; flex-wrap:wrap;}
+.u-form-actions.split{justify-content:space-between;}
+
+/* =========================================================
+   UNIVERSAL MODAL
+========================================================= */
+.u-modal-overlay{
+  display:none; position:fixed; inset:0; z-index:300; background:rgba(11,20,16,.5);
+  align-items:center; justify-content:center; padding:20px;
+}
+.u-modal-overlay.open{display:flex;}
+.u-modal{
+  width:100%; max-width:520px; max-height:88vh; overflow-y:auto;
+  background:var(--paper-raised); border-radius:var(--r-xl); box-shadow:var(--shadow-lg);
+  border:1px solid var(--sand-line); animation:uModalIn .2s ease;
+}
+.u-modal.u-modal-lg{max-width:760px;}
+.u-modal.u-modal-sm{max-width:400px;}
+@keyframes uModalIn{from{opacity:0; transform:translateY(12px) scale(.98);} to{opacity:1; transform:translateY(0) scale(1);}}
+.u-modal-head{display:flex; align-items:center; justify-content:space-between; gap:14px; padding:20px 24px; border-block-end:1px solid var(--sand-line);}
+.u-modal-head h3{font-size:17px;}
+.u-modal-close{
+  width:32px; height:32px; border-radius:50%; display:flex; align-items:center; justify-content:center;
+  background:var(--sand); color:var(--ink); flex-shrink:0; font-size:15px;
+}
+.u-modal-body{padding:24px;}
+.u-modal-foot{display:flex; justify-content:flex-end; gap:10px; padding:18px 24px; border-block-start:1px solid var(--sand-line); flex-wrap:wrap;}
+
+/* =========================================================
+   UNIVERSAL ALERT
+   Usage: <div class="u-alert success"><span class="u-alert-ic">✓</span>
+   <div class="u-alert-body"><strong>Title</strong><p>Message</p></div>
+   <button class="u-alert-close" data-alert-close>✕</button></div>
+   Variants: info (default) | success | warning | error
+========================================================= */
+.u-alert{
+  display:flex; align-items:flex-start; gap:12px; padding:14px 16px; border-radius:var(--r-md);
+  border:1px solid var(--sand-line); background:var(--sand); font-size:13.5px; color:var(--ink);
+}
+.u-alert-ic{width:22px; height:22px; border-radius:50%; display:flex; align-items:center; justify-content:center; flex-shrink:0; font-size:12px; font-weight:700; color:#fff; background:var(--forest);}
+.u-alert-body{flex:1; min-width:0;}
+.u-alert-body strong{display:block; margin-block-end:2px;}
+.u-alert-body p{color:var(--ink-soft); font-size:13px;}
+.u-alert-close{flex-shrink:0; width:22px; height:22px; border-radius:50%; display:flex; align-items:center; justify-content:center; color:var(--ink-soft); font-size:12px;}
+.u-alert.success{background:rgba(27,138,99,.08); border-color:rgba(27,138,99,.3);}
+.u-alert.success .u-alert-ic{background:var(--emerald);}
+.u-alert.warning{background:rgba(227,162,60,.1); border-color:rgba(227,162,60,.35);}
+.u-alert.warning .u-alert-ic{background:var(--gold); color:var(--forest-deep);}
+.u-alert.error{background:rgba(199,92,77,.08); border-color:rgba(199,92,77,.3);}
+.u-alert.error .u-alert-ic{background:var(--rose);}
+
+/* =========================================================
+   UNIVERSAL TABS
+   Usage: <div class="u-tabs" data-tabs>
+     <div class="u-tab-list" role="tablist">
+       <button class="u-tab-btn active" data-tab-target="panel-a" role="tab">A</button>
+       <button class="u-tab-btn" data-tab-target="panel-b" role="tab">B</button>
+     </div>
+     <div class="u-tab-panel active" data-tab-panel="panel-a" role="tabpanel">...</div>
+     <div class="u-tab-panel" data-tab-panel="panel-b" role="tabpanel">...</div>
+   </div>
+   Multiple independent .u-tabs groups can coexist on one page.
+========================================================= */
+.u-tab-list{display:flex; gap:6px; flex-wrap:wrap; border-block-end:1px solid var(--sand-line); margin-block-end:20px;}
+.u-tab-btn{
+  padding:11px 16px; font-size:13.5px; font-weight:600; color:var(--ink-soft);
+  border-block-end:2px solid transparent; margin-block-end:-1px; transition:color .15s, border-color .15s;
+}
+.u-tab-btn.active{color:var(--forest); border-block-end-color:var(--forest);}
+.u-tab-panel{display:none;}
+.u-tab-panel.active{display:block;}
+
+/* =========================================================
+   ACCESSIBILITY UTILITIES
+========================================================= */
+.u-sr-only{
+  position:absolute; width:1px; height:1px; padding:0; margin:-1px; overflow:hidden;
+  clip:rect(0,0,0,0); white-space:nowrap; border:0;
+}
+
+/* =========================================================
+   UNIVERSAL CHART PLACEHOLDER
+   No charting library is part of this stack (vanilla JS only),
+   so this is a styled, correctly-sized container ready to receive
+   an <svg>/<canvas> chart in a later phase. Usage:
+   <div class="u-chart-card"><div class="u-chart-head">...</div>
+     <div class="u-chart-placeholder">Chart renders here</div></div>
+========================================================= */
+.u-chart-card{padding:22px;}
+.u-chart-head{display:flex; align-items:center; justify-content:space-between; margin-block-end:16px;}
+.u-chart-head h4{font-size:15px;}
+.u-chart-placeholder{
+  height:220px; border-radius:var(--r-md); background:var(--sand); border:1px dashed var(--sand-line);
+  display:flex; align-items:center; justify-content:center; color:var(--ink-soft); font-size:13px;
+}
+
+/* =========================================================
+   LOADING STATE (skeleton shimmer)
+========================================================= */
+.u-skeleton{
+  background:linear-gradient(90deg, var(--sand) 25%, var(--sand-line) 37%, var(--sand) 63%);
+  background-size:400% 100%; animation:uShimmer 1.4s ease infinite; border-radius:var(--r-sm);
+}
+@keyframes uShimmer{0%{background-position:100% 0;} 100%{background-position:0 0;}}
+.u-skeleton-line{height:14px; margin-block-end:10px;}
+.u-skeleton-line.w-60{width:60%;} .u-skeleton-line.w-80{width:80%;} .u-skeleton-line.w-40{width:40%;}
+.u-skeleton-card{height:120px; border-radius:var(--r-lg);}
+.u-skeleton-avatar{width:44px; height:44px; border-radius:50%;}
+
+/* =========================================================
+   EMPTY STATE
+========================================================= */
+.u-empty{
+  display:flex; flex-direction:column; align-items:center; text-align:center; gap:10px;
+  padding:56px 24px; color:var(--ink-soft);
+}
+.u-empty .u-empty-ic{
+  width:64px; height:64px; border-radius:50%; background:var(--sand); display:flex; align-items:center;
+  justify-content:center; font-size:26px; color:var(--forest); margin-block-end:6px;
+}
+.u-empty h4{font-size:16px; color:var(--ink);}
+.u-empty p{font-size:13.5px; max-width:360px;}
+
+/* =========================================================
+   ERROR STATE
+========================================================= */
+.u-error-state{
+  display:flex; flex-direction:column; align-items:center; text-align:center; gap:10px;
+  padding:56px 24px; color:var(--ink-soft);
+}
+.u-error-state .u-error-ic{
+  width:64px; height:64px; border-radius:50%; background:rgba(199,92,77,.12); display:flex; align-items:center;
+  justify-content:center; font-size:26px; color:var(--rose); margin-block-end:6px;
+}
+.u-error-state h4{font-size:16px; color:var(--ink);}
+.u-error-state p{font-size:13.5px; max-width:360px;}
+
+/* =========================================================
+   TOAST (framework-level, distinct from homepage marketing toast)
+========================================================= */
+.u-toast-stack{position:fixed; inset-block-end:24px; inset-inline-start:24px; z-index:400; display:flex; flex-direction:column; gap:10px;}
+.u-toast{
+  background:var(--paper-raised); border:1px solid var(--sand-line); border-radius:14px; padding:13px 18px;
+  box-shadow:var(--shadow-md); font-size:13px; display:flex; align-items:center; gap:10px; min-width:240px;
+  opacity:0; transform:translateX(-16px); transition:opacity .4s, transform .4s;
+}
+[dir="rtl"] .u-toast{transform:translateX(16px);}
+.u-toast.show{opacity:1; transform:translateX(0);}
+.u-toast.success .dot{background:var(--emerald);}
+.u-toast.error .dot{background:var(--rose);}
+.u-toast.info .dot{background:var(--forest);}
+.u-toast .dot{width:8px; height:8px; border-radius:50%; flex:0 0 auto;}
+
+/* =========================================================
+   RESPONSIVE — MOBILE
+========================================================= */
+@media(max-width:980px){
+  .dash-sidebar-toggle{display:flex;}
+  .dash-search{display:none;}
+  .dash-sidebar{
+    position:fixed; inset-inline-start:0; inset-block-start:0; width:270px; box-shadow:var(--shadow-lg);
+  }
+}
+@media(max-width:640px){
+  .dash-main{padding:18px; padding-block-end:88px;} /* room for bottom tab bar */
+  .dash-header{padding-inline:16px;}
+  .dash-profile-btn .name{display:none;}
+  .dash-footer{padding:16px 18px 88px;}
+}
+@media(max-width:480px){
+  /* Header-right was getting crowded (quick actions + wallet + language +
+     theme + messages + notifications + profile) on narrow phones. Quick
+     Actions is the least-costly one to drop first. */
+  #quick-actions-btn{display:none;}
+}
+
+/* =========================================================
+   DROPDOWN OVERFLOW SAFETY — Language / Profile / Quick Actions
+   These three panels normally anchor relative to their own small
+   trigger wrapper (~40px), which works on desktop but risks running
+   off-screen on tablet-portrait/mobile widths depending on where in
+   the header the trigger sits — worst case for Quick Actions (near
+   the header's START) and Profile (near the END) alike. Below 900px
+   they switch to a fixed, viewport-anchored band instead, so neither
+   can ever overflow the viewport or overlap another header control
+   regardless of which icon opened them.
+
+   This also corrects .lang-dropdown, which ships from the shared
+   style.css with a literal `right:0` — it never flipped sides under
+   RTL. Framework CSS loads after style.css, so this override wins on
+   cascade order for the properties it re-declares.
+========================================================= */
+@media(max-width:900px){
+  .dash-user-menu, .lang-dropdown, #quick-actions-menu{
+    position:fixed; inset-block-start:calc(var(--nav-h) + 8px);
+    inset-inline-start:12px; inset-inline-end:12px; right:auto; left:auto;
+    width:auto; min-width:0; max-width:none;
+  }
+}
+
+/* =========================================================
+   OVERLAY (mobile sidebar / notification drawer backdrop)
+========================================================= */
+.dash-overlay{
+  display:none; position:fixed; inset:0; background:rgba(11,20,16,.45); z-index:85;
+}
+.dash-overlay.show{display:block;}
+
+@media(max-width:1200px){
+  .dash-panel{
+    display:flex; flex-direction:column; position:fixed; inset-block-start:0; inset-inline-end:0; height:100vh; width:320px;
+    z-index:96; transform:translateX(100%); transition:transform .3s ease; box-shadow:var(--shadow-lg);
+  }
+  [dir="rtl"] .dash-panel{transform:translateX(-100%);}
+  .dash-panel.dash-panel-open{transform:translateX(0);}
+}
+@media(max-width:420px){
+  .dash-panel{width:88vw;}
+}
+
+/* =========================================================
+   MOBILE BOTTOM TAB BAR (universal, role-agnostic — 5 slots)
+========================================================= */
+.dash-mobile-nav{
+  display:none; position:fixed; inset-block-end:0; inset-inline:0; z-index:97;
+  background:var(--paper-raised); border-block-start:1px solid var(--sand-line);
+  padding:8px 6px; box-shadow:0 -8px 24px rgba(0,0,0,.08);
+}
+@media(max-width:640px){ .dash-mobile-nav{display:flex; align-items:center; justify-content:space-around;} }
+.dash-mobile-nav a, .dash-mobile-nav button{
+  display:flex; flex-direction:column; align-items:center; gap:3px; font-size:10.5px; font-weight:600;
+  color:var(--ink-soft); padding:4px 8px; border-radius:10px; position:relative;
+}
+.dash-mobile-nav a.active, .dash-mobile-nav button.active{color:var(--forest);}
+.dash-mobile-nav svg{width:20px; height:20px;}
+.dash-mobile-nav .dot{position:absolute; inset-block-start:0; inset-inline-end:2px; width:7px; height:7px; border-radius:50%; background:var(--rose); border:2px solid var(--paper-raised);}
+
+@media(prefers-reduced-motion:reduce){
+  .u-skeleton{animation:none;}
+  .u-modal{animation:none;}
+}
+

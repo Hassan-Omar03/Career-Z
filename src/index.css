@@ -1,0 +1,12 @@
+@import "tailwindcss";
+
+/* CareerZ existing design system — preserved as-is from the client's build.
+   Tailwind utilities are available for any new component work on top of it. */
+@import "./styles/style.css";
+@import "./styles/dashboard-framework.css";
+@import "./styles/dashboard.css";
+@import "./styles/student-dashboard.css";
+@import "./styles/dashboard-overrides.css";
+@import "./styles/controls.css";
+@import "./styles/admin.css";
+@import "./styles/member.css";

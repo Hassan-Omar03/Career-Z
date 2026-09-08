@@ -1,0 +1,151 @@
+
+/* --- Added 2026-08-05 22:30:11 --- */
+/* =============================================================
+   CAREERZ AI — STUDENT / GENERAL USER DASHBOARD (PAGE CONTENT)
+   ---------------------------------------------------------------
+   This file is intentionally NOT the framework. It only styles
+   widgets specific to this particular overview page: welcome
+   banner, stat cards, status badges, quick actions, profile
+   completion ring, activity/notification list items, recommended
+   mini-cards, and the calendar widget.
+
+   Shell structure (grid layout, header, sidebar, breadcrumb,
+   footer, right panel, overlay, mobile responsive shell, universal
+   table/form/modal/states) lives in assets/css/dashboard-framework.css
+   and is loaded before this file — nothing here duplicates it.
+
+   All design tokens are inherited from assets/css/style.css.
+================================================================= */
+
+.dash-body{background:var(--paper); color:var(--ink);}
+
+/* =========================================================
+   WELCOME BANNER
+========================================================= */
+.dash-welcome{
+  border-radius:var(--r-xl); background:linear-gradient(120deg,var(--forest-deep),var(--forest));
+  color:#fff; padding:28px 30px; display:flex; align-items:center; justify-content:space-between;
+  gap:20px; flex-wrap:wrap; box-shadow:var(--shadow-md); position:relative; overflow:hidden;
+}
+.dash-welcome::before{
+  content:''; position:absolute; inset:0; background:radial-gradient(circle at 85% -20%, rgba(227,162,60,.35), transparent 55%);
+  pointer-events:none;
+}
+.dash-welcome-text{position:relative; z-index:1;}
+.dash-welcome-text h1{color:#fff; font-size:clamp(20px,2.4vw,26px); margin-block-end:6px;}
+.dash-welcome-text p{color:rgba(255,255,255,.75); font-size:14px;}
+.dash-welcome-actions{position:relative; z-index:1; display:flex; gap:10px; flex-wrap:wrap;}
+.dash-role-select{
+  position:relative; z-index:1; display:flex; align-items:center; gap:8px; padding:8px 14px;
+  border-radius:100px; background:rgba(255,255,255,.14); border:1px solid rgba(255,255,255,.28);
+  font-size:12.5px; font-weight:600; color:#fff; cursor:pointer; transition:box-shadow .15s;
+}
+.dash-role-select:focus-within{box-shadow:0 0 0 3px rgba(255,255,255,.45);}
+.dash-role-select select{background:none; border:none; color:#fff; font-family:inherit; font-size:12.5px; font-weight:600; outline:none;}
+.dash-role-select select option{color:var(--ink);}
+
+/* =========================================================
+   STAT CARDS
+========================================================= */
+.dash-stat-card{padding:22px;}
+.dash-stat-card .top-row{display:flex; align-items:flex-start; justify-content:space-between;}
+.dash-stat-icon{
+  width:42px; height:42px; border-radius:12px; display:flex; align-items:center; justify-content:center;
+  background:var(--sand); color:var(--forest); flex-shrink:0;
+}
+.dash-stat-icon svg{width:20px; height:20px;}
+.dash-stat-card .num{font-family:'Fraunces',serif; font-size:30px; font-weight:600; margin-block-start:16px;}
+.dash-stat-card .label{font-size:13px; color:var(--ink-soft); margin-block-start:4px;}
+.dash-stat-trend{font-size:12px; font-weight:700; padding:3px 8px; border-radius:100px;}
+.dash-stat-trend.up{background:rgba(27,138,99,0.12); color:var(--emerald);}
+.dash-stat-trend.down{background:rgba(199,92,77,0.12); color:var(--rose);}
+
+/* =========================================================
+   PROFILE COMPLETION WIDGET
+========================================================= */
+.dash-progress-ring-wrap{display:flex; align-items:center; gap:18px;}
+.dash-progress-ring{flex-shrink:0;}
+.dash-progress-ring circle{transition:stroke-dashoffset .6s ease;}
+.dash-progress-list{display:flex; flex-direction:column; gap:8px; font-size:13px; color:var(--ink-soft); flex:1;}
+.dash-progress-list li{display:flex; align-items:center; gap:8px; list-style:none;}
+.dash-progress-list .ok{color:var(--emerald);}
+.dash-progress-list .pending{color:var(--gold);}
+.dash-progress-list svg{width:15px; height:15px; flex-shrink:0;}
+
+/* =========================================================
+   ACTIVITY / NOTIFICATION LIST ITEMS (shared markup pattern
+   used in main feed, right panel and notifications page)
+========================================================= */
+/* .dash-list / .dash-pill / .dash-quick-btn / .dash-mini-icon moved to
+   assets/css/dashboard-framework.css in the v1.2 pass — they are generic,
+   role-agnostic patterns (activity/notification/message rows, status
+   badges, icon-labelled action buttons) needed by framework-level
+   components (Messages Center, Notification panel, Wallet actions) and
+   therefore belong at the framework layer, not here. Nothing about their
+   markup or visual output changed — only their file ownership. */
+
+/* =========================================================
+   STATUS BADGES (pending / approved / rejected / draft / suspended)
+========================================================= */
+.dash-status-grid{display:grid; grid-template-columns:repeat(5,1fr); gap:14px;}
+@media(max-width:900px){.dash-status-grid{grid-template-columns:repeat(2,1fr);}}
+@media(max-width:520px){.dash-status-grid{grid-template-columns:1fr;}}
+.dash-status-card{padding:18px; text-align:start; display:flex; align-items:center; gap:12px;}
+.dash-status-dot{width:11px; height:11px; border-radius:50%; flex-shrink:0;}
+.dash-status-card .label{font-size:13px; font-weight:600;}
+.dash-status-card .count{font-size:11.5px; color:var(--ink-soft); margin-block-start:2px;}
+.status-pending .dash-status-dot{background:var(--gold);}
+.status-approved .dash-status-dot{background:var(--emerald);}
+.status-rejected .dash-status-dot{background:var(--rose);}
+.status-draft .dash-status-dot{background:var(--ink-soft);}
+.status-suspended .dash-status-dot{background:var(--forest-deep); border:2px solid var(--rose);}
+
+/* .dash-pill moved to dashboard-framework.css — generic status badge,
+   needed by framework-level components (e.g. future Application Status
+   widgets) beyond just this page. */
+
+/* =========================================================
+   RECOMMENDED / SAVED CARDS (courses, jobs, scholarships, etc.)
+========================================================= */
+.dash-mini-card{padding:18px; display:flex; flex-direction:column; gap:10px;}
+.dash-mini-card .mini-top{display:flex; align-items:center; gap:12px;}
+/* .dash-mini-icon moved to dashboard-framework.css (also used by the
+   Universal Wallet Card's Quick Actions) — kept referenced here as-is. */
+.dash-mini-card h4{font-size:14.5px;}
+.dash-mini-card .meta{font-size:12.5px; color:var(--ink-soft);}
+.dash-mini-card .bottom-row{display:flex; align-items:center; justify-content:space-between; margin-block-start:4px;}
+
+/* =========================================================
+   QUICK ACTIONS
+========================================================= */
+.dash-quick-actions{display:grid; grid-template-columns:repeat(4,1fr); gap:12px;}
+@media(max-width:1080px){.dash-quick-actions{grid-template-columns:repeat(2,1fr);}}
+@media(max-width:560px){.dash-quick-actions{grid-template-columns:1fr;}}
+/* .dash-quick-btn moved to dashboard-framework.css (also used by the
+   Universal Wallet Card's Add Funds / Withdraw / Transfer buttons). */
+
+
+/* =========================================================
+   CALENDAR WIDGET
+========================================================= */
+.dash-calendar-head{display:flex; align-items:center; justify-content:space-between; margin-block-end:14px;}
+.dash-calendar-head strong{font-size:14px;}
+.dash-calendar-nav{display:flex; gap:4px;}
+.dash-calendar-nav button{
+  width:26px; height:26px; border-radius:50%; display:flex; align-items:center; justify-content:center;
+  background:var(--sand); color:var(--ink);
+}
+.dash-calendar-nav svg{width:13px; height:13px;}
+.dash-calendar-grid{display:grid; grid-template-columns:repeat(7,1fr); gap:4px; text-align:center;}
+.dash-calendar-grid .dow{font-size:10.5px; font-weight:700; color:var(--ink-soft); padding-block-end:6px;}
+.dash-calendar-day{
+  aspect-ratio:1; display:flex; align-items:center; justify-content:center; border-radius:8px;
+  font-size:12px; color:var(--ink); position:relative;
+}
+.dash-calendar-day.muted{color:var(--ink-soft); opacity:.4;}
+.dash-calendar-day.today{background:var(--forest); color:#fff; font-weight:700;}
+.dash-calendar-day.event::after{
+  content:''; position:absolute; inset-block-end:3px; width:4px; height:4px; border-radius:50%; background:var(--gold);
+}
+.dash-calendar-day.today.event::after{background:#fff;}
+

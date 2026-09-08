@@ -1,0 +1,118 @@
+/* Kill the browser's default blue focus/tap ring site-wide and replace it
+   with the brand color, so nothing ever flashes blue on click/tap. */
+a, button, input, select, textarea, [tabindex] {
+  -webkit-tap-highlight-color: transparent;
+}
+a:focus, button:focus, input:focus, select:focus, textarea:focus {
+  outline: none;
+}
+a:focus-visible, button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-visible {
+  outline: 2px solid var(--emerald) !important;
+  outline-offset: 2px;
+}
+
+/* Forces the sidebar to a readable forest-green brand look in every theme,
+   overriding the framework's default (which was rendering unreadably dark). */
+.dash-sidebar {
+  background: linear-gradient(180deg, var(--forest-deep), var(--forest)) !important;
+  border-inline-end: none !important;
+}
+.dash-sidebar .logo-text,
+.dash-sidebar .logo-text .pk {
+  color: #fff !important;
+}
+.dash-sidebar .dash-nav-link {
+  color: rgba(255, 255, 255, 0.82) !important;
+}
+.dash-sidebar .dash-nav-link.active {
+  background: #fff !important;
+  color: var(--forest-deep) !important;
+}
+.dash-sidebar .dash-nav-link.active .dash-nav-badge {
+  background: var(--gold-soft) !important;
+  color: var(--forest-deep) !important;
+}
+.dash-sidebar .dash-nav-group-toggle {
+  color: rgba(255, 255, 255, 0.82) !important;
+}
+.dash-sidebar .dash-sidebar-divider {
+  background: rgba(255, 255, 255, 0.18) !important;
+}
+.dash-sidebar .icon-btn,
+.dash-sidebar .dash-sidebar-close-btn {
+  color: #fff !important;
+}
+.dash-sidebar .dash-nav-badge {
+  background: rgba(255, 255, 255, 0.18) !important;
+  color: #fff !important;
+}
+
+/* Guard every dashboard shell region with an explicit light background so
+   nothing ever falls back to an unstyled/black paint (breadcrumb bar, header,
+   main content area) regardless of theme or browser dark-mode heuristics. */
+.dash-body {
+  background: var(--paper) !important;
+  color: var(--ink) !important;
+}
+.dash-header {
+  background: var(--paper) !important;
+  color: var(--ink) !important;
+}
+.dash-main {
+  background: transparent !important;
+  color: var(--ink) !important;
+}
+.dash-breadcrumb {
+  background: transparent !important;
+  color: var(--ink-soft) !important;
+}
+.dash-breadcrumb .current {
+  color: var(--ink) !important;
+}
+.dash-panel {
+  background: var(--paper-raised) !important;
+  color: var(--ink) !important;
+}
+.dash-footer {
+  background: var(--paper) !important;
+  color: var(--ink-soft) !important;
+}
+.dash-user-menu {
+  background: var(--paper-raised) !important;
+  color: var(--ink) !important;
+}
+.dash-user-menu a,
+.dash-user-menu button {
+  color: var(--ink) !important;
+}
+.dash-search-results {
+  background: var(--paper-raised) !important;
+  color: var(--ink) !important;
+}
+
+/* "My Account" tab strip on the Dashboard — plain readable pills, no black. */
+.cz-tabbar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-block-end: 20px;
+  background: var(--sand);
+  padding: 6px;
+  border-radius: 999px;
+  width: fit-content;
+}
+.cz-tab {
+  padding: 8px 18px;
+  border-radius: 999px;
+  font-size: 13.5px;
+  font-weight: 600;
+  border: none;
+  background: transparent;
+  color: var(--ink-soft);
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s;
+}
+.cz-tab.active {
+  background: var(--forest);
+  color: #fff;
+}
