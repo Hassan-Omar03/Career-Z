@@ -166,6 +166,27 @@ function ComingSoon({ label }) {
   );
 }
 
+function PendingRoleBanner() {
+  const [pending, setPending] = useState([]);
+  useEffect(() => {
+    apiRequest('/roles/my-requests').then((list) => {
+      setPending(list.filter((r) => r.status === 'pending' || r.status === 'under_review'));
+    }).catch(() => setPending([]));
+  }, []);
+
+  if (pending.length === 0) return null;
+
+  return (
+    <div className="admin-notice" style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 20 }}>
+      <FaHourglassHalf aria-hidden="true" />
+      <span>
+        Your request to become a <strong>{pending.map((r) => r.requestedRole.replace(/_/g, ' ')).join(', ')}</strong> is awaiting Super Admin approval.
+        You'll see that workspace here as soon as it's approved — check the Profile tab for status.
+      </span>
+    </div>
+  );
+}
+
 function SummaryRow({ items }) {
   return (
     <div className="admin-stats">
@@ -230,6 +251,8 @@ export default function Dashboard() {
         </div>
         <span className="admin-access"><FaUserShield aria-hidden="true" />{ws.label}</span>
       </div>
+
+      <PendingRoleBanner />
 
       {available.length > 1 && (
         <nav className="cz-tabbar" aria-label="Switch workspace" style={{ marginBottom: 20 }}>
