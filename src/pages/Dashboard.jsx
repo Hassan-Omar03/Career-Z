@@ -180,8 +180,8 @@ function PendingRoleBanner() {
     <div className="admin-notice" style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 20 }}>
       <FaHourglassHalf aria-hidden="true" />
       <span>
-        Your request to become a <strong>{pending.map((r) => r.requestedRole.replace(/_/g, ' ')).join(', ')}</strong> is awaiting Super Admin approval.
-        You'll see that workspace here as soon as it's approved — check the Profile tab for status.
+        Your <strong>{pending.map((r) => r.requestedRole.replace(/_/g, ' ')).join(', ')}</strong> dashboard is unlocked, but posting (jobs, scholarships,
+        listings, courses) is locked until Super Admin verifies your account — check the Profile tab for status.
       </span>
     </div>
   );

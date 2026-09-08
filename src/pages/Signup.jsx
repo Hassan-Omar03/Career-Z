@@ -55,7 +55,7 @@ const ROLE_OPTIONS = [
 ];
 
 export default function Signup() {
-  const { register } = useAuth();
+  const { register, refreshProfile } = useAuth();
   const navigate = useNavigate();
 
   const [form, setForm] = useState({
@@ -101,7 +101,10 @@ export default function Signup() {
 
       const requestedRole = ACCOUNT_TYPE_TO_ROLE[form.accountType];
       if (requestedRole) {
-        try { await apiRequest('/roles/request', { method: 'POST', body: { requestedRole } }); } catch { /* non-fatal — user can request it again from the dashboard */ }
+        try {
+          await apiRequest('/roles/request', { method: 'POST', body: { requestedRole } });
+          await refreshProfile(); // role is granted immediately — pull the updated user so the right dashboard shows right away
+        } catch { /* non-fatal — user can request it again from the dashboard */ }
       }
 
       setSuccess(true);
