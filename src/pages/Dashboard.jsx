@@ -112,10 +112,40 @@ const WORKSPACES = {
       { key: 'analytics', label: 'Reports', icon: FaChartLine },
       { key: 'profile', label: 'Profile', icon: FaUser }
     ]
+  },
+  donor: {
+    label: 'Donor', roles: ['donor'], color: 'var(--emerald)',
+    greeting: 'Manage the scholarships you fund.',
+    nav: [
+      { key: 'summary', label: 'Dashboard', icon: FaGauge },
+      { key: 'post', label: 'Post a Scholarship', icon: FaFileLines },
+      { key: 'scholarships', label: 'My Scholarships', icon: FaGraduationCap },
+      { key: 'profile', label: 'Profile', icon: FaUser }
+    ]
+  },
+  marketplace_seller: {
+    label: 'Seller', roles: ['marketplace_seller'], color: 'var(--gold)',
+    greeting: 'Manage your marketplace listings and orders.',
+    nav: [
+      { key: 'summary', label: 'Dashboard', icon: FaGauge },
+      { key: 'listings', label: 'My Listings', icon: FaStore },
+      { key: 'orders', label: 'Orders Received', icon: FaClipboardList },
+      { key: 'profile', label: 'Profile', icon: FaUser }
+    ]
+  },
+  education_agent: {
+    label: 'Agent', roles: ['education_agent'], color: 'var(--gold)',
+    greeting: 'Manage the job placements you handle for your clients.',
+    nav: [
+      { key: 'summary', label: 'Dashboard', icon: FaGauge },
+      { key: 'post', label: 'Post a Placement', icon: FaFileLines },
+      { key: 'jobs', label: 'My Placements', icon: FaBriefcase },
+      { key: 'profile', label: 'Profile', icon: FaUser }
+    ]
   }
 };
 
-const WORKSPACE_PRIORITY = ['admin', 'institution', 'employer', 'teacher', 'parent', 'student'];
+const WORKSPACE_PRIORITY = ['admin', 'institution', 'employer', 'education_agent', 'donor', 'marketplace_seller', 'teacher', 'parent', 'student'];
 
 function Tag({ status }) {
   const styles = {
@@ -224,6 +254,9 @@ export default function Dashboard() {
             {activeWorkspace === 'institution' && <InstitutionWorkspace tab={activeTab} user={user} onFlash={flash} onChanged={refreshProfile} />}
             {activeWorkspace === 'employer' && <EmployerWorkspace tab={activeTab} user={user} onFlash={flash} onChanged={refreshProfile} />}
             {activeWorkspace === 'admin' && <AdminWorkspace tab={activeTab} user={user} roles={roles} onFlash={flash} onChanged={refreshProfile} />}
+            {activeWorkspace === 'donor' && <DonorWorkspace tab={activeTab} user={user} onFlash={flash} onChanged={refreshProfile} />}
+            {activeWorkspace === 'marketplace_seller' && <SellerWorkspace tab={activeTab} user={user} onFlash={flash} onChanged={refreshProfile} />}
+            {activeWorkspace === 'education_agent' && <AgentWorkspace tab={activeTab} user={user} onFlash={flash} onChanged={refreshProfile} />}
           </>
         )}
       </div>
@@ -2213,6 +2246,60 @@ function EmployerJobsPanel({ onFlash }) {
       )}
     </div>
   );
+}
+
+// ------------------------------------------------------------------ Donor
+
+function DonorWorkspace({ tab, user, onFlash, onChanged }) {
+  if (tab === 'profile') return <><ProfilePanel user={user} onFlash={onFlash} onChanged={onChanged} /><RolesPanel onFlash={onFlash} onChanged={onChanged} /><SupportComplaintPanel onFlash={onFlash} /></>;
+  if (tab === 'summary') return <DonorSummary />;
+  if (tab === 'post') return <PostScholarshipPanel onFlash={onFlash} />;
+  if (tab === 'scholarships') return <MyScholarshipsPanel onFlash={onFlash} />;
+  return <ComingSoon label={tab} />;
+}
+
+function DonorSummary() {
+  const [scholarships, setScholarships] = useState(null);
+  useEffect(() => { apiRequest('/scholarships/mine/list').then(setScholarships).catch(() => setScholarships([])); }, []);
+  const open = scholarships?.filter((s) => s.status === 'open').length;
+  return (
+    <SummaryRow items={[
+      { label: 'Scholarships Posted', value: scholarships?.length, icon: FaGraduationCap, detail: 'Total posted' },
+      { label: 'Open Scholarships', value: open, icon: FaClipboardCheck, detail: 'Accepting applicants' }
+    ]} />
+  );
+}
+
+// ----------------------------------------------------------- Marketplace Seller
+
+function SellerWorkspace({ tab, user, onFlash, onChanged }) {
+  if (tab === 'profile') return <><ProfilePanel user={user} onFlash={onFlash} onChanged={onChanged} /><RolesPanel onFlash={onFlash} onChanged={onChanged} /><SupportComplaintPanel onFlash={onFlash} /></>;
+  if (tab === 'summary') return <SellerSummary />;
+  if (tab === 'listings') return <MyListingsPanel onFlash={onFlash} />;
+  if (tab === 'orders') return <SellerOrdersPanel onFlash={onFlash} />;
+  return <ComingSoon label={tab} />;
+}
+
+function SellerSummary() {
+  const [products, setProducts] = useState(null);
+  useEffect(() => { apiRequest('/marketplace/products/mine/list').then(setProducts).catch(() => setProducts([])); }, []);
+  const active = products?.filter((p) => p.status === 'active').length;
+  return (
+    <SummaryRow items={[
+      { label: 'Listings', value: products?.length, icon: FaStore, detail: 'Total listed' },
+      { label: 'Active Listings', value: active, icon: FaClipboardCheck, detail: 'Visible to buyers' }
+    ]} />
+  );
+}
+
+// ------------------------------------------------------------------ Agent
+
+function AgentWorkspace({ tab, user, onFlash, onChanged }) {
+  if (tab === 'profile') return <><ProfilePanel user={user} onFlash={onFlash} onChanged={onChanged} /><RolesPanel onFlash={onFlash} onChanged={onChanged} /><SupportComplaintPanel onFlash={onFlash} /></>;
+  if (tab === 'summary') return <EmployerSummary />;
+  if (tab === 'post') return <EmployerPostJobPanel onFlash={onFlash} />;
+  if (tab === 'jobs') return <EmployerJobsPanel onFlash={onFlash} />;
+  return <ComingSoon label={tab} />;
 }
 
 // ----------------------------------------------------------------- Admin
