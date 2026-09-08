@@ -1,5 +1,5 @@
 import {
-  FaClipboardList, FaBookOpen, FaAward, FaBriefcase, FaSackDollar, FaBagShopping,
+  FaClipboardList, FaBookOpen, FaAward, FaBriefcase,
   FaCircle, FaHand, FaCircleCheck, FaFileLines, FaGraduationCap
 } from 'react-icons/fa6';
 
@@ -14,28 +14,26 @@ export function WelcomeBanner({ name }) {
   );
 }
 
-const STATS = [
-  { icon: FaClipboardList, trend: '+2', num: '7', label: 'Active Applications' },
-  { icon: FaBookOpen, trend: '+1', num: '4', label: 'Enrolled Courses' },
-  { icon: FaAward, trend: 'New', num: '2', label: 'Scholarships Saved' },
-  { icon: FaBriefcase, trend: '-1', num: '3', label: 'Saved Jobs', down: true }
-];
+const STAT_ICONS = { applications: FaClipboardList, courses: FaBookOpen, approved: FaAward, total: FaBriefcase };
 
-export function OverviewStats() {
+// `stats` comes straight from GET /dashboard/summary — real counts, never hardcoded.
+export function OverviewStats({ stats }) {
   return (
     <>
       <div className="dash-section-title"><h2>Overview</h2></div>
       <div className="grid g4">
-        {STATS.map((s) => (
-          <div key={s.label} className="card dash-stat-card reveal in">
-            <div className="top-row">
-              <div className="dash-stat-icon" aria-hidden><s.icon size={18} /></div>
-              <span className={`dash-stat-trend ${s.down ? 'down' : 'up'}`}>{s.trend}</span>
+        {(stats || []).map((s) => {
+          const Icon = STAT_ICONS[s.key] || FaClipboardList;
+          return (
+            <div key={s.key} className="card dash-stat-card reveal in">
+              <div className="top-row">
+                <div className="dash-stat-icon" aria-hidden><Icon size={18} /></div>
+              </div>
+              <div className="num">{s.num}</div>
+              <div className="label">{s.label}</div>
             </div>
-            <div className="num">{s.num}</div>
-            <div className="label">{s.label}</div>
-          </div>
-        ))}
+          );
+        })}
       </div>
     </>
   );
@@ -52,34 +50,9 @@ export function WalletCard() {
             {['USD', 'EUR', 'GBP', 'SAR', 'AED', 'PKR', 'INR'].map((c) => <option key={c} value={c}>{c}</option>)}
           </select>
         </div>
-        <div className="u-wallet-balances">
-          <div className="u-wallet-balance-item">
-            <span className="label">Available Balance</span>
-            <span className="amount">$42,500</span>
-          </div>
-          <div className="u-wallet-balance-item pending">
-            <span className="label">Pending Balance</span>
-            <span className="amount">$3,200</span>
-          </div>
-        </div>
-        <div className="u-wallet-actions">
-          <button className="dash-quick-btn" type="button"><span className="txt">Add Funds</span></button>
-          <button className="dash-quick-btn" type="button"><span className="txt">Withdraw</span></button>
-          <button className="dash-quick-btn" type="button"><span className="txt">Transfer</span></button>
-        </div>
-        <div className="u-wallet-transactions-head"><h5>Recent Transactions</h5></div>
-        <div className="dash-list">
-          <div className="dash-list-item">
-            <span className="dash-list-icon c-emerald"><FaSackDollar size={16} /></span>
-            <div className="dash-list-body"><div className="title">Scholarship disbursement</div><div className="desc">NUST Merit Award</div></div>
-            <div className="dash-list-time">2d ago</div>
-          </div>
-          <div className="dash-list-item">
-            <span className="dash-list-icon c-gold"><FaBagShopping size={16} /></span>
-            <div className="dash-list-body"><div className="title">Marketplace purchase</div><div className="desc">Past Papers Bundle</div></div>
-            <div className="dash-list-time">5d ago</div>
-          </div>
-        </div>
+        <p style={{ fontSize: 13, color: 'var(--ink-soft)', padding: '8px 0' }}>
+          Wallet balances, funding and transaction history are on the roadmap — there's no payment backend wired up yet, so no balance is shown here.
+        </p>
       </div>
     </>
   );
@@ -124,14 +97,8 @@ export function QuickActions() {
   );
 }
 
-const PROFILE_ITEMS = [
-  { ok: true, label: 'Basic details added' },
-  { ok: true, label: 'Email verified' },
-  { ok: false, label: 'Add profile photo' },
-  { ok: false, label: 'Complete academic history' }
-];
-
-export function ProfileCompletion({ percent = 70 }) {
+// `percent`/`checks` come from GET /dashboard/summary (profile.percent, profile.checks).
+export function ProfileCompletion({ percent = 0, checks = [] }) {
   const r = 42;
   const circumference = 2 * Math.PI * r;
   const offset = circumference - (percent / 100) * circumference;
@@ -149,7 +116,7 @@ export function ProfileCompletion({ percent = 70 }) {
           <text x="48" y="53" textAnchor="middle" fontFamily="Fraunces, serif" fontSize="18" fontWeight="700" fill="var(--ink)">{percent}%</text>
         </svg>
         <ul className="dash-progress-list">
-          {PROFILE_ITEMS.map((i) => (
+          {checks.map((i) => (
             <li key={i.label} className={i.ok ? 'ok' : 'pending'}><span className="profile-status-icon">{i.ok ? <FaCircleCheck aria-label="Completed" /> : <FaCircle aria-label="Incomplete" />}</span> {i.label}</li>
           ))}
         </ul>
@@ -197,26 +164,28 @@ export function MiniCalendar() {
   );
 }
 
-const RECOMMENDED = [
-  { icon: FaBookOpen, title: 'Intro to Data Science', meta: 'CareerZ Academy · Self-paced', tag: 'Recommended' },
-  { icon: FaBriefcase, title: 'Junior Frontend Developer', meta: 'Systems Ltd · Remote', tag: 'Saved' },
-  { icon: FaAward, title: 'National Need-Based Scholarship', meta: 'Closes in 18 days', tag: 'Pending' }
-];
-
-export function RecommendedGrid() {
+// `items` come from GET /dashboard/summary (recommended: your active enrollments).
+export function RecommendedGrid({ items }) {
+  if (!items || items.length === 0) {
+    return (
+      <>
+        <div className="dash-section-title"><h2>Recommended For You</h2></div>
+        <p style={{ fontSize: 13, color: 'var(--ink-soft)' }}>Enroll in a course to see it here.</p>
+      </>
+    );
+  }
   return (
     <>
-      <div className="dash-section-title"><h2>Recommended For You</h2><a href="#">View all</a></div>
+      <div className="dash-section-title"><h2>Recommended For You</h2></div>
       <div className="grid g3">
-        {RECOMMENDED.map((r) => (
+        {items.map((r) => (
           <div key={r.title} className="card dash-mini-card reveal in">
             <div className="mini-top">
-              <span className="dash-mini-icon" aria-hidden><r.icon size={18} /></span>
+              <span className="dash-mini-icon" aria-hidden><FaBookOpen size={18} /></span>
               <div><h4>{r.title}</h4><div className="meta">{r.meta}</div></div>
             </div>
             <div className="bottom-row">
               <span className="tag">{r.tag}</span>
-              <a href="#" className="link-muted" style={{ fontSize: '12.5px' }}>View →</a>
             </div>
           </div>
         ))}
@@ -225,26 +194,26 @@ export function RecommendedGrid() {
   );
 }
 
-const ACTIVITY = [
-  { icon: FaCircleCheck, color: 'c-emerald', title: 'Institution approved', desc: 'Your application to FAST-NU was approved.', time: '2h ago', unread: true },
-  { icon: FaFileLines, color: 'c-forest', title: 'Application submitted', desc: 'Scholarship application sent for review.', time: '5h ago' },
-  { icon: FaGraduationCap, color: 'c-gold', title: 'Course enrolled', desc: 'You enrolled in "Intro to Data Science".', time: '1d ago' },
-  { icon: FaBriefcase, color: 'c-forest', title: 'Job application sent', desc: 'Applied to Junior Frontend Developer at Systems Ltd.', time: '2d ago' }
-];
+const ACTIVITY_ICON = { approved: FaCircleCheck, pending: FaFileLines, under_review: FaFileLines, rejected: FaFileLines, active: FaGraduationCap, completed: FaGraduationCap, dropped: FaFileLines };
 
-export function RecentActivity() {
+// `items` come from GET /dashboard/summary (recentActivity: real role-request + enrollment events).
+export function RecentActivity({ items }) {
   return (
     <>
-      <div className="dash-section-title"><h2>Recent Activity</h2><a href="#">View all</a></div>
+      <div className="dash-section-title"><h2>Recent Activity</h2></div>
       <div className="card reveal in" style={{ padding: '8px 12px' }}>
         <div className="dash-list">
-          {ACTIVITY.map((a) => (
-            <div key={a.title} className={`dash-list-item${a.unread ? ' unread' : ''}`}>
-              <span className={`dash-list-icon ${a.color}`} aria-hidden><a.icon size={16} /></span>
-              <div className="dash-list-body"><div className="title">{a.title}</div><div className="desc">{a.desc}</div></div>
-              <span className="dash-list-time">{a.time}</span>
-            </div>
-          ))}
+          {(!items || items.length === 0) && <p style={{ fontSize: 13, color: 'var(--ink-soft)', padding: '12px 4px' }}>No activity yet.</p>}
+          {(items || []).map((a) => {
+            const Icon = ACTIVITY_ICON[a.status] || FaFileLines;
+            return (
+              <div key={a.id} className="dash-list-item">
+                <span className="dash-list-icon c-forest" aria-hidden><Icon size={16} /></span>
+                <div className="dash-list-body"><div className="title">{a.title}</div><div className="desc">{a.desc}</div></div>
+                <span className="dash-list-time">{new Date(a.time).toLocaleDateString()}</span>
+              </div>
+            );
+          })}
         </div>
       </div>
     </>

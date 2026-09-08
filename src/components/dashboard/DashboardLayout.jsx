@@ -4,10 +4,9 @@ import DashboardSidebar from './DashboardSidebar';
 import DashboardHeader from './DashboardHeader';
 import { useAuth } from '../../context/AuthContext';
 
-export default function DashboardLayout({ children, trail = ['Dashboard'] }) {
+export default function DashboardLayout({ children, trail = ['Dashboard'], activeRole = 'student', navItems = [], activeKey, onSelect }) {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
-  const isAdmin = user?.roles?.some((role) => ['admin', 'super_admin'].includes(role));
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [collapsed, setCollapsed] = useState(false);
 
@@ -16,16 +15,21 @@ export default function DashboardLayout({ children, trail = ['Dashboard'] }) {
     navigate('/login');
   }
 
+  const isAdmin = activeRole === 'admin';
+
   return (
     <div className={`dash-body${isAdmin ? ' admin-layout' : ' member-layout'}`}>
-      {!isAdmin && sidebarOpen && <div className="dash-overlay show" onClick={() => setSidebarOpen(false)}></div>}
+      {sidebarOpen && <div className="dash-overlay show" onClick={() => setSidebarOpen(false)}></div>}
 
       <div className="dash-shell" data-sidebar-collapsed={collapsed ? 'true' : 'false'}>
-        {!isAdmin && <DashboardSidebar
+        <DashboardSidebar
           open={sidebarOpen}
           onClose={() => setSidebarOpen(false)}
           onLogout={handleLogout}
-        />}
+          navItems={navItems}
+          activeKey={activeKey}
+          onSelect={(key) => { onSelect?.(key); setSidebarOpen(false); }}
+        />
 
         <DashboardHeader
           user={user}

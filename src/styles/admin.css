@@ -1,7 +1,10 @@
 .admin-layout .dash-shell {
-  grid-template-columns: minmax(0, 1fr);
-  grid-template-rows: auto 1fr;
-  grid-template-areas: "header" "main";
+  grid-template-columns: 260px minmax(0, 1fr);
+  grid-template-areas: "sidebar header" "sidebar main" "sidebar footer";
+}
+.admin-layout .dash-shell[data-sidebar-collapsed="true"] { grid-template-columns: 76px minmax(0, 1fr); }
+@media (max-width: 980px) {
+  .admin-layout .dash-shell, .admin-layout .dash-shell[data-sidebar-collapsed="true"] { grid-template-columns: minmax(0, 1fr); grid-template-areas: "header" "main" "footer"; }
 }
 .admin-layout .dash-main { width: 100%; max-width: 1440px; min-width: 0; margin-inline: auto; padding: 28px 40px 64px; }
 .admin-layout .admin-header { padding-inline: 40px; gap: 24px; }

@@ -5,6 +5,7 @@ import Signup from './pages/Signup';
 import ForgotPassword from './pages/ForgotPassword';
 import ResetPassword from './pages/ResetPassword';
 import Dashboard from './pages/Dashboard';
+import VerifyCertificate from './pages/VerifyCertificate';
 import { useAuth } from './context/AuthContext';
 
 function ProtectedRoute({ children }) {
@@ -22,6 +23,7 @@ export default function App() {
       <Route path="/signup" element={<Signup />} />
       <Route path="/forgot-password" element={<ForgotPassword />} />
       <Route path="/reset-password" element={<ResetPassword />} />
+      <Route path="/verify-certificate/:code" element={<VerifyCertificate />} />
       <Route
         path="/dashboard"
         element={
