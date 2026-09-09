@@ -3,17 +3,34 @@ import { Link, useNavigate } from 'react-router-dom';
 import AuthNavbar from '../components/AuthNavbar';
 import PasswordField from '../components/PasswordField';
 import { useAuth } from '../context/AuthContext';
+import { apiRequest } from '../api/client';
 
 const REMEMBER_KEY = 'careerz_remembered_email';
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
+// Lets a tester jump straight into any workspace after login instead of hunting
+// for "Profile > My Roles" first. Maps the picker's value to the real RBAC role
+// (requested via /roles/request, which now grants it immediately) and to the
+// WORKSPACES key in Dashboard.jsx so we can open directly on that workspace.
+const LOGIN_AS_OPTIONS = [
+  { value: 'student', label: 'Student', role: null, workspace: 'student' },
+  { value: 'parent', label: 'Parent', role: 'parent', workspace: 'parent' },
+  { value: 'teacher', label: 'Teacher', role: 'teacher', workspace: 'teacher' },
+  { value: 'employer', label: 'Employer', role: 'employer', workspace: 'employer' },
+  { value: 'institution_representative', label: 'Institution Representative', role: 'institution_owner', workspace: 'institution' },
+  { value: 'agent', label: 'Agent', role: 'education_agent', workspace: 'education_agent' },
+  { value: 'donor', label: 'Donor', role: 'donor', workspace: 'donor' },
+  { value: 'marketplace_seller', label: 'Marketplace Seller', role: 'marketplace_seller', workspace: 'marketplace_seller' }
+];
+
 export default function Login() {
-  const { login } = useAuth();
+  const { login, refreshProfile } = useAuth();
   const navigate = useNavigate();
 
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [remember, setRemember] = useState(false);
+  const [loginAs, setLoginAs] = useState('student');
   const [errors, setErrors] = useState({});
   const [serverError, setServerError] = useState('');
   const [success, setSuccess] = useState(false);
@@ -46,9 +63,18 @@ export default function Login() {
 
     setSubmitting(true);
     try {
-      await login({ email, password });
+      const { user } = await login({ email, password });
+
+      const picked = LOGIN_AS_OPTIONS.find((o) => o.value === loginAs);
+      if (picked?.role && !user.roles.includes(picked.role)) {
+        try {
+          await apiRequest('/roles/request', { method: 'POST', body: { requestedRole: picked.role } });
+          await refreshProfile();
+        } catch { /* non-fatal — user can request it again from Profile > My Roles */ }
+      }
+
       setSuccess(true);
-      setTimeout(() => navigate('/dashboard'), 900);
+      setTimeout(() => navigate('/dashboard', { state: { workspace: picked?.workspace } }), 900);
     } catch (err) {
       setServerError(err.message || 'Login failed.');
     } finally {
@@ -106,6 +132,16 @@ export default function Login() {
                 onChange={(e) => setPassword(e.target.value)}
                 error={errors.password}
               />
+
+              <div className="form-group">
+                <label htmlFor="login-as">Log in as</label>
+                <select id="login-as" className="form-select" value={loginAs} onChange={(e) => setLoginAs(e.target.value)}>
+                  {LOGIN_AS_OPTIONS.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
+                </select>
+                <p style={{ fontSize: 12, color: 'var(--ink-soft, #6b7280)', marginTop: 4 }}>
+                  Picking a role you don't have yet grants it instantly and opens that dashboard — only posting stays locked until Admin verification.
+                </p>
+              </div>
 
               <div className="auth-row-between">
                 <label className="form-check" style={{ marginBottom: 0 }}>

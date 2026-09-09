@@ -5,6 +5,7 @@ import {
   FaCalendarCheck, FaMoneyBillWave, FaHandshake, FaHourglassHalf, FaGear, FaBell
 } from 'react-icons/fa6';
 import { useEffect, useState } from 'react';
+import { useLocation } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { apiRequest } from '../api/client';
 import { verifyEmail, resendVerification } from '../api/auth';
@@ -203,11 +204,15 @@ function SummaryRow({ items }) {
 
 export default function Dashboard() {
   const { user, refreshProfile } = useAuth();
+  const location = useLocation();
   const roles = user?.roles || [];
   const [msg, setMsg] = useState(null);
 
   const available = WORKSPACE_PRIORITY.filter((key) => WORKSPACES[key].roles.some((r) => roles.includes(r)));
-  const defaultWorkspace = available[0] || 'student';
+  // Login's "Log in as" picker can request a specific workspace to open on directly,
+  // overriding the usual priority order (admin > institution > ... > student).
+  const requestedWorkspace = location.state?.workspace;
+  const defaultWorkspace = (requestedWorkspace && available.includes(requestedWorkspace)) ? requestedWorkspace : (available[0] || 'student');
 
   const [activeWorkspace, setActiveWorkspace] = useState(defaultWorkspace);
   const [activeTab, setActiveTab] = useState(WORKSPACES[defaultWorkspace].nav[0].key);
