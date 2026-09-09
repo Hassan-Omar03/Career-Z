@@ -1,5 +1,5 @@
 import {
-  FaEnvelope, FaBell, FaGear, FaCircleQuestion, FaRightFromBracket, FaXmark
+  FaEnvelope, FaBell, FaGear, FaCircleQuestion, FaRightFromBracket, FaXmark, FaCalendarDays
 } from 'react-icons/fa6';
 
 // The nav items themselves come from the active workspace (see Dashboard.jsx)
@@ -37,12 +37,15 @@ export default function DashboardSidebar({ open, onClose, onLogout, navItems = [
         <button type="button" className={`dash-nav-link${activeKey === 'notifications' ? ' active' : ''}`} style={{ width: '100%', textAlign: 'left', background: 'none', border: 'none', cursor: 'pointer' }} onClick={() => onSelect?.('notifications')}>
           <FaBell size={17} aria-hidden /><span>Notifications</span>
         </button>
-        <a href="#" className="dash-nav-link" onClick={(e) => e.preventDefault()}>
+        <button type="button" className={`dash-nav-link${activeKey === 'calendar' ? ' active' : ''}`} style={{ width: '100%', textAlign: 'left', background: 'none', border: 'none', cursor: 'pointer' }} onClick={() => onSelect?.('calendar')}>
+          <FaCalendarDays size={17} aria-hidden /><span>Calendar</span>
+        </button>
+        <button type="button" className={`dash-nav-link${activeKey === 'settings' ? ' active' : ''}`} style={{ width: '100%', textAlign: 'left', background: 'none', border: 'none', cursor: 'pointer' }} onClick={() => onSelect?.('settings')}>
           <FaGear size={17} aria-hidden /><span>Settings</span>
-        </a>
-        <a href="#" className="dash-nav-link" onClick={(e) => e.preventDefault()}>
+        </button>
+        <button type="button" className={`dash-nav-link${activeKey === 'help' ? ' active' : ''}`} style={{ width: '100%', textAlign: 'left', background: 'none', border: 'none', cursor: 'pointer' }} onClick={() => onSelect?.('help')}>
           <FaCircleQuestion size={17} aria-hidden /><span>Help Center</span>
-        </a>
+        </button>
       </nav>
 
       <div className="dash-sidebar-foot">

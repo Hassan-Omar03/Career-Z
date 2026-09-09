@@ -237,7 +237,8 @@ export default function Dashboard() {
 
   const ws = WORKSPACES[activeWorkspace] || WORKSPACES.student;
   const firstName = (user?.fullName || '').split(' ')[0] || 'there';
-  const SHARED_TAB_LABELS = { messages: 'Messages', notifications: 'Notifications' };
+  const SHARED_TAB_LABELS = { messages: 'Messages', notifications: 'Notifications', calendar: 'Calendar', settings: 'Settings', help: 'Help Center' };
+  const SHARED_TABS = Object.keys(SHARED_TAB_LABELS);
   const activeTabLabel = SHARED_TAB_LABELS[activeTab] || ws.nav.find((t) => t.key === activeTab)?.label || ws.label;
 
   return (
@@ -274,7 +275,10 @@ export default function Dashboard() {
       <div className="admin-data-card">
         {activeTab === 'messages' && <MessagesPanel onFlash={flash} />}
         {activeTab === 'notifications' && <NotificationsPanel onFlash={flash} />}
-        {activeTab !== 'messages' && activeTab !== 'notifications' && (
+        {activeTab === 'calendar' && <CalendarPanel onFlash={flash} />}
+        {activeTab === 'settings' && <SettingsPanel user={user} onFlash={flash} onChanged={refreshProfile} />}
+        {activeTab === 'help' && <HelpCenterPanel onFlash={flash} />}
+        {!SHARED_TABS.includes(activeTab) && (
           <>
             {activeWorkspace === 'student' && <StudentWorkspace tab={activeTab} user={user} onFlash={flash} onChanged={refreshProfile} />}
             {activeWorkspace === 'teacher' && <TeacherWorkspace tab={activeTab} user={user} onFlash={flash} onChanged={refreshProfile} />}
@@ -3194,6 +3198,145 @@ function NotificationsPanel({ onFlash }) {
           </div>
         ))}
       </div>
+    </div>
+  );
+}
+
+// Aggregates whichever real, role-appropriate schedule data the current account
+// has access to (weekly timetable, fee due dates, assignment due dates). Tries
+// each source independently so it degrades gracefully for roles with none of them,
+// rather than hard-coding a role check here.
+function CalendarPanel({ onFlash }) {
+  const [timetable, setTimetable] = useState(null);
+  const [fees, setFees] = useState(null);
+  const [submissions, setSubmissions] = useState(null);
+
+  useEffect(() => {
+    apiRequest('/students/me/timetable').then(setTimetable).catch(() => {});
+    apiRequest('/teachers/me/timetable').then((list) => setTimetable((prev) => prev || list)).catch(() => {});
+    apiRequest('/students/me/fees').then(setFees).catch(() => {});
+    apiRequest('/students/me/submissions').then(setSubmissions).catch(() => {});
+  }, []);
+
+  const loading = timetable === null && fees === null && submissions === null;
+  const upcomingFees = (fees || []).filter((f) => f.status !== 'paid' && f.dueDate);
+  const upcomingAssignments = (submissions || []).filter((s) => s.assignment?.dueDate && s.status !== 'graded');
+
+  return (
+    <div>
+      <h3 className="font-semibold mb-3">Calendar</h3>
+      {loading && <p role="status" className="admin-notice">Loading...</p>}
+
+      {timetable && timetable.length > 0 && (
+        <div className="mb-6">
+          <h4 className="font-semibold mb-2">Weekly Classes</h4>
+          <Table
+            headers={['Day', 'Time', 'Subject', 'Room']}
+            rows={timetable.map((t) => [DOW_LABEL[t.dayOfWeek], `${t.startTime}–${t.endTime}`, t.subject, t.room || '—'])}
+            empty="No classes scheduled."
+          />
+        </div>
+      )}
+
+      {upcomingAssignments.length > 0 && (
+        <div className="mb-6">
+          <h4 className="font-semibold mb-2">Assignment Deadlines</h4>
+          <Table
+            headers={['Assignment', 'Due']}
+            rows={upcomingAssignments.map((s) => [s.assignment?.title, new Date(s.assignment.dueDate).toLocaleDateString()])}
+            empty="No upcoming deadlines."
+          />
+        </div>
+      )}
+
+      {upcomingFees.length > 0 && (
+        <div className="mb-6">
+          <h4 className="font-semibold mb-2">Fee Due Dates</h4>
+          <Table
+            headers={['Title', 'Amount', 'Due']}
+            rows={upcomingFees.map((f) => [f.title, `${f.currency} ${f.amount}`, new Date(f.dueDate).toLocaleDateString()])}
+            empty="No upcoming fees."
+          />
+        </div>
+      )}
+
+      {!loading && !(timetable?.length) && !upcomingAssignments.length && !upcomingFees.length && (
+        <p style={{ fontSize: 13, color: 'var(--ink-soft)' }}>Nothing scheduled right now.</p>
+      )}
+    </div>
+  );
+}
+
+function SettingsPanel({ user, onFlash, onChanged }) {
+  const [form, setForm] = useState({ fullName: user?.fullName || '', phone: user?.phone || '', country: user?.country || '', language: user?.language || 'en' });
+  const [pwForm, setPwForm] = useState({ currentPassword: '', newPassword: '', confirmPassword: '' });
+
+  async function saveProfile(e) {
+    e.preventDefault();
+    try {
+      await apiRequest('/users/me', { method: 'PATCH', body: form });
+      onFlash('Settings saved.', 'success');
+      onChanged?.();
+    } catch (err) { onFlash(err.message); }
+  }
+
+  async function changePassword(e) {
+    e.preventDefault();
+    if (pwForm.newPassword !== pwForm.confirmPassword) { onFlash('New passwords do not match.'); return; }
+    try {
+      await apiRequest('/users/me/password', { method: 'PATCH', body: { currentPassword: pwForm.currentPassword, newPassword: pwForm.newPassword } });
+      onFlash('Password updated.', 'success');
+      setPwForm({ currentPassword: '', newPassword: '', confirmPassword: '' });
+    } catch (err) { onFlash(err.message); }
+  }
+
+  return (
+    <div>
+      <h3 className="font-semibold mb-3">Account Settings</h3>
+      <form onSubmit={saveProfile} className="space-y-3 max-w-md mb-8">
+        <input className="form-input" placeholder="Full name" value={form.fullName} onChange={(e) => setForm({ ...form, fullName: e.target.value })} />
+        <input className="form-input" placeholder="Phone" value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} />
+        <input className="form-input" placeholder="Country code (e.g. PK)" value={form.country || ''} onChange={(e) => setForm({ ...form, country: e.target.value })} />
+        <select className="form-select" value={form.language} onChange={(e) => setForm({ ...form, language: e.target.value })}>
+          <option value="en">English</option>
+          <option value="ur">Urdu</option>
+          <option value="ar">Arabic</option>
+        </select>
+        <button type="submit" className="btn btn-primary">Save Settings</button>
+      </form>
+
+      <h3 className="font-semibold mb-3">Change Password</h3>
+      <form onSubmit={changePassword} className="space-y-3 max-w-md">
+        <input className="form-input" type="password" placeholder="Current password" value={pwForm.currentPassword} onChange={(e) => setPwForm({ ...pwForm, currentPassword: e.target.value })} required />
+        <input className="form-input" type="password" placeholder="New password" value={pwForm.newPassword} onChange={(e) => setPwForm({ ...pwForm, newPassword: e.target.value })} required minLength={8} />
+        <input className="form-input" type="password" placeholder="Confirm new password" value={pwForm.confirmPassword} onChange={(e) => setPwForm({ ...pwForm, confirmPassword: e.target.value })} required minLength={8} />
+        <button type="submit" className="btn btn-primary">Update Password</button>
+      </form>
+    </div>
+  );
+}
+
+const FAQ_ITEMS = [
+  { q: 'How do I switch between my roles (e.g. Student and Teacher)?', a: 'If you hold more than one role, a row of tabs appears above your dashboard — click any tab to switch workspaces instantly.' },
+  { q: 'I requested a new role — why can\'t I post yet?', a: 'The workspace unlocks immediately, but posting a job, scholarship, listing or course requires Super Admin verification first. You\'ll see a banner while it\'s pending.' },
+  { q: 'How do I link my child\'s account as a parent?', a: 'Go to My Children and send a link request by their email — they need to approve it from their own account before you see their data.' },
+  { q: 'How do I verify a certificate I received?', a: 'Every certificate has a QR code and a public verification link — anyone can scan or open it without logging in.' },
+  { q: 'Who can see my messages?', a: 'Only you and the person you\'re messaging. Institution admins can only review a conversation if a complaint is filed about it.' }
+];
+
+function HelpCenterPanel({ onFlash }) {
+  return (
+    <div>
+      <h3 className="font-semibold mb-3">Help Center</h3>
+      <div className="space-y-3 mb-8">
+        {FAQ_ITEMS.map((item) => (
+          <div key={item.q} className="border border-[var(--sand-line)] rounded-xl p-4">
+            <strong className="text-sm">{item.q}</strong>
+            <p className="text-sm mt-1" style={{ color: 'var(--ink-soft)' }}>{item.a}</p>
+          </div>
+        ))}
+      </div>
+      <SupportComplaintPanel onFlash={onFlash} />
     </div>
   );
 }
