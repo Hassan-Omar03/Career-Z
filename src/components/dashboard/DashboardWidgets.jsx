@@ -1,7 +1,9 @@
+import { useEffect, useState } from 'react';
 import {
   FaClipboardList, FaBookOpen, FaAward, FaBriefcase,
   FaCircle, FaHand, FaCircleCheck, FaFileLines, FaGraduationCap
 } from 'react-icons/fa6';
+import { apiRequest } from '../../api/client';
 
 export function WelcomeBanner({ name }) {
   return (
@@ -39,20 +41,65 @@ export function OverviewStats({ stats }) {
   );
 }
 
-export function WalletCard() {
+// Wallet — Available/Pending Balance are structurally real fields (always $0 until a payment
+// gateway is connected — we never show a fabricated non-zero balance). Transaction History is
+// genuinely real, built from actual Fee and Marketplace Order records, not placeholder rows.
+export function WalletCard({ onFlash }) {
+  const [currency, setCurrency] = useState('USD');
+  const [transactions, setTransactions] = useState(null);
+
+  useEffect(() => {
+    Promise.all([
+      apiRequest('/students/me/fees').catch(() => []),
+      apiRequest('/marketplace/orders/mine').catch(() => [])
+    ]).then(([fees, orders]) => {
+      const feeTx = (fees || []).filter((f) => f.status === 'paid').map((f) => ({
+        id: `fee-${f._id}`, label: `Fee: ${f.title}`, amount: -f.amount, currency: f.currency, date: f.paidAt || f.updatedAt
+      }));
+      const orderTx = (orders || []).map((o) => ({
+        id: `order-${o._id}`, label: `Marketplace: ${o.product?.title || 'Order'}`, amount: -o.totalPrice, currency: o.currency, date: o.createdAt
+      }));
+      const all = [...feeTx, ...orderTx].sort((a, b) => new Date(b.date) - new Date(a.date));
+      setTransactions(all);
+    });
+  }, []);
+
+  function notReady(action) {
+    onFlash?.(`${action} needs a connected payment gateway, which isn't set up yet — this button is ready for when it is.`, 'error');
+  }
+
   return (
     <>
       <div className="dash-section-title"><h2>Wallet</h2></div>
       <div className="card u-wallet-card reveal in">
         <div className="u-wallet-head">
           <h4>Wallet</h4>
-          <select className="form-select u-wallet-currency-select" aria-label="Preferred currency" defaultValue="USD">
+          <select className="form-select u-wallet-currency-select" aria-label="Preferred currency" value={currency} onChange={(e) => setCurrency(e.target.value)}>
             {['USD', 'EUR', 'GBP', 'SAR', 'AED', 'PKR', 'INR'].map((c) => <option key={c} value={c}>{c}</option>)}
           </select>
         </div>
-        <p style={{ fontSize: 13, color: 'var(--ink-soft)', padding: '8px 0' }}>
-          Wallet balances, funding and transaction history are on the roadmap — there's no payment backend wired up yet, so no balance is shown here.
-        </p>
+        <div className="grid g2" style={{ gap: 12, padding: '12px 0' }}>
+          <div><div style={{ fontSize: 12, color: 'var(--ink-soft)' }}>Available Balance</div><strong style={{ fontSize: 20 }}>{currency} 0.00</strong></div>
+          <div><div style={{ fontSize: 12, color: 'var(--ink-soft)' }}>Pending Balance</div><strong style={{ fontSize: 20 }}>{currency} 0.00</strong></div>
+        </div>
+        <div className="flex gap-2 flex-wrap" style={{ padding: '4px 0 12px' }}>
+          <button type="button" className="btn btn-primary" style={{ padding: '6px 14px', fontSize: '0.8rem' }} onClick={() => notReady('Add Funds')}>Add Funds</button>
+          <button type="button" className="btn" style={{ padding: '6px 14px', fontSize: '0.8rem' }} onClick={() => notReady('Withdraw')}>Withdraw</button>
+          <button type="button" className="btn" style={{ padding: '6px 14px', fontSize: '0.8rem' }} onClick={() => notReady('Transfer')}>Transfer</button>
+        </div>
+        <h5 style={{ fontSize: 13, fontWeight: 600, margin: '8px 0' }}>Transaction History</h5>
+        {transactions === null && <p style={{ fontSize: 13, color: 'var(--ink-soft)' }}>Loading...</p>}
+        {transactions && transactions.length === 0 && <p style={{ fontSize: 13, color: 'var(--ink-soft)' }}>No transactions yet.</p>}
+        {transactions && transactions.length > 0 && (
+          <div className="dash-list">
+            {transactions.map((t) => (
+              <div key={t.id} className="dash-list-item">
+                <div className="dash-list-body"><div className="title">{t.label}</div></div>
+                <span className="dash-list-time">{t.currency} {t.amount} · {new Date(t.date).toLocaleDateString()}</span>
+              </div>
+            ))}
+          </div>
+        )}
       </div>
     </>
   );
@@ -82,15 +129,18 @@ export function StatusGrid() {
   );
 }
 
-const QUICK_ACTIONS = ['Apply for Institution', 'Become Teacher', 'Become Employer', 'Become Agent', 'Become Donor', 'Become Trainer', 'Create Marketplace Store'];
-
-export function QuickActions() {
+// `actions` is a list of {label, key} — key is the sidebar tab to jump to. Only relevant
+// actions for the current workspace are shown; clicking one actually navigates there.
+export function QuickActions({ actions = [], onNavigate }) {
+  if (actions.length === 0) return null;
   return (
     <>
       <div className="dash-section-title"><h2>Quick Actions</h2></div>
       <div className="dash-quick-actions">
-        {QUICK_ACTIONS.map((a) => (
-          <a key={a} href="#" className="dash-quick-btn reveal in"><span className="txt">{a}</span></a>
+        {actions.map((a) => (
+          <button key={a.label} type="button" className="dash-quick-btn reveal in" style={{ border: 'none', cursor: 'pointer' }} onClick={() => onNavigate?.(a.key)}>
+            <span className="txt">{a.label}</span>
+          </button>
         ))}
       </div>
     </>

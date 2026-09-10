@@ -16,7 +16,7 @@ function useDropdown() {
   return { open, setOpen, ref };
 }
 
-export default function DashboardHeader({ user, onSidebarToggle, onLogout }) {
+export default function DashboardHeader({ user, onSidebarToggle, onLogout, onNavigate }) {
   const { theme, toggleTheme } = useTheme();
   const quickActions = useDropdown();
   const profileMenu = useDropdown();
@@ -80,13 +80,13 @@ export default function DashboardHeader({ user, onSidebarToggle, onLogout }) {
           )}
         </div>
 
-        <div className="dash-wallet-chip">
+        <button type="button" className="dash-wallet-chip" style={{ border: 'none', cursor: 'pointer', background: 'none', font: 'inherit', color: 'inherit' }} onClick={() => onNavigate?.('wallet')}>
           <FaWallet size={17} />
           <span className="w-text">
             <span className="w-label">Balance</span>
-            <span className="w-amount">—</span>
+            <span className="w-amount">View Wallet</span>
           </span>
-        </div>
+        </button>
 
         <LanguageSelector />
 
@@ -95,17 +95,15 @@ export default function DashboardHeader({ user, onSidebarToggle, onLogout }) {
         </button>
 
         <div className="dash-icon-btn-wrap">
-          <button className="icon-btn" aria-label="Messages">
+          <button className="icon-btn" aria-label="Messages" onClick={() => onNavigate?.('messages')}>
             <FaCommentDots size={17} />
           </button>
-          <span className="dash-badge-dot"></span>
         </div>
 
         <div className="dash-icon-btn-wrap">
-          <button className="icon-btn" aria-label="Notifications">
+          <button className="icon-btn" aria-label="Notifications" onClick={() => onNavigate?.('notifications')}>
             <FaBell size={17} />
           </button>
-          <span className="dash-badge-dot"></span>
         </div>
 
         <div style={{ position: 'relative' }} ref={profileMenu.ref}>
@@ -117,9 +115,9 @@ export default function DashboardHeader({ user, onSidebarToggle, onLogout }) {
           {profileMenu.open && (
             <div className="dash-user-menu" style={{ display: 'block' }} role="menu">
               <div className="dash-role-note">Signed in as <strong>{(user?.roles || []).join(', ')}</strong></div>
-              <a href="#" role="menuitem">My Profile</a>
-              <a href="#" role="menuitem">Settings</a>
-              <a href="#" role="menuitem">Help Center</a>
+              <button type="button" role="menuitem" onClick={() => { profileMenu.setOpen(false); onNavigate?.('profile'); }}>My Profile</button>
+              <button type="button" role="menuitem" onClick={() => { profileMenu.setOpen(false); onNavigate?.('settings'); }}>Settings</button>
+              <button type="button" role="menuitem" onClick={() => { profileMenu.setOpen(false); onNavigate?.('help'); }}>Help Center</button>
               <hr />
               <button type="button" role="menuitem" onClick={onLogout}>Logout</button>
             </div>

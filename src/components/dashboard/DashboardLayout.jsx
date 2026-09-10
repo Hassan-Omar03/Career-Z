@@ -38,6 +38,7 @@ export default function DashboardLayout({ children, trail = ['Dashboard'], activ
             else setCollapsed((c) => !c);
           }}
           onLogout={handleLogout}
+          onNavigate={onSelect}
         />
 
         <main className="dash-main">

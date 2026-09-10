@@ -17,7 +17,11 @@ const LOGIN_AS_OPTIONS = [
   { value: 'parent', label: 'Parent', role: 'parent', workspace: 'parent' },
   { value: 'teacher', label: 'Teacher', role: 'teacher', workspace: 'teacher' },
   { value: 'employer', label: 'Employer', role: 'employer', workspace: 'employer' },
-  { value: 'institution_representative', label: 'Institution Representative', role: 'institution_owner', workspace: 'institution' },
+  // Representative status is never self-granted — it only comes from an institution owner
+  // adding the account as staff (role: 'representative'). Auto-granting 'institution_owner'
+  // here was a real bug: it silently turned every "Institution Representative" login-as pick
+  // into a full owner account, breaking the Representative-workspace routing permanently.
+  { value: 'institution_representative', label: 'Institution Representative', role: null, workspace: 'institution' },
   { value: 'agent', label: 'Agent', role: 'education_agent', workspace: 'education_agent' },
   { value: 'donor', label: 'Donor', role: 'donor', workspace: 'donor' },
   { value: 'marketplace_seller', label: 'Marketplace Seller', role: 'marketplace_seller', workspace: 'marketplace_seller' }
