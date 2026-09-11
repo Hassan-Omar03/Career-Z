@@ -159,9 +159,21 @@ const WORKSPACES = {
     greeting: 'Manage your marketplace listings and orders.',
     nav: [
       { key: 'summary', label: 'Dashboard', icon: FaGauge },
-      { key: 'listings', label: 'My Listings', icon: FaStore },
-      { key: 'orders', label: 'Orders Received', icon: FaClipboardList },
-      { key: 'profile', label: 'Profile', icon: FaUser }
+      { key: 'profile', label: 'Seller/Store Profile', icon: FaUser },
+      { key: 'sellerVerification', label: 'Verification/Documents', icon: FaClipboardCheck },
+      { key: 'addListing', label: 'Add New Listing', icon: FaFileLines },
+      { key: 'listings', label: 'Products/Listings', icon: FaStore },
+      { key: 'services', label: 'Services', icon: FaBriefcase },
+      { key: 'orders', label: 'Orders', icon: FaClipboardList },
+      { key: 'inventory', label: 'Inventory', icon: FaSackDollar },
+      { key: 'returnsRefunds', label: 'Returns & Refunds', icon: FaHourglassHalf },
+      { key: 'salesAnalytics', label: 'Sales Analytics', icon: FaChartLine },
+      { key: 'earningsCommission', label: 'Earnings & Commission', icon: FaMoneyBillWave },
+      { key: 'sellerWallet', label: 'Wallet & Transactions', icon: FaWallet },
+      { key: 'withdrawals', label: 'Withdrawals', icon: FaWallet },
+      { key: 'sellerReviews', label: 'Reviews & Ratings', icon: FaAward },
+      { key: 'sellerMessages', label: 'Messages', icon: FaCommentDots },
+      { key: 'sellerNotifications', label: 'Notifications', icon: FaBell }
     ]
   },
   education_agent: {
@@ -397,7 +409,7 @@ export default function Dashboard() {
             {activeWorkspace === 'employer' && <EmployerWorkspace tab={activeTab} user={user} onFlash={flash} onChanged={refreshProfile} />}
             {activeWorkspace === 'admin' && <AdminWorkspace tab={activeTab} user={user} roles={roles} onFlash={flash} onChanged={refreshProfile} />}
             {activeWorkspace === 'donor' && <DonorWorkspace tab={activeTab} user={user} onFlash={flash} onChanged={refreshProfile} onNavigate={setActiveTab} />}
-            {activeWorkspace === 'marketplace_seller' && <SellerWorkspace tab={activeTab} user={user} onFlash={flash} onChanged={refreshProfile} />}
+            {activeWorkspace === 'marketplace_seller' && <SellerWorkspace tab={activeTab} user={user} onFlash={flash} onChanged={refreshProfile} onNavigate={setActiveTab} />}
             {activeWorkspace === 'education_agent' && <AgentWorkspace tab={activeTab} user={user} onFlash={flash} onChanged={refreshProfile} onNavigate={setActiveTab} />}
           </>
         )}
@@ -1909,63 +1921,223 @@ function MarketplaceBrowsePanel({ onFlash }) {
   );
 }
 
+// The real order-fulfillment lifecycle — New/Confirmed/Processing/Shipped/Delivered/Completed
+// are all shown as "pending" (in-progress) tag color except the two terminal-success states;
+// Cancelled/Refunded are the terminal-failure states. DB keeps 'pending' as the first enum value
+// for backward compatibility — labeled "New" here, matching every other raw-enum/label split in this app.
+const ORDER_STATUS = {
+  pending: { tag: 'pending', label: 'New' },
+  confirmed: { tag: 'pending', label: 'Confirmed' },
+  processing: { tag: 'pending', label: 'Processing' },
+  shipped: { tag: 'pending', label: 'Shipped' },
+  delivered: { tag: 'approved', label: 'Delivered' },
+  completed: { tag: 'approved', label: 'Completed' },
+  cancelled: { tag: 'rejected', label: 'Cancelled' },
+  refunded: { tag: 'rejected', label: 'Refunded' }
+};
+const PAYMENT_STATUS = {
+  pending: { tag: 'pending', label: 'Pending' },
+  paid: { tag: 'approved', label: 'Paid' },
+  failed: { tag: 'rejected', label: 'Failed' },
+  refunded: { tag: 'rejected', label: 'Refunded' }
+};
+
 function MyOrdersPanel({ onFlash }) {
   const [orders, setOrders] = useState(null);
-  useEffect(() => { apiRequest('/marketplace/orders/mine').then(setOrders).catch((err) => onFlash(err.message)); }, [onFlash]);
+  function load() { apiRequest('/marketplace/orders/mine').then(setOrders).catch((err) => onFlash(err.message)); }
+  useEffect(load, [onFlash]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  async function requestCancellation(id) {
+    try { await apiRequest(`/marketplace/orders/${id}/request-cancellation`, { method: 'POST' }); onFlash('Cancellation requested — waiting on the seller.', 'success'); load(); } catch (err) { onFlash(err.message); }
+  }
+  async function requestRefund(id) {
+    try { await apiRequest(`/marketplace/orders/${id}/request-refund`, { method: 'POST' }); onFlash('Refund/return requested — waiting on the seller.', 'success'); load(); } catch (err) { onFlash(err.message); }
+  }
+
   return (
     <Table
       loading={orders === null}
-      headers={['Product', 'Qty', 'Total', 'Status', 'Ordered']}
-      rows={(orders || []).map((o) => [o.product?.title, o.quantity, `${o.currency} ${o.totalPrice}`, <Tag status={o.status === 'delivered' ? 'approved' : o.status === 'cancelled' ? 'rejected' : 'pending'} />, new Date(o.createdAt).toLocaleDateString()])}
+      headers={['Order ID', 'Product', 'Qty', 'Total', 'Payment', 'Status', 'Ordered', 'Actions']}
+      rows={(orders || []).map((o) => [
+        o._id.slice(-8).toUpperCase(),
+        o.product?.title,
+        o.quantity,
+        `${o.currency} ${o.totalPrice}`,
+        <Tag status={PAYMENT_STATUS[o.paymentStatus]?.tag} label={PAYMENT_STATUS[o.paymentStatus]?.label} />,
+        <Tag status={ORDER_STATUS[o.status]?.tag} label={ORDER_STATUS[o.status]?.label} />,
+        new Date(o.createdAt).toLocaleDateString(),
+        <div className="flex gap-2 flex-wrap">
+          {!['delivered', 'completed', 'cancelled', 'refunded'].includes(o.status) && !o.cancellationRequested && <button type="button" className="btn" style={{ padding: '4px 10px', fontSize: '0.72rem' }} onClick={() => requestCancellation(o._id)}>Request Cancellation</button>}
+          {o.cancellationRequested && <span className="text-xs" style={{ color: 'var(--ink-soft)' }}>Cancellation pending</span>}
+          {['delivered', 'completed'].includes(o.status) && !o.refundRequested && <button type="button" className="btn" style={{ padding: '4px 10px', fontSize: '0.72rem' }} onClick={() => requestRefund(o._id)}>Request Refund</button>}
+          {o.refundRequested && <span className="text-xs" style={{ color: 'var(--ink-soft)' }}>Refund pending</span>}
+        </div>
+      ])}
       empty="No orders yet."
     />
   );
 }
 
+// The real listing lifecycle — draft (not submitted) / pending_approval (Super Admin review) /
+// active (live) / rejected (admin declined) / out_of_stock (auto-set when stock hits 0) / paused
+// (seller took it down themselves).
+const PRODUCT_STATUS = {
+  draft: { tag: 'under_review', label: 'Draft' },
+  pending_approval: { tag: 'pending', label: 'Pending Approval' },
+  active: { tag: 'approved', label: 'Active' },
+  rejected: { tag: 'rejected', label: 'Rejected' },
+  out_of_stock: { tag: 'pending', label: 'Out of Stock' },
+  paused: { tag: 'under_review', label: 'Paused' }
+};
+const PRODUCT_CATEGORIES = ['books', 'stationery', 'uniform', 'electronics', 'courses', 'services', 'other'];
+const EMPTY_PRODUCT_FORM = { title: '', description: '', category: 'other', price: '', currency: 'USD', stock: 0, images: '' };
+
+function ProductDetailModal({ product, onClose }) {
+  if (!product) return null;
+  const st = PRODUCT_STATUS[product.status] || PRODUCT_STATUS.draft;
+  return (
+    <div className="u-modal-overlay open" onClick={onClose}>
+      <div className="u-modal u-modal-lg" onClick={(e) => e.stopPropagation()}>
+        <div className="u-modal-head">
+          <div>
+            <h3>{product.title}</h3>
+            <p className="text-xs" style={{ color: 'var(--ink-soft)' }}>{product.category}</p>
+          </div>
+          <button type="button" className="u-modal-close" onClick={onClose}>✕</button>
+        </div>
+        <div className="u-modal-body">
+          {product.images?.[0] && <img src={product.images[0]} alt="" style={{ width: '100%', maxHeight: 220, objectFit: 'cover', borderRadius: 8, marginBottom: 12 }} />}
+          <p className="text-xs" style={{ marginBottom: 8 }}><strong>Description:</strong> {product.description || 'Not provided'}</p>
+          <p className="text-xs" style={{ marginBottom: 8 }}><strong>Price:</strong> {product.currency} {product.price}</p>
+          <p className="text-xs" style={{ marginBottom: 8 }}><strong>Available quantity:</strong> {product.stock}</p>
+          <p className="text-xs" style={{ marginBottom: 8 }}><strong>Total sales:</strong> {product.totalSales ?? 0} unit{product.totalSales === 1 ? '' : 's'}</p>
+          <p className="text-xs" style={{ marginBottom: 8 }}><strong>Views:</strong> {product.views ?? 0}</p>
+          {product.status === 'rejected' && product.reviewNotes && <p className="text-xs" style={{ marginBottom: 8, color: 'var(--ink-soft)' }}><strong>Rejection reason:</strong> {product.reviewNotes}</p>}
+          <p className="text-xs"><strong>Status:</strong> <Tag status={st.tag} label={st.label} /></p>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function MyListingsPanel({ onFlash }) {
   const [products, setProducts] = useState(null);
-  const [form, setForm] = useState({ title: '', description: '', category: 'other', price: '', currency: 'USD', stock: 0 });
+  const [form, setForm] = useState(EMPTY_PRODUCT_FORM);
+  const [viewing, setViewing] = useState(null);
+  const [editingId, setEditingId] = useState(null);
+  const [editForm, setEditForm] = useState(EMPTY_PRODUCT_FORM);
 
   function load() { apiRequest('/marketplace/products/mine/list').then(setProducts).catch((err) => onFlash(err.message)); }
   useEffect(load, []);
 
-  async function create(e) {
+  async function create(e, status) {
     e.preventDefault();
     try {
-      await apiRequest('/marketplace/products', { method: 'POST', body: { ...form, price: Number(form.price), stock: Number(form.stock) } });
-      onFlash('Listing created.', 'success');
-      setForm({ title: '', description: '', category: 'other', price: '', currency: 'USD', stock: 0 });
+      const body = { ...form, price: Number(form.price), stock: Number(form.stock), images: form.images ? [form.images] : [] };
+      if (status === 'draft') body.status = 'draft';
+      await apiRequest('/marketplace/products', { method: 'POST', body });
+      onFlash(status === 'draft' ? 'Draft saved.' : 'Listing submitted for review.', 'success');
+      setForm(EMPTY_PRODUCT_FORM);
       load();
     } catch (err) { onFlash(err.message); }
   }
 
-  async function toggleStatus(p) {
+  function startEdit(p) {
+    setEditingId(p._id);
+    setEditForm({ title: p.title, description: p.description || '', category: p.category, price: p.price, currency: p.currency, stock: p.stock, images: p.images?.[0] || '' });
+  }
+  async function saveEdit(id) {
     try {
-      await apiRequest(`/marketplace/products/${p._id}`, { method: 'PATCH', body: { status: p.status === 'active' ? 'inactive' : 'active' } });
+      await apiRequest(`/marketplace/products/${id}`, { method: 'PATCH', body: { ...editForm, price: Number(editForm.price), stock: Number(editForm.stock), images: editForm.images ? [editForm.images] : [] } });
+      onFlash('Listing updated.', 'success');
+      setEditingId(null);
+      load();
+    } catch (err) { onFlash(err.message); }
+  }
+
+  async function togglePause(p) {
+    try {
+      await apiRequest(`/marketplace/products/${p._id}`, { method: 'PATCH', body: { status: p.status === 'active' ? 'paused' : 'active' } });
+      onFlash(p.status === 'active' ? 'Listing paused.' : 'Listing reactivated.', 'success');
+      load();
+    } catch (err) { onFlash(err.message); }
+  }
+  async function submitForReview(p) {
+    try {
+      await apiRequest(`/marketplace/products/${p._id}`, { method: 'PATCH', body: { status: 'pending_approval' } });
+      onFlash('Submitted for review.', 'success');
+      load();
+    } catch (err) { onFlash(err.message); }
+  }
+  async function remove(id) {
+    try {
+      await apiRequest(`/marketplace/products/${id}`, { method: 'DELETE' });
+      onFlash('Listing removed.', 'success');
       load();
     } catch (err) { onFlash(err.message); }
   }
 
   return (
     <div>
-      <form onSubmit={create} className="space-y-3 max-w-lg mb-6">
-        <input className="form-input" placeholder="Title" required value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })} />
+      <h3 className="font-semibold mb-2">Add Listing</h3>
+      <form className="space-y-3 max-w-lg mb-6">
+        <input className="form-input" placeholder="Product/service name" required value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })} />
         <textarea className="form-input" placeholder="Description" rows={2} value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} />
-        <div className="flex gap-2">
-          <select className="form-input" value={form.category} onChange={(e) => setForm({ ...form, category: e.target.value })}>
-            {['books', 'stationery', 'uniform', 'electronics', 'courses', 'services', 'other'].map((c) => <option key={c} value={c}>{c}</option>)}
+        <input className="form-input" placeholder="Image URL (paste a direct image link)" value={form.images} onChange={(e) => setForm({ ...form, images: e.target.value })} />
+        <div className="flex gap-2 flex-wrap">
+          <select className="form-select" value={form.category} onChange={(e) => setForm({ ...form, category: e.target.value })}>
+            {PRODUCT_CATEGORIES.map((c) => <option key={c} value={c}>{c}</option>)}
           </select>
           <input className="form-input" type="number" placeholder="Price" required value={form.price} onChange={(e) => setForm({ ...form, price: e.target.value })} />
-          <input className="form-input" type="number" placeholder="Stock" value={form.stock} onChange={(e) => setForm({ ...form, stock: e.target.value })} />
+          <input className="form-input" type="number" placeholder="Available quantity" value={form.stock} onChange={(e) => setForm({ ...form, stock: e.target.value })} />
         </div>
-        <button type="submit" className="btn btn-primary">Add Listing</button>
+        <div className="flex gap-2">
+          <button type="button" className="btn" onClick={(e) => create(e, 'draft')}>Save as Draft</button>
+          <button type="button" className="btn btn-primary" onClick={(e) => create(e, 'submit')}>Add Listing</button>
+        </div>
       </form>
+
+      <h3 className="font-semibold mb-2">Products/Listings Overview</h3>
       <Table
         loading={products === null}
-        headers={['Title', 'Price', 'Stock', 'Status', 'Action']}
-        rows={(products || []).map((p) => [p.title, `${p.currency} ${p.price}`, p.stock, <Tag status={p.status === 'active' ? 'approved' : 'pending'} />, <button className="btn" style={{ padding: '4px 12px', fontSize: '0.78rem' }} onClick={() => toggleStatus(p)}>{p.status === 'active' ? 'Deactivate' : 'Activate'}</button>])}
+        headers={['Image', 'Name', 'Category', 'Price', 'Available Qty', 'Status', 'Total Sales', 'Views', 'Actions']}
+        rows={(products || []).map((p) => {
+          const st = PRODUCT_STATUS[p.status] || PRODUCT_STATUS.draft;
+          const isEditing = editingId === p._id;
+          return [
+            p.images?.[0] ? <img src={p.images[0]} alt="" style={{ width: 36, height: 36, borderRadius: 6, objectFit: 'cover' }} /> : <div style={{ width: 36, height: 36, borderRadius: 6, background: 'var(--sand-line)' }} />,
+            isEditing ? <input className="form-input" style={{ padding: '4px 6px', fontSize: '0.75rem' }} value={editForm.title} onChange={(e) => setEditForm({ ...editForm, title: e.target.value })} /> : p.title,
+            isEditing ? (
+              <select className="form-select" style={{ padding: '4px 6px', fontSize: '0.72rem' }} value={editForm.category} onChange={(e) => setEditForm({ ...editForm, category: e.target.value })}>
+                {PRODUCT_CATEGORIES.map((c) => <option key={c} value={c}>{c}</option>)}
+              </select>
+            ) : p.category,
+            isEditing ? <input className="form-input" type="number" style={{ padding: '4px 6px', fontSize: '0.75rem', width: 80 }} value={editForm.price} onChange={(e) => setEditForm({ ...editForm, price: e.target.value })} /> : `${p.currency} ${p.price}`,
+            isEditing ? <input className="form-input" type="number" style={{ padding: '4px 6px', fontSize: '0.75rem', width: 70 }} value={editForm.stock} onChange={(e) => setEditForm({ ...editForm, stock: e.target.value })} /> : p.stock,
+            <Tag status={st.tag} label={st.label} />,
+            `${p.totalSales ?? 0} sold`,
+            p.views ?? 0,
+            <div className="flex gap-2 flex-wrap">
+              {isEditing ? (
+                <>
+                  <button type="button" className="btn btn-primary" style={{ padding: '4px 10px', fontSize: '0.72rem' }} onClick={() => saveEdit(p._id)}>Save</button>
+                  <button type="button" className="btn" style={{ padding: '4px 10px', fontSize: '0.72rem' }} onClick={() => setEditingId(null)}>Cancel</button>
+                </>
+              ) : (
+                <>
+                  <button type="button" className="btn" style={{ padding: '4px 10px', fontSize: '0.72rem' }} onClick={() => setViewing(p)}>View</button>
+                  <button type="button" className="btn" style={{ padding: '4px 10px', fontSize: '0.72rem' }} onClick={() => startEdit(p)}>Edit</button>
+                  {p.status === 'draft' && <button type="button" className="btn" style={{ padding: '4px 10px', fontSize: '0.72rem' }} onClick={() => submitForReview(p)}>Submit for Review</button>}
+                  {(p.status === 'active' || p.status === 'paused') && <button type="button" className="btn" style={{ padding: '4px 10px', fontSize: '0.72rem' }} onClick={() => togglePause(p)}>{p.status === 'active' ? 'Pause' : 'Reactivate'}</button>}
+                  <button type="button" className="btn" style={{ padding: '4px 10px', fontSize: '0.72rem' }} onClick={() => remove(p._id)}>Delete</button>
+                </>
+              )}
+            </div>
+          ];
+        })}
         empty="You haven't listed anything yet."
       />
+      <ProductDetailModal product={viewing} onClose={() => setViewing(null)} />
     </div>
   );
 }
@@ -1981,19 +2153,675 @@ function SellerOrdersPanel({ onFlash }) {
       load();
     } catch (err) { onFlash(err.message); }
   }
+  async function updatePayment(id, paymentStatus) {
+    try {
+      await apiRequest(`/marketplace/orders/${id}/payment-status`, { method: 'PATCH', body: { paymentStatus } });
+      load();
+    } catch (err) { onFlash(err.message); }
+  }
 
   return (
     <Table
       loading={orders === null}
-      headers={['Product', 'Buyer', 'Qty', 'Total', 'Status', 'Action']}
+      headers={['Order ID', 'Buyer', 'Product', 'Ordered', 'Qty', 'Total', 'Payment', 'Status']}
       rows={(orders || []).map((o) => [
-        o.product?.title, o.buyer?.fullName, o.quantity, `${o.currency} ${o.totalPrice}`, <Tag status={o.status === 'delivered' ? 'approved' : o.status === 'cancelled' ? 'rejected' : 'pending'} />,
-        <select className="form-input" value={o.status} onChange={(e) => updateStatus(o._id, e.target.value)} style={{ padding: '4px 8px', fontSize: '0.78rem' }}>
-          {['pending', 'confirmed', 'shipped', 'delivered', 'cancelled'].map((s) => <option key={s} value={s}>{s}</option>)}
+        o._id.slice(-8).toUpperCase(),
+        o.buyer?.fullName,
+        o.product?.title,
+        new Date(o.createdAt).toLocaleDateString(),
+        o.quantity,
+        `${o.currency} ${o.totalPrice}`,
+        <select className="form-select" value={o.paymentStatus} onChange={(e) => updatePayment(o._id, e.target.value)} style={{ padding: '4px 6px', fontSize: '0.72rem' }}>
+          {Object.entries(PAYMENT_STATUS).map(([val, meta]) => <option key={val} value={val}>{meta.label}</option>)}
+        </select>,
+        <select className="form-select" value={o.status} onChange={(e) => updateStatus(o._id, e.target.value)} style={{ padding: '4px 6px', fontSize: '0.72rem' }}>
+          {Object.entries(ORDER_STATUS).map(([val, meta]) => <option key={val} value={val}>{meta.label}</option>)}
         </select>
       ])}
       empty="No orders received yet."
     />
+  );
+}
+
+const SELLER_WITHDRAWAL_STATUS = {
+  requested: { tag: 'pending', label: 'Requested' },
+  processing: { tag: 'pending', label: 'Processing' },
+  paid: { tag: 'approved', label: 'Paid' },
+  rejected: { tag: 'rejected', label: 'Rejected' }
+};
+
+// Seller item 10 — Wallet. Reuses the exact same computeEarnings numbers as item 9's Earnings &
+// Commission (never a second, conflicting "available balance"). "Selected Currency" is a real UI
+// control when the seller operates in more than one currency — most sellers only ever see one tab.
+function SellerWalletPanel({ onFlash }) {
+  const [wallet, setWallet] = useState(null);
+  const [withdrawals, setWithdrawals] = useState(null);
+  const [orders, setOrders] = useState(null);
+  const [selectedCurrency, setSelectedCurrency] = useState(null);
+
+  function load() {
+    apiRequest('/marketplace/sellers/mine/wallet').then((data) => {
+      setWallet(data);
+      setSelectedCurrency((prev) => prev && data[prev] ? prev : Object.keys(data)[0] || null);
+    }).catch((err) => onFlash(err.message));
+    apiRequest('/marketplace/sellers/mine/withdrawals').then(setWithdrawals).catch((err) => onFlash(err.message));
+    apiRequest('/marketplace/orders/selling').then(setOrders).catch(() => setOrders([]));
+  }
+  useEffect(load, [onFlash]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  async function withdraw() {
+    try {
+      await apiRequest('/marketplace/sellers/mine/withdraw', { method: 'POST', body: { currency: selectedCurrency } });
+      onFlash('Withdrawal requested.', 'success');
+      load();
+    } catch (err) { onFlash(err.message); }
+  }
+
+  if (wallet === null || withdrawals === null || orders === null) return <p role="status" className="admin-notice">Loading...</p>;
+
+  const currencies = Object.keys(wallet);
+  const w = selectedCurrency ? wallet[selectedCurrency] : null;
+
+  // Transaction history — every realized sale + every withdrawal, for the selected currency.
+  const transactions = [
+    ...orders.filter((o) => o.currency === selectedCurrency && ['delivered', 'completed'].includes(o.status)).map((o) => ({ type: 'Sale', date: o.createdAt, amount: o.totalPrice, ref: o._id.slice(-8).toUpperCase() })),
+    ...withdrawals.filter((wd) => wd.currency === selectedCurrency).map((wd) => ({ type: 'Withdrawal', date: wd.createdAt, amount: -wd.amount, ref: wd._id.slice(-8).toUpperCase(), status: wd.status }))
+  ].sort((a, b) => new Date(b.date) - new Date(a.date));
+
+  return (
+    <div>
+      <h3 className="font-semibold mb-2">Wallet</h3>
+      <p className="text-xs mb-3" style={{ color: 'var(--ink-soft)' }}>No real payment processor is wired up — "Withdraw Funds" creates a real, trackable request; nothing here moves actual money.</p>
+      {currencies.length === 0 && <p className="text-sm mb-3" style={{ color: 'var(--ink-soft)' }}>No wallet activity yet.</p>}
+      {currencies.length > 1 && (
+        <div className="mb-3">
+          <label className="text-xs" style={{ color: 'var(--ink-soft)' }}>Selected Currency:{' '}
+            <select className="form-select" style={{ padding: '4px 8px', display: 'inline-block', width: 'auto' }} value={selectedCurrency || ''} onChange={(e) => setSelectedCurrency(e.target.value)}>
+              {currencies.map((c) => <option key={c} value={c}>{c}</option>)}
+            </select>
+          </label>
+        </div>
+      )}
+      {w && (
+        <div className="card" style={{ padding: 16, marginBottom: 20 }}>
+          <strong className="text-sm">{selectedCurrency} Wallet</strong>
+          <div className="grid grid-cols-3 gap-3 mt-2">
+            <p className="text-xs" style={{ color: 'var(--ink-soft)' }}>Available Balance: <strong>{selectedCurrency} {w.availableBalance}</strong></p>
+            <p className="text-xs" style={{ color: 'var(--ink-soft)' }}>Pending Balance: <strong>{selectedCurrency} {w.pendingBalance}</strong></p>
+            <p className="text-xs" style={{ color: 'var(--ink-soft)' }}>Total Earnings: <strong>{selectedCurrency} {w.totalEarnings}</strong></p>
+          </div>
+          <button type="button" className="btn btn-primary mt-3" style={{ padding: '5px 14px', fontSize: '0.78rem' }} disabled={w.availableBalance <= 0} onClick={withdraw}>Withdraw Funds ({selectedCurrency} {w.availableBalance})</button>
+        </div>
+      )}
+
+      <h4 className="font-semibold mb-2 mt-4">Transaction History</h4>
+      <Table
+        headers={['Type', 'Date', 'Amount', 'Reference']}
+        rows={transactions.map((t) => [t.type, new Date(t.date).toLocaleDateString(), `${t.amount >= 0 ? '' : '-'}${selectedCurrency} ${Math.abs(t.amount)}`, t.ref])}
+        empty="No transactions yet."
+      />
+
+      <h4 className="font-semibold mb-2 mt-4">Withdrawal History</h4>
+      <Table
+        headers={['Amount', 'Currency', 'Status', 'Requested', 'Processed']}
+        rows={withdrawals.map((wd) => [
+          wd.amount, wd.currency,
+          <Tag status={SELLER_WITHDRAWAL_STATUS[wd.status]?.tag} label={SELLER_WITHDRAWAL_STATUS[wd.status]?.label} />,
+          new Date(wd.createdAt).toLocaleDateString(),
+          wd.processedAt ? new Date(wd.processedAt).toLocaleDateString() : '—'
+        ])}
+        empty="No withdrawals requested yet."
+      />
+    </div>
+  );
+}
+
+// Seller item 11 — Reviews & Ratings. Every real review across every listing, with seller
+// response and a report-inappropriate action.
+function SellerReviewsPanel({ onFlash }) {
+  const [reviews, setReviews] = useState(null);
+  const [profile, setProfile] = useState(null);
+  const [respondingId, setRespondingId] = useState(null);
+  const [responseText, setResponseText] = useState('');
+
+  function load() {
+    apiRequest('/marketplace/sellers/mine/reviews').then(setReviews).catch((err) => onFlash(err.message));
+    apiRequest('/marketplace/sellers/mine/profile').then(setProfile).catch(() => {});
+  }
+  useEffect(load, [onFlash]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  async function submitResponse(id) {
+    if (!responseText.trim()) return;
+    try {
+      await apiRequest(`/marketplace/reviews/${id}/respond`, { method: 'PATCH', body: { response: responseText.trim() } });
+      onFlash('Response posted.', 'success');
+      setRespondingId(null); setResponseText('');
+      load();
+    } catch (err) { onFlash(err.message); }
+  }
+  async function report(id) {
+    const reason = window.prompt('Why is this review inappropriate?');
+    if (reason === null) return;
+    try {
+      await apiRequest(`/marketplace/reviews/${id}/report`, { method: 'POST', body: { reason } });
+      onFlash('Review reported for Super Admin review.', 'success');
+      load();
+    } catch (err) { onFlash(err.message); }
+  }
+
+  if (reviews === null) return <p role="status" className="admin-notice">Loading...</p>;
+
+  // Product ratings — computed client-side from the same review list, one row per product.
+  const byProduct = {};
+  reviews.forEach((r) => {
+    const key = r.product?._id || 'unknown';
+    if (!byProduct[key]) byProduct[key] = { title: r.product?.title || 'Deleted listing', ratings: [] };
+    byProduct[key].ratings.push(r.rating);
+  });
+  const productRatings = Object.values(byProduct).map((p) => ({ title: p.title, avg: Math.round((p.ratings.reduce((s, r) => s + r, 0) / p.ratings.length) * 10) / 10, count: p.ratings.length }));
+
+  return (
+    <div>
+      <h3 className="font-semibold mb-2">Reviews & Ratings</h3>
+      <div className="card" style={{ padding: 16, marginBottom: 20 }}>
+        <strong className="text-sm">Overall Seller Rating</strong>
+        <p className="text-xs mt-1" style={{ color: 'var(--ink-soft)' }}>
+          {profile?.sellerRating !== null && profile?.sellerRating !== undefined ? `★ ${profile.sellerRating} (${profile.totalReviews} review${profile.totalReviews === 1 ? '' : 's'})` : 'No reviews yet'}
+        </p>
+      </div>
+
+      <h4 className="font-semibold mb-2">Product Ratings</h4>
+      <Table
+        headers={['Product', 'Average Rating', 'Reviews']}
+        rows={productRatings.map((p) => [p.title, `★ ${p.avg}`, p.count])}
+        empty="No product ratings yet."
+      />
+
+      <h4 className="font-semibold mb-2 mt-4">Buyer Reviews / Recent Feedback</h4>
+      {reviews.length === 0 && <p className="text-xs" style={{ color: 'var(--ink-soft)' }}>No reviews yet.</p>}
+      {reviews.map((r) => (
+        <div key={r._id} className="border border-[var(--sand-line)] rounded-xl p-3 mb-3">
+          <div className="flex items-center justify-between flex-wrap gap-2">
+            <div>
+              <strong className="text-sm">{r.buyer?.fullName}</strong>
+              <p className="text-xs" style={{ color: 'var(--ink-soft)' }}>{r.product?.title} · ★ {r.rating} · {new Date(r.createdAt).toLocaleDateString()}{r.reported ? ' · Reported' : ''}</p>
+              {r.comment && <p className="text-xs mt-1">{r.comment}</p>}
+              {r.sellerResponse && <p className="text-xs mt-2" style={{ color: 'var(--ink-soft)' }}><strong>Your response:</strong> {r.sellerResponse}</p>}
+            </div>
+            <div className="flex gap-2 flex-wrap">
+              {!r.sellerResponse && <button type="button" className="btn" style={{ padding: '4px 10px', fontSize: '0.72rem' }} onClick={() => { setRespondingId(respondingId === r._id ? null : r._id); setResponseText(''); }}>Respond</button>}
+              {!r.reported && <button type="button" className="btn" style={{ padding: '4px 10px', fontSize: '0.72rem' }} onClick={() => report(r._id)}>Report</button>}
+            </div>
+          </div>
+          {respondingId === r._id && (
+            <div className="flex gap-2 items-end mt-3 flex-wrap" style={{ borderTop: '1px solid var(--sand-line)', paddingTop: 10 }}>
+              <textarea className="form-input" placeholder="Your public response..." rows={2} value={responseText} onChange={(e) => setResponseText(e.target.value)} style={{ flex: 1, minWidth: 200 }} />
+              <button type="button" className="btn btn-primary" style={{ padding: '5px 14px', fontSize: '0.78rem' }} onClick={() => submitResponse(r._id)}>Post Response</button>
+            </div>
+          )}
+        </div>
+      ))}
+    </div>
+  );
+}
+
+// Seller item 12 — Messages, categorized: Buyers (people who've bought something from this
+// seller), Marketplace Support, Super Admin. Same pattern as the Donor's categorized inbox.
+function SellerMessagesPanel({ onFlash }) {
+  const [conversations, setConversations] = useState(null);
+  const [buyerIds, setBuyerIds] = useState(null);
+  const [activeUser, setActiveUser] = useState(null);
+  const [thread, setThread] = useState(null);
+  const [text, setText] = useState('');
+
+  function load() {
+    apiRequest('/messages/conversations').then(setConversations).catch((err) => onFlash(err.message));
+    apiRequest('/marketplace/orders/selling').then((orders) => setBuyerIds(new Set(orders.map((o) => o.buyer?._id).filter(Boolean)))).catch(() => setBuyerIds(new Set()));
+  }
+  useEffect(load, [onFlash]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  function openThread(u) {
+    setActiveUser(u);
+    setThread(null);
+    apiRequest(`/messages/with/${u._id}`).then(setThread).catch((err) => onFlash(err.message));
+    apiRequest(`/messages/with/${u._id}/read`, { method: 'PATCH' }).then(load).catch(() => {});
+  }
+
+  async function send(e) {
+    e.preventDefault();
+    if (!activeUser || !text.trim()) return;
+    try {
+      await apiRequest('/messages', { method: 'POST', body: { to: activeUser._id, text: text.trim() } });
+      setText('');
+      apiRequest(`/messages/with/${activeUser._id}`).then(setThread);
+      load();
+    } catch (err) { onFlash(err.message); }
+  }
+
+  if (conversations === null || buyerIds === null) return <p role="status" className="admin-notice">Loading...</p>;
+
+  const hasRole = (u, role) => (u.roles || []).includes(role);
+  const buyerMsgs = conversations.filter((c) => buyerIds.has(c.user._id));
+  const supportMsgs = conversations.filter((c) => !buyerIds.has(c.user._id) && (hasRole(c.user, 'admin') || hasRole(c.user, 'platform_staff')));
+  const superAdminMsgs = conversations.filter((c) => !buyerIds.has(c.user._id) && hasRole(c.user, 'super_admin'));
+  const categorizedIds = new Set([...buyerMsgs, ...supportMsgs, ...superAdminMsgs].map((c) => c.user._id));
+  const otherMsgs = conversations.filter((c) => !categorizedIds.has(c.user._id));
+
+  function ConversationGroup({ title, items }) {
+    if (items.length === 0) return null;
+    return (
+      <div className="mb-4">
+        <strong className="text-xs">{title}</strong>
+        <div className="dash-list mt-1">
+          {items.map((c) => (
+            <div key={c.user._id} className={`dash-list-item${activeUser?._id === c.user._id ? ' unread' : ''}`} style={{ cursor: 'pointer' }} onClick={() => openThread(c.user)}>
+              <span className="dash-list-icon c-forest" aria-hidden><FaUser size={14} /></span>
+              <div className="dash-list-body"><div className="title">{c.user.fullName}{c.unread > 0 ? ` (${c.unread})` : ''}</div><div className="desc">{c.lastMessage}</div></div>
+              <span className="dash-list-time">{new Date(c.lastAt).toLocaleDateString()}</span>
+            </div>
+          ))}
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="grid g2" style={{ gap: 24 }}>
+      <div>
+        <h3 className="font-semibold mb-2">Messages</h3>
+        <p className="text-xs mb-3" style={{ color: 'var(--ink-soft)' }}>To start a new conversation, ask for their User ID and use the "New Message" box on the right.</p>
+        <ConversationGroup title="Buyers" items={buyerMsgs} />
+        <ConversationGroup title="Marketplace Support" items={supportMsgs} />
+        <ConversationGroup title="Super Admin" items={superAdminMsgs} />
+        <ConversationGroup title="Other" items={otherMsgs} />
+        {conversations.length === 0 && <p className="text-xs" style={{ color: 'var(--ink-soft)' }}>No conversations yet.</p>}
+      </div>
+      <div>
+        <h3 className="font-semibold mb-2">{activeUser ? activeUser.fullName : 'New Message'}</h3>
+        {!activeUser && (
+          <input className="form-input mb-3" placeholder="Recipient's User ID" onKeyDown={(e) => {
+            if (e.key === 'Enter' && e.target.value.trim()) { openThread({ _id: e.target.value.trim(), fullName: 'New recipient' }); }
+          }} />
+        )}
+        {activeUser && (
+          <>
+            <div className="card reveal in" style={{ padding: '8px 12px', marginBottom: 12, maxHeight: 320, overflowY: 'auto' }}>
+              {thread === null && <p role="status" className="admin-notice">Loading...</p>}
+              {thread && thread.length === 0 && <p style={{ fontSize: 13, color: 'var(--ink-soft)' }}>No messages yet.</p>}
+              {(thread || []).map((m) => (
+                <div key={m._id} style={{ padding: '8px 4px', borderBottom: '1px solid var(--sand-line)' }}>
+                  <div style={{ fontSize: 13 }}>{m.text}</div>
+                  <div style={{ fontSize: 11, color: 'var(--ink-soft)' }}>{new Date(m.createdAt).toLocaleString()}</div>
+                </div>
+              ))}
+            </div>
+            <form onSubmit={send} className="flex gap-3 items-end">
+              <input className="form-input" placeholder="Type a message..." value={text} onChange={(e) => setText(e.target.value)} required />
+              <button type="submit" className="btn btn-primary">Send</button>
+            </form>
+          </>
+        )}
+      </div>
+    </div>
+  );
+}
+
+// Seller sidebar — Verification/Documents. Same generic /roles/mine/:role/documents endpoint
+// used by Agent and Donor, just pointed at 'marketplace_seller'.
+function SellerVerificationPanel({ onFlash }) {
+  const [request, setRequest] = useState(undefined);
+  const [docUrl, setDocUrl] = useState('');
+
+  function load() {
+    apiRequest('/roles/my-requests').then((list) => setRequest(list.find((r) => r.requestedRole === 'marketplace_seller') || null)).catch(() => setRequest(null));
+  }
+  useEffect(load, []);
+
+  async function addDocument() {
+    if (!docUrl.trim() || !request) return;
+    try {
+      await apiRequest(`/roles/mine/marketplace_seller/documents`, { method: 'POST', body: { documents: [...(request.documents || []), docUrl.trim()] } });
+      onFlash('Document submitted.', 'success');
+      setDocUrl('');
+      load();
+    } catch (err) { onFlash(err.message); }
+  }
+  async function removeDocument(url) {
+    try {
+      await apiRequest(`/roles/mine/marketplace_seller/documents`, { method: 'POST', body: { documents: (request.documents || []).filter((d) => d !== url) } });
+      load();
+    } catch (err) { onFlash(err.message); }
+  }
+
+  if (request === undefined) return <p role="status" className="admin-notice">Loading...</p>;
+
+  const VERIFICATION_LABEL = { approved: 'Verified', pending: 'Pending Review', under_review: 'Under Review', rejected: 'Rejected' };
+  const VERIFICATION_TAG = { approved: 'approved', pending: 'pending', under_review: 'pending', rejected: 'rejected' };
+  const status = request?.status || 'pending';
+
+  return (
+    <div>
+      <h3 className="font-semibold mb-2">Verification / Documents</h3>
+      <p className="text-xs mb-3" style={{ color: 'var(--ink-soft)' }}>
+        Status: <Tag status={VERIFICATION_TAG[status]} label={VERIFICATION_LABEL[status]} />
+        {status === 'rejected' && request?.reviewNotes && <> — {request.reviewNotes}</>}
+      </p>
+      <p className="text-xs mb-2" style={{ color: 'var(--ink-soft)' }}>Only a Super Admin-verified seller can list products or services. Submit documents (ID, business registration, etc.) for review.</p>
+      <div className="flex gap-2 items-end mb-3 flex-wrap">
+        <input className="form-input" placeholder="Paste a document link (PDF/image URL)" value={docUrl} onChange={(e) => setDocUrl(e.target.value)} style={{ minWidth: 260 }} />
+        <button type="button" className="btn btn-primary" style={{ padding: '5px 14px', fontSize: '0.78rem' }} onClick={addDocument}>Add Document</button>
+      </div>
+      {(request?.documents || []).length === 0 && <p className="text-xs" style={{ color: 'var(--ink-soft)' }}>No documents submitted yet.</p>}
+      {(request?.documents || []).map((d) => (
+        <div key={d} className="flex items-center justify-between" style={{ padding: '4px 0' }}>
+          <a href={d} target="_blank" rel="noreferrer" className="text-xs">{d}</a>
+          <button type="button" className="btn" style={{ padding: '3px 10px', fontSize: '0.72rem' }} onClick={() => removeDocument(d)}>Remove</button>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+// Seller sidebar — Add New Listing, a focused standalone form (Products/Listings keeps its own
+// copy of this form too, for convenience — both post to the same endpoint).
+function AddListingPanel({ onFlash }) {
+  const [form, setForm] = useState(EMPTY_PRODUCT_FORM);
+
+  async function create(status) {
+    try {
+      const body = { ...form, price: Number(form.price), stock: Number(form.stock), images: form.images ? [form.images] : [] };
+      if (status === 'draft') body.status = 'draft';
+      await apiRequest('/marketplace/products', { method: 'POST', body });
+      onFlash(status === 'draft' ? 'Draft saved — find it under Products/Listings.' : 'Listing submitted for review — find it under Products/Listings.', 'success');
+      setForm(EMPTY_PRODUCT_FORM);
+    } catch (err) { onFlash(err.message); }
+  }
+
+  return (
+    <div>
+      <h3 className="font-semibold mb-2">Add New Listing</h3>
+      <p className="text-xs mb-3" style={{ color: 'var(--ink-soft)' }}>Products and services are both listed the same way — pick a digital category (Courses/Services) to skip stock tracking.</p>
+      <form className="space-y-3 max-w-lg">
+        <input className="form-input" placeholder="Product/service name" required value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })} />
+        <textarea className="form-input" placeholder="Description" rows={2} value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} />
+        <input className="form-input" placeholder="Image URL (paste a direct image link)" value={form.images} onChange={(e) => setForm({ ...form, images: e.target.value })} />
+        <div className="flex gap-2 flex-wrap">
+          <select className="form-select" value={form.category} onChange={(e) => setForm({ ...form, category: e.target.value })}>
+            {PRODUCT_CATEGORIES.map((c) => <option key={c} value={c}>{c}</option>)}
+          </select>
+          <input className="form-input" type="number" placeholder="Price" required value={form.price} onChange={(e) => setForm({ ...form, price: e.target.value })} />
+          {!['courses', 'services'].includes(form.category) && <input className="form-input" type="number" placeholder="Available quantity" value={form.stock} onChange={(e) => setForm({ ...form, stock: e.target.value })} />}
+        </div>
+        <div className="flex gap-2">
+          <button type="button" className="btn" onClick={() => create('draft')}>Save as Draft</button>
+          <button type="button" className="btn btn-primary" onClick={() => create('submit')}>Submit Listing</button>
+        </div>
+      </form>
+    </div>
+  );
+}
+
+// Seller sidebar — Services: the same Products/Listings data, filtered to the digital categories
+// (courses/services) that don't track stock.
+function ServicesPanel({ onFlash }) {
+  const [products, setProducts] = useState(null);
+  function load() { apiRequest('/marketplace/products/mine/list').then(setProducts).catch((err) => onFlash(err.message)); }
+  useEffect(load, []);
+
+  async function togglePause(p) {
+    try {
+      await apiRequest(`/marketplace/products/${p._id}`, { method: 'PATCH', body: { status: p.status === 'active' ? 'paused' : 'active' } });
+      onFlash(p.status === 'active' ? 'Service paused.' : 'Service reactivated.', 'success');
+      load();
+    } catch (err) { onFlash(err.message); }
+  }
+  async function remove(id) {
+    try { await apiRequest(`/marketplace/products/${id}`, { method: 'DELETE' }); onFlash('Service removed.', 'success'); load(); } catch (err) { onFlash(err.message); }
+  }
+
+  if (products === null) return <p role="status" className="admin-notice">Loading...</p>;
+  const services = products.filter((p) => ['courses', 'services'].includes(p.category));
+
+  return (
+    <div>
+      <h3 className="font-semibold mb-2">Services</h3>
+      <p className="text-xs mb-3" style={{ color: 'var(--ink-soft)' }}>Digital listings only (Courses/Services) — no stock tracking applies to these.</p>
+      <Table
+        headers={['Name', 'Price', 'Status', 'Total Sales', 'Views', 'Actions']}
+        rows={services.map((p) => {
+          const st = PRODUCT_STATUS[p.status] || PRODUCT_STATUS.draft;
+          return [
+            p.title, `${p.currency} ${p.price}`, <Tag status={st.tag} label={st.label} />, `${p.totalSales ?? 0} sold`, p.views ?? 0,
+            <div className="flex gap-2 flex-wrap">
+              {(p.status === 'active' || p.status === 'paused') && <button type="button" className="btn" style={{ padding: '4px 10px', fontSize: '0.72rem' }} onClick={() => togglePause(p)}>{p.status === 'active' ? 'Pause' : 'Reactivate'}</button>}
+              <button type="button" className="btn" style={{ padding: '4px 10px', fontSize: '0.72rem' }} onClick={() => remove(p._id)}>Delete</button>
+            </div>
+          ];
+        })}
+        empty="No services/courses listed yet."
+      />
+    </div>
+  );
+}
+
+// Seller sidebar — Inventory, standalone (same data/action as the home page's embedded version).
+function InventoryPanel({ onFlash }) {
+  const [inventory, setInventory] = useState(null);
+  const [stockEdits, setStockEdits] = useState({});
+
+  function load() { apiRequest('/marketplace/sellers/mine/inventory').then(setInventory).catch((err) => onFlash(err.message)); }
+  useEffect(load, [onFlash]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  async function updateStock(id) {
+    const value = stockEdits[id];
+    if (value === undefined || value === '') return;
+    try {
+      await apiRequest(`/marketplace/products/${id}`, { method: 'PATCH', body: { stock: Number(value) } });
+      onFlash('Stock updated.', 'success');
+      setStockEdits((prev) => { const next = { ...prev }; delete next[id]; return next; });
+      load();
+    } catch (err) { onFlash(err.message); }
+  }
+
+  if (inventory === null) return <p role="status" className="admin-notice">Loading...</p>;
+
+  return (
+    <div>
+      <h3 className="font-semibold mb-2">Inventory</h3>
+      <p className="text-xs mb-3" style={{ color: 'var(--ink-soft)' }}>Physical listings only — digital products/services don't track stock.</p>
+      {inventory.items.length === 0 && <p className="text-xs mb-4" style={{ color: 'var(--ink-soft)' }}>No physical listings yet.</p>}
+      {inventory.items.length > 0 && (
+        <>
+          <div className="grid grid-cols-2 gap-3 mb-3">
+            <div className="card" style={{ padding: 14 }}>
+              <strong className="text-sm">Low Stock ({inventory.lowStock.length})</strong>
+              {inventory.lowStock.length === 0 && <p className="text-xs mt-1" style={{ color: 'var(--ink-soft)' }}>None.</p>}
+              {inventory.lowStock.map((p) => <p key={p._id} className="text-xs mt-1" style={{ color: 'var(--ink-soft)' }}>{p.title} — {p.stock} left</p>)}
+            </div>
+            <div className="card" style={{ padding: 14 }}>
+              <strong className="text-sm">Out of Stock ({inventory.outOfStock.length})</strong>
+              {inventory.outOfStock.length === 0 && <p className="text-xs mt-1" style={{ color: 'var(--ink-soft)' }}>None.</p>}
+              {inventory.outOfStock.map((p) => <p key={p._id} className="text-xs mt-1" style={{ color: 'var(--ink-soft)' }}>{p.title}</p>)}
+            </div>
+          </div>
+          <Table
+            headers={['Product', 'Category', 'Available Stock', 'Status', 'Inventory Update']}
+            rows={inventory.items.map((p) => [
+              p.title, p.category, p.stock,
+              <Tag status={PRODUCT_STATUS[p.status]?.tag} label={PRODUCT_STATUS[p.status]?.label} />,
+              <div className="flex gap-2">
+                <input className="form-input" type="number" min="0" style={{ padding: '4px 6px', fontSize: '0.72rem', width: 80 }} placeholder={String(p.stock)} value={stockEdits[p._id] ?? ''} onChange={(e) => setStockEdits({ ...stockEdits, [p._id]: e.target.value })} />
+                <button type="button" className="btn" style={{ padding: '4px 10px', fontSize: '0.72rem' }} onClick={() => updateStock(p._id)}>Update</button>
+              </div>
+            ])}
+            empty="No physical listings yet."
+          />
+        </>
+      )}
+    </div>
+  );
+}
+
+// Seller sidebar — Returns & Refunds: full history (pending + resolved), unlike Pending Actions'
+// subset which only shows what's still open.
+function ReturnsRefundsPanel({ onFlash }) {
+  const [orders, setOrders] = useState(null);
+  function load() { apiRequest('/marketplace/sellers/mine/returns-refunds').then(setOrders).catch((err) => onFlash(err.message)); }
+  useEffect(load, []);
+
+  async function respondCancellation(id, approve) {
+    try { await apiRequest(`/marketplace/orders/${id}/cancellation-response`, { method: 'PATCH', body: { approve } }); onFlash(`Cancellation ${approve ? 'approved' : 'denied'}.`, 'success'); load(); } catch (err) { onFlash(err.message); }
+  }
+  async function respondRefund(id, approve) {
+    try { await apiRequest(`/marketplace/orders/${id}/refund-response`, { method: 'PATCH', body: { approve } }); onFlash(`Refund ${approve ? 'approved' : 'denied'}.`, 'success'); load(); } catch (err) { onFlash(err.message); }
+  }
+
+  if (orders === null) return <p role="status" className="admin-notice">Loading...</p>;
+
+  return (
+    <div>
+      <h3 className="font-semibold mb-2">Returns & Refunds</h3>
+      <Table
+        headers={['Buyer', 'Product', 'Amount', 'Type', 'Reason', 'Status', 'Actions']}
+        rows={orders.map((o) => {
+          const isPendingCancellation = o.cancellationRequested;
+          const isPendingRefund = o.refundRequested;
+          const type = isPendingRefund || o.status === 'refunded' ? 'Refund/Return' : 'Cancellation';
+          const reason = o.refundReason || o.cancellationReason || '—';
+          return [
+            o.buyer?.fullName, o.product?.title, `${o.currency} ${o.totalPrice}`, type, reason,
+            <Tag status={ORDER_STATUS[o.status]?.tag} label={ORDER_STATUS[o.status]?.label} />,
+            <div className="flex gap-2 flex-wrap">
+              {isPendingCancellation && <>
+                <button type="button" className="btn btn-primary" style={{ padding: '4px 10px', fontSize: '0.72rem' }} onClick={() => respondCancellation(o._id, true)}>Approve</button>
+                <button type="button" className="btn" style={{ padding: '4px 10px', fontSize: '0.72rem' }} onClick={() => respondCancellation(o._id, false)}>Deny</button>
+              </>}
+              {isPendingRefund && <>
+                <button type="button" className="btn btn-primary" style={{ padding: '4px 10px', fontSize: '0.72rem' }} onClick={() => respondRefund(o._id, true)}>Approve</button>
+                <button type="button" className="btn" style={{ padding: '4px 10px', fontSize: '0.72rem' }} onClick={() => respondRefund(o._id, false)}>Deny</button>
+              </>}
+              {!isPendingCancellation && !isPendingRefund && '—'}
+            </div>
+          ];
+        })}
+        empty="No returns or refunds yet."
+      />
+    </div>
+  );
+}
+
+// Seller sidebar — Sales Analytics (same data/graph as the home page's embedded Sales Overview).
+function SalesAnalyticsPanel({ onFlash }) {
+  const [salesOverview, setSalesOverview] = useState(null);
+  useEffect(() => { apiRequest('/marketplace/sellers/mine/sales-overview').then(setSalesOverview).catch((err) => onFlash(err.message)); }, [onFlash]);
+
+  return (
+    <div>
+      <h3 className="font-semibold mb-2">Sales Analytics</h3>
+      {Object.keys(salesOverview?.totalsByCurrency || {}).length === 0 && (
+        <p className="text-xs mb-4" style={{ color: 'var(--ink-soft)' }}>{salesOverview === null ? 'Loading...' : 'No sales yet.'}</p>
+      )}
+      {Object.entries(salesOverview?.totalsByCurrency || {}).map(([currency, s]) => {
+        const maxDay = Math.max(...s.dailySales.map((d) => d.total), 1);
+        return (
+          <div key={currency} className="card" style={{ padding: 16, marginBottom: 20 }}>
+            <strong className="text-sm">{currency}</strong>
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mt-2 mb-3">
+              <p className="text-xs" style={{ color: 'var(--ink-soft)' }}>Today: <strong>{currency} {s.today}</strong>{s.todayChangePct !== null && <span style={{ color: s.todayChangePct >= 0 ? 'var(--emerald)' : 'var(--rose, #e11d48)' }}> ({s.todayChangePct >= 0 ? '+' : ''}{s.todayChangePct}% vs yesterday)</span>}</p>
+              <p className="text-xs" style={{ color: 'var(--ink-soft)' }}>This Week: <strong>{currency} {s.thisWeek}</strong>{s.weekChangePct !== null && <span style={{ color: s.weekChangePct >= 0 ? 'var(--emerald)' : 'var(--rose, #e11d48)' }}> ({s.weekChangePct >= 0 ? '+' : ''}{s.weekChangePct}% vs last week)</span>}</p>
+              <p className="text-xs" style={{ color: 'var(--ink-soft)' }}>This Month: <strong>{currency} {s.thisMonth}</strong>{s.monthChangePct !== null && <span style={{ color: s.monthChangePct >= 0 ? 'var(--emerald)' : 'var(--rose, #e11d48)' }}> ({s.monthChangePct >= 0 ? '+' : ''}{s.monthChangePct}% vs last month)</span>}</p>
+              <p className="text-xs" style={{ color: 'var(--ink-soft)' }}>Total Revenue: <strong>{currency} {s.totalRevenue}</strong> · {s.orderCount} order{s.orderCount === 1 ? '' : 's'}</p>
+            </div>
+            <p className="text-xs mb-1" style={{ color: 'var(--ink-soft)' }}>Last 14 days (delivered/completed orders only):</p>
+            <div className="flex items-end gap-1" style={{ height: 70 }}>
+              {s.dailySales.map((d) => (
+                <div key={d.date} title={`${d.date}: ${currency} ${d.total}`} style={{ flex: 1, height: `${Math.max((d.total / maxDay) * 100, 3)}%`, background: 'var(--gold)', borderRadius: '2px 2px 0 0' }} />
+              ))}
+            </div>
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+// Seller sidebar — Earnings & Commission (same data as the home page's embedded version).
+function EarningsCommissionPanel({ onFlash }) {
+  const [earnings, setEarnings] = useState(null);
+  useEffect(() => { apiRequest('/marketplace/sellers/mine/earnings').then(setEarnings).catch((err) => onFlash(err.message)); }, [onFlash]);
+
+  return (
+    <div>
+      <h3 className="font-semibold mb-2">Earnings & Commission</h3>
+      <p className="text-xs mb-2" style={{ color: 'var(--ink-soft)' }}>CareerZ's commission ({earnings?.commissionRate ?? '—'}%, set by Super Admin — may vary by category) is deducted automatically from delivered/completed sales. No real payment processor is integrated yet, so Payment Charges are honestly 0.</p>
+      {Object.keys(earnings?.totalsByCurrency || {}).length === 0 && <p className="text-xs mb-4" style={{ color: 'var(--ink-soft)' }}>{earnings === null ? 'Loading...' : 'No sales yet.'}</p>}
+      {Object.entries(earnings?.totalsByCurrency || {}).map(([currency, e]) => (
+        <div key={currency} className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-4">
+          <div className="card" style={{ padding: 14 }}><strong className="text-sm">Gross Sales</strong><p className="text-xs mt-1" style={{ color: 'var(--ink-soft)' }}>{currency} {e.grossSales}</p></div>
+          <div className="card" style={{ padding: 14 }}><strong className="text-sm">Platform Commission</strong><p className="text-xs mt-1" style={{ color: 'var(--ink-soft)' }}>{currency} {e.platformCommission}</p></div>
+          <div className="card" style={{ padding: 14 }}><strong className="text-sm">Payment Charges</strong><p className="text-xs mt-1" style={{ color: 'var(--ink-soft)' }}>{currency} {e.paymentCharges}</p></div>
+          <div className="card" style={{ padding: 14 }}><strong className="text-sm">Refund Deductions</strong><p className="text-xs mt-1" style={{ color: 'var(--ink-soft)' }}>{currency} {e.refundDeductions}</p></div>
+          <div className="card" style={{ padding: 14 }}><strong className="text-sm">Net Earnings</strong><p className="text-xs mt-1" style={{ color: 'var(--ink-soft)' }}>{currency} {e.netEarnings}</p></div>
+          <div className="card" style={{ padding: 14 }}><strong className="text-sm">Pending Earnings</strong><p className="text-xs mt-1" style={{ color: 'var(--ink-soft)' }}>{currency} {e.pendingEarnings}</p></div>
+          <div className="card" style={{ padding: 14 }}><strong className="text-sm">Available Earnings</strong><p className="text-xs mt-1" style={{ color: 'var(--ink-soft)' }}>{currency} {e.availableEarnings}</p></div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+// Seller sidebar — Withdrawals, focused (Withdraw action + history only — full balance cards and
+// transaction history live under Wallet & Transactions).
+function WithdrawalsPanel({ onFlash }) {
+  const [wallet, setWallet] = useState(null);
+  const [withdrawals, setWithdrawals] = useState(null);
+  const [selectedCurrency, setSelectedCurrency] = useState(null);
+
+  function load() {
+    apiRequest('/marketplace/sellers/mine/wallet').then((data) => {
+      setWallet(data);
+      setSelectedCurrency((prev) => prev && data[prev] ? prev : Object.keys(data)[0] || null);
+    }).catch((err) => onFlash(err.message));
+    apiRequest('/marketplace/sellers/mine/withdrawals').then(setWithdrawals).catch((err) => onFlash(err.message));
+  }
+  useEffect(load, [onFlash]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  async function withdraw() {
+    try {
+      await apiRequest('/marketplace/sellers/mine/withdraw', { method: 'POST', body: { currency: selectedCurrency } });
+      onFlash('Withdrawal requested.', 'success');
+      load();
+    } catch (err) { onFlash(err.message); }
+  }
+
+  if (wallet === null || withdrawals === null) return <p role="status" className="admin-notice">Loading...</p>;
+  const currencies = Object.keys(wallet);
+  const available = selectedCurrency ? wallet[selectedCurrency]?.availableBalance ?? 0 : 0;
+
+  return (
+    <div>
+      <h3 className="font-semibold mb-2">Withdrawals</h3>
+      {currencies.length === 0 && <p className="text-sm mb-3" style={{ color: 'var(--ink-soft)' }}>No available balance yet.</p>}
+      {currencies.length > 0 && (
+        <div className="flex gap-2 items-end mb-4 flex-wrap">
+          <select className="form-select" value={selectedCurrency || ''} onChange={(e) => setSelectedCurrency(e.target.value)}>
+            {currencies.map((c) => <option key={c} value={c}>{c}</option>)}
+          </select>
+          <button type="button" className="btn btn-primary" disabled={available <= 0} onClick={withdraw}>Withdraw Funds ({selectedCurrency} {available})</button>
+        </div>
+      )}
+      <h4 className="font-semibold mb-2">Withdrawal History</h4>
+      <Table
+        headers={['Amount', 'Currency', 'Status', 'Requested', 'Processed']}
+        rows={withdrawals.map((wd) => [
+          wd.amount, wd.currency,
+          <Tag status={SELLER_WITHDRAWAL_STATUS[wd.status]?.tag} label={SELLER_WITHDRAWAL_STATUS[wd.status]?.label} />,
+          new Date(wd.createdAt).toLocaleDateString(),
+          wd.processedAt ? new Date(wd.processedAt).toLocaleDateString() : '—'
+        ])}
+        empty="No withdrawals requested yet."
+      />
+    </div>
   );
 }
 
@@ -6849,23 +7677,438 @@ function DonorDashboardPanel({ user, onFlash, onNavigate }) {
 
 // ----------------------------------------------------------- Marketplace Seller
 
-function SellerWorkspace({ tab, user, onFlash, onChanged }) {
+function SellerWorkspace({ tab, user, onFlash, onChanged, onNavigate }) {
   if (tab === 'profile') return <><ProfilePanel user={user} onFlash={onFlash} onChanged={onChanged} /><RolesPanel onFlash={onFlash} onChanged={onChanged} /><SupportComplaintPanel onFlash={onFlash} /></>;
-  if (tab === 'summary') return <SellerSummary />;
+  if (tab === 'summary') return <SellerDashboardPanel user={user} onFlash={onFlash} onChanged={onChanged} onNavigate={onNavigate} />;
   if (tab === 'listings') return <MyListingsPanel onFlash={onFlash} />;
   if (tab === 'orders') return <SellerOrdersPanel onFlash={onFlash} />;
+  if (tab === 'sellerWallet') return <SellerWalletPanel onFlash={onFlash} />;
+  if (tab === 'sellerReviews') return <SellerReviewsPanel onFlash={onFlash} />;
+  if (tab === 'sellerMessages') return <SellerMessagesPanel onFlash={onFlash} />;
+  if (tab === 'sellerVerification') return <SellerVerificationPanel onFlash={onFlash} />;
+  if (tab === 'addListing') return <AddListingPanel onFlash={onFlash} />;
+  if (tab === 'services') return <ServicesPanel onFlash={onFlash} />;
+  if (tab === 'inventory') return <InventoryPanel onFlash={onFlash} />;
+  if (tab === 'returnsRefunds') return <ReturnsRefundsPanel onFlash={onFlash} />;
+  if (tab === 'salesAnalytics') return <SalesAnalyticsPanel onFlash={onFlash} />;
+  if (tab === 'earningsCommission') return <EarningsCommissionPanel onFlash={onFlash} />;
+  if (tab === 'withdrawals') return <WithdrawalsPanel onFlash={onFlash} />;
+  if (tab === 'sellerNotifications') return <NotificationsPanel onFlash={onFlash} />;
   return <ComingSoon label={tab} />;
 }
 
-function SellerSummary() {
+// Seller Dashboard Home — item 1 (Seller Profile): store name/logo (User fields, same reuse
+// pattern as Employer/Agent/Donor), verification (RoleRequest), rating/review count computed
+// live from real Review documents (never fabricated — shows "No reviews yet" honestly), and a
+// donor-style profile-completion percentage.
+function SellerDashboardPanel({ user, onFlash, onChanged, onNavigate }) {
+  const [profile, setProfile] = useState(null);
+  const [summary, setSummary] = useState(null);
+  const [salesOverview, setSalesOverview] = useState(null);
+  const [recentOrders, setRecentOrders] = useState(null);
+  const [pendingActions, setPendingActions] = useState(null);
+  const [bestSelling, setBestSelling] = useState(null);
+  const [inventory, setInventory] = useState(null);
+  const [earnings, setEarnings] = useState(null);
+  const [stockEdits, setStockEdits] = useState({});
+  const [conversations, setConversations] = useState(null);
+  const [reviews, setReviews] = useState(null);
+  const [notifications, setNotifications] = useState(null);
   const [products, setProducts] = useState(null);
-  useEffect(() => { apiRequest('/marketplace/products/mine/list').then(setProducts).catch(() => setProducts([])); }, []);
-  const active = products?.filter((p) => p.status === 'active').length;
+  const [withdrawals, setWithdrawals] = useState(null);
+
+  function load() {
+    apiRequest('/marketplace/sellers/mine/profile').then(setProfile).catch((err) => onFlash(err.message));
+    apiRequest('/marketplace/sellers/mine/summary').then(setSummary).catch((err) => onFlash(err.message));
+    apiRequest('/marketplace/sellers/mine/sales-overview').then(setSalesOverview).catch((err) => onFlash(err.message));
+    apiRequest('/marketplace/orders/selling').then(setRecentOrders).catch(() => setRecentOrders([]));
+    apiRequest('/marketplace/sellers/mine/pending-actions').then(setPendingActions).catch((err) => onFlash(err.message));
+    apiRequest('/marketplace/sellers/mine/best-selling').then(setBestSelling).catch((err) => onFlash(err.message));
+    apiRequest('/messages/conversations').then(setConversations).catch(() => setConversations([]));
+    apiRequest('/marketplace/sellers/mine/inventory').then(setInventory).catch((err) => onFlash(err.message));
+    apiRequest('/marketplace/sellers/mine/earnings').then(setEarnings).catch((err) => onFlash(err.message));
+    apiRequest('/marketplace/sellers/mine/reviews').then(setReviews).catch(() => setReviews([]));
+    apiRequest('/notifications/mine').then((list) => setNotifications(list.slice(0, 5))).catch(() => setNotifications([]));
+    apiRequest('/marketplace/products/mine/list').then(setProducts).catch(() => setProducts([]));
+    apiRequest('/marketplace/sellers/mine/withdrawals').then(setWithdrawals).catch(() => setWithdrawals([]));
+  }
+  useEffect(load, [onFlash]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  async function updateStock(id) {
+    const value = stockEdits[id];
+    if (value === undefined || value === '') return;
+    try {
+      await apiRequest(`/marketplace/products/${id}`, { method: 'PATCH', body: { stock: Number(value) } });
+      onFlash('Stock updated.', 'success');
+      setStockEdits((prev) => { const next = { ...prev }; delete next[id]; return next; });
+      load();
+    } catch (err) { onFlash(err.message); }
+  }
+
+  async function confirmOrder(id) {
+    try { await apiRequest(`/marketplace/orders/${id}/status`, { method: 'PATCH', body: { status: 'confirmed' } }); onFlash('Order confirmed.', 'success'); load(); } catch (err) { onFlash(err.message); }
+  }
+  async function markShipped(id) {
+    try { await apiRequest(`/marketplace/orders/${id}/status`, { method: 'PATCH', body: { status: 'shipped' } }); onFlash('Order marked shipped.', 'success'); load(); } catch (err) { onFlash(err.message); }
+  }
+  async function respondCancellation(id, approve) {
+    try { await apiRequest(`/marketplace/orders/${id}/cancellation-response`, { method: 'PATCH', body: { approve } }); onFlash(`Cancellation ${approve ? 'approved' : 'denied'}.`, 'success'); load(); } catch (err) { onFlash(err.message); }
+  }
+  async function respondRefund(id, approve) {
+    try { await apiRequest(`/marketplace/orders/${id}/refund-response`, { method: 'PATCH', body: { approve } }); onFlash(`Refund ${approve ? 'approved' : 'denied'}.`, 'success'); load(); } catch (err) { onFlash(err.message); }
+  }
+
+  // Sales/earnings/balances span whatever currencies the seller's orders actually use — shown
+  // per-currency rather than a single misleading sum across different currencies.
+  const currencyEntries = summary ? Object.entries(summary.totalsByCurrency) : [];
+  const fmtMoney = (field) => currencyEntries.length === 0 ? '0' : currencyEntries.map(([cur, t]) => `${cur} ${t[field]}`).join(', ');
+
+  const VERIFICATION_LABEL = { approved: 'Verified', pending: 'Pending Review', under_review: 'Under Review', rejected: 'Rejected' };
+  const VERIFICATION_TAG = { approved: 'approved', pending: 'pending', under_review: 'pending', rejected: 'rejected' };
+  const verStatus = profile?.verificationStatus || 'pending';
+
+  const profileFields = [user?.profilePhoto, user?.companyName, user?.country, user?.phone];
+  const completeness = Math.round((profileFields.filter(Boolean).length / profileFields.length) * 100);
+
+  async function toggleStoreStatus() {
+    const next = profile.storeStatus === 'open' ? 'closed' : 'open';
+    try {
+      await apiRequest('/users/me', { method: 'PATCH', body: { storeStatus: next } });
+      onFlash(`Store marked ${next}.`, 'success');
+      onChanged?.();
+      load();
+    } catch (err) { onFlash(err.message); }
+  }
+
   return (
-    <SummaryRow items={[
-      { label: 'Listings', value: products?.length, icon: FaStore, detail: 'Total listed' },
-      { label: 'Active Listings', value: active, icon: FaClipboardCheck, detail: 'Visible to buyers' }
-    ]} />
+    <>
+      {/* 1. Seller Profile */}
+      <div className="card" style={{ padding: 20, marginBottom: 20 }}>
+        <div className="flex items-center justify-between flex-wrap gap-3">
+          <div className="flex items-center gap-3">
+            {user?.profilePhoto
+              ? <img src={user.profilePhoto} alt="" style={{ width: 44, height: 44, borderRadius: 8, objectFit: 'cover' }} />
+              : <div style={{ width: 44, height: 44, borderRadius: 8, background: 'var(--gold)', color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 700 }}>{(user?.companyName || user?.fullName || '?')[0]}</div>}
+            <div>
+              <strong className="text-sm">{user?.companyName || 'Store name not set'}</strong>
+              <p className="text-xs mt-1" style={{ color: 'var(--ink-soft)' }}>
+                {profile?.sellerRating !== null && profile?.sellerRating !== undefined ? `★ ${profile.sellerRating} (${profile.totalReviews} review${profile.totalReviews === 1 ? '' : 's'})` : 'No reviews yet'}
+              </p>
+              <p className="text-xs mt-1" style={{ color: 'var(--ink-soft)' }}>
+                Verification: <Tag status={VERIFICATION_TAG[verStatus]} label={VERIFICATION_LABEL[verStatus]} /> · Store: <Tag status={profile?.storeStatus === 'open' ? 'approved' : 'rejected'} label={profile?.storeStatus === 'open' ? 'Open' : 'Closed'} />
+              </p>
+            </div>
+          </div>
+          <div className="flex flex-col items-end gap-2">
+            <span className="text-xs" style={{ color: 'var(--ink-soft)' }}>Profile {completeness}% complete</span>
+            {profile && <button type="button" className="btn" style={{ padding: '4px 12px', fontSize: '0.75rem' }} onClick={toggleStoreStatus}>{profile.storeStatus === 'open' ? 'Close Store' : 'Reopen Store'}</button>}
+          </div>
+        </div>
+      </div>
+
+      {/* 2. Main Summary Cards */}
+      <div className="grid grid-cols-3 md:grid-cols-4 gap-3" style={{ marginBottom: 20 }}>
+        <SummaryCard title="Total Products/Listings" count={summary?.totalListings ?? '—'} />
+        <SummaryCard title="Active Listings" count={summary?.activeListings ?? '—'} />
+        <SummaryCard title="Pending Orders" count={summary?.pendingOrders ?? '—'} />
+        <SummaryCard title="Completed Orders" count={summary?.completedOrders ?? '—'} />
+        <SummaryCard title="Total Sales" count={fmtMoney('totalSales')} />
+        <SummaryCard title="Total Earnings" count={fmtMoney('totalEarnings')} />
+        <SummaryCard title="Available Balance" count={fmtMoney('availableBalance')} />
+        <SummaryCard title="Pending Balance" count={fmtMoney('pendingBalance')} />
+      </div>
+
+      {/* 3. Sales Overview */}
+      <div className="dash-section-title"><h2>Sales Overview</h2></div>
+      {Object.keys(salesOverview?.totalsByCurrency || {}).length === 0 && (
+        <p className="text-xs mb-4" style={{ color: 'var(--ink-soft)' }}>{salesOverview === null ? 'Loading...' : 'No sales yet.'}</p>
+      )}
+      {Object.entries(salesOverview?.totalsByCurrency || {}).map(([currency, s]) => {
+        const maxDay = Math.max(...s.dailySales.map((d) => d.total), 1);
+        return (
+          <div key={currency} className="card" style={{ padding: 16, marginBottom: 20 }}>
+            <strong className="text-sm">{currency}</strong>
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mt-2 mb-3">
+              <p className="text-xs" style={{ color: 'var(--ink-soft)' }}>Today: <strong>{currency} {s.today}</strong>{s.todayChangePct !== null && <span style={{ color: s.todayChangePct >= 0 ? 'var(--emerald)' : 'var(--rose, #e11d48)' }}> ({s.todayChangePct >= 0 ? '+' : ''}{s.todayChangePct}% vs yesterday)</span>}</p>
+              <p className="text-xs" style={{ color: 'var(--ink-soft)' }}>This Week: <strong>{currency} {s.thisWeek}</strong>{s.weekChangePct !== null && <span style={{ color: s.weekChangePct >= 0 ? 'var(--emerald)' : 'var(--rose, #e11d48)' }}> ({s.weekChangePct >= 0 ? '+' : ''}{s.weekChangePct}% vs last week)</span>}</p>
+              <p className="text-xs" style={{ color: 'var(--ink-soft)' }}>This Month: <strong>{currency} {s.thisMonth}</strong>{s.monthChangePct !== null && <span style={{ color: s.monthChangePct >= 0 ? 'var(--emerald)' : 'var(--rose, #e11d48)' }}> ({s.monthChangePct >= 0 ? '+' : ''}{s.monthChangePct}% vs last month)</span>}</p>
+              <p className="text-xs" style={{ color: 'var(--ink-soft)' }}>Total Revenue: <strong>{currency} {s.totalRevenue}</strong> · {s.orderCount} order{s.orderCount === 1 ? '' : 's'}</p>
+            </div>
+            <p className="text-xs mb-1" style={{ color: 'var(--ink-soft)' }}>Last 14 days (delivered/completed orders only):</p>
+            <div className="flex items-end gap-1" style={{ height: 70 }}>
+              {s.dailySales.map((d) => (
+                <div key={d.date} title={`${d.date}: ${currency} ${d.total}`} style={{ flex: 1, height: `${Math.max((d.total / maxDay) * 100, 3)}%`, background: 'var(--gold)', borderRadius: '2px 2px 0 0' }} />
+              ))}
+            </div>
+          </div>
+        );
+      })}
+
+      {/* 4. Recent Orders */}
+      <div className="dash-section-title"><h2>Recent Orders</h2></div>
+      <div className="card" style={{ padding: 12, marginBottom: 20 }}>
+        {(recentOrders?.length ?? 0) === 0 && <p className="text-xs" style={{ color: 'var(--ink-soft)' }}>{recentOrders === null ? 'Loading...' : 'No orders received yet.'}</p>}
+        {recentOrders?.slice(0, 5).map((o) => (
+          <div key={o._id} className="flex items-center justify-between flex-wrap gap-2" style={{ padding: '6px 0', borderBottom: '1px solid var(--sand-line)' }}>
+            <div>
+              <strong className="text-sm">{o.product?.title}</strong>
+              <p className="text-xs" style={{ color: 'var(--ink-soft)' }}>{o.buyer?.fullName} · Qty {o.quantity} · {o.currency} {o.totalPrice} · {new Date(o.createdAt).toLocaleDateString()}</p>
+            </div>
+            <div className="flex items-center gap-2">
+              <Tag status={PAYMENT_STATUS[o.paymentStatus]?.tag} label={PAYMENT_STATUS[o.paymentStatus]?.label} />
+              <Tag status={ORDER_STATUS[o.status]?.tag} label={ORDER_STATUS[o.status]?.label} />
+            </div>
+          </div>
+        ))}
+      </div>
+
+      {/* Listings — per the parent layout order, a quick preview before Pending Actions */}
+      <div className="dash-section-title"><h2>Listings</h2></div>
+      <div className="card" style={{ padding: 12, marginBottom: 20 }}>
+        {(products?.length ?? 0) === 0 && <p className="text-xs" style={{ color: 'var(--ink-soft)' }}>{products === null ? 'Loading...' : 'No listings yet.'}</p>}
+        {products?.slice(0, 5).map((p) => {
+          const st = PRODUCT_STATUS[p.status] || PRODUCT_STATUS.draft;
+          return (
+            <div key={p._id} className="flex items-center justify-between flex-wrap gap-2" style={{ padding: '6px 0', borderBottom: '1px solid var(--sand-line)' }}>
+              <div>
+                <strong className="text-sm">{p.title}</strong>
+                <p className="text-xs" style={{ color: 'var(--ink-soft)' }}>{p.category} · {p.currency} {p.price}</p>
+              </div>
+              <Tag status={st.tag} label={st.label} />
+            </div>
+          );
+        })}
+        <button type="button" className="btn mt-2" style={{ padding: '4px 12px', fontSize: '0.75rem' }} onClick={() => onNavigate?.('listings')}>View All</button>
+      </div>
+
+      {/* 6. Pending Actions */}
+      <div className="dash-section-title"><h2>Pending Actions</h2></div>
+      {pendingActions === null && <p className="text-xs mb-4" style={{ color: 'var(--ink-soft)' }}>Loading...</p>}
+      {pendingActions && (
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-3" style={{ marginBottom: 20 }}>
+          <div className="card" style={{ padding: 14 }}>
+            <strong className="text-sm">New Orders Requiring Confirmation ({pendingActions.newOrders.length})</strong>
+            {pendingActions.newOrders.length === 0 && <p className="text-xs mt-1" style={{ color: 'var(--ink-soft)' }}>None.</p>}
+            {pendingActions.newOrders.slice(0, 5).map((o) => (
+              <div key={o._id} className="flex items-center justify-between gap-2 mt-2">
+                <span className="text-xs">{o.buyer?.fullName} — {o.product?.title}</span>
+                <button type="button" className="btn" style={{ padding: '3px 10px', fontSize: '0.7rem' }} onClick={() => confirmOrder(o._id)}>Confirm</button>
+              </div>
+            ))}
+          </div>
+
+          <div className="card" style={{ padding: 14 }}>
+            <strong className="text-sm">Products Pending Approval ({pendingActions.pendingApprovalProducts.length})</strong>
+            {pendingActions.pendingApprovalProducts.length === 0 && <p className="text-xs mt-1" style={{ color: 'var(--ink-soft)' }}>None.</p>}
+            {pendingActions.pendingApprovalProducts.slice(0, 5).map((p) => <p key={p._id} className="text-xs mt-1" style={{ color: 'var(--ink-soft)' }}>{p.title}</p>)}
+            {pendingActions.pendingApprovalProducts.length > 0 && <p className="text-xs mt-2" style={{ color: 'var(--ink-soft)' }}>Awaiting Super Admin review.</p>}
+          </div>
+
+          <div className="card" style={{ padding: 14 }}>
+            <strong className="text-sm">Low-Stock Products ({pendingActions.lowStockProducts.length})</strong>
+            {pendingActions.lowStockProducts.length === 0 && <p className="text-xs mt-1" style={{ color: 'var(--ink-soft)' }}>None.</p>}
+            {pendingActions.lowStockProducts.slice(0, 5).map((p) => <p key={p._id} className="text-xs mt-1" style={{ color: 'var(--ink-soft)' }}>{p.title} — {p.stock} left</p>)}
+          </div>
+
+          <div className="card" style={{ padding: 14 }}>
+            <strong className="text-sm">Orders Requiring Shipment ({pendingActions.ordersRequiringShipment.length})</strong>
+            {pendingActions.ordersRequiringShipment.length === 0 && <p className="text-xs mt-1" style={{ color: 'var(--ink-soft)' }}>None.</p>}
+            {pendingActions.ordersRequiringShipment.slice(0, 5).map((o) => (
+              <div key={o._id} className="flex items-center justify-between gap-2 mt-2">
+                <span className="text-xs">{o.buyer?.fullName} — {o.product?.title}</span>
+                <button type="button" className="btn" style={{ padding: '3px 10px', fontSize: '0.7rem' }} onClick={() => markShipped(o._id)}>Mark Shipped</button>
+              </div>
+            ))}
+          </div>
+
+          <div className="card" style={{ padding: 14 }}>
+            <strong className="text-sm">Buyer Cancellation Requests ({pendingActions.cancellationRequests.length})</strong>
+            {pendingActions.cancellationRequests.length === 0 && <p className="text-xs mt-1" style={{ color: 'var(--ink-soft)' }}>None.</p>}
+            {pendingActions.cancellationRequests.slice(0, 5).map((o) => (
+              <div key={o._id} className="mt-2">
+                <p className="text-xs">{o.buyer?.fullName} — {o.product?.title}{o.cancellationReason ? `: "${o.cancellationReason}"` : ''}</p>
+                <div className="flex gap-2 mt-1">
+                  <button type="button" className="btn btn-primary" style={{ padding: '3px 10px', fontSize: '0.7rem' }} onClick={() => respondCancellation(o._id, true)}>Approve</button>
+                  <button type="button" className="btn" style={{ padding: '3px 10px', fontSize: '0.7rem' }} onClick={() => respondCancellation(o._id, false)}>Deny</button>
+                </div>
+              </div>
+            ))}
+          </div>
+
+          <div className="card" style={{ padding: 14 }}>
+            <strong className="text-sm">Refund/Return Requests ({pendingActions.refundRequests.length})</strong>
+            {pendingActions.refundRequests.length === 0 && <p className="text-xs mt-1" style={{ color: 'var(--ink-soft)' }}>None.</p>}
+            {pendingActions.refundRequests.slice(0, 5).map((o) => (
+              <div key={o._id} className="mt-2">
+                <p className="text-xs">{o.buyer?.fullName} — {o.product?.title}{o.refundReason ? `: "${o.refundReason}"` : ''}</p>
+                <div className="flex gap-2 mt-1">
+                  <button type="button" className="btn btn-primary" style={{ padding: '3px 10px', fontSize: '0.7rem' }} onClick={() => respondRefund(o._id, true)}>Approve</button>
+                  <button type="button" className="btn" style={{ padding: '3px 10px', fontSize: '0.7rem' }} onClick={() => respondRefund(o._id, false)}>Deny</button>
+                </div>
+              </div>
+            ))}
+          </div>
+
+          <div className="card" style={{ padding: 14 }}>
+            <strong className="text-sm">Unanswered Buyer Messages ({pendingActions.unansweredMessages.length})</strong>
+            {pendingActions.unansweredMessages.length === 0 && <p className="text-xs mt-1" style={{ color: 'var(--ink-soft)' }}>None.</p>}
+            {pendingActions.unansweredMessages.slice(0, 5).map((m) => <p key={m.buyer._id} className="text-xs mt-1" style={{ color: 'var(--ink-soft)' }}>{m.buyer.fullName}: "{m.lastMessage}"</p>)}
+            {pendingActions.unansweredMessages.length > 0 && <button type="button" className="btn mt-2" style={{ padding: '4px 12px', fontSize: '0.75rem' }} onClick={() => onNavigate?.('messages')}>Reply</button>}
+          </div>
+        </div>
+      )}
+
+      {/* 7. Best-Selling Products */}
+      <div className="dash-section-title"><h2>Best-Selling Products</h2></div>
+      <Table
+        headers={['Product Name', 'Units Sold', 'Total Revenue', 'Current Stock', 'Rating']}
+        rows={(bestSelling || []).map((p) => [
+          p.productName,
+          p.unitsSold,
+          `${p.currency} ${p.totalRevenue}`,
+          p.currentStock ?? '—',
+          p.rating !== null ? `★ ${p.rating}` : 'No reviews yet'
+        ])}
+        loading={bestSelling === null}
+        empty="No sales yet."
+      />
+
+      {/* 8. Inventory Overview */}
+      <div className="dash-section-title"><h2>Inventory Overview</h2></div>
+      <p className="text-xs mb-2" style={{ color: 'var(--ink-soft)' }}>Physical listings only — digital products/services don't track stock.</p>
+      {inventory && inventory.items.length === 0 && <p className="text-xs mb-4" style={{ color: 'var(--ink-soft)' }}>No physical listings yet.</p>}
+      {inventory && inventory.items.length > 0 && (
+        <>
+          <div className="grid grid-cols-2 md:grid-cols-2 gap-3 mb-3">
+            <div className="card" style={{ padding: 14 }}>
+              <strong className="text-sm">Low Stock ({inventory.lowStock.length})</strong>
+              {inventory.lowStock.length === 0 && <p className="text-xs mt-1" style={{ color: 'var(--ink-soft)' }}>None.</p>}
+              {inventory.lowStock.map((p) => <p key={p._id} className="text-xs mt-1" style={{ color: 'var(--ink-soft)' }}>{p.title} — {p.stock} left</p>)}
+            </div>
+            <div className="card" style={{ padding: 14 }}>
+              <strong className="text-sm">Out of Stock ({inventory.outOfStock.length})</strong>
+              {inventory.outOfStock.length === 0 && <p className="text-xs mt-1" style={{ color: 'var(--ink-soft)' }}>None.</p>}
+              {inventory.outOfStock.map((p) => <p key={p._id} className="text-xs mt-1" style={{ color: 'var(--ink-soft)' }}>{p.title}</p>)}
+            </div>
+          </div>
+          <Table
+            headers={['Product', 'Category', 'Available Stock', 'Status', 'Inventory Update']}
+            rows={inventory.items.map((p) => [
+              p.title,
+              p.category,
+              p.stock,
+              <Tag status={PRODUCT_STATUS[p.status]?.tag} label={PRODUCT_STATUS[p.status]?.label} />,
+              <div className="flex gap-2">
+                <input className="form-input" type="number" min="0" style={{ padding: '4px 6px', fontSize: '0.72rem', width: 80 }} placeholder={String(p.stock)} value={stockEdits[p._id] ?? ''} onChange={(e) => setStockEdits({ ...stockEdits, [p._id]: e.target.value })} />
+                <button type="button" className="btn" style={{ padding: '4px 10px', fontSize: '0.72rem' }} onClick={() => updateStock(p._id)}>Update</button>
+              </div>
+            ])}
+            empty="No physical listings yet."
+          />
+        </>
+      )}
+
+      {/* 9. Earnings & Commission */}
+      <div className="dash-section-title"><h2>Earnings & Commission</h2></div>
+      <p className="text-xs mb-2" style={{ color: 'var(--ink-soft)' }}>CareerZ's commission ({earnings?.commissionRate ?? '—'}%, set by Super Admin) is deducted automatically from delivered/completed sales. No real payment processor is integrated yet, so Payment Charges are honestly 0.</p>
+      {Object.keys(earnings?.totalsByCurrency || {}).length === 0 && <p className="text-xs mb-4" style={{ color: 'var(--ink-soft)' }}>{earnings === null ? 'Loading...' : 'No sales yet.'}</p>}
+      {Object.entries(earnings?.totalsByCurrency || {}).map(([currency, e]) => (
+        <div key={currency} className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-4">
+          <div className="card" style={{ padding: 14 }}><strong className="text-sm">Gross Sales</strong><p className="text-xs mt-1" style={{ color: 'var(--ink-soft)' }}>{currency} {e.grossSales}</p></div>
+          <div className="card" style={{ padding: 14 }}><strong className="text-sm">Platform Commission</strong><p className="text-xs mt-1" style={{ color: 'var(--ink-soft)' }}>{currency} {e.platformCommission}</p></div>
+          <div className="card" style={{ padding: 14 }}><strong className="text-sm">Payment Charges</strong><p className="text-xs mt-1" style={{ color: 'var(--ink-soft)' }}>{currency} {e.paymentCharges}</p></div>
+          <div className="card" style={{ padding: 14 }}><strong className="text-sm">Refund Deductions</strong><p className="text-xs mt-1" style={{ color: 'var(--ink-soft)' }}>{currency} {e.refundDeductions}</p></div>
+          <div className="card" style={{ padding: 14 }}><strong className="text-sm">Net Earnings</strong><p className="text-xs mt-1" style={{ color: 'var(--ink-soft)' }}>{currency} {e.netEarnings}</p></div>
+          <div className="card" style={{ padding: 14 }}><strong className="text-sm">Pending Earnings</strong><p className="text-xs mt-1" style={{ color: 'var(--ink-soft)' }}>{currency} {e.pendingEarnings}</p></div>
+          <div className="card" style={{ padding: 14 }}><strong className="text-sm">Available Earnings</strong><p className="text-xs mt-1" style={{ color: 'var(--ink-soft)' }}>{currency} {e.availableEarnings}</p></div>
+        </div>
+      ))}
+
+      {/* Reviews — per the parent layout order, before Messages/Notifications */}
+      <div className="dash-section-title"><h2>Reviews</h2></div>
+      <div className="card" style={{ padding: 12, marginBottom: 20 }}>
+        {(reviews?.length ?? 0) === 0 && <p className="text-xs" style={{ color: 'var(--ink-soft)' }}>{reviews === null ? 'Loading...' : 'No reviews yet.'}</p>}
+        {reviews?.slice(0, 3).map((r) => (
+          <div key={r._id} className="flex items-center justify-between flex-wrap gap-2" style={{ padding: '6px 0', borderBottom: '1px solid var(--sand-line)' }}>
+            <div>
+              <strong className="text-sm">{r.buyer?.fullName}</strong>
+              <p className="text-xs" style={{ color: 'var(--ink-soft)' }}>{r.product?.title} · ★ {r.rating}{r.comment ? ` · "${r.comment}"` : ''}</p>
+            </div>
+          </div>
+        ))}
+        <button type="button" className="btn mt-2" style={{ padding: '4px 12px', fontSize: '0.75rem' }} onClick={() => onNavigate?.('sellerReviews')}>View All</button>
+      </div>
+
+      {/* Messages / Notifications preview — item 12's "Dashboard par recent messages aur unread
+          count show hoga", plus item 13's Notifications feed */}
+      <div className="dash-section-title"><h2>Messages / Notifications</h2></div>
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-3" style={{ marginBottom: 20 }}>
+        <div className="card" style={{ padding: 16 }}>
+          <strong className="text-xs">Messages — Unread: {conversations?.reduce((sum, c) => sum + c.unread, 0) ?? 0}</strong>
+          {(conversations?.length ?? 0) === 0 && <p className="text-xs mt-1" style={{ color: 'var(--ink-soft)' }}>{conversations === null ? 'Loading...' : 'No conversations yet.'}</p>}
+          {conversations?.slice(0, 3).map((c) => (
+            <p key={c.user._id} className="text-xs mt-1" style={{ color: c.unread > 0 ? 'var(--ink)' : 'var(--ink-soft)', fontWeight: c.unread > 0 ? 600 : 400 }}>{c.user.fullName}{c.unread > 0 ? ` (${c.unread})` : ''} — {c.lastMessage}</p>
+          ))}
+          <button type="button" className="btn mt-2" style={{ padding: '4px 12px', fontSize: '0.75rem' }} onClick={() => onNavigate?.('sellerMessages')}>View Messages</button>
+        </div>
+        <div className="card" style={{ padding: 16 }}>
+          <strong className="text-xs">Notifications</strong>
+          {(notifications?.length ?? 0) === 0 && <p className="text-xs mt-1" style={{ color: 'var(--ink-soft)' }}>{notifications === null ? 'Loading...' : 'No notifications yet.'}</p>}
+          {notifications?.map((n) => (
+            <div key={n._id} className="flex items-center justify-between gap-2" style={{ padding: '4px 0' }}>
+              <p className="text-xs" style={{ color: n.read ? 'var(--ink-soft)' : 'var(--ink)', fontWeight: n.read ? 400 : 600 }}>{n.title}</p>
+              <span className="text-xs" style={{ color: 'var(--ink-soft)' }}>{new Date(n.createdAt).toLocaleDateString()}</span>
+            </div>
+          ))}
+          <button type="button" className="btn mt-2" style={{ padding: '4px 12px', fontSize: '0.75rem' }} onClick={() => onNavigate?.('sellerNotifications')}>View All</button>
+        </div>
+      </div>
+
+      {/* 14. Recent Activity — every feed sourced from data already fetched above, no fabrication */}
+      <div className="dash-section-title"><h2>Recent Activity</h2></div>
+      {(() => {
+        const feeds = [
+          { title: 'New Listing Created', items: [...(products || [])].sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt)).slice(0, 5).map((p) => ({ date: p.createdAt, label: p.title })) },
+          { title: 'Product Updated', items: [...(products || [])].filter((p) => p.updatedAt !== p.createdAt).sort((a, b) => new Date(b.updatedAt) - new Date(a.updatedAt)).slice(0, 5).map((p) => ({ date: p.updatedAt, label: p.title })) },
+          { title: 'Order Received', items: [...(recentOrders || [])].sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt)).slice(0, 5).map((o) => ({ date: o.createdAt, label: `${o.buyer?.fullName} — ${o.product?.title} (${o.currency} ${o.totalPrice})` })) },
+          { title: 'Order Shipped/Delivered', items: [...(recentOrders || [])].filter((o) => ['shipped', 'delivered', 'completed'].includes(o.status)).sort((a, b) => new Date(b.updatedAt) - new Date(a.updatedAt)).slice(0, 5).map((o) => ({ date: o.updatedAt, label: `${o.product?.title} — ${ORDER_STATUS[o.status]?.label}` })) },
+          { title: 'Payment Received', items: [...(recentOrders || [])].filter((o) => o.paymentStatus === 'paid').sort((a, b) => new Date(b.updatedAt) - new Date(a.updatedAt)).slice(0, 5).map((o) => ({ date: o.updatedAt, label: `${o.currency} ${o.totalPrice} — ${o.product?.title}` })) },
+          { title: 'Refund Completed', items: [...(recentOrders || [])].filter((o) => o.status === 'refunded').sort((a, b) => new Date(b.updatedAt) - new Date(a.updatedAt)).slice(0, 5).map((o) => ({ date: o.updatedAt, label: `${o.currency} ${o.totalPrice} — ${o.product?.title}` })) },
+          { title: 'Withdrawal Requested', items: [...(withdrawals || [])].sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt)).slice(0, 5).map((w) => ({ date: w.createdAt, label: `${w.currency} ${w.amount} (${SELLER_WITHDRAWAL_STATUS[w.status]?.label})` })) }
+        ];
+        return (
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3" style={{ marginBottom: 20 }}>
+            {feeds.map((f) => (
+              <div key={f.title} className="card" style={{ padding: 14 }}>
+                <strong className="text-sm">{f.title}</strong>
+                {f.items.length === 0 && <p className="text-xs mt-1" style={{ color: 'var(--ink-soft)' }}>None yet.</p>}
+                {f.items.map((it, i) => (
+                  <div key={i} className="flex items-center justify-between gap-2 mt-1">
+                    <span className="text-xs">{it.label}</span>
+                    <span className="text-xs" style={{ color: 'var(--ink-soft)' }}>{new Date(it.date).toLocaleDateString()}</span>
+                  </div>
+                ))}
+              </div>
+            ))}
+          </div>
+        );
+      })()}
+
+      {/* 15. Quick Actions */}
+      <QuickActions
+        actions={[
+          { label: 'Add New Product', key: 'addListing' },
+          { label: 'Add New Service', key: 'addListing' },
+          { label: 'Manage Listings', key: 'listings' },
+          { label: 'View Orders', key: 'orders' },
+          { label: 'Update Inventory', key: 'inventory' },
+          { label: 'View Earnings', key: 'earningsCommission' },
+          { label: 'Withdraw Funds', key: 'withdrawals' },
+          { label: 'View Messages', key: 'sellerMessages' }
+        ]}
+        onNavigate={onNavigate}
+      />
+    </>
   );
 }
 
@@ -9003,7 +10246,8 @@ function CalendarPanel({ onFlash }) {
 function SettingsPanel({ user, onFlash, onChanged }) {
   const [form, setForm] = useState({ fullName: user?.fullName || '', phone: user?.phone || '', country: user?.country || '', language: user?.language || 'en', profilePhoto: user?.profilePhoto || '', companyName: user?.companyName || '', donorType: user?.donorType || '' });
   const isDonor = user?.roles?.includes('donor');
-  const showCompanyName = user?.roles?.includes('employer') || user?.roles?.includes('education_agent') || (isDonor && form.donorType === 'organization');
+  const isSeller = user?.roles?.includes('marketplace_seller');
+  const showCompanyName = user?.roles?.includes('employer') || user?.roles?.includes('education_agent') || isSeller || (isDonor && form.donorType === 'organization');
   const [pwForm, setPwForm] = useState({ currentPassword: '', newPassword: '', confirmPassword: '' });
 
   async function saveProfile(e) {
@@ -9044,7 +10288,8 @@ function SettingsPanel({ user, onFlash, onChanged }) {
             <option value="organization">Organization</option>
           </select>
         )}
-        {showCompanyName && <input className="form-input" placeholder={isDonor ? 'Organization name' : 'Company / Agency name'} value={form.companyName} onChange={(e) => setForm({ ...form, companyName: e.target.value })} />}
+        {showCompanyName && <input className="form-input" placeholder={isDonor ? 'Organization name' : isSeller ? 'Store name' : 'Company / Agency name'} value={form.companyName} onChange={(e) => setForm({ ...form, companyName: e.target.value })} />}
+        {isSeller && <p className="text-xs" style={{ color: 'var(--ink-soft)', marginTop: -6 }}>The profile photo above also doubles as your store logo.</p>}
         <input className="form-input" placeholder="Phone" value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} />
         <input className="form-input" placeholder="Country code (e.g. PK)" value={form.country || ''} onChange={(e) => setForm({ ...form, country: e.target.value })} />
         <select className="form-select" value={form.language} onChange={(e) => setForm({ ...form, language: e.target.value })}>
