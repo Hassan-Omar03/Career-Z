@@ -30,9 +30,13 @@
 .member-section .form-select { min-width: 0; }
 .member-section .btn { font-size: 13px; padding: 11px 18px; }
 .account-table-wrap { border: 1px solid var(--sand-line); border-radius: 12px; }
-.account-table-wrap th { padding: 14px 16px; background: var(--sand); white-space: nowrap; }
+.account-table-wrap th { padding: 14px 16px; background: var(--sand); white-space: nowrap; font-size: 11px; letter-spacing: .06em; font-weight: 700; color: var(--ink-soft); }
 .account-table-wrap td { padding: 16px; font-size: 13px; }
 .account-table-wrap td[colspan] { padding: 30px 18px; text-align: center; font-style: normal; }
+.account-table-wrap tbody tr { transition: background .12s ease; }
+.account-table-wrap tbody tr:nth-child(even) { background: color-mix(in srgb, var(--sand) 35%, transparent); }
+.account-table-wrap tbody tr:hover { background: var(--sand); }
+.account-table-wrap tbody tr:last-child td { border-bottom: 0; }
 .member-layout .card { border: 1px solid var(--sand-line); border-radius: 18px; box-shadow: none; min-width: 0; }
 .member-layout .card:hover { transform: none; box-shadow: none; }
 .member-layout .dash-section-title { margin-top: 30px; margin-bottom: 16px; }

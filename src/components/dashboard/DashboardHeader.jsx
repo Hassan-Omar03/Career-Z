@@ -1,7 +1,8 @@
+import ThemeIcon from '../ThemeIcon';
 import { useEffect, useRef, useState } from 'react';
 import { useTheme } from '../../hooks/useTheme';
 import LanguageSelector from '../LanguageSelector';
-import { FaShieldHalved, FaRightFromBracket, FaBars, FaMagnifyingGlass, FaPlus, FaWallet, FaSun, FaMoon, FaCommentDots, FaBell, FaChevronDown } from 'react-icons/fa6';
+import { FaShieldHalved, FaRightFromBracket, FaBars, FaMagnifyingGlass, FaPlus, FaWallet, FaCommentDots, FaBell, FaChevronDown } from 'react-icons/fa6';
 
 function useDropdown() {
   const [open, setOpen] = useState(false);
@@ -10,8 +11,10 @@ function useDropdown() {
     function onDoc(e) {
       if (ref.current && !ref.current.contains(e.target)) setOpen(false);
     }
+    function onKey(event) { if (event.key === 'Escape') setOpen(false); }
     document.addEventListener('click', onDoc);
-    return () => document.removeEventListener('click', onDoc);
+    document.addEventListener('keydown', onKey);
+    return () => { document.removeEventListener('click', onDoc); document.removeEventListener('keydown', onKey); };
   }, []);
   return { open, setOpen, ref };
 }
@@ -30,7 +33,7 @@ export default function DashboardHeader({ user, onSidebarToggle, onLogout, onNav
         <a href="/" className="logo" aria-label="CareerZ home"><span className="dot" /><span className="logo-text">Career<span className="pk">Z.pk</span></span></a>
         <span className="admin-header-label"><FaShieldHalved aria-hidden="true" /> Administration</span>
         <div className="dash-header-right">
-          <button className="icon-btn" aria-label="Toggle dark mode" onClick={toggleTheme}>{theme === 'dark' ? <FaMoon /> : <FaSun />}</button>
+          <button className="icon-btn" aria-label={theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'} onClick={toggleTheme}><ThemeIcon theme={theme} /></button>
           <a className="dash-profile-btn" href="#admin-profile"><span className="dash-avatar">{initial}</span><span className="name">{user.fullName}</span></a>
           <button className="admin-logout" onClick={onLogout}><FaRightFromBracket aria-hidden="true" /><span>Logout</span></button>
         </div>
@@ -73,14 +76,14 @@ export default function DashboardHeader({ user, onSidebarToggle, onLogout, onNav
           {quickActions.open && (
             <div className="dash-user-menu" style={{ display: 'block' }} role="menu">
               <div className="dash-role-note">Example shortcuts — final list is role-specific</div>
-              <a href="#" role="menuitem">New Application</a>
-              <a href="#" role="menuitem">New Message</a>
-              <a href="#" role="menuitem">New Support Ticket</a>
+              <button type="button" role="menuitem" onClick={() => { quickActions.setOpen(false); onNavigate?.('applications'); }}>New Application</button>
+              <button type="button" role="menuitem" onClick={() => { quickActions.setOpen(false); onNavigate?.('messages'); }}>New Message</button>
+              <button type="button" role="menuitem" onClick={() => { quickActions.setOpen(false); onNavigate?.('help'); }}>New Support Ticket</button>
             </div>
           )}
         </div>
 
-        <button type="button" className="dash-wallet-chip" style={{ border: 'none', cursor: 'pointer', background: 'none', font: 'inherit', color: 'inherit' }} onClick={() => onNavigate?.('wallet')}>
+        <button type="button" className="dash-wallet-chip"  onClick={() => onNavigate?.('wallet')}>
           <FaWallet size={17} />
           <span className="w-text">
             <span className="w-label">Balance</span>
@@ -90,8 +93,8 @@ export default function DashboardHeader({ user, onSidebarToggle, onLogout, onNav
 
         <LanguageSelector />
 
-        <button className="icon-btn" aria-label="Toggle dark mode" onClick={toggleTheme}>
-          {theme === 'dark' ? <FaMoon size={18} /> : <FaSun size={18} />}
+        <button className="icon-btn" aria-label={theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'} onClick={toggleTheme}>
+          <ThemeIcon theme={theme} />
         </button>
 
         <div className="dash-icon-btn-wrap">

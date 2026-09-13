@@ -1,6 +1,7 @@
+import ThemeIcon from '../components/ThemeIcon';
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { FaSun, FaMoon, FaBars } from 'react-icons/fa6';
+import { FaBars } from 'react-icons/fa6';
 import { useTheme } from '../hooks/useTheme';
 import { useAuth } from '../context/AuthContext';
 import LiveTicker from '../components/LiveTicker';
@@ -60,8 +61,8 @@ export default function Home() {
           </nav>
           <div className="nav-actions">
             <LanguageSelector onChange={setLang} />
-            <button className="icon-btn" aria-label="Toggle dark mode" onClick={toggleTheme}>
-              {theme === 'dark' ? <FaMoon size={16} /> : <FaSun size={16} />}
+            <button className="icon-btn" aria-label={theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'} onClick={toggleTheme}>
+              <ThemeIcon theme={theme} />
             </button>
             {user ? (
               <Link to="/dashboard" className="btn btn-primary" style={{ padding: '10px 20px', fontSize: '13.5px' }}>

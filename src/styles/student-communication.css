@@ -1,0 +1,359 @@
+/* Student communication, planning and account pages. */
+.student-page-content[data-page="messages"] > .student-messages {
+  grid-template-columns: minmax(260px, .85fr) minmax(0, 1.65fr);
+  align-items: stretch;
+}
+.student-page-content[data-page="messages"] .student-messages > :is(.student-inbox, .student-conversation) {
+  padding: 24px;
+  border: 1px solid var(--sand-line);
+  border-radius: 20px;
+  background: var(--paper-raised);
+  min-width: 0;
+}
+.student-page-content[data-page="messages"] .student-messages > .student-conversation {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  min-height: 420px;
+}
+.student-page-content[data-page="messages"] :is(.student-inbox, .student-conversation) > h3 {
+  margin: 0 0 18px;
+  padding-bottom: 18px;
+  border-bottom: 1px solid var(--sand-line);
+  font-size: 18px;
+}
+.student-page-content[data-page="messages"] .student-conversation > h3 { margin-bottom: 0; }
+.student-page-content[data-page="messages"] .student-inbox > p:not([role]) {
+  padding: 32px 10px;
+  line-height: 1.8;
+  text-align: center;
+}
+.student-page-content[data-page="messages"] .student-inbox .dash-list {
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+}
+.student-page-content[data-page="messages"] .student-inbox .dash-list-item {
+  display: grid;
+  grid-template-columns: 38px minmax(0, 1fr);
+  gap: 8px 12px;
+  padding: 16px 10px;
+  width: 100%;
+  text-align: left;
+  border-radius: 12px;
+}
+.student-page-content[data-page="messages"] .student-inbox .dash-list-icon {
+  width: 38px;
+  height: 38px;
+  margin: 0;
+  border-radius: 12px;
+}
+.student-page-content[data-page="messages"] .student-inbox .dash-list-time {
+  grid-column: 2;
+  margin: 0;
+}
+.student-page-content[data-page="messages"] .student-inbox .dash-list-body .desc {
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+.student-page-content[data-page="messages"] .student-message-thread {
+  flex: 1;
+  min-height: 230px;
+  max-height: 440px;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  box-shadow: none;
+  background: transparent;
+}
+.student-page-content[data-page="messages"] .student-message-thread > div {
+  overflow-wrap: anywhere;
+  line-height: 1.7;
+}
+.student-page-content[data-page="messages"] .student-message-thread > p:not([role]) {
+  padding: 48px 16px;
+  text-align: center;
+}
+.student-page-content[data-page="messages"] form.student-message-compose {
+  display: flex;
+  gap: 12px;
+  align-items: end;
+  margin-top: auto;
+  padding-top: 20px;
+  border-top: 1px solid var(--sand-line);
+}
+.student-page-content[data-page="messages"] form.student-message-compose > .form-input {
+  flex: 1 1 0;
+  min-width: 0;
+}
+.student-page-content[data-page="messages"] form.student-message-compose > .btn {
+  flex: 0 0 auto;
+  min-height: 46px;
+  padding-inline: 22px;
+}
+
+.student-page-content[data-page="notifications"] .student-notifications {
+  padding: 26px;
+  border: 1px solid var(--sand-line);
+  border-radius: 20px;
+  background: var(--paper-raised);
+}
+.student-page-content[data-page="notifications"] .student-notification-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 14px;
+  margin: 0 0 18px;
+  padding-bottom: 20px;
+  border-bottom: 1px solid var(--sand-line);
+}
+.student-page-content[data-page="notifications"] .student-notification-toolbar h3 { margin: 0; }
+.student-page-content[data-page="notifications"] .student-notifications > p:not([role]) {
+  padding: 64px 20px;
+  text-align: center;
+  line-height: 1.8;
+}
+.student-page-content[data-page="notifications"] .student-notifications .dash-list {
+  border: 0;
+  background: transparent;
+}
+.student-page-content[data-page="notifications"] .student-notifications .dash-list-item {
+  display: grid;
+  grid-template-columns: 44px minmax(0, 1fr) auto;
+  gap: 16px;
+  align-items: start;
+  padding: 22px 16px;
+  border-radius: 12px;
+}
+.student-page-content[data-page="notifications"] .student-notifications .dash-list-icon {
+  width: 44px;
+  height: 44px;
+  margin: 0;
+  border-radius: 14px;
+}
+.student-page-content[data-page="notifications"] .student-notifications .dash-list-time { padding-top: 4px; }
+.student-page-content[data-page="notifications"] .student-notifications .dash-list-body .title { margin-bottom: 5px; }
+
+.student-page-content[data-page="calendar"] .student-calendar {
+  display: grid;
+  grid-template-columns: minmax(0, 1.45fr) minmax(260px, .8fr);
+  gap: 20px;
+  align-items: start;
+}
+.student-page-content[data-page="calendar"] .student-calendar > * {
+  grid-column: 1 / -1;
+  min-width: 0;
+  margin: 0;
+}
+.student-page-content[data-page="calendar"] .student-calendar-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 14px 18px;
+  border: 1px solid var(--sand-line);
+  border-radius: 16px;
+  background: var(--paper-raised);
+}
+.student-page-content[data-page="calendar"] .student-calendar-toolbar strong {
+  text-align: center;
+  font-size: clamp(16px, 2vw, 21px);
+  line-height: 1.4;
+}
+.student-page-content[data-page="calendar"] .student-calendar-toolbar .btn {
+  border: 1px solid var(--sand-line);
+  color: var(--forest);
+  background: var(--paper-raised);
+}
+.student-page-content[data-page="calendar"] .student-calendar > .student-calendar-month {
+  display: grid;
+  grid-column: 1;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  gap: 7px;
+  padding: 20px;
+  border-radius: 20px;
+  border: 1px solid var(--sand-line);
+  background: var(--paper-raised);
+}
+.student-page-content[data-page="calendar"] .student-calendar-month > div.text-xs {
+  padding-block: 8px 14px;
+  font-size: 11px;
+  letter-spacing: .025em;
+}
+.student-page-content[data-page="calendar"] .student-calendar-month .student-calendar-day {
+  min-width: 0;
+  min-height: 58px;
+  aspect-ratio: 1 / 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  padding: 7px 3px;
+  border-radius: 12px;
+  box-shadow: none;
+  color: var(--ink);
+}
+.student-page-content[data-page="calendar"] .student-calendar-day > .text-xs { font-size: 14px; }
+.student-page-content[data-page="calendar"] .student-calendar-day > .flex { min-height: 6px; margin: 0; }
+.student-page-content[data-page="calendar"] .student-calendar > .student-calendar-agenda {
+  grid-column: 2;
+  align-self: stretch;
+  padding: 26px;
+  border: 1px solid var(--sand-line);
+  border-radius: 20px;
+  background: var(--paper-raised);
+}
+.student-page-content[data-page="calendar"] .student-calendar-agenda > strong {
+  display: block;
+  padding-bottom: 18px;
+  border-bottom: 1px solid var(--sand-line);
+  color: var(--forest);
+  font-size: 17px;
+  line-height: 1.5;
+}
+.student-page-content[data-page="calendar"] .student-calendar-agenda > p {
+  margin-top: 22px;
+  font-size: 14px;
+  line-height: 1.8;
+}
+.student-page-content[data-page="calendar"] .student-calendar-agenda > .flex {
+  align-items: baseline;
+  flex-wrap: nowrap;
+  padding: 16px 0;
+  margin: 0;
+  border-bottom: 1px solid var(--sand-line);
+}
+.student-page-content[data-page="calendar"] .student-calendar-agenda > .flex:last-child { border-bottom: 0; }
+.student-page-content[data-page="calendar"] .student-calendar-agenda .text-xs { font-size: 13px; line-height: 1.75; }
+.student-page-content[data-page="calendar"] .student-calendar .account-table-wrap { margin-bottom: 0; }
+.student-page-content[data-page="calendar"] .student-calendar > .mb-6 { margin: 0; }
+
+.student-page-content[data-page="settings"] .student-settings {
+  display: grid;
+  grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr);
+  grid-template-areas: "account-heading security-heading" "account security";
+  gap: 16px 24px;
+  align-items: start;
+}
+.student-page-content[data-page="settings"] .student-settings > h3 { margin: 0; }
+.student-page-content[data-page="settings"] .student-settings-account-heading { grid-area: account-heading; }
+.student-page-content[data-page="settings"] .student-settings-security-heading { grid-area: security-heading; }
+.student-page-content[data-page="settings"] .student-settings-account { grid-area: account; }
+.student-page-content[data-page="settings"] .student-settings-security { grid-area: security; }
+.student-page-content[data-page="settings"] .student-settings > form.space-y-3 {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+  width: 100%;
+  max-width: none;
+  margin: 0;
+  padding: 28px;
+  border-radius: 20px;
+}
+.student-page-content[data-page="settings"] .student-settings > form.space-y-3 > * { margin: 0; }
+.student-page-content[data-page="settings"] .student-settings form > .flex {
+  flex-wrap: nowrap;
+  align-items: center;
+  gap: 16px;
+}
+.student-page-content[data-page="settings"] .student-settings form > .flex > :is(img, div) { flex-shrink: 0; }
+.student-page-content[data-page="settings"] .student-settings form > p { font-size: 12px; line-height: 1.75; }
+.student-page-content[data-page="settings"] .student-settings .btn { align-self: flex-start; min-height: 46px; padding-inline: 22px; }
+
+.student-page-content[data-page="help"] .student-faq-list {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 18px;
+  margin-bottom: 32px;
+}
+.student-page-content[data-page="help"] .student-faq-list > :is(div, details) {
+  margin: 0;
+  padding: 24px;
+  border: 1px solid var(--sand-line);
+  border-radius: 18px;
+  background: var(--paper-raised);
+}
+.student-page-content[data-page="help"] .student-faq-list :is(strong, summary) {
+  color: var(--ink);
+  font-size: 14px;
+  font-weight: 650;
+  line-height: 1.6;
+}
+.student-page-content[data-page="help"] .student-faq-list summary { cursor: pointer; }
+.student-page-content[data-page="help"] .student-faq-list p {
+  margin-top: 12px;
+  font-size: 13px;
+  line-height: 1.8;
+}
+.student-page-content[data-page="help"] .student-help > .admin-account-card {
+  padding: 28px;
+  margin: 0;
+  border-radius: 20px;
+}
+.student-page-content[data-page="help"] .student-help .admin-section-heading { gap: 18px; margin-bottom: 24px; }
+.student-page-content[data-page="help"] .student-help .admin-section-heading h2 { font-size: 24px; margin: 0 0 8px; }
+.student-page-content[data-page="help"] .student-help .admin-section-heading p { line-height: 1.7; }
+.student-page-content[data-page="help"] .student-help .admin-section-heading > svg {
+  flex: 0 0 44px;
+  width: 44px;
+  height: 44px;
+  color: var(--forest);
+}
+.student-page-content[data-page="help"] .student-help .admin-account-card > form.space-y-3 {
+  max-width: 760px;
+  padding: 0 0 26px;
+  margin-bottom: 26px;
+  background: transparent;
+  border: 0;
+  border-bottom: 1px solid var(--sand-line);
+  border-radius: 0;
+}
+.student-page-content[data-page="help"] .student-help .account-table-wrap { margin-bottom: 0; }
+
+@media (max-width: 1100px) {
+  .student-page-content[data-page="calendar"] .student-calendar { grid-template-columns: minmax(0, 1fr); }
+  .student-page-content[data-page="calendar"] .student-calendar > :is(.student-calendar-month, .student-calendar-agenda) { grid-column: 1; }
+  .student-page-content[data-page="calendar"] .student-calendar-day { aspect-ratio: auto; }
+  .student-page-content[data-page="settings"] .student-settings {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-areas: "account-heading" "account" "security-heading" "security";
+    gap: 18px;
+  }
+  .student-page-content[data-page="settings"] .student-settings-security-heading { margin-top: 14px; }
+}
+@media (max-width: 900px) {
+  .student-page-content[data-page="messages"] > .student-messages { grid-template-columns: minmax(0, 1fr); }
+  .student-page-content[data-page="messages"] .student-inbox .dash-list { max-height: 310px; overflow-y: auto; }
+  .student-page-content[data-page="messages"] .student-messages > .student-conversation { min-height: 300px; }
+  .student-page-content[data-page="help"] .student-faq-list { grid-template-columns: minmax(0, 1fr); }
+}
+@media (max-width: 600px) {
+  .student-page-content[data-page="messages"] .student-messages > :is(.student-inbox, .student-conversation),
+  .student-page-content[data-page="notifications"] .student-notifications,
+  .student-page-content[data-page="calendar"] .student-calendar > .student-calendar-agenda,
+  .student-page-content[data-page="settings"] .student-settings > form.space-y-3,
+  .student-page-content[data-page="help"] .student-help > .admin-account-card { padding: 20px 16px; border-radius: 16px; }
+  .student-page-content[data-page="messages"] form.student-message-compose { flex-wrap: nowrap; gap: 8px; }
+  .student-page-content[data-page="messages"] form.student-message-compose > .btn { width: auto; padding-inline: 14px; }
+  .student-page-content[data-page="notifications"] .student-notifications .dash-list-item {
+    grid-template-columns: 36px minmax(0, 1fr);
+    padding: 20px 2px;
+    gap: 8px 12px;
+  }
+  .student-page-content[data-page="notifications"] .student-notifications .dash-list-icon { width: 36px; height: 36px; border-radius: 10px; }
+  .student-page-content[data-page="notifications"] .student-notifications .dash-list-time { grid-column: 2; padding: 0; }
+  .student-page-content[data-page="calendar"] .student-calendar-toolbar { padding: 12px 8px; gap: 6px; flex-wrap: nowrap; }
+  .student-page-content[data-page="calendar"] .student-calendar-toolbar .btn { flex-shrink: 0; }
+  .student-page-content[data-page="calendar"] .student-calendar > .student-calendar-month { grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 3px; padding: 10px 6px; }
+  .student-page-content[data-page="calendar"] .student-calendar-month .student-calendar-day { min-height: 40px; border-radius: 8px; padding: 4px 1px; aspect-ratio: auto; }
+  .student-page-content[data-page="calendar"] .student-calendar-day > .text-xs { font-size: 12px; }
+  .student-page-content[data-page="calendar"] .student-calendar-month > div.text-xs { font-size: 10px; letter-spacing: 0; }
+  .student-page-content[data-page="settings"] .student-settings .btn { align-self: stretch; }
+  .student-page-content[data-page="help"] .student-faq-list > :is(div, details) { padding: 20px; }
+}

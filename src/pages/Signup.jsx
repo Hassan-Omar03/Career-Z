@@ -176,16 +176,16 @@ export default function Signup() {
                 />
               </div>
 
-              <div className="form-group">
-                <label>Account type</label>
-                <p className="form-hint" style={{ margin: '0 0 12px' }}>
+              <fieldset className="form-group signup-role-group" aria-describedby="account-type-hint">
+                <legend>Account type</legend>
+                <p id="account-type-hint" className="form-hint" style={{ margin: '0 0 12px' }}>
                   Choose how you'll mainly use CareerZ. Roles beyond Student are submitted for admin approval automatically — you can also request more later from your dashboard.
                 </p>
                 <div className="auth-role-grid">
                   {ROLE_OPTIONS.map((role) => (
                     <label key={role.value} className={`role-option${form.accountType === role.value ? ' active' : ''}`}>
                       <span className="role-icon"><role.icon aria-hidden="true" /></span>
-                      <span>{role.label}</span>
+                      <span className="role-label">{role.label}</span>
                       <input
                         type="radio" name="accountType" value={role.value}
                         checked={form.accountType === role.value}
@@ -194,7 +194,7 @@ export default function Signup() {
                     </label>
                   ))}
                 </div>
-              </div>
+              </fieldset>
 
               <div className="form-row-split">
                 <div className="form-group">
@@ -222,13 +222,11 @@ export default function Signup() {
                 </div>
               </div>
 
-              <div className="form-group">
+              <div className="signup-consents">
                 <label className="form-check">
                   <input type="checkbox" id="signup-terms" name="terms" required aria-invalid={Boolean(errors.terms && !terms)} aria-describedby={errors.terms && !terms ? "consent-error" : undefined} checked={terms} onChange={(e) => setTerms(e.target.checked)} />
                   <span>I agree to the <a href="#terms">Terms &amp; Conditions</a></span>
                 </label>
-              </div>
-              <div className="form-group">
                 <label className="form-check">
                   <input type="checkbox" id="signup-privacy" name="privacy" required aria-invalid={Boolean(errors.terms && !privacy)} aria-describedby={errors.terms && !privacy ? "consent-error" : undefined} checked={privacy} onChange={(e) => setPrivacy(e.target.checked)} />
                   <span>I agree to the <a href="#privacy">Privacy Policy</a></span>

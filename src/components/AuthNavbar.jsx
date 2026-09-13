@@ -1,5 +1,5 @@
+import ThemeIcon from './ThemeIcon';
 import { Link } from 'react-router-dom';
-import { FaSun, FaMoon } from 'react-icons/fa6';
 import { useTheme } from '../hooks/useTheme';
 
 export default function AuthNavbar() {
@@ -15,8 +15,8 @@ export default function AuthNavbar() {
           </span>
         </Link>
         <div className="nav-actions">
-          <button className="icon-btn" aria-label="Toggle dark mode" onClick={toggleTheme}>
-            {theme === 'dark' ? <FaMoon size={16} /> : <FaSun size={16} />}
+          <button className="icon-btn" aria-label={theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'} onClick={toggleTheme}>
+            <ThemeIcon theme={theme} />
           </button>
         </div>
       </div>

@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import {
-  FaClipboardList, FaBookOpen, FaAward, FaBriefcase,
+  FaWallet, FaCommentDots, FaArrowRight, FaCalendarCheck, FaStore, FaClipboardList, FaBookOpen, FaAward, FaBriefcase,
   FaCircle, FaHand, FaCircleCheck, FaFileLines, FaGraduationCap
 } from 'react-icons/fa6';
 import { apiRequest } from '../../api/client';
@@ -132,6 +132,7 @@ export function StatusGrid() {
 // `actions` is a list of {label, key} — key is the sidebar tab to jump to. Only relevant
 // actions for the current workspace are shown; clicking one actually navigates there.
 export function QuickActions({ actions = [], onNavigate }) {
+  const icons = { scholarships: FaAward, jobs: FaBriefcase, wallet: FaWallet, messages: FaCommentDots, classes: FaCalendarCheck, assignments: FaClipboardList, courses: FaBookOpen, marketplace: FaStore };
   if (actions.length === 0) return null;
   return (
     <>
@@ -139,7 +140,7 @@ export function QuickActions({ actions = [], onNavigate }) {
       <div className="dash-quick-actions">
         {actions.map((a) => (
           <button key={a.label} type="button" className="dash-quick-btn reveal in" style={{ border: 'none', cursor: 'pointer' }} onClick={() => onNavigate?.(a.key)}>
-            <span className="txt">{a.label}</span>
+            <span className="overview-action-icon">{(() => { const Icon = icons[a.key] || FaClipboardList; return <Icon aria-hidden="true" />; })()}</span><span className="txt">{a.label}</span><FaArrowRight className="overview-action-arrow" aria-hidden="true" />
           </button>
         ))}
       </div>
@@ -247,13 +248,13 @@ export function RecommendedGrid({ items }) {
 const ACTIVITY_ICON = { approved: FaCircleCheck, pending: FaFileLines, under_review: FaFileLines, rejected: FaFileLines, active: FaGraduationCap, completed: FaGraduationCap, dropped: FaFileLines };
 
 // `items` come from GET /dashboard/summary (recentActivity: real role-request + enrollment events).
-export function RecentActivity({ items }) {
+export function RecentActivity({ items, embedded = false }) {
   return (
     <>
-      <div className="dash-section-title"><h2>Recent Activity</h2></div>
-      <div className="card reveal in" style={{ padding: '8px 12px' }}>
+      {!embedded && <div className="dash-section-title"><h2>Recent Activity</h2></div>}
+      <div className={embedded ? "overview-activity-feed" : "card reveal in"} style={embedded ? undefined : { padding: '8px 12px' }}>
         <div className="dash-list">
-          {(!items || items.length === 0) && <p style={{ fontSize: 13, color: 'var(--ink-soft)', padding: '12px 4px' }}>No activity yet.</p>}
+          {(!items || items.length === 0) && <div className="overview-quiet-state"><FaClipboardList aria-hidden="true" /><strong>Your journey starts here</strong><p>Course enrollments and account updates will appear here.</p></div>}
           {(items || []).map((a) => {
             const Icon = ACTIVITY_ICON[a.status] || FaFileLines;
             return (

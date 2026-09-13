@@ -1,0 +1,85 @@
+/* Student modules share one hierarchy, without an enclosing card around cards. */
+[data-workspace="student"] .dash-header { box-shadow: 0 1px 0 var(--sand-line); border: 0; padding-inline: 28px; }
+[data-workspace="student"] .dash-header .icon-btn { width: 40px; height: 40px; flex-shrink: 0; border-radius: 12px; }
+[data-workspace="student"] .dash-header .icon-btn svg { width: 18px; height: 18px; }
+[data-workspace="student"] .dash-wallet-chip { display: flex; align-items: center; gap: 10px; min-height: 44px; background: var(--sand); color: var(--ink); padding: 8px 14px; border: 1px solid var(--sand-line); border-radius: 12px; cursor: pointer; }
+[data-workspace="student"] .dash-wallet-chip .w-label { font-size: 9px; letter-spacing: .08em; }
+[data-workspace="student"] .dash-wallet-chip .w-amount { font-family: inherit; font-size: 12px; font-weight: 600; }
+[data-workspace="student"] .dash-profile-btn { min-height: 44px; border-radius: 12px; padding: 5px 12px 5px 5px; }
+[data-workspace="student"] .dash-search { border-radius: 12px; min-height: 44px; }
+[data-workspace="student"] .dash-header-right { gap: 10px; }
+[data-workspace="student"] .dash-sidebar-brand { padding-bottom: 14px; margin-bottom: 4px; border-bottom: 1px solid #ffffff24; }
+[data-workspace="student"] .dash-sidebar .dash-nav-link { gap: 14px; }
+[data-workspace="student"] .dash-sidebar .dash-nav-link.active { box-shadow: 0 4px 16px #00000012; }
+[data-workspace="student"] .dash-user-menu { padding: 8px; border-radius: 16px; }
+.action-arrow { display: inline-block; vertical-align: middle; width: 12px; height: 12px; flex-shrink: 0; }
+.live-status-icon { display: inline-block; width: 8px; height: 8px; vertical-align: middle; margin-inline-end: 4px; }
+.student-page-content .u-modal-close { display: grid; place-items: center; }
+.student-page-content .btn > svg { width: 15px; height: 15px; flex-shrink: 0; }
+.student-page-content:not([data-page="summary"]) > div > p:only-child:not([role]) { padding: 32px 24px; background: var(--paper-raised); border: 1px dashed var(--sand-line); border-radius: 16px; line-height: 1.7; }
+.student-page-content .grid > .rounded-xl.border { display: flex; flex-direction: column; align-items: flex-start; gap: 10px; }
+.student-page-content .grid > .rounded-xl.border > .btn:last-child { margin-top: auto; }
+[data-workspace="student"] .dash-main { padding-top: 24px; }
+[data-workspace="student"] .dash-breadcrumb { margin-bottom: 20px; font-size: 12px; }
+.student-page-heading { display: flex; align-items: center; justify-content: space-between; gap: 24px; background: transparent; padding: 4px 0 28px; margin-bottom: 24px; border-bottom: 1px solid var(--sand-line); }
+.student-page-heading h1 { font-size: clamp(28px, 3.5vw, 40px); line-height: 1.2; margin: 10px 0; }
+.student-page-heading p { font-size: 14px; color: var(--ink-soft); max-width: 640px; line-height: 1.65; }
+.student-page-symbol { width: 64px; height: 64px; border-radius: 20px; background: var(--forest); color: white; display: grid; place-items: center; flex-shrink: 0; }
+.student-page-symbol svg { width: 26px; height: 26px; }
+.student-page-content:not([data-page="summary"]) > div:not(.admin-notice) { min-width: 0; }
+.student-page-content:not([data-page="summary"]) :is(h3, h4) { margin-top: 26px; margin-bottom: 14px; font-family: inherit; font-size: 16px; font-weight: 650; line-height: 1.4; }
+.student-page-content:not([data-page="summary"]) :is(h3, h4):first-child { margin-top: 0; }
+.student-page-content :is(.card, .admin-account-card, .rounded-xl.border) { background: var(--paper-raised); border: 1px solid var(--sand-line); border-radius: 16px; box-shadow: none; }
+.student-page-content .rounded-xl.border { padding: 20px; }
+.student-page-content .card .card { box-shadow: none; }
+.student-page-content .grid { gap: 18px; }
+.student-page-content .grid > * { min-width: 0; }
+.student-page-content .account-table-wrap { margin-bottom: 24px; background: var(--paper-raised); border-radius: 16px; }
+.student-page-content .account-table-wrap table { min-width: 600px; }
+.student-page-content .account-table-wrap th { padding: 16px 20px; font-size: 10px; letter-spacing: .07em; }
+.student-page-content .account-table-wrap td { padding: 18px 20px; line-height: 1.65; }
+.student-page-content .account-table-wrap td[colspan] { padding: 42px 24px; color: var(--ink-soft); }
+.student-page-content .btn { border-radius: 10px; min-height: 40px; display: inline-flex; align-items: center; justify-content: center; gap: 8px; line-height: 1.4; }
+.student-page-content :is(input, select, textarea).form-input,
+.student-page-content .form-select { min-height: 46px; border-radius: 12px; padding: 12px 14px; }
+.student-page-content .form-input[type="checkbox"], .student-page-content .form-input[type="radio"] { min-height: 0; padding: 0; }
+.student-page-content textarea.form-input { min-height: 112px; }
+.student-page-content form.space-y-3 { max-width: 680px; padding: 22px; border-radius: 16px; background: var(--paper-raised); border: 1px solid var(--sand-line); margin-bottom: 28px; }
+.student-page-content form.space-y-3 > * + * { margin-top: 14px; }
+.student-page-content form label { line-height: 1.6; }
+.student-page-content form label > :is(input, select, textarea) { margin-top: 6px; }
+.student-page-content .admin-notice { display: flex; align-items: center; flex-wrap: wrap; gap: 12px; padding: 20px; line-height: 1.6; border-radius: 14px; }
+.student-page-content .dash-list { background: var(--paper-raised); border-radius: 16px; border: 1px solid var(--sand-line); overflow: hidden; }
+.student-page-content .dash-list:empty { display: none; }
+.student-page-content .dash-list-item { padding: 18px; gap: 14px; align-items: flex-start; }
+.student-page-content .dash-list-body { min-width: 0; }
+.student-page-content .dash-list-body .desc { overflow-wrap: anywhere; line-height: 1.6; }
+.student-page-content .dash-list-time { flex-shrink: 0; font-size: 10px; }
+.student-page-content[data-page="messages"] > .grid { grid-template-columns: minmax(220px, .8fr) minmax(0, 1.2fr); align-items: start; }
+.student-page-content[data-page="messages"] > .grid > div { background: var(--paper-raised); padding: 22px; border: 1px solid var(--sand-line); border-radius: 18px; }
+.student-page-content[data-page="messages"] .dash-list { border: 0; }
+.student-page-content[data-page="calendar"] .grid-cols-7 { gap: 6px; padding: 16px; border: 1px solid var(--sand-line); border-radius: 18px; background: var(--paper-raised); }
+.student-page-content[data-page="calendar"] .grid-cols-7 button { min-height: 52px; border-radius: 10px; }
+.student-page-content[data-page="certificates"] img { flex-shrink: 0; }
+.student-page-content[data-page="certificates"] .flex { flex-wrap: wrap; }
+.student-page-content[data-page="help"] .space-y-3 > div { padding: 22px; }
+.student-page-content[data-page="help"] .space-y-3 p { line-height: 1.8; }
+[data-workspace="student"] .dash-sidebar-nav { padding-inline: 12px; }
+[data-workspace="student"] .dash-nav-link { min-height: 42px; margin-bottom: 2px; padding: 10px 14px; font-size: 13px; }
+[data-workspace="student"] .dash-nav-link svg { width: 18px; height: 18px; flex: 0 0 18px; }
+[data-workspace="student"] .dash-nav-link span { line-height: 1.45; }
+@media (max-width: 900px) {
+  .student-page-content[data-page="messages"] > .grid { grid-template-columns: minmax(0, 1fr); }
+  .student-page-content .grid-cols-3, .student-page-content .grid-cols-6 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+@media (max-width: 600px) {
+  .student-page-heading { gap: 16px; align-items: flex-start; padding-bottom: 22px; }
+  .student-page-symbol { width: 46px; height: 46px; border-radius: 14px; }
+  .student-page-symbol svg { width: 20px; height: 20px; }
+  .student-page-content .grid:not(.grid-cols-7):not(.student-metrics) { grid-template-columns: minmax(0, 1fr); }
+  .student-page-content .flex:not(.grid-cols-7 *) { flex-wrap: wrap; }
+  .student-page-content form.space-y-3, .student-page-content .rounded-xl.border { padding: 18px; }
+  .student-page-content .dash-list-item { flex-wrap: wrap; }
+  .student-page-content[data-page="calendar"] .grid-cols-7 { gap: 3px; padding: 8px; }
+  .student-page-content[data-page="calendar"] .grid-cols-7 button { min-height: 38px; padding: 4px; font-size: 12px; }
+}

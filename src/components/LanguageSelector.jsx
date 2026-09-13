@@ -1,3 +1,4 @@
+import { FaEarthAmericas, FaChevronDown } from 'react-icons/fa6';
 import { useEffect, useRef, useState } from 'react';
 
 const LANGUAGES = [
@@ -55,9 +56,9 @@ export default function LanguageSelector({ onChange }) {
         aria-expanded={open}
         onClick={(e) => { e.stopPropagation(); setOpen((o) => !o); }}
       >
-        <span className="globe">🌐</span>
+        <FaEarthAmericas size={18} aria-hidden="true" />
         <span className="lang-label">{current.label}</span>
-        <span style={{ fontSize: 10, opacity: 0.6 }}>▾</span>
+        <FaChevronDown size={10} aria-hidden="true" />
       </button>
       <div className={`lang-dropdown${open ? ' open' : ''}`} role="listbox" aria-label="Language options">
         {LANGUAGES.map((l) => (

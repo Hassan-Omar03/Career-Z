@@ -1,10 +1,11 @@
 import {
-  FaShieldHalved, FaUsers, FaBuildingColumns, FaClipboardCheck, FaUser, FaUserShield,
+  FaArrowUpRightFromSquare, FaBookmark, FaRegBookmark, FaCircle, FaXmark, FaShieldHalved, FaUsers, FaBuildingColumns, FaClipboardCheck, FaUser, FaUserShield,
   FaGauge, FaBuilding, FaChalkboardUser, FaBookOpen, FaClipboardList, FaAward, FaFileLines,
   FaGraduationCap, FaBriefcase, FaStore, FaWallet, FaSackDollar, FaSchool, FaChartLine,
-  FaCalendarCheck, FaMoneyBillWave, FaHandshake, FaHourglassHalf, FaGear, FaBell, FaCommentDots
+  FaCalendarCheck, FaMoneyBillWave, FaHandshake, FaHourglassHalf, FaGear, FaBell, FaCommentDots, FaCircleQuestion, FaChevronDown,
+  FaCartShopping, FaBoxOpen, FaBoxesStacked, FaTruck, FaStar, FaTriangleExclamation
 } from 'react-icons/fa6';
-import { useEffect, useState } from 'react';
+import { Children, useEffect, useRef, useState } from 'react';
 import { useLocation } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { apiRequest } from '../api/client';
@@ -17,23 +18,47 @@ import {
 
 // Every workspace is a fully separate dashboard: its own sidebar menu, its
 // own landing view, its own panels. Switching role switches all of it.
+const STUDENT_PAGES = {
+  courses: ['My Courses', 'Explore courses, continue learning and access your resources.', FaBookOpen],
+  institutions: ['My Institutions', 'Connect with institutions and manage your academic journey.', FaBuilding],
+  classes: ['My Classes', 'Your timetable, upcoming sessions and live classes in one place.', FaChalkboardUser],
+  assignments: ['Assignments & Tests', 'Keep track of submissions, exams, attendance and results.', FaClipboardList],
+  certificates: ['Certificates', 'Your achievements and verified learning credentials.', FaAward],
+  applications: ['Applications', 'Follow your job, scholarship and admission applications.', FaFileLines],
+  scholarships: ['Scholarships', 'Discover funding opportunities and track your applications.', FaGraduationCap],
+  jobs: ['Jobs', 'Explore opportunities and take the next step in your career.', FaBriefcase],
+  marketplace: ['Marketplace', 'Browse learning resources and manage your purchases.', FaStore],
+  wallet: ['Wallet & Fees', 'Review your balance, transactions and academic fees.', FaWallet],
+  profile: ['My Profile', 'Keep your personal details, academic profile and roles up to date.', FaUser],
+  messages: ['Messages', 'Stay connected with your learning community.', FaCommentDots],
+  notifications: ['Notifications', 'Updates and reminders that matter to you.', FaBell],
+  calendar: ['Calendar', 'Plan your schedule around classes, deadlines and upcoming events.', FaCalendarCheck],
+  settings: ['Account Settings', 'Manage your account preferences and security.', FaGear],
+  help: ['Help Center', 'Find answers or get support with your account.', FaShieldHalved]
+};
+
+function StudentPageHeading({ page }) {
+  const [title, description, Icon] = STUDENT_PAGES[page] || ['Student workspace', 'Your learning journey.', FaGraduationCap];
+  return <header className="student-page-heading"><div><span className="eyebrow">STUDENT WORKSPACE</span><h1>{title}</h1><p>{description}</p></div><span className="student-page-symbol"><Icon aria-hidden="true" /></span></header>;
+}
+
 const WORKSPACES = {
   student: {
     label: 'Student', roles: ['student'], color: 'var(--forest)',
     greeting: 'Ready to keep learning?',
     nav: [
       { key: 'summary', label: 'Dashboard', icon: FaGauge },
-      { key: 'courses', label: 'My Courses', icon: FaBookOpen },
+      { key: 'profile', label: 'My Profile', icon: FaUser },
       { key: 'institutions', label: 'My Institutions', icon: FaBuilding },
       { key: 'classes', label: 'My Classes', icon: FaChalkboardUser },
+      { key: 'courses', label: 'My Courses', icon: FaBookOpen },
       { key: 'assignments', label: 'Assignments & Tests', icon: FaClipboardList },
       { key: 'certificates', label: 'Certificates', icon: FaAward },
       { key: 'applications', label: 'Applications', icon: FaFileLines },
       { key: 'scholarships', label: 'Scholarships', icon: FaGraduationCap },
       { key: 'jobs', label: 'Jobs', icon: FaBriefcase },
       { key: 'marketplace', label: 'Marketplace', icon: FaStore },
-      { key: 'wallet', label: 'Wallet', icon: FaWallet },
-      { key: 'profile', label: 'My Profile', icon: FaUser }
+      { key: 'wallet', label: 'Wallet', icon: FaWallet }
     ]
   },
   teacher: {
@@ -230,7 +255,7 @@ function Tag({ status, label }) {
     rejected: 'bg-rose-100 text-rose-800',
     under_review: 'bg-indigo-100 text-indigo-800'
   };
-  return <span className={`px-2.5 py-0.5 rounded-full text-xs font-semibold ${styles[status] || 'bg-gray-100 text-gray-700'}`}>{label ?? status}</span>;
+  return <span className={`px-2.5 py-0.5 rounded-full text-xs font-semibold whitespace-nowrap ${styles[status] || 'bg-gray-100 text-gray-700'}`}>{label ?? status}</span>;
 }
 
 // The single source of truth for job-application status coloring + human label —
@@ -356,7 +381,9 @@ export default function Dashboard() {
   }
 
   const ws = (isRepOnly && activeWorkspace === 'institution') ? REPRESENTATIVE_WORKSPACE : (WORKSPACES[activeWorkspace] || WORKSPACES.student);
-  const firstName = (user?.fullName || '').split(' ')[0] || 'there';
+  const NAME_TITLES = new Set(['mr', 'mr.', 'mrs', 'mrs.', 'ms', 'ms.', 'miss', 'dr', 'dr.', 'prof', 'prof.', 'sir', 'madam']);
+  const nameWords = (user?.fullName || '').split(' ').filter(Boolean);
+  const firstName = nameWords.find((w) => !NAME_TITLES.has(w.toLowerCase())) || nameWords[0] || 'there';
   const SHARED_TAB_LABELS = { messages: 'Messages', notifications: 'Notifications', calendar: 'Calendar', settings: 'Settings', help: 'Help Center' };
   const SHARED_TABS = Object.keys(SHARED_TAB_LABELS);
   const activeTabLabel = SHARED_TAB_LABELS[activeTab] || ws.nav.find((t) => t.key === activeTab)?.label || ws.label;
@@ -369,14 +396,14 @@ export default function Dashboard() {
       activeKey={activeTab}
       onSelect={setActiveTab}
     >
-      <div className="admin-intro" style={{ borderInlineStart: `6px solid ${ws.color}`, paddingInlineStart: 20 }}>
+      {activeWorkspace === 'student' && activeTab !== 'summary' ? <StudentPageHeading page={activeTab} /> : <div className={`admin-intro${activeWorkspace === 'student' && activeTab === 'summary' ? ' student-intro' : ''}`} style={{ borderInlineStart: `6px solid ${ws.color}`, paddingInlineStart: 20 }}>
         <div>
           <div className="eyebrow">{ws.label.toUpperCase()} WORKSPACE</div>
           <h1>Welcome back, {firstName}.</h1>
           <p>{ws.greeting}</p>
         </div>
         <span className="admin-access"><FaUserShield aria-hidden="true" />{ws.label}</span>
-      </div>
+      </div>}
 
       <PendingRoleBanner />
 
@@ -392,7 +419,7 @@ export default function Dashboard() {
 
       {msg && <div role="status" className={`admin-notice ${msg.type}`}>{msg.text}</div>}
 
-      <div className="admin-data-card">
+      <div className={`workspace-content${activeWorkspace === 'student' ? ' student-page-content' : ''}`} data-page={activeTab} key={`${activeWorkspace}-${activeTab}`}>
         {activeTab === 'messages' && <MessagesPanel onFlash={flash} />}
         {activeTab === 'notifications' && <NotificationsPanel onFlash={flash} />}
         {activeTab === 'calendar' && <CalendarPanel onFlash={flash} />}
@@ -584,57 +611,70 @@ function StudentInstitutionsPanel({ onFlash }) {
           {profile.rollNumber && <p className="text-xs mt-1">Roll No: {profile.rollNumber}</p>}
         </div>
       ) : (
-        <p className="text-sm mb-4" style={{ color: 'var(--ink-soft)' }}>You are not connected to an institution yet.</p>
+        <div className="border border-[var(--sand-line)] rounded-xl p-4 mb-6" style={{ maxWidth: 420 }}>
+          <p className="text-sm" style={{ color: 'var(--ink-soft)' }}>You are not connected to an institution yet.</p>
+        </div>
       )}
 
       <h4 className="font-semibold mb-2">Connect to an Institution</h4>
-      <form onSubmit={(e) => { e.preventDefault(); search(); }} className="flex gap-2 items-end mb-3 flex-wrap">
-        <input className="form-input" placeholder="Search institutions" value={q} onChange={(e) => setQ(e.target.value)} />
-        <button type="submit" className="btn">Search</button>
-      </form>
-      <div className="flex gap-2 items-end flex-wrap mb-6">
-        <select className="form-select" value={selected} onChange={(e) => setSelected(e.target.value)} style={{ minWidth: 260 }}>
-          <option value="">Select an institution</option>
-          {options.map((i) => <option key={i._id} value={i._id}>{i.name} ({i.country})</option>)}
-        </select>
-        <button type="button" className="btn btn-primary" onClick={connect} disabled={!selected}>Connect</button>
+      <div className="border border-[var(--sand-line)] rounded-xl p-3 mb-6">
+        <form onSubmit={(e) => { e.preventDefault(); search(); }} className="flex gap-2 items-end flex-wrap" style={{ marginBottom: 12 }}>
+          <input className="form-input" placeholder="Search institutions" value={q} onChange={(e) => setQ(e.target.value)} style={{ flex: '1 1 220px', minWidth: 0 }} />
+          <button type="submit" className="btn" style={{ flexShrink: 0 }}>Search</button>
+        </form>
+        <div className="flex gap-2 items-end flex-wrap">
+          <select className="form-select" value={selected} onChange={(e) => setSelected(e.target.value)} style={{ flex: '1 1 220px', minWidth: 0 }}>
+            <option value="">Select an institution</option>
+            {options.map((i) => <option key={i._id} value={i._id}>{i.name} ({i.country})</option>)}
+          </select>
+          <button type="button" className="btn btn-primary" onClick={connect} disabled={!selected} style={{ flexShrink: 0 }}>Connect</button>
+        </div>
       </div>
 
       <h4 className="font-semibold mb-2">Ask a Representative (Inquiry)</h4>
-      <form onSubmit={submitInquiry} className="space-y-2 max-w-lg mb-6 border border-[var(--sand-line)] rounded-xl p-3">
+      <form onSubmit={submitInquiry} className="mb-6 border border-[var(--sand-line)] rounded-xl p-3" style={{ display: 'grid', gap: 14 }}>
         <input className="form-input" placeholder="Interested program (required)" value={inquiryForm.interestedProgram} onChange={(e) => setInquiryForm({ ...inquiryForm, interestedProgram: e.target.value })} required />
-        <div className="flex gap-2">
-          <input className="form-input" placeholder="Your qualification" value={inquiryForm.qualification} onChange={(e) => setInquiryForm({ ...inquiryForm, qualification: e.target.value })} />
-          <input className="form-input" placeholder="Your country" value={inquiryForm.country} onChange={(e) => setInquiryForm({ ...inquiryForm, country: e.target.value })} />
+        <div className="flex flex-wrap" style={{ gap: 14 }}>
+          <input className="form-input" placeholder="Your qualification" value={inquiryForm.qualification} onChange={(e) => setInquiryForm({ ...inquiryForm, qualification: e.target.value })} style={{ flex: '1 1 220px', minWidth: 0 }} />
+          <input className="form-input" placeholder="Your country" value={inquiryForm.country} onChange={(e) => setInquiryForm({ ...inquiryForm, country: e.target.value })} style={{ flex: '1 1 220px', minWidth: 0 }} />
         </div>
         <textarea className="form-input" placeholder="Message (optional)" rows={2} value={inquiryForm.message} onChange={(e) => setInquiryForm({ ...inquiryForm, message: e.target.value })} />
-        <button type="submit" className="btn btn-primary" disabled={!selected}>Send Inquiry</button>
+        <button type="submit" className="btn btn-primary" disabled={!selected} style={{ justifySelf: 'start' }}>Send Inquiry</button>
       </form>
 
       <h4 className="font-semibold mb-2">Apply to a Program</h4>
-      <form onSubmit={submitApplication} className="flex gap-2 items-end mb-6 flex-wrap">
-        <input className="form-input" placeholder="Program name" value={appForm.program} onChange={(e) => setAppForm({ program: e.target.value })} required style={{ flex: 1 }} />
-        <button type="submit" className="btn btn-primary" disabled={!selected}>Submit Application</button>
+      <form onSubmit={submitApplication} className="flex gap-2 items-end mb-6 flex-wrap border border-[var(--sand-line)] rounded-xl p-3">
+        <input className="form-input" placeholder="Program name" value={appForm.program} onChange={(e) => setAppForm({ program: e.target.value })} required style={{ flex: '1 1 220px', minWidth: 0 }} />
+        <button type="submit" className="btn btn-primary" disabled={!selected} style={{ flexShrink: 0 }}>Submit Application</button>
       </form>
 
       <h4 className="font-semibold mb-2">Upcoming Virtual Fairs</h4>
-      {fairs.length === 0 && <p className="text-sm" style={{ color: 'var(--ink-soft)' }}>No virtual fairs scheduled right now.</p>}
-      {fairs.map((f) => {
-        const isRegistered = registeredFairIds.includes(f._id);
-        return (
-          <div key={f._id} className="border border-[var(--sand-line)] rounded-xl p-3 mb-2">
-            <strong className="text-sm">{f.title}</strong> — {f.institution?.name}
-            <p className="text-xs mt-1" style={{ color: 'var(--ink-soft)' }}>{new Date(f.scheduledDate).toLocaleString()}</p>
-            {f.description && <p className="text-xs mt-1">{f.description}</p>}
-            <div className="flex gap-2 items-center mt-2 flex-wrap">
-              {isRegistered ? <Tag status="approved" label="Registered" /> : <button type="button" className="btn" style={{ padding: '4px 12px', fontSize: '0.75rem' }} onClick={() => registerFair(f._id)}>Register</button>}
-              {isRegistered && f.videoCallLink && <a className="btn btn-primary" style={{ padding: '4px 12px', fontSize: '0.75rem' }} href={f.videoCallLink} target="_blank" rel="noreferrer">Join Video Call</a>}
-              {isRegistered && !f.videoCallLink && <span className="text-xs" style={{ color: 'var(--ink-soft)' }}>Video call link not shared yet.</span>}
-              {f.brochureUrl && <a className="btn" style={{ padding: '4px 12px', fontSize: '0.75rem' }} href={f.brochureUrl} target="_blank" rel="noreferrer">📄 Brochure</a>}
+      {fairs.length === 0 && (
+        <div className="border border-[var(--sand-line)] rounded-xl p-4">
+          <p className="text-sm" style={{ color: 'var(--ink-soft)' }}>No virtual fairs scheduled right now.</p>
+        </div>
+      )}
+      <div style={{ display: 'grid', gap: 14 }}>
+        {fairs.map((f) => {
+          const isRegistered = registeredFairIds.includes(f._id);
+          return (
+            <div key={f._id} className="border border-[var(--sand-line)] rounded-xl p-4">
+              <div className="flex items-center flex-wrap" style={{ gap: 8 }}>
+                <strong className="text-sm">{f.title}</strong>
+                <span className="text-xs" style={{ color: 'var(--ink-soft)' }}>— {f.institution?.name}</span>
+              </div>
+              <p className="text-xs" style={{ color: 'var(--ink-soft)', marginTop: 8 }}>{new Date(f.scheduledDate).toLocaleString(undefined, { dateStyle: 'medium', timeStyle: 'short' })}</p>
+              {f.description && <p className="text-xs" style={{ marginTop: 8 }}>{f.description}</p>}
+              <div className="flex items-center flex-wrap" style={{ gap: 10, marginTop: 16 }}>
+                {isRegistered ? <Tag status="approved" label="Registered" /> : <button type="button" className="btn" style={{ padding: '5px 14px', fontSize: '0.75rem' }} onClick={() => registerFair(f._id)}>Register</button>}
+                {isRegistered && f.videoCallLink && <a className="btn btn-primary" style={{ padding: '5px 14px', fontSize: '0.75rem' }} href={f.videoCallLink} target="_blank" rel="noreferrer">Join Video Call</a>}
+                {isRegistered && !f.videoCallLink && <span className="text-xs" style={{ color: 'var(--ink-soft)' }}>Video call link not shared yet.</span>}
+                {f.brochureUrl && <a className="btn" style={{ padding: '5px 14px', fontSize: '0.75rem' }} href={f.brochureUrl} target="_blank" rel="noreferrer">📄 Brochure</a>}
+              </div>
             </div>
-          </div>
-        );
-      })}
+          );
+        })}
+      </div>
     </div>
   );
 }
@@ -875,6 +915,8 @@ function JobDashboardPanel({ onFlash, onNavigate, user }) {
 
   if (!dash) return <p role="status" className="admin-notice">Loading your dashboard...</p>;
 
+  const jobLabelStyle = { fontSize: 11, fontWeight: 700, letterSpacing: '.05em', textTransform: 'uppercase', color: 'var(--ink-soft)' };
+
   return (
     <>
       {/* 1. Profile Completion */}
@@ -909,25 +951,29 @@ function JobDashboardPanel({ onFlash, onNavigate, user }) {
 
       {/* 3. Recommended Jobs */}
       <div className="dash-section-title"><h2>Recommended Jobs</h2></div>
-      <div className="grid grid-cols-1 gap-3" style={{ marginBottom: 20 }}>
-        {dash.recommendedJobs.length === 0 && <p className="text-xs" style={{ color: 'var(--ink-soft)' }}>No recommendations yet — add skills to your CV to get matched jobs.</p>}
+      <div className="grid grid-cols-1" style={{ marginBottom: 20, gap: 14 }}>
+        {dash.recommendedJobs.length === 0 && (
+          <div className="border border-[var(--sand-line)] rounded-xl p-4">
+            <p className="text-xs" style={{ color: 'var(--ink-soft)' }}>No recommendations yet — add skills to your CV to get matched jobs.</p>
+          </div>
+        )}
         {dash.recommendedJobs.slice(0, 4).map((j) => {
           const isSaved = savedIds.includes(j._id) || dash.savedJobs.some((s) => s._id === j._id);
           return (
-            <div key={j._id} className="border border-[var(--sand-line)] rounded-xl p-3">
-              <div className="flex items-center justify-between flex-wrap gap-2">
-                <div className="flex items-start gap-3">
-                  <JobLogo job={j} />
+            <div key={j._id} className="hover-card border border-[var(--sand-line)] rounded-xl p-4">
+              <div className="flex items-center justify-between flex-wrap" style={{ gap: 14 }}>
+                <div className="flex items-start" style={{ gap: 14 }}>
+                  <JobLogo job={j} size={44} />
                   <div>
                     <strong className="text-sm">{j.title}</strong>
-                    <p className="text-xs" style={{ color: 'var(--ink-soft)' }}>{j.company} · {j.city ? `${j.city}, ` : ''}{j.country} · {WORK_MODE_LABEL[j.workMode] || 'Onsite'} · {j.type?.replace('_', ' ')}{j.visaSponsorship ? ' · Visa sponsorship' : ''}</p>
-                    <p className="text-xs" style={{ color: 'var(--ink-soft)' }}>{formatSalary(j)} · {j.experienceYears || 0}+ yrs exp · Posted {new Date(j.createdAt).toLocaleDateString()}</p>
+                    <p className="text-xs" style={{ color: 'var(--ink-soft)', marginTop: 4 }}>{j.company} · {j.city ? `${j.city}, ` : ''}{j.country} · {WORK_MODE_LABEL[j.workMode] || 'Onsite'} · {j.type?.replace('_', ' ')}{j.visaSponsorship ? ' · Visa sponsorship' : ''}</p>
+                    <p className="text-xs" style={{ color: 'var(--ink-soft)', marginTop: 4 }}>{formatSalary(j)} · {j.experienceYears || 0}+ yrs exp · Posted {new Date(j.createdAt).toLocaleDateString()}</p>
                   </div>
                 </div>
-                <div className="flex gap-2">
-                  <button type="button" className="btn" style={{ padding: '5px 12px', fontSize: '0.75rem' }} onClick={() => recordJobView(j, setViewingJob)}>View Job</button>
-                  <button type="button" className="btn" style={{ padding: '5px 12px', fontSize: '0.75rem' }} onClick={() => toggleSave(j._id, isSaved)}>{isSaved ? '★ Saved' : '☆ Save'}</button>
-                  <button type="button" className="btn btn-primary" style={{ padding: '5px 12px', fontSize: '0.75rem' }} onClick={() => apply(j._id)}>Apply Now</button>
+                <div className="flex" style={{ gap: 8, flexShrink: 0 }}>
+                  <button type="button" className="btn" style={{ padding: '6px 14px', fontSize: '0.75rem' }} onClick={() => recordJobView(j, setViewingJob)}>View Job</button>
+                  <button type="button" className="btn" style={{ padding: '6px 14px', fontSize: '0.75rem' }} onClick={() => toggleSave(j._id, isSaved)}>{isSaved ? '★ Saved' : '☆ Save'}</button>
+                  <button type="button" className="btn btn-primary" style={{ padding: '6px 14px', fontSize: '0.75rem' }} onClick={() => apply(j._id)}>Apply Now</button>
                 </div>
               </div>
             </div>
@@ -955,26 +1001,32 @@ function JobDashboardPanel({ onFlash, onNavigate, user }) {
 
       {/* 5. Upcoming Interviews */}
       <div className="dash-section-title"><h2>Upcoming Interviews</h2></div>
-      <div className="card" style={{ padding: 12, marginBottom: 20 }}>
-        {dash.upcomingInterviews.length === 0 && <p className="text-xs" style={{ color: 'var(--ink-soft)' }}>No interviews scheduled.</p>}
-        {dash.upcomingInterviews.map((i) => {
+      <div className="card" style={{ padding: dash.upcomingInterviews.length === 0 ? 0 : 16, marginBottom: 20 }}>
+        {dash.upcomingInterviews.length === 0 && (
+          <div className="student-empty-state">
+            <FaCalendarCheck aria-hidden="true" />
+            <p>No interviews scheduled</p>
+            <span>Applications that move forward will show their interview slot here.</span>
+          </div>
+        )}
+        {dash.upcomingInterviews.map((i, idx) => {
           const st = INTERVIEW_STATUS[i.status] || INTERVIEW_STATUS.scheduled;
           return (
-            <div key={i._id} className="flex items-center justify-between flex-wrap gap-2" style={{ padding: '8px 0', borderBottom: '1px solid var(--sand-line)' }}>
+            <div key={i._id} className="flex items-center justify-between flex-wrap" style={{ gap: 12, padding: '14px 4px', borderBottom: idx < dash.upcomingInterviews.length - 1 ? '1px solid var(--sand-line)' : 'none' }}>
               <div>
                 <strong className="text-sm">{i.job?.title}</strong>
-                <p className="text-xs" style={{ color: 'var(--ink-soft)' }}>{i.job?.company}</p>
-                <p className="text-xs" style={{ color: 'var(--ink-soft)' }}>
+                <p className="text-xs" style={{ color: 'var(--ink-soft)', marginTop: 4 }}>{i.job?.company}</p>
+                <p className="text-xs" style={{ color: 'var(--ink-soft)', marginTop: 4 }}>
                   {new Date(i.scheduledDate).toLocaleDateString()} · {new Date(i.scheduledDate).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })} · {i.mode === 'physical' ? 'Physical' : 'Online'}
                 </p>
-                <p className="text-xs" style={{ color: 'var(--ink-soft)' }}>
+                <p className="text-xs" style={{ color: 'var(--ink-soft)', marginTop: 4 }}>
                   {i.mode === 'physical' ? (i.location || 'Location to be confirmed') : (i.meetingLink || 'Meeting link to be shared')}
                 </p>
-                <Tag status={st.tag} label={st.label} />
+                <span style={{ display: 'inline-block', marginTop: 8 }}><Tag status={st.tag} label={st.label} /></span>
               </div>
               {i.mode === 'online' && i.meetingLink
-                ? <a className="btn btn-primary" style={{ padding: '5px 12px', fontSize: '0.75rem' }} href={i.meetingLink} target="_blank" rel="noreferrer">Join Interview</a>
-                : <button type="button" className="btn" style={{ padding: '5px 12px', fontSize: '0.75rem' }} onClick={() => recordJobView(i.job, setViewingJob)}>View Details</button>}
+                ? <a className="btn btn-primary" style={{ padding: '6px 14px', fontSize: '0.75rem', flexShrink: 0 }} href={i.meetingLink} target="_blank" rel="noreferrer">Join Interview</a>
+                : <button type="button" className="btn" style={{ padding: '6px 14px', fontSize: '0.75rem', flexShrink: 0 }} onClick={() => recordJobView(i.job, setViewingJob)}>View Details</button>}
             </div>
           );
         })}
@@ -983,138 +1035,177 @@ function JobDashboardPanel({ onFlash, onNavigate, user }) {
       {/* 6. CV/Resume + Skills */}
       <div className="dash-section-title"><h2>CV / Resume</h2></div>
       <div className="card" style={{ padding: 20, marginBottom: 20 }}>
-        <p className="text-xs" style={{ color: 'var(--ink-soft)' }}>
-          Uploaded CV: {dash.cvFileUrl ? <a href={dash.cvFileUrl} target="_blank" rel="noreferrer">View file</a> : 'Not uploaded'}
+        <div className="student-progress-row">
+          <span>CV completeness</span>
+          <strong>{dash.cvCompleteness}%</strong>
+        </div>
+        <progress className="student-progress-bar" max="100" value={dash.cvCompleteness} aria-label="CV completeness" />
+        <p className="text-xs" style={{ color: 'var(--ink-soft)', marginTop: 14 }}>
+          Uploaded CV: {dash.cvFileUrl ? <a href={dash.cvFileUrl} target="_blank" rel="noreferrer">View file</a> : 'Not uploaded'} · Last updated {dash.cvLastUpdated ? new Date(dash.cvLastUpdated).toLocaleDateString() : 'never'}
         </p>
-        <p className="text-xs mt-1" style={{ color: 'var(--ink-soft)' }}>{dash.cvCompleteness}% complete · Last updated {dash.cvLastUpdated ? new Date(dash.cvLastUpdated).toLocaleDateString() : 'never'}</p>
-        <div className="flex gap-2 mt-2 flex-wrap">
-          <button type="button" className="btn" style={{ padding: '5px 14px', fontSize: '0.78rem' }} onClick={() => onNavigate?.('resume')}>Upload CV</button>
-          <button type="button" className="btn btn-primary" style={{ padding: '5px 14px', fontSize: '0.78rem' }} onClick={() => onNavigate?.('resume')}>{dash.cvCompleteness > 0 ? 'Update CV' : 'Build CV'}</button>
-          <button type="button" className="btn" style={{ padding: '5px 14px', fontSize: '0.78rem' }} onClick={() => onNavigate?.('tools')}>AI CV Builder</button>
+        <div className="flex flex-wrap" style={{ gap: 8, marginTop: 14 }}>
+          <button type="button" className="btn" style={{ padding: '6px 16px', fontSize: '0.78rem' }} onClick={() => onNavigate?.('resume')}>Upload CV</button>
+          <button type="button" className="btn btn-primary" style={{ padding: '6px 16px', fontSize: '0.78rem' }} onClick={() => onNavigate?.('resume')}>{dash.cvCompleteness > 0 ? 'Update CV' : 'Build CV'}</button>
+          <button type="button" className="btn" style={{ padding: '6px 16px', fontSize: '0.78rem' }} onClick={() => onNavigate?.('tools')}>AI CV Builder</button>
         </div>
       </div>
 
       {/* 7. Skills & Profile */}
       <div className="dash-section-title"><h2>Skills & Profile</h2></div>
       <div className="card" style={{ padding: 20, marginBottom: 20 }}>
-        <strong className="text-xs">Current skills</strong>
-        <div className="flex gap-2 flex-wrap mt-1 mb-3">
+        <p style={jobLabelStyle}>Current skills</p>
+        <div className="flex flex-wrap" style={{ gap: 8, marginTop: 10 }}>
           {dash.profile.skills.length === 0 && <span className="text-xs" style={{ color: 'var(--ink-soft)' }}>No skills added yet.</span>}
-          {dash.profile.skills.map((s) => <span key={s} className="text-xs" style={{ padding: '3px 10px', borderRadius: 999, background: 'var(--sand)', border: '1px solid var(--sand-line)' }}>{s}</span>)}
+          {dash.profile.skills.map((s) => <span key={s} className="text-xs" style={{ padding: '4px 12px', borderRadius: 999, background: 'var(--sand)', border: '1px solid var(--sand-line)' }}>{s}</span>)}
         </div>
 
-        <strong className="text-xs">Missing / recommended skills</strong>
-        <p className="text-xs mt-1" style={{ color: 'var(--ink-soft)' }}>Based on skills most requested in currently open job postings.</p>
-        <div className="flex gap-2 flex-wrap mt-1 mb-3">
-          {dash.profile.missingSkills.length === 0 && <span className="text-xs" style={{ color: 'var(--ink-soft)' }}>Nothing missing — your CV covers the market's top requested skills.</span>}
-          {dash.profile.missingSkills.map((s) => <span key={s} className="text-xs" style={{ padding: '3px 10px', borderRadius: 999, background: '#fef3c7', border: '1px solid #fde68a' }}>{s}</span>)}
+        <div style={{ marginTop: 20, paddingTop: 20, borderTop: '1px solid var(--sand-line)' }}>
+          <p style={jobLabelStyle}>Missing / recommended skills</p>
+          <p className="text-xs" style={{ color: 'var(--ink-soft)', marginTop: 4 }}>Based on skills most requested in currently open job postings.</p>
+          <div className="flex flex-wrap" style={{ gap: 8, marginTop: 10 }}>
+            {dash.profile.missingSkills.length === 0 && <span className="text-xs" style={{ color: 'var(--ink-soft)' }}>Nothing missing — your CV covers the market's top requested skills.</span>}
+            {dash.profile.missingSkills.map((s) => <span key={s} className="text-xs" style={{ padding: '4px 12px', borderRadius: 999, background: '#fef3c7', border: '1px solid #fde68a' }}>{s}</span>)}
+          </div>
         </div>
 
-        <strong className="text-xs">Education</strong>
-        {dash.profile.education.length === 0 && <p className="text-xs mt-1 mb-3" style={{ color: 'var(--ink-soft)' }}>Not added yet.</p>}
-        {dash.profile.education.map((ed, i) => <p key={i} className="text-xs mt-1" style={{ color: 'var(--ink-soft)' }}>{ed.degree}{ed.degree && ed.institution ? ' — ' : ''}{ed.institution}{ed.year ? ` (${ed.year})` : ''}</p>)}
+        <div style={{ marginTop: 20, paddingTop: 20, borderTop: '1px solid var(--sand-line)', display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 18 }}>
+          <div>
+            <p style={jobLabelStyle}>Education</p>
+            {dash.profile.education.length === 0 && <p className="text-xs" style={{ color: 'var(--ink-soft)', marginTop: 6 }}>Not added yet.</p>}
+            {dash.profile.education.map((ed, i) => <p key={i} className="text-xs" style={{ color: 'var(--ink-soft)', marginTop: 6 }}>{ed.degree}{ed.degree && ed.institution ? ' — ' : ''}{ed.institution}{ed.year ? ` (${ed.year})` : ''}</p>)}
+          </div>
+          <div>
+            <p style={jobLabelStyle}>Work experience</p>
+            {dash.profile.experience.length === 0 && <p className="text-xs" style={{ color: 'var(--ink-soft)', marginTop: 6 }}>Not added yet.</p>}
+            {dash.profile.experience.map((ex, i) => <p key={i} className="text-xs" style={{ color: 'var(--ink-soft)', marginTop: 6 }}>{ex.title}{ex.title && ex.company ? ' at ' : ''}{ex.company}{ex.duration ? ` (${ex.duration})` : ''}</p>)}
+          </div>
+          <div>
+            <p style={jobLabelStyle}>Certifications</p>
+            {dash.profile.certifications.length === 0 && <p className="text-xs" style={{ color: 'var(--ink-soft)', marginTop: 6 }}>Not added yet.</p>}
+            {dash.profile.certifications.length > 0 && <p className="text-xs" style={{ color: 'var(--ink-soft)', marginTop: 6 }}>{dash.profile.certifications.join(', ')}</p>}
+          </div>
+          <div>
+            <p style={jobLabelStyle}>Portfolio</p>
+            {dash.profile.portfolio.length === 0 && <p className="text-xs" style={{ color: 'var(--ink-soft)', marginTop: 6 }}>Not added yet.</p>}
+            {dash.profile.portfolio.map((p, i) => <p key={i} className="text-xs" style={{ marginTop: 6 }}><a href={p.url} target="_blank" rel="noreferrer">{p.title || p.url}</a></p>)}
+          </div>
+          <div>
+            <p style={jobLabelStyle}>LinkedIn profile</p>
+            <p className="text-xs" style={{ marginTop: 6 }}>{dash.profile.linkedinUrl ? <a href={dash.profile.linkedinUrl} target="_blank" rel="noreferrer">{dash.profile.linkedinUrl}</a> : <span style={{ color: 'var(--ink-soft)' }}>Not added yet.</span>}</p>
+          </div>
+        </div>
 
-        <strong className="text-xs mt-3" style={{ display: 'block', marginTop: 12 }}>Work experience</strong>
-        {dash.profile.experience.length === 0 && <p className="text-xs mt-1 mb-3" style={{ color: 'var(--ink-soft)' }}>Not added yet.</p>}
-        {dash.profile.experience.map((ex, i) => <p key={i} className="text-xs mt-1" style={{ color: 'var(--ink-soft)' }}>{ex.title}{ex.title && ex.company ? ' at ' : ''}{ex.company}{ex.duration ? ` (${ex.duration})` : ''}</p>)}
-
-        <strong className="text-xs mt-3" style={{ display: 'block', marginTop: 12 }}>Certifications</strong>
-        {dash.profile.certifications.length === 0 && <p className="text-xs mt-1 mb-3" style={{ color: 'var(--ink-soft)' }}>Not added yet.</p>}
-        {dash.profile.certifications.length > 0 && <p className="text-xs mt-1" style={{ color: 'var(--ink-soft)' }}>{dash.profile.certifications.join(', ')}</p>}
-
-        <strong className="text-xs mt-3" style={{ display: 'block', marginTop: 12 }}>Portfolio</strong>
-        {dash.profile.portfolio.length === 0 && <p className="text-xs mt-1 mb-3" style={{ color: 'var(--ink-soft)' }}>Not added yet.</p>}
-        {dash.profile.portfolio.map((p, i) => <p key={i} className="text-xs mt-1"><a href={p.url} target="_blank" rel="noreferrer">{p.title || p.url}</a></p>)}
-
-        <strong className="text-xs mt-3" style={{ display: 'block', marginTop: 12 }}>LinkedIn profile</strong>
-        <p className="text-xs mt-1 mb-3">{dash.profile.linkedinUrl ? <a href={dash.profile.linkedinUrl} target="_blank" rel="noreferrer">{dash.profile.linkedinUrl}</a> : <span style={{ color: 'var(--ink-soft)' }}>Not added yet.</span>}</p>
-
-        <button type="button" className="btn btn-primary" style={{ padding: '5px 14px', fontSize: '0.78rem' }} onClick={() => onNavigate?.('resume')}>Update Skills / Profile</button>
+        <button type="button" className="btn btn-primary" style={{ padding: '6px 16px', fontSize: '0.78rem', marginTop: 20 }} onClick={() => onNavigate?.('resume')}>Update Skills / Profile</button>
       </div>
 
       {/* Job Alerts (preview) */}
       <div className="dash-section-title"><h2>Job Alerts</h2></div>
-      <div className="card" style={{ padding: 16, marginBottom: 20 }}>
-        {alerts === null && <p className="text-xs" style={{ color: 'var(--ink-soft)' }}>Loading...</p>}
-        {alerts?.length === 0 && <p className="text-xs" style={{ color: 'var(--ink-soft)' }}>No saved alerts yet.</p>}
-        {alerts?.slice(0, 3).map((a) => (
-          <p key={a._id} className="text-xs mt-1" style={{ color: 'var(--ink-soft)' }}>
+      <div className="card" style={{ padding: (alerts?.length ?? 1) === 0 ? 0 : 16, marginBottom: 20 }}>
+        {alerts === null && <p className="text-xs" style={{ color: 'var(--ink-soft)', padding: 16 }}>Loading...</p>}
+        {alerts?.length === 0 && (
+          <div className="student-empty-state">
+            <FaBell aria-hidden="true" />
+            <p>No saved alerts yet</p>
+            <span>Set an alert so new matching jobs reach you first.</span>
+          </div>
+        )}
+        {alerts?.slice(0, 3).map((a, i) => (
+          <p key={a._id} className="text-xs" style={{ color: 'var(--ink-soft)', marginTop: i === 0 ? 0 : 8 }}>
             {a.keywords || 'Any keyword'} · {[a.city, a.country].filter(Boolean).join(', ') || 'Any location'} — {a.matchCount} matching jobs now
           </p>
         ))}
-        <button type="button" className="btn mt-2" style={{ padding: '4px 12px', fontSize: '0.75rem' }} onClick={() => onNavigate?.('alerts')}>{alerts?.length > 0 ? 'Manage Alerts' : 'Set Job Alert'}</button>
+        {(alerts === null || (alerts && alerts.length > 0)) && (
+          <button type="button" className="btn" style={{ padding: '6px 14px', fontSize: '0.75rem', marginTop: 12 }} onClick={() => onNavigate?.('alerts')}>{alerts?.length > 0 ? 'Manage Alerts' : 'Set Job Alert'}</button>
+        )}
+        {alerts?.length === 0 && (
+          <div style={{ padding: '0 16px 16px' }}>
+            <button type="button" className="btn btn-primary" style={{ padding: '6px 14px', fontSize: '0.75rem', width: '100%' }} onClick={() => onNavigate?.('alerts')}>Set Job Alert</button>
+          </div>
+        )}
       </div>
 
       {/* Messages / Notifications */}
       <div className="dash-section-title"><h2>Messages / Notifications</h2></div>
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-3" style={{ marginBottom: 20 }}>
+      <div className="grid grid-cols-1 md:grid-cols-2" style={{ marginBottom: 20, gap: 14 }}>
       <div className="card" style={{ padding: 16 }}>
-        <strong className="text-xs">Messages</strong>
-        {conversations === null && <p className="text-xs mt-1" style={{ color: 'var(--ink-soft)' }}>Loading...</p>}
-        {conversations?.length === 0 && <p className="text-xs mt-1" style={{ color: 'var(--ink-soft)' }}>No conversations yet.</p>}
-        {conversations?.slice(0, 3).map((c) => (
-          <p key={c.user._id} className="text-xs mt-1" style={{ color: c.unread > 0 ? 'var(--ink)' : 'var(--ink-soft)', fontWeight: c.unread > 0 ? 600 : 400 }}>{c.user.fullName}{c.unread > 0 ? ` (${c.unread})` : ''} — {c.lastMessage}</p>
+        <p style={jobLabelStyle}>Messages</p>
+        {conversations === null && <p className="text-xs" style={{ color: 'var(--ink-soft)', marginTop: 10 }}>Loading...</p>}
+        {conversations?.length === 0 && (
+          <div className="student-empty-state" style={{ minHeight: 100, padding: '20px 0' }}>
+            <FaCommentDots aria-hidden="true" />
+            <p>No conversations yet</p>
+          </div>
+        )}
+        {conversations?.slice(0, 3).map((c, i) => (
+          <p key={c.user._id} className="text-xs" style={{ color: c.unread > 0 ? 'var(--ink)' : 'var(--ink-soft)', fontWeight: c.unread > 0 ? 600 : 400, marginTop: i === 0 ? 10 : 8 }}>{c.user.fullName}{c.unread > 0 ? ` (${c.unread})` : ''} — {c.lastMessage}</p>
         ))}
-        <button type="button" className="btn mt-2" style={{ padding: '4px 12px', fontSize: '0.75rem' }} onClick={() => onNavigate?.('messages')}>View Messages</button>
+        <button type="button" className="btn" style={{ padding: '6px 14px', fontSize: '0.75rem', marginTop: 14 }} onClick={() => onNavigate?.('messages')}>View Messages</button>
       </div>
-      <div className="card" style={{ padding: 12 }}>
-        {dash.notifications.length === 0 && <p className="text-xs" style={{ color: 'var(--ink-soft)' }}>No notifications yet.</p>}
-        {dash.notifications.map((n) => (
-          <div key={n._id} style={{ padding: '6px 0', borderBottom: '1px solid var(--sand-line)' }}>
-            <div className="flex items-center justify-between gap-2">
+      <div className="card" style={{ padding: dash.notifications.length === 0 ? 0 : 16 }}>
+        {dash.notifications.length === 0 && (
+          <div className="student-empty-state">
+            <FaBell aria-hidden="true" />
+            <p>No notifications yet</p>
+          </div>
+        )}
+        {dash.notifications.map((n, idx) => (
+          <div key={n._id} style={{ padding: '10px 0', borderBottom: idx < dash.notifications.length - 1 ? '1px solid var(--sand-line)' : 'none' }}>
+            <div className="flex items-center justify-between" style={{ gap: 8 }}>
               <p className="text-xs" style={{ color: n.read ? 'var(--ink-soft)' : 'var(--ink)', fontWeight: n.read ? 400 : 600 }}>{n.title}</p>
               <span className="text-xs" style={{ color: 'var(--ink-soft)', whiteSpace: 'nowrap' }}>{new Date(n.createdAt).toLocaleDateString()}</span>
             </div>
-            {n.body && <p className="text-xs mt-1" style={{ color: 'var(--ink-soft)' }}>{n.body}</p>}
+            {n.body && <p className="text-xs" style={{ color: 'var(--ink-soft)', marginTop: 4 }}>{n.body}</p>}
           </div>
         ))}
-        <button type="button" className="btn mt-2" style={{ padding: '4px 12px', fontSize: '0.75rem' }} onClick={() => onNavigate?.('notifications')}>View All</button>
+        {dash.notifications.length > 0
+          ? <button type="button" className="btn" style={{ padding: '6px 14px', fontSize: '0.75rem', marginTop: 12 }} onClick={() => onNavigate?.('notifications')}>View All</button>
+          : <div style={{ padding: '0 16px 16px' }}><button type="button" className="btn" style={{ padding: '6px 14px', fontSize: '0.75rem', width: '100%' }} onClick={() => onNavigate?.('notifications')}>View All</button></div>}
       </div>
       </div>
 
       {/* 12. Recent Activity */}
       <div className="dash-section-title"><h2>Recent Activity</h2></div>
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-3" style={{ marginBottom: 20 }}>
+      <div className="grid grid-cols-1 md:grid-cols-2" style={{ marginBottom: 20, gap: 14 }}>
         <div className="card" style={{ padding: 16 }}>
-          <strong className="text-xs">Recently viewed jobs</strong>
-          {dash.recentActivity.recentlyViewedJobs.length === 0 && <p className="text-xs mt-1" style={{ color: 'var(--ink-soft)' }}>None yet — open a job's "View Job" to see it here.</p>}
+          <p style={jobLabelStyle}>Recently viewed jobs</p>
+          {dash.recentActivity.recentlyViewedJobs.length === 0 && <p className="text-xs" style={{ color: 'var(--ink-soft)', marginTop: 8 }}>None yet — open a job's "View Job" to see it here.</p>}
           {dash.recentActivity.recentlyViewedJobs.map((v, i) => (
-            <p key={i} className="text-xs mt-1" style={{ color: 'var(--ink-soft)' }}>{v.job?.title} @ {v.job?.company} — {new Date(v.viewedAt).toLocaleDateString()}</p>
+            <p key={i} className="text-xs" style={{ color: 'var(--ink-soft)', marginTop: 8 }}>{v.job?.title} @ {v.job?.company} — {new Date(v.viewedAt).toLocaleDateString()}</p>
           ))}
         </div>
         <div className="card" style={{ padding: 16 }}>
-          <strong className="text-xs">Saved jobs</strong>
-          {dash.recentActivity.savedJobs.length === 0 && <p className="text-xs mt-1" style={{ color: 'var(--ink-soft)' }}>None yet.</p>}
+          <p style={jobLabelStyle}>Saved jobs</p>
+          {dash.recentActivity.savedJobs.length === 0 && <p className="text-xs" style={{ color: 'var(--ink-soft)', marginTop: 8 }}>None yet.</p>}
           {dash.recentActivity.savedJobs.map((j) => (
-            <p key={j._id} className="text-xs mt-1" style={{ color: 'var(--ink-soft)' }}>{j.title} @ {j.company}</p>
+            <p key={j._id} className="text-xs" style={{ color: 'var(--ink-soft)', marginTop: 8 }}>{j.title} @ {j.company}</p>
           ))}
         </div>
         <div className="card" style={{ padding: 16 }}>
-          <strong className="text-xs">Submitted applications</strong>
-          {dash.recentActivity.submittedApplications.length === 0 && <p className="text-xs mt-1" style={{ color: 'var(--ink-soft)' }}>None yet.</p>}
+          <p style={jobLabelStyle}>Submitted applications</p>
+          {dash.recentActivity.submittedApplications.length === 0 && <p className="text-xs" style={{ color: 'var(--ink-soft)', marginTop: 8 }}>None yet.</p>}
           {dash.recentActivity.submittedApplications.map((a) => (
-            <p key={a._id} className="text-xs mt-1" style={{ color: 'var(--ink-soft)' }}>{a.job?.title} @ {a.job?.company} — {new Date(a.createdAt).toLocaleDateString()}</p>
+            <p key={a._id} className="text-xs" style={{ color: 'var(--ink-soft)', marginTop: 8 }}>{a.job?.title} @ {a.job?.company} — {new Date(a.createdAt).toLocaleDateString()}</p>
           ))}
         </div>
         <div className="card" style={{ padding: 16 }}>
-          <strong className="text-xs">Updated CV/profile</strong>
-          <p className="text-xs mt-1" style={{ color: 'var(--ink-soft)' }}>
+          <p style={jobLabelStyle}>Updated CV/profile</p>
+          <p className="text-xs" style={{ color: 'var(--ink-soft)', marginTop: 8 }}>
             {dash.recentActivity.cvLastUpdated ? `Last updated ${new Date(dash.recentActivity.cvLastUpdated).toLocaleDateString()}` : 'Never updated yet.'}
           </p>
         </div>
         <div className="card" style={{ padding: 16 }}>
-          <strong className="text-xs">Recent interviews</strong>
-          {dash.recentActivity.recentInterviews.length === 0 && <p className="text-xs mt-1" style={{ color: 'var(--ink-soft)' }}>None yet.</p>}
+          <p style={jobLabelStyle}>Recent interviews</p>
+          {dash.recentActivity.recentInterviews.length === 0 && <p className="text-xs" style={{ color: 'var(--ink-soft)', marginTop: 8 }}>None yet.</p>}
           {dash.recentActivity.recentInterviews.map((i) => {
             const st = INTERVIEW_STATUS[i.status] || INTERVIEW_STATUS.scheduled;
-            return <p key={i._id} className="text-xs mt-1" style={{ color: 'var(--ink-soft)' }}>{i.job?.title} @ {i.job?.company} — {new Date(i.scheduledDate).toLocaleDateString()} ({st.label})</p>;
+            return <p key={i._id} className="text-xs" style={{ color: 'var(--ink-soft)', marginTop: 8 }}>{i.job?.title} @ {i.job?.company} — {new Date(i.scheduledDate).toLocaleDateString()} ({st.label})</p>;
           })}
         </div>
         <div className="card" style={{ padding: 16 }}>
-          <strong className="text-xs">Received offers</strong>
-          {dash.recentActivity.receivedOffers.length === 0 && <p className="text-xs mt-1" style={{ color: 'var(--ink-soft)' }}>None yet.</p>}
+          <p style={jobLabelStyle}>Received offers</p>
+          {dash.recentActivity.receivedOffers.length === 0 && <p className="text-xs" style={{ color: 'var(--ink-soft)', marginTop: 8 }}>None yet.</p>}
           {dash.recentActivity.receivedOffers.map((a) => (
-            <p key={a._id} className="text-xs mt-1" style={{ color: 'var(--ink-soft)' }}>{a.job?.title} @ {a.job?.company}</p>
+            <p key={a._id} className="text-xs" style={{ color: 'var(--ink-soft)', marginTop: 8 }}>{a.job?.title} @ {a.job?.company}</p>
           ))}
         </div>
       </div>
@@ -1166,7 +1257,7 @@ function JobSearchPanel({ onFlash }) {
 
   return (
     <div>
-      <form onSubmit={(e) => { e.preventDefault(); load(); }} className="flex gap-3 items-end mb-4">
+      <form onSubmit={(e) => { e.preventDefault(); load(); }} className="flex gap-3 items-end mb-4 border border-[var(--sand-line)] rounded-xl p-3">
         <input className="form-input" placeholder="Search by title, company or skill" value={q} onChange={(e) => setQ(e.target.value)} />
         <button type="submit" className="btn btn-primary">Search</button>
       </form>
@@ -1210,22 +1301,49 @@ function JobMyProfilePanel({ onFlash, onNavigate }) {
   useEffect(() => { apiRequest('/jobs/mine/dashboard').then(setDash).catch((err) => onFlash(err.message)); }, [onFlash]);
   if (!dash) return <p role="status" className="admin-notice">Loading...</p>;
   const p = dash.profile;
+  const labelStyle = { fontSize: 11, fontWeight: 700, letterSpacing: '.05em', textTransform: 'uppercase', color: 'var(--ink-soft)' };
+  const notSet = <span style={{ color: 'var(--ink-soft)' }}>Not set</span>;
   return (
     <div className="card" style={{ padding: 20 }}>
-      <p className="text-sm"><strong>Title:</strong> {p.title || 'Not set'}</p>
-      <p className="text-sm mt-1"><strong>Location:</strong> {p.location || 'Not set'}</p>
-      <p className="text-sm mt-1"><strong>Experience level:</strong> {p.experienceLevel || 'Not set'}</p>
-      <p className="text-sm mt-1"><strong>Profile completeness:</strong> {p.completeness}%</p>
-      <p className="text-sm mt-2"><strong>Skills:</strong> {p.skills.length > 0 ? p.skills.join(', ') : 'None added yet'}</p>
-      <p className="text-sm mt-2"><strong>Education:</strong></p>
-      {p.education.length === 0 && <p className="text-xs" style={{ color: 'var(--ink-soft)' }}>Not added yet.</p>}
-      {p.education.map((ed, i) => <p key={i} className="text-xs">{ed.degree} — {ed.institution} ({ed.year})</p>)}
-      <p className="text-sm mt-2"><strong>Experience:</strong></p>
-      {p.experience.length === 0 && <p className="text-xs" style={{ color: 'var(--ink-soft)' }}>Not added yet.</p>}
-      {p.experience.map((ex, i) => <p key={i} className="text-xs">{ex.title} at {ex.company} ({ex.duration})</p>)}
-      <p className="text-sm mt-2"><strong>Certifications:</strong> {p.certifications.length > 0 ? p.certifications.join(', ') : 'None added yet'}</p>
-      <p className="text-sm mt-2"><strong>LinkedIn:</strong> {p.linkedinUrl ? <a href={p.linkedinUrl} target="_blank" rel="noreferrer">{p.linkedinUrl}</a> : 'Not added yet'}</p>
-      <button type="button" className="btn btn-primary mt-3" style={{ padding: '5px 14px', fontSize: '0.78rem' }} onClick={() => onNavigate?.('resume')}>Edit Profile</button>
+      <div className="student-progress-row">
+        <span>Profile completeness</span>
+        <strong>{p.completeness}%</strong>
+      </div>
+      <progress className="student-progress-bar" max="100" value={p.completeness} aria-label="Profile completeness" />
+
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 18, marginTop: 20 }}>
+        <div><p style={labelStyle}>Title</p><p className="text-sm" style={{ marginTop: 4 }}>{p.title || notSet}</p></div>
+        <div><p style={labelStyle}>Location</p><p className="text-sm" style={{ marginTop: 4 }}>{p.location || notSet}</p></div>
+        <div><p style={labelStyle}>Experience level</p><p className="text-sm" style={{ marginTop: 4 }}>{p.experienceLevel || notSet}</p></div>
+        <div><p style={labelStyle}>LinkedIn</p><p className="text-sm" style={{ marginTop: 4 }}>{p.linkedinUrl ? <a href={p.linkedinUrl} target="_blank" rel="noreferrer">{p.linkedinUrl}</a> : <span style={{ color: 'var(--ink-soft)' }}>Not added yet</span>}</p></div>
+      </div>
+
+      <div style={{ marginTop: 20, paddingTop: 20, borderTop: '1px solid var(--sand-line)' }}>
+        <p style={labelStyle}>Skills</p>
+        <div className="flex flex-wrap" style={{ gap: 8, marginTop: 10 }}>
+          {p.skills.length === 0 && <span className="text-xs" style={{ color: 'var(--ink-soft)' }}>None added yet</span>}
+          {p.skills.map((s) => <span key={s} className="text-xs" style={{ padding: '4px 12px', borderRadius: 999, background: 'var(--sand)', border: '1px solid var(--sand-line)' }}>{s}</span>)}
+        </div>
+      </div>
+
+      <div style={{ marginTop: 20, paddingTop: 20, borderTop: '1px solid var(--sand-line)', display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 18 }}>
+        <div>
+          <p style={labelStyle}>Education</p>
+          {p.education.length === 0 && <p className="text-xs" style={{ color: 'var(--ink-soft)', marginTop: 6 }}>Not added yet.</p>}
+          {p.education.map((ed, i) => <p key={i} className="text-xs" style={{ marginTop: 6 }}>{ed.degree} — {ed.institution} ({ed.year})</p>)}
+        </div>
+        <div>
+          <p style={labelStyle}>Experience</p>
+          {p.experience.length === 0 && <p className="text-xs" style={{ color: 'var(--ink-soft)', marginTop: 6 }}>Not added yet.</p>}
+          {p.experience.map((ex, i) => <p key={i} className="text-xs" style={{ marginTop: 6 }}>{ex.title} at {ex.company} ({ex.duration})</p>)}
+        </div>
+        <div>
+          <p style={labelStyle}>Certifications</p>
+          <p className="text-xs" style={{ marginTop: 6, color: p.certifications.length ? 'var(--ink)' : 'var(--ink-soft)' }}>{p.certifications.length > 0 ? p.certifications.join(', ') : 'None added yet'}</p>
+        </div>
+      </div>
+
+      <button type="button" className="btn btn-primary" style={{ padding: '6px 16px', fontSize: '0.78rem', marginTop: 20 }} onClick={() => onNavigate?.('resume')}>Edit Profile</button>
     </div>
   );
 }
@@ -1301,23 +1419,31 @@ function PortfolioPanel({ onFlash, onNavigate }) {
   if (!dash) return <p role="status" className="admin-notice">Loading...</p>;
   return (
     <div>
-      {dash.profile.portfolio.length === 0 && <p className="text-xs" style={{ color: 'var(--ink-soft)' }}>No portfolio projects added yet.</p>}
-      {dash.profile.portfolio.map((p, i) => (
-        <div key={i} className="card" style={{ padding: 14, marginBottom: 10 }}>
-          <strong className="text-sm"><a href={p.url} target="_blank" rel="noreferrer">{p.title || p.url}</a></strong>
-          {p.description && <p className="text-xs mt-1" style={{ color: 'var(--ink-soft)' }}>{p.description}</p>}
+      {dash.profile.portfolio.length === 0 && (
+        <div className="student-empty-state" style={{ border: '1px solid var(--sand-line)', borderRadius: 18, marginBottom: 16 }}>
+          <FaBriefcase aria-hidden="true" />
+          <p>No portfolio projects added yet</p>
+          <span>Add project links with a title and description — shown on your CV.</span>
         </div>
-      ))}
-      <button type="button" className="btn btn-primary mt-2" style={{ padding: '5px 14px', fontSize: '0.78rem' }} onClick={() => onNavigate?.('resume')}>Add Project</button>
+      )}
+      <div style={{ display: 'grid', gap: 12, marginBottom: dash.profile.portfolio.length > 0 ? 16 : 0 }}>
+        {dash.profile.portfolio.map((p, i) => (
+          <div key={i} className="border border-[var(--sand-line)] rounded-xl p-4">
+            <strong className="text-sm"><a href={p.url} target="_blank" rel="noreferrer">{p.title || p.url}</a></strong>
+            {p.description && <p className="text-xs" style={{ color: 'var(--ink-soft)', marginTop: 6 }}>{p.description}</p>}
+          </div>
+        ))}
+      </div>
+      <button type="button" className="btn btn-primary" style={{ padding: '6px 16px', fontSize: '0.78rem' }} onClick={() => onNavigate?.('resume')}>Add Project</button>
     </div>
   );
 }
 
 function CoverLettersPanel() {
   return (
-    <div className="card" style={{ padding: 16 }}>
+    <div className="card" style={{ padding: 20 }}>
       <strong className="text-sm">Cover Letter Generator</strong>
-      <p className="text-xs mt-1" style={{ color: 'var(--ink-soft)' }}>Optional AI feature — not built yet (needs a paid AI API), and never required to use the platform.</p>
+      <p className="text-xs" style={{ color: 'var(--ink-soft)', marginTop: 6 }}>Optional AI feature — not built yet (needs a paid AI API), and never required to use the platform.</p>
     </div>
   );
 }
@@ -1408,12 +1534,14 @@ function JobMessagesPanel({ onFlash }) {
   const otherMsgs = conversations.filter((c) => !categorizedIds.has(c.user._id));
   const totalUnread = conversations.reduce((sum, c) => sum + c.unread, 0);
 
+  const msgLabelStyle = { fontSize: 11, fontWeight: 700, letterSpacing: '.05em', textTransform: 'uppercase', color: 'var(--ink-soft)' };
+
   function ConversationGroup({ title, items }) {
     if (items.length === 0) return null;
     return (
-      <div className="mb-4">
-        <strong className="text-xs">{title}</strong>
-        <div className="dash-list mt-1">
+      <div style={{ marginBottom: 16 }}>
+        <p style={msgLabelStyle}>{title}</p>
+        <div className="dash-list" style={{ marginTop: 10 }}>
           {items.map((c) => (
             <div key={c.user._id} className={`dash-list-item${activeUser?._id === c.user._id ? ' unread' : ''}`} style={{ cursor: 'pointer' }} onClick={() => openThread(c.user)}>
               <span className="dash-list-icon c-forest" aria-hidden><FaUser size={14} /></span>
@@ -1428,27 +1556,37 @@ function JobMessagesPanel({ onFlash }) {
 
   return (
     <div>
-      <div className="card" style={{ padding: 14, marginBottom: 16 }}>
-        <strong className="text-sm">Unread messages: {totalUnread}</strong>
+      <div className="card" style={{ padding: 16, marginBottom: 16 }}>
+        <div className="flex items-center justify-between">
+          <strong className="text-sm">Unread messages</strong>
+          <strong style={{ fontSize: 24, fontFamily: 'Fraunces, serif' }}>{totalUnread}</strong>
+        </div>
       </div>
-      <div className="grid g2" style={{ gap: 24 }}>
+      <div className="grid g2" style={{ gap: 20, alignItems: 'start' }}>
         <div>
-          <div className="mb-4">
-            <strong className="text-xs">Interview invitations</strong>
-            {interviews.length === 0 && <p className="text-xs mt-1" style={{ color: 'var(--ink-soft)' }}>None yet.</p>}
+          <div className="border border-[var(--sand-line)] rounded-xl p-4" style={{ marginBottom: 16 }}>
+            <p style={msgLabelStyle}>Interview invitations</p>
+            {interviews.length === 0 && <p className="text-xs" style={{ color: 'var(--ink-soft)', marginTop: 8 }}>None yet.</p>}
             {interviews.slice(0, 5).map((i) => {
               const st = INTERVIEW_STATUS[i.status] || INTERVIEW_STATUS.scheduled;
-              return <p key={i._id} className="text-xs mt-1" style={{ color: 'var(--ink-soft)' }}>{i.job?.title} @ {i.job?.company} — {new Date(i.scheduledDate).toLocaleDateString()} ({st.label})</p>;
+              return <p key={i._id} className="text-xs" style={{ color: 'var(--ink-soft)', marginTop: 8 }}>{i.job?.title} @ {i.job?.company} — {new Date(i.scheduledDate).toLocaleDateString()} ({st.label})</p>;
             })}
           </div>
           <ConversationGroup title="Employer / company messages" items={employerMsgs} />
           <ConversationGroup title="Recruiter messages" items={recruiterMsgs} />
           <ConversationGroup title="Support messages" items={supportMsgs} />
           <ConversationGroup title="Other messages" items={otherMsgs} />
-          {conversations.length === 0 && <p className="text-xs" style={{ color: 'var(--ink-soft)' }}>No conversations yet — employers message you here once you apply.</p>}
+          {conversations.length === 0 && (
+            <div className="student-empty-state" style={{ border: '1px solid var(--sand-line)', borderRadius: 18 }}>
+              <FaCommentDots aria-hidden="true" />
+              <p>No conversations yet</p>
+              <span>Employers message you here once you apply.</span>
+            </div>
+          )}
         </div>
-        <div>
+        <div className="border border-[var(--sand-line)] rounded-xl p-4">
           <h3 className="font-semibold mb-2">{activeUser ? activeUser.fullName : 'Select a conversation'}</h3>
+          {!activeUser && <p className="text-xs" style={{ color: 'var(--ink-soft)' }}>Pick a conversation on the left to view and reply to messages.</p>}
           {activeUser && (
             <>
               <div className="card reveal in" style={{ padding: '8px 12px', marginBottom: 12, maxHeight: 320, overflowY: 'auto' }}>
@@ -1461,9 +1599,9 @@ function JobMessagesPanel({ onFlash }) {
                   </div>
                 ))}
               </div>
-              <form onSubmit={send} className="flex gap-3 items-end">
-                <input className="form-input" placeholder="Type a message..." value={text} onChange={(e) => setText(e.target.value)} required />
-                <button type="submit" className="btn btn-primary">Send</button>
+              <form onSubmit={send} className="flex items-end" style={{ gap: 12 }}>
+                <input className="form-input" placeholder="Type a message..." value={text} onChange={(e) => setText(e.target.value)} required style={{ flex: '1 1 auto', minWidth: 0 }} />
+                <button type="submit" className="btn btn-primary" style={{ flexShrink: 0 }}>Send</button>
               </form>
             </>
           )}
@@ -1533,16 +1671,20 @@ function JobAlertsPanel({ onFlash }) {
   return (
     <div>
       <h3 className="font-semibold mb-2">Job Alerts</h3>
-      <p className="text-xs mb-3" style={{ color: 'var(--ink-soft)' }}>Save a search once — we'll show how many currently-open jobs match it every time you check.</p>
-      <form onSubmit={create} className="flex gap-2 items-end mb-4 flex-wrap">
-        <input className="form-input" placeholder="Keywords" value={form.keywords} onChange={(e) => setForm({ ...form, keywords: e.target.value })} />
-        <input className="form-input" placeholder="Country code" value={form.country} onChange={(e) => setForm({ ...form, country: e.target.value })} style={{ maxWidth: 110 }} />
-        <input className="form-input" placeholder="City" value={form.city} onChange={(e) => setForm({ ...form, city: e.target.value })} style={{ maxWidth: 140 }} />
-        <input className="form-input" type="number" placeholder="Min salary" value={form.salaryMin} onChange={(e) => setForm({ ...form, salaryMin: e.target.value })} style={{ maxWidth: 110 }} />
-        <label className="flex items-center gap-1 text-xs"><input type="checkbox" checked={form.remoteOnly} onChange={(e) => setForm({ ...form, remoteOnly: e.target.checked })} /> Remote only</label>
-        <label className="flex items-center gap-1 text-xs"><input type="checkbox" checked={form.governmentOnly} onChange={(e) => setForm({ ...form, governmentOnly: e.target.checked })} /> Government only</label>
-        <label className="flex items-center gap-1 text-xs"><input type="checkbox" checked={form.internationalOnly} onChange={(e) => setForm({ ...form, internationalOnly: e.target.checked })} /> International (visa sponsorship)</label>
-        <button type="submit" className="btn btn-primary">Save Alert</button>
+      <p className="text-xs" style={{ color: 'var(--ink-soft)', marginBottom: 16 }}>Save a search once — we'll show how many currently-open jobs match it every time you check.</p>
+      <form onSubmit={create} className="border border-[var(--sand-line)] rounded-xl p-4" style={{ display: 'grid', gap: 14, marginBottom: 20 }}>
+        <div className="flex flex-wrap" style={{ gap: 12 }}>
+          <input className="form-input" placeholder="Keywords" value={form.keywords} onChange={(e) => setForm({ ...form, keywords: e.target.value })} style={{ flex: '2 1 220px', minWidth: 0 }} />
+          <input className="form-input" placeholder="Country code" value={form.country} onChange={(e) => setForm({ ...form, country: e.target.value })} style={{ flex: '1 1 110px', minWidth: 0 }} />
+          <input className="form-input" placeholder="City" value={form.city} onChange={(e) => setForm({ ...form, city: e.target.value })} style={{ flex: '1 1 140px', minWidth: 0 }} />
+          <input className="form-input" type="number" placeholder="Min salary" value={form.salaryMin} onChange={(e) => setForm({ ...form, salaryMin: e.target.value })} style={{ flex: '1 1 120px', minWidth: 0 }} />
+        </div>
+        <div className="flex flex-wrap items-center" style={{ gap: 18 }}>
+          <label className="flex items-center text-xs" style={{ gap: 6 }}><input type="checkbox" checked={form.remoteOnly} onChange={(e) => setForm({ ...form, remoteOnly: e.target.checked })} /> Remote only</label>
+          <label className="flex items-center text-xs" style={{ gap: 6 }}><input type="checkbox" checked={form.governmentOnly} onChange={(e) => setForm({ ...form, governmentOnly: e.target.checked })} /> Government only</label>
+          <label className="flex items-center text-xs" style={{ gap: 6 }}><input type="checkbox" checked={form.internationalOnly} onChange={(e) => setForm({ ...form, internationalOnly: e.target.checked })} /> International (visa sponsorship)</label>
+        </div>
+        <button type="submit" className="btn btn-primary" style={{ padding: '6px 16px', fontSize: '0.78rem', justifySelf: 'start' }}>Save Alert</button>
       </form>
       <Table
         loading={alerts === null}
@@ -1564,28 +1706,31 @@ function CareerToolsPanel({ onFlash, onNavigate }) {
   return (
     <div>
       <h3 className="font-semibold mb-3">Career Tools</h3>
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-        <div className="card" style={{ padding: 16 }}>
+      <div className="grid grid-cols-1 md:grid-cols-2" style={{ gap: 14 }}>
+        <div className="card" style={{ padding: 18 }}>
           <strong className="text-sm">Portfolio Builder</strong>
-          <p className="text-xs mt-1" style={{ color: 'var(--ink-soft)' }}>Add project links with a title and description — shown on your CV.</p>
-          <button type="button" className="btn mt-2" style={{ padding: '5px 14px', fontSize: '0.78rem' }} onClick={() => onNavigate?.('resume')}>Open in CV / Resume</button>
+          <p className="text-xs" style={{ color: 'var(--ink-soft)', marginTop: 6 }}>Add project links with a title and description — shown on your CV.</p>
+          <button type="button" className="btn" style={{ padding: '6px 14px', fontSize: '0.78rem', marginTop: 12 }} onClick={() => onNavigate?.('resume')}>Open in CV / Resume</button>
         </div>
-        <div className="card" style={{ padding: 16 }}>
+        <div className="card" style={{ padding: 18 }}>
           <strong className="text-sm">Skill Recommendations</strong>
-          <p className="text-xs mt-1" style={{ color: 'var(--ink-soft)' }}>Real signal from what's most requested in currently open job postings — not AI-generated.</p>
-          {missingSkills === null && <p className="text-xs mt-2" style={{ color: 'var(--ink-soft)' }}>Loading...</p>}
-          {missingSkills?.length === 0 && <p className="text-xs mt-2" style={{ color: 'var(--ink-soft)' }}>Nothing missing — your CV covers the market's top requested skills.</p>}
+          <p className="text-xs" style={{ color: 'var(--ink-soft)', marginTop: 6 }}>Real signal from what's most requested in currently open job postings — not AI-generated.</p>
+          {missingSkills === null && <p className="text-xs" style={{ color: 'var(--ink-soft)', marginTop: 10 }}>Loading...</p>}
+          {missingSkills?.length === 0 && <p className="text-xs" style={{ color: 'var(--ink-soft)', marginTop: 10 }}>Nothing missing — your CV covers the market's top requested skills.</p>}
           {missingSkills?.length > 0 && (
-            <div className="flex gap-2 flex-wrap mt-2">
-              {missingSkills.map((s) => <span key={s} className="text-xs" style={{ padding: '3px 10px', borderRadius: 999, background: '#fef3c7', border: '1px solid #fde68a' }}>{s}</span>)}
+            <div className="flex flex-wrap" style={{ gap: 8, marginTop: 10 }}>
+              {missingSkills.map((s) => <span key={s} className="text-xs" style={{ padding: '4px 12px', borderRadius: 999, background: '#fef3c7', border: '1px solid #fde68a' }}>{s}</span>)}
             </div>
           )}
-          <button type="button" className="btn mt-2" style={{ padding: '5px 14px', fontSize: '0.78rem' }} onClick={() => onNavigate?.('resume')}>Add Skills to CV</button>
+          <button type="button" className="btn" style={{ padding: '6px 14px', fontSize: '0.78rem', marginTop: 12 }} onClick={() => onNavigate?.('resume')}>Add Skills to CV</button>
         </div>
         {['AI CV Builder', 'Cover Letter Generator', 'LinkedIn Optimizer', 'AI Interview Coach', 'Career Coach'].map((tool) => (
-          <div key={tool} className="card" style={{ padding: 16 }}>
-            <strong className="text-sm">{tool}</strong>
-            <p className="text-xs mt-1" style={{ color: 'var(--ink-soft)' }}>Optional AI feature — not built yet (needs a paid AI API), and never required to use the platform.</p>
+          <div key={tool} style={{ padding: 18, borderRadius: 'var(--r-lg)', border: '1px dashed var(--sand-line)', background: 'transparent' }}>
+            <div className="flex items-center" style={{ gap: 8 }}>
+              <strong className="text-sm" style={{ color: 'var(--ink-soft)' }}>{tool}</strong>
+              <span className="text-xs" style={{ padding: '2px 8px', borderRadius: 999, background: 'var(--sand)', color: 'var(--ink-soft)', fontWeight: 600 }}>Coming soon</span>
+            </div>
+            <p className="text-xs" style={{ color: 'var(--ink-soft)', marginTop: 8 }}>Optional AI feature — not built yet (needs a paid AI API), and never required to use the platform.</p>
           </div>
         ))}
       </div>
@@ -1619,87 +1764,108 @@ function ResumeEditorPanel({ onFlash }) {
 
   if (!resume) return <p role="status" className="admin-notice">Loading...</p>;
 
+  const sectionLabel = { fontSize: 11, fontWeight: 700, letterSpacing: '.05em', textTransform: 'uppercase', color: 'var(--ink-soft)' };
+
   return (
-    <form onSubmit={save} className="space-y-3 max-w-lg">
-      <div className="card" style={{ padding: 14 }}>
-        <label className="text-xs font-semibold" style={{ display: 'block', marginBottom: 4 }}>Uploaded CV file</label>
-        <input className="form-input" placeholder="Paste a direct link to your CV file (PDF, Google Drive, etc.)" value={resume.cvFileUrl || ''} onChange={(e) => setResume({ ...resume, cvFileUrl: e.target.value })} />
-        <p className="text-xs mt-1" style={{ color: 'var(--ink-soft)' }}>
+    <form onSubmit={save} style={{ display: 'grid', gap: 18 }}>
+      <div className="card" style={{ padding: 20 }}>
+        <p style={sectionLabel}>Uploaded CV file</p>
+        <input className="form-input" placeholder="Paste a direct link to your CV file (PDF, Google Drive, etc.)" value={resume.cvFileUrl || ''} onChange={(e) => setResume({ ...resume, cvFileUrl: e.target.value })} style={{ marginTop: 10 }} />
+        <p className="text-xs" style={{ color: 'var(--ink-soft)', marginTop: 8 }}>
           No file storage is wired up yet — upload your CV somewhere (Google Drive, Dropbox, etc.) and paste the direct link here.
           {resume.cvFileUrl && <> · <a href={resume.cvFileUrl} target="_blank" rel="noreferrer">View current file</a></>}
         </p>
       </div>
-      <input className="form-input" placeholder="Headline / Professional title (e.g. Frontend Developer)" value={resume.headline} onChange={(e) => setResume({ ...resume, headline: e.target.value })} />
-      <textarea className="form-input" placeholder="Summary" rows={3} value={resume.summary} onChange={(e) => setResume({ ...resume, summary: e.target.value })} />
-      <div className="flex gap-2">
-        <input className="form-input" placeholder="Current location (city, country)" value={resume.location || ''} onChange={(e) => setResume({ ...resume, location: e.target.value })} />
-        <select className="form-select" value={resume.experienceLevel || ''} onChange={(e) => setResume({ ...resume, experienceLevel: e.target.value })}>
-          <option value="">Experience level</option>
-          <option value="entry">Entry level</option>
-          <option value="mid">Mid level</option>
-          <option value="senior">Senior</option>
-          <option value="lead">Lead / Manager</option>
-        </select>
+
+      <div className="card" style={{ padding: 20, display: 'grid', gap: 14 }}>
+        <p style={sectionLabel}>Basic Info</p>
+        <input className="form-input" placeholder="Headline / Professional title (e.g. Frontend Developer)" value={resume.headline} onChange={(e) => setResume({ ...resume, headline: e.target.value })} />
+        <textarea className="form-input" placeholder="Summary" rows={3} value={resume.summary} onChange={(e) => setResume({ ...resume, summary: e.target.value })} />
+        <div className="flex flex-wrap" style={{ gap: 12 }}>
+          <input className="form-input" placeholder="Current location (city, country)" value={resume.location || ''} onChange={(e) => setResume({ ...resume, location: e.target.value })} style={{ flex: '1 1 220px', minWidth: 0 }} />
+          <select className="form-select" value={resume.experienceLevel || ''} onChange={(e) => setResume({ ...resume, experienceLevel: e.target.value })} style={{ flex: '1 1 200px', minWidth: 0 }}>
+            <option value="">Experience level</option>
+            <option value="entry">Entry level</option>
+            <option value="mid">Mid level</option>
+            <option value="senior">Senior</option>
+            <option value="lead">Lead / Manager</option>
+          </select>
+        </div>
+        <input className="form-input" placeholder="LinkedIn profile URL" value={resume.linkedinUrl || ''} onChange={(e) => setResume({ ...resume, linkedinUrl: e.target.value })} />
+        <input
+          className="form-input"
+          placeholder="Skills (comma separated)"
+          value={(resume.skills || []).join(', ')}
+          onChange={(e) => setResume({ ...resume, skills: e.target.value.split(',').map((s) => s.trim()).filter(Boolean) })}
+        />
+        <input
+          className="form-input"
+          placeholder="Languages (comma separated)"
+          value={(resume.languages || []).join(', ')}
+          onChange={(e) => setResume({ ...resume, languages: e.target.value.split(',').map((s) => s.trim()).filter(Boolean) })}
+        />
       </div>
-      <input className="form-input" placeholder="LinkedIn profile URL" value={resume.linkedinUrl || ''} onChange={(e) => setResume({ ...resume, linkedinUrl: e.target.value })} />
-      <input
-        className="form-input"
-        placeholder="Skills (comma separated)"
-        value={(resume.skills || []).join(', ')}
-        onChange={(e) => setResume({ ...resume, skills: e.target.value.split(',').map((s) => s.trim()).filter(Boolean) })}
-      />
-      <input
-        className="form-input"
-        placeholder="Languages (comma separated)"
-        value={(resume.languages || []).join(', ')}
-        onChange={(e) => setResume({ ...resume, languages: e.target.value.split(',').map((s) => s.trim()).filter(Boolean) })}
-      />
 
-      <h4 className="font-semibold pt-2">Education</h4>
-      {(resume.education || []).map((ed, i) => (
-        <div key={i} className="flex gap-2 items-start flex-wrap">
-          <input className="form-input" placeholder="Institution" value={ed.institution || ''} onChange={(e) => updateRow('education', i, 'institution', e.target.value)} style={{ maxWidth: 180 }} />
-          <input className="form-input" placeholder="Degree" value={ed.degree || ''} onChange={(e) => updateRow('education', i, 'degree', e.target.value)} style={{ maxWidth: 160 }} />
-          <input className="form-input" placeholder="Year" value={ed.year || ''} onChange={(e) => updateRow('education', i, 'year', e.target.value)} style={{ maxWidth: 90 }} />
-          <button type="button" className="btn" style={{ padding: '6px 10px', fontSize: '0.75rem' }} onClick={() => removeRow('education', i)}>Remove</button>
+      <div className="card" style={{ padding: 20 }}>
+        <p style={sectionLabel}>Education</p>
+        <div style={{ display: 'grid', gap: 10, marginTop: 14 }}>
+          {(resume.education || []).map((ed, i) => (
+            <div key={i} className="border border-[var(--sand-line)] rounded-xl p-3 flex flex-wrap items-start" style={{ gap: 10 }}>
+              <input className="form-input" placeholder="Institution" value={ed.institution || ''} onChange={(e) => updateRow('education', i, 'institution', e.target.value)} style={{ flex: '2 1 180px', minWidth: 0 }} />
+              <input className="form-input" placeholder="Degree" value={ed.degree || ''} onChange={(e) => updateRow('education', i, 'degree', e.target.value)} style={{ flex: '2 1 160px', minWidth: 0 }} />
+              <input className="form-input" placeholder="Year" value={ed.year || ''} onChange={(e) => updateRow('education', i, 'year', e.target.value)} style={{ flex: '1 1 90px', minWidth: 0 }} />
+              <button type="button" className="btn" style={{ padding: '6px 10px', fontSize: '0.75rem', flexShrink: 0 }} onClick={() => removeRow('education', i)}>Remove</button>
+            </div>
+          ))}
         </div>
-      ))}
-      <button type="button" className="btn" style={{ padding: '5px 12px', fontSize: '0.78rem' }} onClick={() => addRow('education', { institution: '', degree: '', year: '' })}>+ Add Education</button>
+        <button type="button" className="btn" style={{ padding: '6px 14px', fontSize: '0.78rem', marginTop: 14 }} onClick={() => addRow('education', { institution: '', degree: '', year: '' })}>+ Add Education</button>
+      </div>
 
-      <h4 className="font-semibold pt-2">Experience</h4>
-      {(resume.experience || []).map((ex, i) => (
-        <div key={i} className="border border-[var(--sand-line)] rounded-xl p-3">
-          <div className="flex gap-2 flex-wrap mb-2">
-            <input className="form-input" placeholder="Job title" value={ex.title || ''} onChange={(e) => updateRow('experience', i, 'title', e.target.value)} style={{ maxWidth: 160 }} />
-            <input className="form-input" placeholder="Company" value={ex.company || ''} onChange={(e) => updateRow('experience', i, 'company', e.target.value)} style={{ maxWidth: 160 }} />
-            <input className="form-input" placeholder="Duration (e.g. 2022–2024)" value={ex.duration || ''} onChange={(e) => updateRow('experience', i, 'duration', e.target.value)} style={{ maxWidth: 140 }} />
-          </div>
-          <textarea className="form-input" placeholder="Description" rows={2} value={ex.description || ''} onChange={(e) => updateRow('experience', i, 'description', e.target.value)} />
-          <button type="button" className="btn mt-2" style={{ padding: '6px 10px', fontSize: '0.75rem' }} onClick={() => removeRow('experience', i)}>Remove</button>
+      <div className="card" style={{ padding: 20 }}>
+        <p style={sectionLabel}>Experience</p>
+        <div style={{ display: 'grid', gap: 10, marginTop: 14 }}>
+          {(resume.experience || []).map((ex, i) => (
+            <div key={i} className="border border-[var(--sand-line)] rounded-xl p-3">
+              <div className="flex flex-wrap" style={{ gap: 10, marginBottom: 10 }}>
+                <input className="form-input" placeholder="Job title" value={ex.title || ''} onChange={(e) => updateRow('experience', i, 'title', e.target.value)} style={{ flex: '1 1 160px', minWidth: 0 }} />
+                <input className="form-input" placeholder="Company" value={ex.company || ''} onChange={(e) => updateRow('experience', i, 'company', e.target.value)} style={{ flex: '1 1 160px', minWidth: 0 }} />
+                <input className="form-input" placeholder="Duration (e.g. 2022–2024)" value={ex.duration || ''} onChange={(e) => updateRow('experience', i, 'duration', e.target.value)} style={{ flex: '1 1 140px', minWidth: 0 }} />
+              </div>
+              <textarea className="form-input" placeholder="Description" rows={2} value={ex.description || ''} onChange={(e) => updateRow('experience', i, 'description', e.target.value)} />
+              <button type="button" className="btn" style={{ padding: '6px 10px', fontSize: '0.75rem', marginTop: 10 }} onClick={() => removeRow('experience', i)}>Remove</button>
+            </div>
+          ))}
         </div>
-      ))}
-      <button type="button" className="btn" style={{ padding: '5px 12px', fontSize: '0.78rem' }} onClick={() => addRow('experience', { title: '', company: '', duration: '', description: '' })}>+ Add Experience</button>
+        <button type="button" className="btn" style={{ padding: '6px 14px', fontSize: '0.78rem', marginTop: 14 }} onClick={() => addRow('experience', { title: '', company: '', duration: '', description: '' })}>+ Add Experience</button>
+      </div>
 
-      <h4 className="font-semibold pt-2">Certifications</h4>
-      <input
-        className="form-input"
-        placeholder="Certifications (comma separated)"
-        value={(resume.certifications || []).join(', ')}
-        onChange={(e) => setResume({ ...resume, certifications: e.target.value.split(',').map((s) => s.trim()).filter(Boolean) })}
-      />
+      <div className="card" style={{ padding: 20 }}>
+        <p style={sectionLabel}>Certifications</p>
+        <input
+          className="form-input"
+          placeholder="Certifications (comma separated)"
+          value={(resume.certifications || []).join(', ')}
+          onChange={(e) => setResume({ ...resume, certifications: e.target.value.split(',').map((s) => s.trim()).filter(Boolean) })}
+          style={{ marginTop: 10 }}
+        />
+      </div>
 
-      <h4 className="font-semibold pt-2">Portfolio</h4>
-      {(resume.portfolio || []).map((p, i) => (
-        <div key={i} className="flex gap-2 items-start flex-wrap">
-          <input className="form-input" placeholder="Project title" value={p.title || ''} onChange={(e) => updateRow('portfolio', i, 'title', e.target.value)} style={{ maxWidth: 160 }} />
-          <input className="form-input" placeholder="Link" value={p.url || ''} onChange={(e) => updateRow('portfolio', i, 'url', e.target.value)} style={{ maxWidth: 200 }} />
-          <input className="form-input" placeholder="Short description" value={p.description || ''} onChange={(e) => updateRow('portfolio', i, 'description', e.target.value)} style={{ flex: 1, minWidth: 160 }} />
-          <button type="button" className="btn" style={{ padding: '6px 10px', fontSize: '0.75rem' }} onClick={() => removeRow('portfolio', i)}>Remove</button>
+      <div className="card" style={{ padding: 20 }}>
+        <p style={sectionLabel}>Portfolio</p>
+        <div style={{ display: 'grid', gap: 10, marginTop: 14 }}>
+          {(resume.portfolio || []).map((p, i) => (
+            <div key={i} className="border border-[var(--sand-line)] rounded-xl p-3 flex flex-wrap items-start" style={{ gap: 10 }}>
+              <input className="form-input" placeholder="Project title" value={p.title || ''} onChange={(e) => updateRow('portfolio', i, 'title', e.target.value)} style={{ flex: '1 1 160px', minWidth: 0 }} />
+              <input className="form-input" placeholder="Link" value={p.url || ''} onChange={(e) => updateRow('portfolio', i, 'url', e.target.value)} style={{ flex: '1 1 200px', minWidth: 0 }} />
+              <input className="form-input" placeholder="Short description" value={p.description || ''} onChange={(e) => updateRow('portfolio', i, 'description', e.target.value)} style={{ flex: '2 1 220px', minWidth: 0 }} />
+              <button type="button" className="btn" style={{ padding: '6px 10px', fontSize: '0.75rem', flexShrink: 0 }} onClick={() => removeRow('portfolio', i)}>Remove</button>
+            </div>
+          ))}
         </div>
-      ))}
-      <button type="button" className="btn" style={{ padding: '5px 12px', fontSize: '0.78rem' }} onClick={() => addRow('portfolio', { title: '', url: '', description: '' })}>+ Add Project</button>
+        <button type="button" className="btn" style={{ padding: '6px 14px', fontSize: '0.78rem', marginTop: 14 }} onClick={() => addRow('portfolio', { title: '', url: '', description: '' })}>+ Add Project</button>
+      </div>
 
-      <button type="submit" className="btn btn-primary">Save Resume</button>
+      <button type="submit" className="btn btn-primary" style={{ padding: '8px 22px', fontSize: '0.85rem', justifySelf: 'start' }}>Save Resume</button>
     </form>
   );
 }
@@ -1789,21 +1955,35 @@ function PostScholarshipPanel({ onFlash }) {
     } catch (err) { onFlash(err.message); }
   }
 
+  const fieldLabel = { fontSize: 11, fontWeight: 700, letterSpacing: '.04em', textTransform: 'uppercase', color: 'var(--ink-soft)', display: 'block', marginBottom: 6 };
+
   return (
-    <form onSubmit={submit} className="space-y-3 max-w-lg">
+    <form onSubmit={submit} className="card" style={{ padding: 20, display: 'grid', gap: 16, maxWidth: 620 }}>
       <input className="form-input" placeholder="Title" required value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })} />
       <textarea className="form-input" placeholder="Description" rows={3} value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} />
-      <div className="flex gap-2">
-        <input className="form-input" type="number" placeholder="Amount" required value={form.amount} onChange={(e) => setForm({ ...form, amount: e.target.value })} />
-        <input className="form-input" placeholder="Currency" value={form.currency} onChange={(e) => setForm({ ...form, currency: e.target.value })} style={{ maxWidth: 100 }} />
-        <input className="form-input" type="number" min="1" placeholder="Seats" value={form.seatsAvailable} onChange={(e) => setForm({ ...form, seatsAvailable: e.target.value })} style={{ maxWidth: 100 }} />
+      <div className="flex flex-wrap" style={{ gap: 14 }}>
+        <label style={{ flex: '2 1 140px', minWidth: 0 }}>
+          <span style={fieldLabel}>Amount</span>
+          <input className="form-input" type="number" placeholder="e.g. 1000" required value={form.amount} onChange={(e) => setForm({ ...form, amount: e.target.value })} />
+        </label>
+        <label style={{ flex: '1 1 100px', minWidth: 0 }}>
+          <span style={fieldLabel}>Currency</span>
+          <input className="form-input" placeholder="USD" value={form.currency} onChange={(e) => setForm({ ...form, currency: e.target.value })} />
+        </label>
+        <label style={{ flex: '1 1 100px', minWidth: 0 }}>
+          <span style={fieldLabel}>Seats</span>
+          <input className="form-input" type="number" min="1" placeholder="1" value={form.seatsAvailable} onChange={(e) => setForm({ ...form, seatsAvailable: e.target.value })} />
+        </label>
       </div>
       <input className="form-input" placeholder="Eligibility criteria" value={form.eligibilityCriteria} onChange={(e) => setForm({ ...form, eligibilityCriteria: e.target.value })} />
-      <div className="flex gap-2">
-        <input className="form-input" placeholder="Country (optional)" value={form.country} onChange={(e) => setForm({ ...form, country: e.target.value })} />
-        <input className="form-input" type="date" value={form.applicationDeadline} onChange={(e) => setForm({ ...form, applicationDeadline: e.target.value })} />
+      <div className="flex flex-wrap" style={{ gap: 14 }}>
+        <input className="form-input" placeholder="Country (optional)" value={form.country} onChange={(e) => setForm({ ...form, country: e.target.value })} style={{ flex: '1 1 200px', minWidth: 0 }} />
+        <label style={{ flex: '1 1 200px', minWidth: 0 }}>
+          <span style={fieldLabel}>Application Deadline</span>
+          <input className="form-input" type="date" value={form.applicationDeadline} onChange={(e) => setForm({ ...form, applicationDeadline: e.target.value })} />
+        </label>
       </div>
-      <button type="submit" className="btn btn-primary">Post Scholarship</button>
+      <button type="submit" className="btn btn-primary" style={{ justifySelf: 'start', padding: '8px 20px' }}>Post Scholarship</button>
     </form>
   );
 }
@@ -1899,7 +2079,7 @@ function MarketplaceBrowsePanel({ onFlash }) {
 
   return (
     <div>
-      <form onSubmit={(e) => { e.preventDefault(); load(); }} className="flex gap-3 items-end mb-4">
+      <form onSubmit={(e) => { e.preventDefault(); load(); }} className="flex gap-3 items-end mb-4 border border-[var(--sand-line)] rounded-xl p-3">
         <input className="form-input" placeholder="Search products" value={q} onChange={(e) => setQ(e.target.value)} />
         <button type="submit" className="btn btn-primary">Search</button>
       </form>
@@ -2077,20 +2257,33 @@ function MyListingsPanel({ onFlash }) {
     } catch (err) { onFlash(err.message); }
   }
 
+  const fieldLabel = { fontSize: 11, fontWeight: 700, letterSpacing: '.04em', textTransform: 'uppercase', color: 'var(--ink-soft)', display: 'block', marginBottom: 6 };
+
   return (
     <div>
-      <h3 className="font-semibold mb-2">Add Listing</h3>
-      <form className="space-y-3 max-w-lg mb-6">
-        <input className="form-input" placeholder="Product/service name" required value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })} />
-        <textarea className="form-input" placeholder="Description" rows={2} value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} />
-        <input className="form-input" placeholder="Image URL (paste a direct image link)" value={form.images} onChange={(e) => setForm({ ...form, images: e.target.value })} />
-        <div className="flex gap-2 flex-wrap">
-          <select className="form-select" value={form.category} onChange={(e) => setForm({ ...form, category: e.target.value })}>
-            {PRODUCT_CATEGORIES.map((c) => <option key={c} value={c}>{c}</option>)}
-          </select>
-          <input className="form-input" type="number" placeholder="Price" required value={form.price} onChange={(e) => setForm({ ...form, price: e.target.value })} />
-          <input className="form-input" type="number" placeholder="Available quantity" value={form.stock} onChange={(e) => setForm({ ...form, stock: e.target.value })} />
+      <div className="flex items-center" style={{ gap: 12, marginBottom: 18 }}>
+        <span style={{ width: 38, height: 38, borderRadius: 10, background: 'var(--sand)', color: 'var(--gold)', display: 'grid', placeItems: 'center', flexShrink: 0 }}><FaBoxOpen aria-hidden="true" size={16} /></span>
+        <h3 className="font-semibold" style={{ margin: 0 }}>Add Listing</h3>
+      </div>
+      <form style={{ display: 'grid', gap: 20, maxWidth: 560, marginBottom: 28 }}>
+        <div className="card" style={{ padding: 20, display: 'grid', gap: 14 }}>
+          <p style={fieldLabel}>Listing Details</p>
+          <input className="form-input" placeholder="Product/service name" required value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })} />
+          <textarea className="form-input" placeholder="Description" rows={3} value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} />
+          <input className="form-input" placeholder="Image URL (paste a direct image link)" value={form.images} onChange={(e) => setForm({ ...form, images: e.target.value })} />
         </div>
+
+        <div className="card" style={{ padding: 20, display: 'grid', gap: 14 }}>
+          <p style={fieldLabel}>Category & Pricing</p>
+          <div className="flex flex-wrap" style={{ gap: 14 }}>
+            <div style={{ flex: '1 1 180px', minWidth: 0 }}>
+              <CustomSelect value={form.category} onChange={(v) => setForm({ ...form, category: v })} ariaLabel="Category" minWidth="100%" options={PRODUCT_CATEGORIES.map((c) => ({ value: c, label: c[0].toUpperCase() + c.slice(1) }))} />
+            </div>
+            <input className="form-input" type="number" placeholder="Price" required value={form.price} onChange={(e) => setForm({ ...form, price: e.target.value })} style={{ flex: '1 1 140px', minWidth: 0 }} />
+            <input className="form-input" type="number" placeholder="Available quantity" value={form.stock} onChange={(e) => setForm({ ...form, stock: e.target.value })} style={{ flex: '1 1 160px', minWidth: 0 }} />
+          </div>
+        </div>
+
         <div className="flex gap-2">
           <button type="button" className="btn" onClick={(e) => create(e, 'draft')}>Save as Draft</button>
           <button type="button" className="btn btn-primary" onClick={(e) => create(e, 'submit')}>Add Listing</button>
@@ -2108,9 +2301,9 @@ function MyListingsPanel({ onFlash }) {
             p.images?.[0] ? <img src={p.images[0]} alt="" style={{ width: 36, height: 36, borderRadius: 6, objectFit: 'cover' }} /> : <div style={{ width: 36, height: 36, borderRadius: 6, background: 'var(--sand-line)' }} />,
             isEditing ? <input className="form-input" style={{ padding: '4px 6px', fontSize: '0.75rem' }} value={editForm.title} onChange={(e) => setEditForm({ ...editForm, title: e.target.value })} /> : p.title,
             isEditing ? (
-              <select className="form-select" style={{ padding: '4px 6px', fontSize: '0.72rem' }} value={editForm.category} onChange={(e) => setEditForm({ ...editForm, category: e.target.value })}>
-                {PRODUCT_CATEGORIES.map((c) => <option key={c} value={c}>{c}</option>)}
-              </select>
+              <div style={{ minWidth: 130 }}>
+                <CustomSelect value={editForm.category} onChange={(v) => setEditForm({ ...editForm, category: v })} ariaLabel="Category" minWidth="100%" options={PRODUCT_CATEGORIES.map((c) => ({ value: c, label: c[0].toUpperCase() + c.slice(1) }))} />
+              </div>
             ) : p.category,
             isEditing ? <input className="form-input" type="number" style={{ padding: '4px 6px', fontSize: '0.75rem', width: 80 }} value={editForm.price} onChange={(e) => setEditForm({ ...editForm, price: e.target.value })} /> : `${p.currency} ${p.price}`,
             isEditing ? <input className="form-input" type="number" style={{ padding: '4px 6px', fontSize: '0.75rem', width: 70 }} value={editForm.stock} onChange={(e) => setEditForm({ ...editForm, stock: e.target.value })} /> : p.stock,
@@ -2228,40 +2421,64 @@ function SellerWalletPanel({ onFlash }) {
     ...withdrawals.filter((wd) => wd.currency === selectedCurrency).map((wd) => ({ type: 'Withdrawal', date: wd.createdAt, amount: -wd.amount, ref: wd._id.slice(-8).toUpperCase(), status: wd.status }))
   ].sort((a, b) => new Date(b.date) - new Date(a.date));
 
+  const fieldLabel = { fontSize: 11, fontWeight: 700, letterSpacing: '.04em', textTransform: 'uppercase', color: 'var(--ink-soft)' };
+
   return (
     <div>
-      <h3 className="font-semibold mb-2">Wallet</h3>
-      <p className="text-xs mb-3" style={{ color: 'var(--ink-soft)' }}>No real payment processor is wired up — "Withdraw Funds" creates a real, trackable request; nothing here moves actual money.</p>
-      {currencies.length === 0 && <p className="text-sm mb-3" style={{ color: 'var(--ink-soft)' }}>No wallet activity yet.</p>}
-      {currencies.length > 1 && (
-        <div className="mb-3">
-          <label className="text-xs" style={{ color: 'var(--ink-soft)' }}>Selected Currency:{' '}
-            <select className="form-select" style={{ padding: '4px 8px', display: 'inline-block', width: 'auto' }} value={selectedCurrency || ''} onChange={(e) => setSelectedCurrency(e.target.value)}>
-              {currencies.map((c) => <option key={c} value={c}>{c}</option>)}
-            </select>
-          </label>
+      <div className="flex items-center" style={{ gap: 12, marginBottom: 6 }}>
+        <span style={{ width: 38, height: 38, borderRadius: 10, background: 'var(--sand)', color: 'var(--forest)', display: 'grid', placeItems: 'center', flexShrink: 0 }}><FaWallet aria-hidden="true" size={16} /></span>
+        <h3 className="font-semibold" style={{ margin: 0 }}>Wallet</h3>
+      </div>
+      <p style={{ fontSize: 13, color: 'var(--ink-soft)', marginLeft: 50, marginBottom: 24, lineHeight: 1.6 }}>No real payment processor is wired up — "Withdraw Funds" creates a real, trackable request; nothing here moves actual money.</p>
+
+      {currencies.length === 0 ? (
+        <div className="student-empty-state" style={{ border: '1px solid var(--sand-line)', borderRadius: 18, marginBottom: 24 }}>
+          <FaWallet aria-hidden="true" />
+          <p>No wallet activity yet</p>
         </div>
-      )}
-      {w && (
-        <div className="card" style={{ padding: 16, marginBottom: 20 }}>
-          <strong className="text-sm">{selectedCurrency} Wallet</strong>
-          <div className="grid grid-cols-3 gap-3 mt-2">
-            <p className="text-xs" style={{ color: 'var(--ink-soft)' }}>Available Balance: <strong>{selectedCurrency} {w.availableBalance}</strong></p>
-            <p className="text-xs" style={{ color: 'var(--ink-soft)' }}>Pending Balance: <strong>{selectedCurrency} {w.pendingBalance}</strong></p>
-            <p className="text-xs" style={{ color: 'var(--ink-soft)' }}>Total Earnings: <strong>{selectedCurrency} {w.totalEarnings}</strong></p>
-          </div>
-          <button type="button" className="btn btn-primary mt-3" style={{ padding: '5px 14px', fontSize: '0.78rem' }} disabled={w.availableBalance <= 0} onClick={withdraw}>Withdraw Funds ({selectedCurrency} {w.availableBalance})</button>
-        </div>
+      ) : (
+        <>
+          {currencies.length > 1 && (
+            <div style={{ maxWidth: 200, marginBottom: 16 }}>
+              <CustomSelect value={selectedCurrency || ''} onChange={setSelectedCurrency} ariaLabel="Selected currency" minWidth="100%" options={currencies.map((c) => ({ value: c, label: c }))} />
+            </div>
+          )}
+          {w && (
+            <div className="card" style={{ padding: 20, marginBottom: 28 }}>
+              <strong className="text-sm">{selectedCurrency} Wallet</strong>
+              <div className="grid grid-cols-3 gap-3" style={{ marginTop: 14, marginBottom: 16 }}>
+                <div style={{ padding: 12, borderRadius: 14, background: 'var(--sand)' }}>
+                  <span style={fieldLabel}>Available Balance</span>
+                  <strong style={{ fontSize: 20, fontFamily: 'Fraunces, serif', display: 'block', marginTop: 4, color: 'var(--emerald)' }}>{selectedCurrency} {w.availableBalance}</strong>
+                </div>
+                <div style={{ padding: 12, borderRadius: 14, background: 'var(--sand)' }}>
+                  <span style={fieldLabel}>Pending Balance</span>
+                  <strong style={{ fontSize: 20, fontFamily: 'Fraunces, serif', display: 'block', marginTop: 4, color: 'var(--gold)' }}>{selectedCurrency} {w.pendingBalance}</strong>
+                </div>
+                <div style={{ padding: 12, borderRadius: 14, background: 'var(--sand)' }}>
+                  <span style={fieldLabel}>Total Earnings</span>
+                  <strong style={{ fontSize: 20, fontFamily: 'Fraunces, serif', display: 'block', marginTop: 4 }}>{selectedCurrency} {w.totalEarnings}</strong>
+                </div>
+              </div>
+              <button type="button" className="btn btn-primary" style={{ padding: '8px 16px', fontSize: '0.8rem' }} disabled={w.availableBalance <= 0} onClick={withdraw}>Withdraw Funds ({selectedCurrency} {w.availableBalance})</button>
+            </div>
+          )}
+        </>
       )}
 
-      <h4 className="font-semibold mb-2 mt-4">Transaction History</h4>
+      <p style={{ ...fieldLabel, marginBottom: 12 }}>Transaction History</p>
       <Table
         headers={['Type', 'Date', 'Amount', 'Reference']}
-        rows={transactions.map((t) => [t.type, new Date(t.date).toLocaleDateString(), `${t.amount >= 0 ? '' : '-'}${selectedCurrency} ${Math.abs(t.amount)}`, t.ref])}
+        rows={transactions.map((t) => [
+          t.type,
+          new Date(t.date).toLocaleDateString(),
+          <strong style={{ color: t.amount >= 0 ? 'var(--emerald)' : 'var(--rose, #e11d48)' }}>{t.amount >= 0 ? '' : '-'}{selectedCurrency} {Math.abs(t.amount)}</strong>,
+          t.ref
+        ])}
         empty="No transactions yet."
       />
 
-      <h4 className="font-semibold mb-2 mt-4">Withdrawal History</h4>
+      <p style={{ ...fieldLabel, marginTop: 28, marginBottom: 12 }}>Withdrawal History</p>
       <Table
         headers={['Amount', 'Currency', 'Status', 'Requested', 'Processed']}
         rows={withdrawals.map((wd) => [
@@ -2320,47 +2537,75 @@ function SellerReviewsPanel({ onFlash }) {
   });
   const productRatings = Object.values(byProduct).map((p) => ({ title: p.title, avg: Math.round((p.ratings.reduce((s, r) => s + r, 0) / p.ratings.length) * 10) / 10, count: p.ratings.length }));
 
+  const fieldLabel = { fontSize: 11, fontWeight: 700, letterSpacing: '.04em', textTransform: 'uppercase', color: 'var(--ink-soft)' };
+
   return (
     <div>
-      <h3 className="font-semibold mb-2">Reviews & Ratings</h3>
-      <div className="card" style={{ padding: 16, marginBottom: 20 }}>
-        <strong className="text-sm">Overall Seller Rating</strong>
-        <p className="text-xs mt-1" style={{ color: 'var(--ink-soft)' }}>
-          {profile?.sellerRating !== null && profile?.sellerRating !== undefined ? `★ ${profile.sellerRating} (${profile.totalReviews} review${profile.totalReviews === 1 ? '' : 's'})` : 'No reviews yet'}
-        </p>
+      <div className="flex items-center" style={{ gap: 12, marginBottom: 24 }}>
+        <span style={{ width: 38, height: 38, borderRadius: 10, background: 'var(--sand)', color: 'var(--gold)', display: 'grid', placeItems: 'center', flexShrink: 0 }}><FaStar aria-hidden="true" size={16} /></span>
+        <h3 className="font-semibold" style={{ margin: 0 }}>Reviews & Ratings</h3>
       </div>
 
-      <h4 className="font-semibold mb-2">Product Ratings</h4>
+      <div className="card flex items-center" style={{ padding: 20, marginBottom: 24, gap: 16 }}>
+        <span style={{ width: 48, height: 48, borderRadius: 12, background: 'var(--sand)', color: 'var(--gold)', display: 'grid', placeItems: 'center', flexShrink: 0 }}><FaStar aria-hidden="true" size={20} /></span>
+        <div>
+          <p style={fieldLabel}>Overall Seller Rating</p>
+          <strong style={{ fontSize: 22, fontFamily: 'Fraunces, serif', display: 'block', marginTop: 4 }}>
+            {profile?.sellerRating !== null && profile?.sellerRating !== undefined ? `★ ${profile.sellerRating}` : 'No reviews yet'}
+          </strong>
+          {profile?.sellerRating !== null && profile?.sellerRating !== undefined && <span className="text-xs" style={{ color: 'var(--ink-soft)' }}>{profile.totalReviews} review{profile.totalReviews === 1 ? '' : 's'}</span>}
+        </div>
+      </div>
+
+      <p style={{ ...fieldLabel, marginBottom: 12 }}>Product Ratings</p>
       <Table
         headers={['Product', 'Average Rating', 'Reviews']}
         rows={productRatings.map((p) => [p.title, `★ ${p.avg}`, p.count])}
         empty="No product ratings yet."
       />
 
-      <h4 className="font-semibold mb-2 mt-4">Buyer Reviews / Recent Feedback</h4>
-      {reviews.length === 0 && <p className="text-xs" style={{ color: 'var(--ink-soft)' }}>No reviews yet.</p>}
-      {reviews.map((r) => (
-        <div key={r._id} className="border border-[var(--sand-line)] rounded-xl p-3 mb-3">
-          <div className="flex items-center justify-between flex-wrap gap-2">
-            <div>
-              <strong className="text-sm">{r.buyer?.fullName}</strong>
-              <p className="text-xs" style={{ color: 'var(--ink-soft)' }}>{r.product?.title} · ★ {r.rating} · {new Date(r.createdAt).toLocaleDateString()}{r.reported ? ' · Reported' : ''}</p>
-              {r.comment && <p className="text-xs mt-1">{r.comment}</p>}
-              {r.sellerResponse && <p className="text-xs mt-2" style={{ color: 'var(--ink-soft)' }}><strong>Your response:</strong> {r.sellerResponse}</p>}
-            </div>
-            <div className="flex gap-2 flex-wrap">
-              {!r.sellerResponse && <button type="button" className="btn" style={{ padding: '4px 10px', fontSize: '0.72rem' }} onClick={() => { setRespondingId(respondingId === r._id ? null : r._id); setResponseText(''); }}>Respond</button>}
-              {!r.reported && <button type="button" className="btn" style={{ padding: '4px 10px', fontSize: '0.72rem' }} onClick={() => report(r._id)}>Report</button>}
-            </div>
-          </div>
-          {respondingId === r._id && (
-            <div className="flex gap-2 items-end mt-3 flex-wrap" style={{ borderTop: '1px solid var(--sand-line)', paddingTop: 10 }}>
-              <textarea className="form-input" placeholder="Your public response..." rows={2} value={responseText} onChange={(e) => setResponseText(e.target.value)} style={{ flex: 1, minWidth: 200 }} />
-              <button type="button" className="btn btn-primary" style={{ padding: '5px 14px', fontSize: '0.78rem' }} onClick={() => submitResponse(r._id)}>Post Response</button>
-            </div>
-          )}
+      <p style={{ ...fieldLabel, marginTop: 28, marginBottom: 12 }}>Buyer Reviews / Recent Feedback</p>
+      {reviews.length === 0 ? (
+        <div className="student-empty-state" style={{ border: '1px solid var(--sand-line)', borderRadius: 18 }}>
+          <FaStar aria-hidden="true" />
+          <p>No reviews yet</p>
         </div>
-      ))}
+      ) : (
+        <div style={{ display: 'grid', gap: 12 }}>
+          {reviews.map((r) => (
+            <div key={r._id} className="card" style={{ padding: 16 }}>
+              <div className="flex items-start justify-between flex-wrap" style={{ gap: 12 }}>
+                <div className="flex items-start" style={{ gap: 12, minWidth: 0 }}>
+                  <span style={{ width: 34, height: 34, borderRadius: '50%', background: 'var(--forest)', color: '#fff', display: 'grid', placeItems: 'center', flexShrink: 0, fontWeight: 700, fontSize: 13 }}>{(r.buyer?.fullName || '?')[0]}</span>
+                  <div style={{ minWidth: 0 }}>
+                    <strong className="text-sm">{r.buyer?.fullName}</strong>
+                    <div className="flex items-center flex-wrap" style={{ gap: 6, marginTop: 2 }}>
+                      <span className="text-xs" style={{ color: 'var(--ink-soft)' }}>{r.product?.title} · ★ {r.rating} · {new Date(r.createdAt).toLocaleDateString()}</span>
+                      {r.reported && <Tag status="rejected" label="Reported" />}
+                    </div>
+                    {r.comment && <p className="text-xs" style={{ marginTop: 8, color: 'var(--ink)' }}>{r.comment}</p>}
+                    {r.sellerResponse && (
+                      <div style={{ marginTop: 10, padding: 10, borderRadius: 12, background: 'var(--sand)' }}>
+                        <p className="text-xs" style={{ color: 'var(--ink-soft)' }}><strong style={{ color: 'var(--ink)' }}>Your response:</strong> {r.sellerResponse}</p>
+                      </div>
+                    )}
+                  </div>
+                </div>
+                <div className="flex gap-2 flex-wrap" style={{ flexShrink: 0 }}>
+                  {!r.sellerResponse && <button type="button" className="btn" style={{ padding: '4px 10px', fontSize: '0.72rem' }} onClick={() => { setRespondingId(respondingId === r._id ? null : r._id); setResponseText(''); }}>Respond</button>}
+                  {!r.reported && <button type="button" className="btn" style={{ padding: '4px 10px', fontSize: '0.72rem' }} onClick={() => report(r._id)}>Report</button>}
+                </div>
+              </div>
+              {respondingId === r._id && (
+                <div className="flex gap-2 items-end flex-wrap" style={{ marginTop: 14, paddingTop: 14, borderTop: '1px solid var(--sand-line)' }}>
+                  <textarea className="form-input" placeholder="Your public response..." rows={2} value={responseText} onChange={(e) => setResponseText(e.target.value)} style={{ flex: 1, minWidth: 0 }} />
+                  <button type="button" className="btn btn-primary" style={{ padding: '8px 16px', fontSize: '0.78rem', flexShrink: 0 }} onClick={() => submitResponse(r._id)}>Post Response</button>
+                </div>
+              )}
+            </div>
+          ))}
+        </div>
+      )}
     </div>
   );
 }
@@ -2407,12 +2652,14 @@ function SellerMessagesPanel({ onFlash }) {
   const categorizedIds = new Set([...buyerMsgs, ...supportMsgs, ...superAdminMsgs].map((c) => c.user._id));
   const otherMsgs = conversations.filter((c) => !categorizedIds.has(c.user._id));
 
+  const sellerMsgLabel = { fontSize: 11, fontWeight: 700, letterSpacing: '.05em', textTransform: 'uppercase', color: 'var(--ink-soft)' };
+
   function ConversationGroup({ title, items }) {
     if (items.length === 0) return null;
     return (
-      <div className="mb-4">
-        <strong className="text-xs">{title}</strong>
-        <div className="dash-list mt-1">
+      <div style={{ marginBottom: 16 }}>
+        <p style={sellerMsgLabel}>{title}</p>
+        <div className="dash-list" style={{ marginTop: 10 }}>
           {items.map((c) => (
             <div key={c.user._id} className={`dash-list-item${activeUser?._id === c.user._id ? ' unread' : ''}`} style={{ cursor: 'pointer' }} onClick={() => openThread(c.user)}>
               <span className="dash-list-icon c-forest" aria-hidden><FaUser size={14} /></span>
@@ -2426,38 +2673,50 @@ function SellerMessagesPanel({ onFlash }) {
   }
 
   return (
-    <div className="grid g2" style={{ gap: 24 }}>
+    <div className="grid g2" style={{ gap: 20, alignItems: 'start' }}>
       <div>
-        <h3 className="font-semibold mb-2">Messages</h3>
-        <p className="text-xs mb-3" style={{ color: 'var(--ink-soft)' }}>To start a new conversation, ask for their User ID and use the "New Message" box on the right.</p>
+        <h3 className="font-semibold" style={{ marginBottom: 4 }}>Messages</h3>
+        <p className="text-xs" style={{ color: 'var(--ink-soft)', marginBottom: 18 }}>To start a new conversation, ask for their User ID and use the "New Message" box on the right.</p>
         <ConversationGroup title="Buyers" items={buyerMsgs} />
         <ConversationGroup title="Marketplace Support" items={supportMsgs} />
         <ConversationGroup title="Super Admin" items={superAdminMsgs} />
         <ConversationGroup title="Other" items={otherMsgs} />
-        {conversations.length === 0 && <p className="text-xs" style={{ color: 'var(--ink-soft)' }}>No conversations yet.</p>}
+        {conversations.length === 0 && (
+          <div className="student-empty-state" style={{ border: '1px solid var(--sand-line)', borderRadius: 18 }}>
+            <FaCommentDots aria-hidden="true" />
+            <p>No conversations yet</p>
+          </div>
+        )}
       </div>
-      <div>
-        <h3 className="font-semibold mb-2">{activeUser ? activeUser.fullName : 'New Message'}</h3>
+      <div className="card" style={{ padding: 20 }}>
+        <h3 className="font-semibold" style={{ marginBottom: 14 }}>{activeUser ? activeUser.fullName : 'New Message'}</h3>
         {!activeUser && (
-          <input className="form-input mb-3" placeholder="Recipient's User ID" onKeyDown={(e) => {
-            if (e.key === 'Enter' && e.target.value.trim()) { openThread({ _id: e.target.value.trim(), fullName: 'New recipient' }); }
-          }} />
+          <label style={{ display: 'block' }}>
+            <span className="text-xs" style={{ display: 'block', color: 'var(--ink-soft)', fontWeight: 600, marginBottom: 6 }}>Recipient's User ID</span>
+            <input className="form-input" placeholder="Paste a User ID and press Enter" onKeyDown={(e) => {
+              if (e.key === 'Enter' && e.target.value.trim()) { openThread({ _id: e.target.value.trim(), fullName: 'New recipient' }); }
+            }} />
+          </label>
         )}
         {activeUser && (
           <>
-            <div className="card reveal in" style={{ padding: '8px 12px', marginBottom: 12, maxHeight: 320, overflowY: 'auto' }}>
+            <div className="card reveal in" style={{ padding: '10px 14px', marginBottom: 14, maxHeight: 320, overflowY: 'auto' }}>
               {thread === null && <p role="status" className="admin-notice">Loading...</p>}
-              {thread && thread.length === 0 && <p style={{ fontSize: 13, color: 'var(--ink-soft)' }}>No messages yet.</p>}
-              {(thread || []).map((m) => (
-                <div key={m._id} style={{ padding: '8px 4px', borderBottom: '1px solid var(--sand-line)' }}>
+              {thread && thread.length === 0 && (
+                <div className="student-empty-state" style={{ minHeight: 100, padding: '16px 0' }}>
+                  <p>No messages yet</p>
+                </div>
+              )}
+              {(thread || []).map((m, idx) => (
+                <div key={m._id} style={{ padding: '10px 4px', borderBottom: idx < thread.length - 1 ? '1px solid var(--sand-line)' : 'none' }}>
                   <div style={{ fontSize: 13 }}>{m.text}</div>
-                  <div style={{ fontSize: 11, color: 'var(--ink-soft)' }}>{new Date(m.createdAt).toLocaleString()}</div>
+                  <div style={{ fontSize: 11, color: 'var(--ink-soft)', marginTop: 4 }}>{new Date(m.createdAt).toLocaleString()}</div>
                 </div>
               ))}
             </div>
-            <form onSubmit={send} className="flex gap-3 items-end">
-              <input className="form-input" placeholder="Type a message..." value={text} onChange={(e) => setText(e.target.value)} required />
-              <button type="submit" className="btn btn-primary">Send</button>
+            <form onSubmit={send} className="flex items-end" style={{ gap: 12 }}>
+              <input className="form-input" placeholder="Type a message..." value={text} onChange={(e) => setText(e.target.value)} required style={{ flex: '1 1 auto', minWidth: 0 }} />
+              <button type="submit" className="btn btn-primary" style={{ flexShrink: 0 }}>Send</button>
             </form>
           </>
         )}
@@ -2501,23 +2760,41 @@ function SellerVerificationPanel({ onFlash }) {
 
   return (
     <div>
-      <h3 className="font-semibold mb-2">Verification / Documents</h3>
-      <p className="text-xs mb-3" style={{ color: 'var(--ink-soft)' }}>
-        Status: <Tag status={VERIFICATION_TAG[status]} label={VERIFICATION_LABEL[status]} />
-        {status === 'rejected' && request?.reviewNotes && <> — {request.reviewNotes}</>}
-      </p>
-      <p className="text-xs mb-2" style={{ color: 'var(--ink-soft)' }}>Only a Super Admin-verified seller can list products or services. Submit documents (ID, business registration, etc.) for review.</p>
-      <div className="flex gap-2 items-end mb-3 flex-wrap">
-        <input className="form-input" placeholder="Paste a document link (PDF/image URL)" value={docUrl} onChange={(e) => setDocUrl(e.target.value)} style={{ minWidth: 260 }} />
-        <button type="button" className="btn btn-primary" style={{ padding: '5px 14px', fontSize: '0.78rem' }} onClick={addDocument}>Add Document</button>
-      </div>
-      {(request?.documents || []).length === 0 && <p className="text-xs" style={{ color: 'var(--ink-soft)' }}>No documents submitted yet.</p>}
-      {(request?.documents || []).map((d) => (
-        <div key={d} className="flex items-center justify-between" style={{ padding: '4px 0' }}>
-          <a href={d} target="_blank" rel="noreferrer" className="text-xs">{d}</a>
-          <button type="button" className="btn" style={{ padding: '3px 10px', fontSize: '0.72rem' }} onClick={() => removeDocument(d)}>Remove</button>
+      <h3 className="font-semibold" style={{ marginBottom: 16 }}>Verification / Documents</h3>
+
+      <div className="flex items-start" style={{ gap: 12, padding: 18, borderRadius: 16, background: 'var(--sand)', marginBottom: 20 }}>
+        <span style={{ width: 34, height: 34, borderRadius: 10, background: 'var(--paper-raised)', color: 'var(--forest)', display: 'grid', placeItems: 'center', flexShrink: 0 }}>
+          <FaShieldHalved aria-hidden="true" size={15} />
+        </span>
+        <div>
+          <div className="flex items-center" style={{ gap: 8 }}>
+            <strong className="text-sm">Status:</strong>
+            <Tag status={VERIFICATION_TAG[status]} label={VERIFICATION_LABEL[status]} />
+          </div>
+          {status === 'rejected' && request?.reviewNotes && <p className="text-xs" style={{ color: 'var(--rose)', marginTop: 6 }}>{request.reviewNotes}</p>}
+          <p className="text-xs" style={{ color: 'var(--ink-soft)', marginTop: 6, lineHeight: 1.6 }}>Only a Super Admin-verified seller can list products or services. Submit documents (ID, business registration, etc.) for review.</p>
         </div>
-      ))}
+      </div>
+
+      <div className="card" style={{ padding: 20 }}>
+        <p className="text-xs" style={{ fontWeight: 700, letterSpacing: '.04em', textTransform: 'uppercase', color: 'var(--ink-soft)', marginBottom: 14 }}>Submitted Documents</p>
+        <div className="flex items-end flex-wrap" style={{ gap: 12, marginBottom: 16 }}>
+          <input className="form-input" placeholder="Paste a document link (PDF/image URL)" value={docUrl} onChange={(e) => setDocUrl(e.target.value)} style={{ flex: '1 1 auto', minWidth: 0 }} />
+          <button type="button" className="btn btn-primary" style={{ padding: '8px 16px', fontSize: '0.78rem', flexShrink: 0 }} onClick={addDocument}>Add Document</button>
+        </div>
+        {(request?.documents || []).length === 0 ? (
+          <p className="text-xs" style={{ color: 'var(--ink-soft)' }}>No documents submitted yet.</p>
+        ) : (
+          <div style={{ display: 'grid', gap: 8 }}>
+            {(request?.documents || []).map((d) => (
+              <div key={d} className="flex items-center justify-between flex-wrap" style={{ gap: 10, padding: 12, borderRadius: 12, background: 'var(--sand)' }}>
+                <a href={d} target="_blank" rel="noreferrer" className="text-xs" style={{ overflowWrap: 'anywhere' }}>📄 {d}</a>
+                <button type="button" className="btn" style={{ padding: '5px 12px', fontSize: '0.72rem', background: 'var(--paper-raised)', flexShrink: 0 }} onClick={() => removeDocument(d)}>Remove</button>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
     </div>
   );
 }
@@ -2537,21 +2814,36 @@ function AddListingPanel({ onFlash }) {
     } catch (err) { onFlash(err.message); }
   }
 
+  const fieldLabel = { fontSize: 11, fontWeight: 700, letterSpacing: '.04em', textTransform: 'uppercase', color: 'var(--ink-soft)', display: 'block', marginBottom: 6 };
+
   return (
     <div>
-      <h3 className="font-semibold mb-2">Add New Listing</h3>
-      <p className="text-xs mb-3" style={{ color: 'var(--ink-soft)' }}>Products and services are both listed the same way — pick a digital category (Courses/Services) to skip stock tracking.</p>
-      <form className="space-y-3 max-w-lg">
-        <input className="form-input" placeholder="Product/service name" required value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })} />
-        <textarea className="form-input" placeholder="Description" rows={2} value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} />
-        <input className="form-input" placeholder="Image URL (paste a direct image link)" value={form.images} onChange={(e) => setForm({ ...form, images: e.target.value })} />
-        <div className="flex gap-2 flex-wrap">
-          <select className="form-select" value={form.category} onChange={(e) => setForm({ ...form, category: e.target.value })}>
-            {PRODUCT_CATEGORIES.map((c) => <option key={c} value={c}>{c}</option>)}
-          </select>
-          <input className="form-input" type="number" placeholder="Price" required value={form.price} onChange={(e) => setForm({ ...form, price: e.target.value })} />
-          {!['courses', 'services'].includes(form.category) && <input className="form-input" type="number" placeholder="Available quantity" value={form.stock} onChange={(e) => setForm({ ...form, stock: e.target.value })} />}
+      <div className="flex items-center" style={{ gap: 12, marginBottom: 18 }}>
+        <span style={{ width: 38, height: 38, borderRadius: 10, background: 'var(--sand)', color: 'var(--gold)', display: 'grid', placeItems: 'center', flexShrink: 0 }}><FaBoxOpen aria-hidden="true" size={16} /></span>
+        <div>
+          <h3 className="font-semibold" style={{ margin: 0 }}>Add New Listing</h3>
+          <p className="text-xs" style={{ color: 'var(--ink-soft)', marginTop: 2 }}>Products and services are both listed the same way — pick a digital category (Courses/Services) to skip stock tracking.</p>
         </div>
+      </div>
+      <form style={{ display: 'grid', gap: 20, maxWidth: 560 }}>
+        <div className="card" style={{ padding: 20, display: 'grid', gap: 14 }}>
+          <p style={fieldLabel}>Listing Details</p>
+          <input className="form-input" placeholder="Product/service name" required value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })} />
+          <textarea className="form-input" placeholder="Description" rows={3} value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} />
+          <input className="form-input" placeholder="Image URL (paste a direct image link)" value={form.images} onChange={(e) => setForm({ ...form, images: e.target.value })} />
+        </div>
+
+        <div className="card" style={{ padding: 20, display: 'grid', gap: 14 }}>
+          <p style={fieldLabel}>Category & Pricing</p>
+          <div className="flex flex-wrap" style={{ gap: 14 }}>
+            <div style={{ flex: '1 1 180px', minWidth: 0 }}>
+              <CustomSelect value={form.category} onChange={(v) => setForm({ ...form, category: v })} ariaLabel="Category" minWidth="100%" options={PRODUCT_CATEGORIES.map((c) => ({ value: c, label: c[0].toUpperCase() + c.slice(1) }))} />
+            </div>
+            <input className="form-input" type="number" placeholder="Price" required value={form.price} onChange={(e) => setForm({ ...form, price: e.target.value })} style={{ flex: '1 1 140px', minWidth: 0 }} />
+            {!['courses', 'services'].includes(form.category) && <input className="form-input" type="number" placeholder="Available quantity" value={form.stock} onChange={(e) => setForm({ ...form, stock: e.target.value })} style={{ flex: '1 1 160px', minWidth: 0 }} />}
+          </div>
+        </div>
+
         <div className="flex gap-2">
           <button type="button" className="btn" onClick={() => create('draft')}>Save as Draft</button>
           <button type="button" className="btn btn-primary" onClick={() => create('submit')}>Submit Listing</button>
@@ -2627,35 +2919,59 @@ function InventoryPanel({ onFlash }) {
 
   return (
     <div>
-      <h3 className="font-semibold mb-2">Inventory</h3>
-      <p className="text-xs mb-3" style={{ color: 'var(--ink-soft)' }}>Physical listings only — digital products/services don't track stock.</p>
-      {inventory.items.length === 0 && <p className="text-xs mb-4" style={{ color: 'var(--ink-soft)' }}>No physical listings yet.</p>}
-      {inventory.items.length > 0 && (
+      <div className="flex items-center" style={{ gap: 12, marginBottom: 6 }}>
+        <span style={{ width: 38, height: 38, borderRadius: 10, background: 'var(--sand)', color: 'var(--forest)', display: 'grid', placeItems: 'center', flexShrink: 0 }}><FaBoxesStacked aria-hidden="true" size={16} /></span>
+        <h3 className="font-semibold" style={{ margin: 0 }}>Inventory</h3>
+      </div>
+      <p style={{ fontSize: 13, color: 'var(--ink-soft)', marginLeft: 50, marginBottom: 28 }}>Physical listings only — digital products/services don't track stock.</p>
+      {inventory.items.length === 0 ? (
+        <div className="student-empty-state" style={{ border: '1px solid var(--sand-line)', borderRadius: 18 }}>
+          <FaBoxOpen aria-hidden="true" />
+          <p>No physical listings yet</p>
+        </div>
+      ) : (
         <>
-          <div className="grid grid-cols-2 gap-3 mb-3">
-            <div className="card" style={{ padding: 14 }}>
-              <strong className="text-sm">Low Stock ({inventory.lowStock.length})</strong>
-              {inventory.lowStock.length === 0 && <p className="text-xs mt-1" style={{ color: 'var(--ink-soft)' }}>None.</p>}
-              {inventory.lowStock.map((p) => <p key={p._id} className="text-xs mt-1" style={{ color: 'var(--ink-soft)' }}>{p.title} — {p.stock} left</p>)}
+          <div className="grid grid-cols-2 md:grid-cols-2" style={{ gap: 16, marginBottom: 32 }}>
+            <div className="card" style={{ padding: 20, alignSelf: 'start' }}>
+              <div className="flex items-center" style={{ gap: 10, marginBottom: 14 }}>
+                <span style={{ width: 30, height: 30, borderRadius: 9, background: 'var(--sand)', color: 'var(--gold)', display: 'grid', placeItems: 'center', flexShrink: 0 }}><FaTriangleExclamation aria-hidden="true" size={13} /></span>
+                <strong className="text-sm">Low Stock ({inventory.lowStock.length})</strong>
+              </div>
+              {inventory.lowStock.length === 0 && <p style={{ fontSize: 13, color: 'var(--ink-soft)' }}>None.</p>}
+              <div style={{ display: 'grid' }}>
+                {inventory.lowStock.map((p, idx) => (
+                  <p key={p._id} style={{ fontSize: 13.5, color: 'var(--ink)', padding: '11px 0', borderBottom: idx < inventory.lowStock.length - 1 ? '1px solid var(--sand-line)' : 'none', lineHeight: 1.6 }}>{p.title} — <span style={{ color: 'var(--ink-soft)' }}>{p.stock} left</span></p>
+                ))}
+              </div>
             </div>
-            <div className="card" style={{ padding: 14 }}>
-              <strong className="text-sm">Out of Stock ({inventory.outOfStock.length})</strong>
-              {inventory.outOfStock.length === 0 && <p className="text-xs mt-1" style={{ color: 'var(--ink-soft)' }}>None.</p>}
-              {inventory.outOfStock.map((p) => <p key={p._id} className="text-xs mt-1" style={{ color: 'var(--ink-soft)' }}>{p.title}</p>)}
+            <div className="card" style={{ padding: 20, alignSelf: 'start' }}>
+              <div className="flex items-center" style={{ gap: 10, marginBottom: 14 }}>
+                <span style={{ width: 30, height: 30, borderRadius: 9, background: 'var(--sand)', color: 'var(--rose, #e11d48)', display: 'grid', placeItems: 'center', flexShrink: 0 }}><FaBoxOpen aria-hidden="true" size={13} /></span>
+                <strong className="text-sm">Out of Stock ({inventory.outOfStock.length})</strong>
+              </div>
+              {inventory.outOfStock.length === 0 && <p style={{ fontSize: 13, color: 'var(--ink-soft)' }}>None.</p>}
+              <div style={{ display: 'grid' }}>
+                {inventory.outOfStock.map((p, idx) => (
+                  <p key={p._id} style={{ fontSize: 13.5, color: 'var(--ink)', padding: '11px 0', borderBottom: idx < inventory.outOfStock.length - 1 ? '1px solid var(--sand-line)' : 'none', lineHeight: 1.6 }}>{p.title}</p>
+                ))}
+              </div>
             </div>
           </div>
-          <Table
-            headers={['Product', 'Category', 'Available Stock', 'Status', 'Inventory Update']}
-            rows={inventory.items.map((p) => [
-              p.title, p.category, p.stock,
-              <Tag status={PRODUCT_STATUS[p.status]?.tag} label={PRODUCT_STATUS[p.status]?.label} />,
-              <div className="flex gap-2">
-                <input className="form-input" type="number" min="0" style={{ padding: '4px 6px', fontSize: '0.72rem', width: 80 }} placeholder={String(p.stock)} value={stockEdits[p._id] ?? ''} onChange={(e) => setStockEdits({ ...stockEdits, [p._id]: e.target.value })} />
-                <button type="button" className="btn" style={{ padding: '4px 10px', fontSize: '0.72rem' }} onClick={() => updateStock(p._id)}>Update</button>
-              </div>
-            ])}
-            empty="No physical listings yet."
-          />
+          <div style={{ marginTop: 32 }}>
+            <p style={{ fontSize: 11, fontWeight: 700, letterSpacing: '.04em', textTransform: 'uppercase', color: 'var(--ink-soft)', marginBottom: 12 }}>Full Inventory</p>
+            <Table
+              headers={['Product', 'Category', 'Available Stock', 'Status', 'Inventory Update']}
+              rows={inventory.items.map((p) => [
+                p.title, p.category, p.stock,
+                <Tag status={PRODUCT_STATUS[p.status]?.tag} label={PRODUCT_STATUS[p.status]?.label} />,
+                <div className="flex gap-2">
+                  <input className="form-input" type="number" min="0" style={{ padding: '4px 6px', fontSize: '0.72rem', width: 80 }} placeholder={String(p.stock)} value={stockEdits[p._id] ?? ''} onChange={(e) => setStockEdits({ ...stockEdits, [p._id]: e.target.value })} />
+                  <button type="button" className="btn" style={{ padding: '4px 10px', fontSize: '0.72rem' }} onClick={() => updateStock(p._id)}>Update</button>
+                </div>
+              ])}
+              empty="No physical listings yet."
+            />
+          </div>
         </>
       )}
     </div>
@@ -2752,20 +3068,33 @@ function EarningsCommissionPanel({ onFlash }) {
 
   return (
     <div>
-      <h3 className="font-semibold mb-2">Earnings & Commission</h3>
-      <p className="text-xs mb-2" style={{ color: 'var(--ink-soft)' }}>CareerZ's commission ({earnings?.commissionRate ?? '—'}%, set by Super Admin — may vary by category) is deducted automatically from delivered/completed sales. No real payment processor is integrated yet, so Payment Charges are honestly 0.</p>
+      <div className="flex items-center" style={{ gap: 12, marginBottom: 6 }}>
+        <span style={{ width: 38, height: 38, borderRadius: 10, background: 'var(--sand)', color: 'var(--gold)', display: 'grid', placeItems: 'center', flexShrink: 0 }}><FaSackDollar aria-hidden="true" size={16} /></span>
+        <h3 className="font-semibold" style={{ margin: 0 }}>Earnings & Commission</h3>
+      </div>
+      <p style={{ fontSize: 13, color: 'var(--ink-soft)', marginLeft: 50, marginBottom: 28, lineHeight: 1.6 }}>CareerZ's commission ({earnings?.commissionRate ?? '—'}%, set by Super Admin — may vary by category) is deducted automatically from delivered/completed sales. No real payment processor is integrated yet, so Payment Charges are honestly 0.</p>
       {Object.keys(earnings?.totalsByCurrency || {}).length === 0 && <p className="text-xs mb-4" style={{ color: 'var(--ink-soft)' }}>{earnings === null ? 'Loading...' : 'No sales yet.'}</p>}
-      {Object.entries(earnings?.totalsByCurrency || {}).map(([currency, e]) => (
-        <div key={currency} className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-4">
-          <div className="card" style={{ padding: 14 }}><strong className="text-sm">Gross Sales</strong><p className="text-xs mt-1" style={{ color: 'var(--ink-soft)' }}>{currency} {e.grossSales}</p></div>
-          <div className="card" style={{ padding: 14 }}><strong className="text-sm">Platform Commission</strong><p className="text-xs mt-1" style={{ color: 'var(--ink-soft)' }}>{currency} {e.platformCommission}</p></div>
-          <div className="card" style={{ padding: 14 }}><strong className="text-sm">Payment Charges</strong><p className="text-xs mt-1" style={{ color: 'var(--ink-soft)' }}>{currency} {e.paymentCharges}</p></div>
-          <div className="card" style={{ padding: 14 }}><strong className="text-sm">Refund Deductions</strong><p className="text-xs mt-1" style={{ color: 'var(--ink-soft)' }}>{currency} {e.refundDeductions}</p></div>
-          <div className="card" style={{ padding: 14 }}><strong className="text-sm">Net Earnings</strong><p className="text-xs mt-1" style={{ color: 'var(--ink-soft)' }}>{currency} {e.netEarnings}</p></div>
-          <div className="card" style={{ padding: 14 }}><strong className="text-sm">Pending Earnings</strong><p className="text-xs mt-1" style={{ color: 'var(--ink-soft)' }}>{currency} {e.pendingEarnings}</p></div>
-          <div className="card" style={{ padding: 14 }}><strong className="text-sm">Available Earnings</strong><p className="text-xs mt-1" style={{ color: 'var(--ink-soft)' }}>{currency} {e.availableEarnings}</p></div>
-        </div>
-      ))}
+      {Object.entries(earnings?.totalsByCurrency || {}).map(([currency, e]) => {
+        const rows = [
+          { label: 'Gross Sales', value: e.grossSales, color: 'ink' },
+          { label: 'Platform Commission', value: e.platformCommission, color: 'gold' },
+          { label: 'Payment Charges', value: e.paymentCharges, color: 'ink' },
+          { label: 'Refund Deductions', value: e.refundDeductions, color: 'rose, #e11d48' },
+          { label: 'Net Earnings', value: e.netEarnings, color: 'emerald' },
+          { label: 'Pending Earnings', value: e.pendingEarnings, color: 'gold' },
+          { label: 'Available Earnings', value: e.availableEarnings, color: 'emerald' }
+        ];
+        return (
+          <div key={currency} className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-4">
+            {rows.map((r) => (
+              <div key={r.label} className="card" style={{ padding: 18 }}>
+                <span style={{ fontSize: 11, fontWeight: 700, letterSpacing: '.04em', textTransform: 'uppercase', color: 'var(--ink-soft)' }}>{r.label}</span>
+                <strong style={{ fontSize: 22, fontFamily: 'Fraunces, serif', display: 'block', marginTop: 6, color: `var(--${r.color})` }}>{currency} {r.value}</strong>
+              </div>
+            ))}
+          </div>
+        );
+      })}
     </div>
   );
 }
@@ -2798,19 +3127,33 @@ function WithdrawalsPanel({ onFlash }) {
   const currencies = Object.keys(wallet);
   const available = selectedCurrency ? wallet[selectedCurrency]?.availableBalance ?? 0 : 0;
 
+  const fieldLabel = { fontSize: 11, fontWeight: 700, letterSpacing: '.04em', textTransform: 'uppercase', color: 'var(--ink-soft)' };
+
   return (
     <div>
-      <h3 className="font-semibold mb-2">Withdrawals</h3>
-      {currencies.length === 0 && <p className="text-sm mb-3" style={{ color: 'var(--ink-soft)' }}>No available balance yet.</p>}
-      {currencies.length > 0 && (
-        <div className="flex gap-2 items-end mb-4 flex-wrap">
-          <select className="form-select" value={selectedCurrency || ''} onChange={(e) => setSelectedCurrency(e.target.value)}>
-            {currencies.map((c) => <option key={c} value={c}>{c}</option>)}
-          </select>
-          <button type="button" className="btn btn-primary" disabled={available <= 0} onClick={withdraw}>Withdraw Funds ({selectedCurrency} {available})</button>
+      <div className="flex items-center" style={{ gap: 12, marginBottom: 24 }}>
+        <span style={{ width: 38, height: 38, borderRadius: 10, background: 'var(--sand)', color: 'var(--forest)', display: 'grid', placeItems: 'center', flexShrink: 0 }}><FaMoneyBillWave aria-hidden="true" size={16} /></span>
+        <h3 className="font-semibold" style={{ margin: 0 }}>Withdrawals</h3>
+      </div>
+
+      {currencies.length === 0 ? (
+        <div className="student-empty-state" style={{ border: '1px solid var(--sand-line)', borderRadius: 18, marginBottom: 24 }}>
+          <FaMoneyBillWave aria-hidden="true" />
+          <p>No available balance yet</p>
+        </div>
+      ) : (
+        <div className="card" style={{ padding: 20, marginBottom: 28 }}>
+          <p style={fieldLabel}>Withdraw Available Balance</p>
+          <div className="flex flex-wrap items-end" style={{ gap: 14, marginTop: 12 }}>
+            <div style={{ flex: '0 1 160px', minWidth: 120 }}>
+              <CustomSelect value={selectedCurrency || ''} onChange={setSelectedCurrency} ariaLabel="Currency" minWidth="100%" options={currencies.map((c) => ({ value: c, label: c }))} />
+            </div>
+            <button type="button" className="btn btn-primary" style={{ padding: '8px 16px', fontSize: '0.8rem', height: 46 }} disabled={available <= 0} onClick={withdraw}>Withdraw Funds ({selectedCurrency} {available})</button>
+          </div>
         </div>
       )}
-      <h4 className="font-semibold mb-2">Withdrawal History</h4>
+
+      <p style={{ ...fieldLabel, marginBottom: 12 }}>Withdrawal History</p>
       <Table
         headers={['Amount', 'Currency', 'Status', 'Requested', 'Processed']}
         rows={withdrawals.map((wd) => [
@@ -3025,13 +3368,12 @@ function StudentExamsSection({ onFlash }) {
 
 // A clickable summary tile: heading, optional count, real body content, and a click-through
 // to the tab that owns the full module (matches the spec's "click a card to open its module").
-function SummaryCard({ title, count, onClick, children }) {
+function SummaryCard({ title, count, onClick, children, icon: Icon }) {
+  if (Icon) return <button type="button" className="student-metric" onClick={onClick}><span className="student-metric-top"><span className="student-metric-icon"><Icon aria-hidden="true" /></span><FaArrowUpRightFromSquare className="action-arrow" aria-hidden="true" /></span><strong>{count}</strong><span className="student-metric-label">{title}</span></button>;
   return (
     <div className="card reveal in" style={{ padding: 20, cursor: onClick ? 'pointer' : 'default' }} onClick={onClick}>
-      <div className="flex items-center justify-between mb-2">
-        <h4 style={{ fontSize: 15, fontWeight: 700 }}>{title}</h4>
-        {count !== undefined && <strong style={{ fontSize: 20 }}>{count}</strong>}
-      </div>
+      <h4 style={{ fontSize: 13, fontWeight: 650, color: 'var(--ink-soft)', lineHeight: 1.4, marginBottom: 10, overflowWrap: 'anywhere' }}>{title}</h4>
+      {count !== undefined && <strong style={{ fontSize: 26, fontFamily: 'Fraunces, serif', display: 'block', lineHeight: 1.2, overflowWrap: 'anywhere' }}>{count}</strong>}
       {children}
     </div>
   );
@@ -3039,6 +3381,36 @@ function SummaryCard({ title, count, onClick, children }) {
 
 function SectionHeading({ title }) {
   return <div className="dash-section-title" style={{ marginTop: 32 }}><h2>{title}</h2></div>;
+}
+
+const STUDENT_SECTION_ICONS = {
+  'Upcoming / Current Class': FaChalkboardUser,
+  'Academic Overview': FaGraduationCap,
+  'Course Progress': FaBookOpen,
+  'Assignments & Tests Overview': FaClipboardList,
+  'Applications Overview': FaFileLines,
+  'Wallet & Fee Overview': FaWallet,
+  'Scholarship & Job Overview': FaAward,
+  Calendar: FaCalendarCheck,
+  'Recent Activity': FaChartLine,
+  Notifications: FaBell
+};
+
+function StudentOverviewLayout({ children }) {
+  const items = Children.toArray(children);
+  const sections = [];
+  for (let index = 0; index < items.length; index++) {
+    const item = items[index];
+    if (item.type === SectionHeading && items[index + 1]) {
+      const title = item.props.title;
+      const Icon = STUDENT_SECTION_ICONS[title] || FaGraduationCap;
+      const wide = ['Course Progress', 'Applications Overview', 'Scholarship & Job Overview', 'Calendar', 'Wallet & Fee Overview'].includes(title);
+      sections.push(<section key={item.key} className={`student-detail-section${wide ? ' student-section-wide' : ''}`}><div className="student-detail-heading"><span className="student-detail-icon"><Icon aria-hidden="true" /></span><h2>{title}</h2></div><div className="student-detail-body">{items[++index]}</div></section>);
+    } else {
+      sections.push(<div key={item.key} className="student-section-wide student-overview-block">{item}</div>);
+    }
+  }
+  return <div className="student-overview student-section-layout">{sections}</div>;
 }
 
 function StudentSummary({ onNavigate, user }) {
@@ -3103,9 +3475,9 @@ function StudentSummary({ onNavigate, user }) {
   ].filter(Boolean);
 
   return (
-    <>
+    <StudentOverviewLayout>
       {/* 2. Welcome / Profile Overview */}
-      <div className="flex items-center gap-3" style={{ marginTop: -12, marginBottom: 20 }}>
+      <div className="student-identity">
         {user?.profilePhoto
           ? <img src={user.profilePhoto} alt="" style={{ width: 44, height: 44, borderRadius: '50%', objectFit: 'cover' }} />
           : <div style={{ width: 44, height: 44, borderRadius: '50%', background: 'var(--forest)', color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 700 }}>{(user?.fullName || '?')[0]}</div>}
@@ -3118,26 +3490,27 @@ function StudentSummary({ onNavigate, user }) {
             {dash.welcome.program ? `Program: ${dash.welcome.program}` : 'Program: —'} · {dash.welcome.currentTerm ? `Term: ${dash.welcome.currentTerm}` : 'Term: —'}
           </p>
         </div>
+        <button type="button" className="student-profile-action" onClick={() => onNavigate?.('profile')}>Manage profile <FaArrowUpRightFromSquare className="action-arrow" aria-hidden="true" /></button>
       </div>
 
       {/* 3. Main Summary Cards — exactly the 8 the spec lists, every one clickable
           (OverviewStats has no click handler at all, so all 8 now use SummaryCard instead). */}
       <div className="dash-section-title"><h2>Overview</h2></div>
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-        <SummaryCard title="Active Applications" count={dash.activeApplications} onClick={() => onNavigate?.('applications')} />
-        <SummaryCard title="Enrolled Courses" count={dash.enrollments.length} onClick={() => onNavigate?.('courses')} />
-        <SummaryCard title="Upcoming Classes" count={dash.upcomingClasses.length} onClick={() => onNavigate?.('classes')} />
-        <SummaryCard title="Scholarships" count={dash.scholarships.recommended.length} onClick={() => onNavigate?.('scholarships')} />
-        <SummaryCard title="Saved Jobs" count={dash.savedJobs.length} onClick={() => onNavigate?.('jobs')} />
-        <SummaryCard title="Wallet Balance" count={`${user?.currency || 'USD'} ${dash.wallet.availableBalance}.00`} onClick={() => onNavigate?.('wallet')} />
-        <SummaryCard title="Academic Progress" count={dash.academicProgress.attendanceRate !== null ? `${dash.academicProgress.attendanceRate}%` : '—'} onClick={() => onNavigate?.('assignments')} />
-        <SummaryCard title="Recent Activity" count={dash.recentActivity.length} onClick={() => onNavigate?.('assignments')} />
+      <div className="student-metrics">
+        <SummaryCard icon={FaClipboardList} title="Active Applications" count={dash.activeApplications} onClick={() => onNavigate?.('applications')} />
+        <SummaryCard icon={FaBookOpen} title="Enrolled Courses" count={dash.enrollments.length} onClick={() => onNavigate?.('courses')} />
+        <SummaryCard icon={FaCalendarCheck} title="Upcoming Classes" count={dash.upcomingClasses.length} onClick={() => onNavigate?.('classes')} />
+        <SummaryCard icon={FaAward} title="Scholarships" count={dash.scholarships.recommended.length} onClick={() => onNavigate?.('scholarships')} />
+        <SummaryCard icon={FaBriefcase} title="Saved Jobs" count={dash.savedJobs.length} onClick={() => onNavigate?.('jobs')} />
+        <SummaryCard icon={FaWallet} title="Wallet Balance" count={`${user?.currency || 'USD'} ${Number(dash.wallet.availableBalance || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`} onClick={() => onNavigate?.('wallet')} />
+        <SummaryCard icon={FaChartLine} title="Academic Progress" count={dash.academicProgress.attendanceRate !== null ? `${dash.academicProgress.attendanceRate}%` : '—'} onClick={() => onNavigate?.('assignments')} />
+        <SummaryCard icon={FaBell} title="Recent Activity" count={dash.recentActivity.length} onClick={() => onNavigate?.('assignments')} />
       </div>
 
       {/* 4. Upcoming/Current Class Section — one overview block, full detail lives on My Classes */}
       <SectionHeading title="Upcoming / Current Class" />
-      <div className="card" style={{ padding: 20 }}>
-        {dash.currentClasses.length === 0 && dash.upcomingClasses.length === 0 && <p className="text-xs" style={{ color: 'var(--ink-soft)' }}>Nothing scheduled — check My Classes once your institution sets a timetable.</p>}
+      <div className="card student-block">
+        {dash.currentClasses.length === 0 && dash.upcomingClasses.length === 0 && <p className="student-empty-state" style={{ color: 'var(--ink-soft)' }}>Nothing scheduled — check My Classes once your institution sets a timetable.</p>}
         {dash.currentClasses.map((c) => (
           <div key={c._id} className="flex items-center justify-between mb-2">
             <div>
@@ -3167,10 +3540,14 @@ function StudentSummary({ onNavigate, user }) {
 
       {/* 5. Academic Overview */}
       <SectionHeading title="Academic Overview" />
-      <div className="card" style={{ padding: 20 }}>
-        <p className="text-xs" style={{ color: 'var(--ink-soft)' }}>Institution: {inst?.name || '—'} · Class/Grade: {cls?.name || '—'} · Program: {dash.welcome.program || '—'} · Term: {dash.welcome.currentTerm || '—'}</p>
-        <p className="text-xs mt-1" style={{ color: 'var(--ink-soft)' }}>Subjects: {dash.academicProgress.subjects.length > 0 ? dash.academicProgress.subjects.join(', ') : '—'}</p>
-        <p className="text-xs mt-1" style={{ color: 'var(--ink-soft)' }}>Academic progress: {dash.academicProgress.avgCourseProgress}% · Attendance: {dash.academicProgress.attendanceRate !== null ? `${dash.academicProgress.attendanceRate}%` : 'No data yet'}</p>
+      <div className="student-academic">
+        <dl className="student-academic-details">
+          {[['Institution', inst?.name || 'Not connected'], ['Class / Grade', cls?.name || 'Not set'], ['Program', dash.welcome.program || 'Not set'], ['Term', dash.welcome.currentTerm || 'Not set']].map(([label, value]) => <div key={label}><dt>{label}</dt><dd>{value}</dd></div>)}
+        </dl>
+        <div className="student-progress-row"><span>Course progress</span><strong>{dash.academicProgress.avgCourseProgress}%</strong></div>
+        <progress className="student-progress-bar" aria-label="Average course progress" max="100" value={dash.academicProgress.avgCourseProgress} />
+        <p className="student-detail-note">Attendance: {dash.academicProgress.attendanceRate !== null ? `${dash.academicProgress.attendanceRate}%` : 'No data yet'}</p>
+        <p className="student-detail-note">Subjects: {dash.academicProgress.subjects.length ? dash.academicProgress.subjects.join(', ') : 'No subjects assigned'}</p>
       </div>
 
       {/* 6. Course Progress Overview */}
@@ -3178,7 +3555,7 @@ function StudentSummary({ onNavigate, user }) {
       <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
         {dash.courseProgressDetail.length === 0 && <p className="text-xs" style={{ color: 'var(--ink-soft)' }}>No courses yet — browse and enroll.</p>}
         {dash.courseProgressDetail.slice(0, 4).map((c) => (
-          <div key={c.id} className="card" style={{ padding: 16 }}>
+          <div key={c.id} className="card student-block-sub">
             <div className="flex items-center justify-between">
               <strong className="text-sm">{c.course?.title}</strong>
               <button type="button" className="btn" style={{ padding: '4px 12px', fontSize: '0.75rem' }} onClick={() => onNavigate?.('courses')}>Continue Course</button>
@@ -3196,7 +3573,7 @@ function StudentSummary({ onNavigate, user }) {
           type/scheduledDate/course (fetched the same way the full Exams page does), so
           quizzes and tests are genuinely told apart instead of both saying "Test". */}
       <SectionHeading title="Assignments & Tests Overview" />
-      <div className="card" style={{ padding: 20 }}>
+      <div className="card student-block">
         {(() => {
           const enrichedExams = dash.pendingExams.map((e) => ({ ...e, ...examDetails[e.id] }));
           const quizzes = enrichedExams.filter((e) => e.type === 'quiz');
@@ -3204,7 +3581,7 @@ function StudentSummary({ onNavigate, user }) {
           const untyped = enrichedExams.filter((e) => !e.type);
 
           if (dash.pendingAssignments.length === 0 && enrichedExams.length === 0) {
-            return <p className="text-xs" style={{ color: 'var(--ink-soft)' }}>Nothing pending.</p>;
+            return <p className="student-empty-state">You are all caught up. No pending assignments or tests.</p>;
           }
           return (
             <>
@@ -3256,7 +3633,7 @@ function StudentSummary({ onNavigate, user }) {
 
       {/* 7. Applications Overview */}
       <SectionHeading title="Applications Overview" />
-      <div className="card" style={{ padding: 12 }}>
+      <div className="card student-block-sub">
         <Table
           headers={['Type', 'Title', 'Status', 'Date']}
           rows={dash.applicationsOverview.map((a) => { const s = overviewStatusDisplay(a); return [a.type, a.title || '—', <Tag status={s.tag} label={s.label} />, a.time ? new Date(a.time).toLocaleDateString() : '—']; })}
@@ -3267,13 +3644,11 @@ function StudentSummary({ onNavigate, user }) {
 
       {/* 9. Wallet & Fee Overview */}
       <SectionHeading title="Wallet & Fee Overview" />
-      <div className="card" style={{ padding: 20 }}>
-        <div className="grid g2" style={{ gap: 12 }}>
-          <p className="text-xs" style={{ color: 'var(--ink-soft)' }}>Available balance: {user?.currency || 'USD'} {dash.wallet.availableBalance}.00</p>
-          <p className="text-xs" style={{ color: 'var(--ink-soft)' }}>Pending balance: {user?.currency || 'USD'} {dash.wallet.pendingFeeTotal || 0}</p>
+      <div className="card student-block">
+        <div className="overview-balances">
+          <div className="overview-balance-primary"><span>Available balance</span><strong><small>{user?.currency || 'USD'}</small> {Number(dash.wallet.availableBalance || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</strong><span>Ready to use in your wallet</span></div>
+          <div><span>Outstanding fees</span><strong><small>{user?.currency || 'USD'}</small> {Number(dash.wallet.pendingFeeTotal || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</strong><span>{dash.wallet.pendingFeeCount || 0} pending fee records</span></div>
         </div>
-        <p className="text-xs mt-1" style={{ color: 'var(--ink-soft)' }}>Selected currency: {user?.currency || 'USD'}</p>
-
         <p className="text-xs font-semibold mt-3">Outstanding Fees / Challans</p>
         {dash.wallet.pendingFees.length === 0 && (
           <p className="text-xs mt-1" style={{ color: 'var(--ink-soft)' }}>No outstanding fees — <Tag status="approved" /> Payment status: Up to date.</p>
@@ -3296,7 +3671,7 @@ function StudentSummary({ onNavigate, user }) {
       {/* 10. Scholarship & Job Overview */}
       <SectionHeading title="Scholarship & Job Overview" />
       <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-        <div className="card" style={{ padding: 16 }}>
+        <div className="card student-block-sub">
           <strong className="text-sm">Recommended Scholarships</strong>
           {dash.scholarships.recommended.length === 0 && <p className="text-xs mt-1" style={{ color: 'var(--ink-soft)' }}>None open right now.</p>}
           {dash.scholarships.recommended.slice(0, 2).map((s) => (
@@ -3304,7 +3679,7 @@ function StudentSummary({ onNavigate, user }) {
           ))}
           <button type="button" className="btn mt-2" style={{ padding: '4px 12px', fontSize: '0.75rem' }} onClick={() => onNavigate?.('scholarships')}>Apply for Scholarship</button>
         </div>
-        <div className="card" style={{ padding: 16 }}>
+        <div className="card student-block-sub">
           <strong className="text-sm">Saved Jobs</strong>
           {dash.savedJobs.length === 0 && <p className="text-xs mt-1" style={{ color: 'var(--ink-soft)' }}>No jobs saved yet.</p>}
           {dash.savedJobs.slice(0, 2).map((j) => (
@@ -3312,7 +3687,7 @@ function StudentSummary({ onNavigate, user }) {
           ))}
           <button type="button" className="btn mt-2" style={{ padding: '4px 12px', fontSize: '0.75rem' }} onClick={() => onNavigate?.('jobs')}>Apply for Job</button>
         </div>
-        <div className="card" style={{ padding: 16 }}>
+        <div className="card student-block-sub">
           <strong className="text-sm">Recent Job Updates</strong>
           {(recentJobs === null) && <p className="text-xs mt-1" style={{ color: 'var(--ink-soft)' }}>Loading...</p>}
           {recentJobs && recentJobs.length === 0 && <p className="text-xs mt-1" style={{ color: 'var(--ink-soft)' }}>No jobs posted yet.</p>}
@@ -3321,7 +3696,7 @@ function StudentSummary({ onNavigate, user }) {
           ))}
           <button type="button" className="btn mt-2" style={{ padding: '4px 12px', fontSize: '0.75rem' }} onClick={() => onNavigate?.('jobs')}>Search Jobs</button>
         </div>
-        <div className="card" style={{ padding: 16 }}>
+        <div className="card student-block-sub">
           <strong className="text-sm">Application Update</strong>
           {(() => {
             const jobScholarshipUpdates = dash.applicationsOverview.filter((a) => a.type === 'Job' || a.type === 'Scholarship');
@@ -3336,14 +3711,15 @@ function StudentSummary({ onNavigate, user }) {
 
       {/* 12. Calendar/Upcoming Events — a summary; not claimed as more than it is (full tab has real data) */}
       <SectionHeading title="Calendar" />
-      <div className="grid g2" style={{ gap: 16 }}>
-        <div className="card" style={{ padding: 16, cursor: 'pointer' }} onClick={() => onNavigate?.('calendar')}>
-          <p className="text-xs" style={{ color: 'var(--ink-soft)' }}>{dash.upcomingClasses.length} classes · {dash.pendingAssignments.length} assignments · {dash.pendingExams.length} exams · {dash.wallet.pendingFeeCount} fee deadlines — open the full Calendar for dates.</p>
-        </div>
+      <div className="overview-calendar">
         <MiniCalendar />
+        <div className="overview-agenda"><span className="eyebrow">YOUR SCHEDULE</span><h3>Make room for what matters</h3><p>Keep classes and deadlines together in your calendar.</p>
+          <div className="overview-agenda-counts">{[[FaChalkboardUser, 'Classes', dash.upcomingClasses.length], [FaClipboardList, 'Assignments', dash.pendingAssignments.length], [FaAward, 'Exams', dash.pendingExams.length], [FaWallet, 'Fee deadlines', dash.wallet.pendingFeeCount]].map(([Icon, label, count]) => <div key={label}><Icon aria-hidden="true" /><span>{label}</span><strong>{count}</strong></div>)}</div>
+          <button type="button" className="btn btn-primary" onClick={() => onNavigate?.('calendar')}>Open calendar <FaArrowUpRightFromSquare aria-hidden="true" /></button>
+        </div>
       </div>
 
-      <div className="grid g2" style={{ marginTop: 32 }}>
+      <div className="student-profile-completion">
         <ProfileCompletion percent={data.profile.percent} checks={data.profile.checks} />
       </div>
       <RecommendedGrid items={data.recommended} />
@@ -3358,7 +3734,8 @@ function StudentSummary({ onNavigate, user }) {
           payments, marketplace orders and certificates. "Joined/completed class" and
           "Test/result update" are added here client-side from data this page already has
           access to (attendance + real results), not fabricated. */}
-      <RecentActivity items={[
+      <SectionHeading title="Recent Activity" />
+      <RecentActivity embedded items={[
         ...dash.recentActivity,
         ...attendanceEvents,
         ...resultEvents
@@ -3366,9 +3743,9 @@ function StudentSummary({ onNavigate, user }) {
 
       {/* 13. Notifications/Announcements Preview */}
       <SectionHeading title="Notifications" />
-      <div className="card" style={{ padding: 12 }}>
+      <div className="card student-block-sub">
         {notifications === null && <p className="text-xs" style={{ color: 'var(--ink-soft)' }}>Loading...</p>}
-        {notifications && notifications.length === 0 && <p className="text-xs" style={{ color: 'var(--ink-soft)' }}>No notifications yet.</p>}
+        {notifications && notifications.length === 0 && <div className="overview-quiet-state"><FaBell aria-hidden="true" /><strong>You are all caught up</strong><p>Your updates and reminders will appear here.</p></div>}
         {(notifications || []).slice(0, 5).map((n) => (
           <div key={n._id} className="flex items-center justify-between" style={{ padding: '4px 0' }}>
             <p className="text-xs" style={{ color: n.read ? 'var(--ink-soft)' : 'var(--ink)', fontWeight: n.read ? 400 : 600 }}>{n.title}</p>
@@ -3383,7 +3760,7 @@ function StudentSummary({ onNavigate, user }) {
           "...Calendar → Recent Activity/Notifications → Quick Actions" layout order.
           QuickActions renders its own "Quick Actions" heading, so no SectionHeading here. */}
       <QuickActions actions={quickActions} onNavigate={onNavigate} />
-    </>
+    </StudentOverviewLayout>
   );
 }
 
@@ -3469,32 +3846,38 @@ function TeacherProfileDetailsPanel({ onFlash, onChanged }) {
   return (
     <div className="admin-section admin-account-card" style={{ marginTop: 20 }}>
       <div className="admin-section-heading"><div><h2>Teaching Profile</h2><p>Subjects, experience and qualifications shown to institutions considering you as a class teacher.</p></div><FaChalkboardUser aria-hidden="true" /></div>
-      <form onSubmit={submit} className="space-y-3 max-w-lg">
-        <label className="block text-xs" style={{ color: 'var(--ink-soft)' }}>Subjects (comma separated)
-          <input className="form-input" placeholder="e.g. Math, Physics" value={form.subjects} onChange={(e) => setForm({ ...form, subjects: e.target.value })} />
+      <form onSubmit={submit} style={{ display: 'grid', gap: 16 }}>
+        <div className="flex flex-wrap" style={{ gap: 14 }}>
+          <label className="text-xs" style={{ color: 'var(--ink-soft)', fontWeight: 600, flex: '2 1 260px', minWidth: 0 }}>Subjects (comma separated)
+            <input className="form-input" placeholder="e.g. Math, Physics" value={form.subjects} onChange={(e) => setForm({ ...form, subjects: e.target.value })} style={{ marginTop: 6 }} />
+          </label>
+          <label className="text-xs" style={{ color: 'var(--ink-soft)', fontWeight: 600, flex: '1 1 140px', minWidth: 0 }}>Years of Experience
+            <input type="number" min="0" className="form-input" value={form.experienceYears} onChange={(e) => setForm({ ...form, experienceYears: e.target.value })} style={{ marginTop: 6 }} />
+          </label>
+        </div>
+        <label className="text-xs" style={{ display: 'block', color: 'var(--ink-soft)', fontWeight: 600 }}>Bio
+          <textarea className="form-input" rows={3} value={form.bio} onChange={(e) => setForm({ ...form, bio: e.target.value })} style={{ marginTop: 6 }} />
         </label>
-        <label className="block text-xs" style={{ color: 'var(--ink-soft)' }}>Years of Experience
-          <input type="number" min="0" className="form-input" value={form.experienceYears} onChange={(e) => setForm({ ...form, experienceYears: e.target.value })} />
-        </label>
-        <label className="block text-xs" style={{ color: 'var(--ink-soft)' }}>Bio
-          <textarea className="form-input" rows={3} value={form.bio} onChange={(e) => setForm({ ...form, bio: e.target.value })} />
-        </label>
-        <label className="flex items-center gap-2 text-xs" style={{ color: 'var(--ink-soft)' }}>
+        <label className="flex items-center text-xs" style={{ color: 'var(--ink-soft)', gap: 8 }}>
           <input type="checkbox" checked={form.independent} onChange={(e) => setForm({ ...form, independent: e.target.checked })} /> I teach independently (without an institution)
         </label>
 
-        <h4 className="font-semibold text-sm mt-2">Qualifications</h4>
-        {form.qualifications.map((q, i) => (
-          <div key={i} className="flex gap-2 items-center flex-wrap">
-            <input className="form-input" placeholder="Title (e.g. M.Sc Mathematics)" value={q.title} onChange={(e) => updateQualification(i, { title: e.target.value })} style={{ flex: 1 }} />
-            <input className="form-input" placeholder="Institution" value={q.institutionName} onChange={(e) => updateQualification(i, { institutionName: e.target.value })} style={{ flex: 1 }} />
-            <input className="form-input" type="number" placeholder="Year" value={q.year} onChange={(e) => updateQualification(i, { year: e.target.value })} style={{ width: 90 }} />
-            <button type="button" className="btn" style={{ padding: '4px 10px', fontSize: '0.72rem' }} onClick={() => removeQualification(i)}>Remove</button>
+        <div style={{ paddingTop: 4, borderTop: '1px solid var(--sand-line)' }}>
+          <h4 className="font-semibold text-sm" style={{ margin: '16px 0 12px' }}>Qualifications</h4>
+          <div style={{ display: 'grid', gap: 10 }}>
+            {form.qualifications.map((q, i) => (
+              <div key={i} className="flex flex-wrap items-center" style={{ gap: 10, padding: 10, borderRadius: 14, background: 'var(--sand)' }}>
+                <input className="form-input" placeholder="Title (e.g. M.Sc Mathematics)" value={q.title} onChange={(e) => updateQualification(i, { title: e.target.value })} style={{ flex: '2 1 200px', minWidth: 0, background: 'var(--paper-raised)' }} />
+                <input className="form-input" placeholder="Institution" value={q.institutionName} onChange={(e) => updateQualification(i, { institutionName: e.target.value })} style={{ flex: '2 1 180px', minWidth: 0, background: 'var(--paper-raised)' }} />
+                <input className="form-input" type="number" placeholder="Year" value={q.year} onChange={(e) => updateQualification(i, { year: e.target.value })} style={{ flex: '1 1 90px', minWidth: 0, background: 'var(--paper-raised)' }} />
+                <button type="button" className="btn" style={{ padding: '6px 12px', fontSize: '0.72rem', flexShrink: 0, background: 'var(--paper-raised)' }} onClick={() => removeQualification(i)}>Remove</button>
+              </div>
+            ))}
           </div>
-        ))}
-        <button type="button" className="btn" style={{ padding: '4px 12px', fontSize: '0.75rem' }} onClick={addQualification}>+ Add Qualification</button>
+          <button type="button" className="btn" style={{ padding: '6px 14px', fontSize: '0.75rem', marginTop: 12 }} onClick={addQualification}>+ Add Qualification</button>
+        </div>
 
-        <div><button type="submit" className="btn btn-primary" disabled={saving}>{saving ? 'Saving...' : 'Save Teaching Profile'}</button></div>
+        <button type="submit" className="btn btn-primary" style={{ padding: '8px 20px', justifySelf: 'start' }} disabled={saving}>{saving ? 'Saving...' : 'Save Teaching Profile'}</button>
       </form>
     </div>
   );
@@ -3577,54 +3960,62 @@ function TeacherExaminationPanel({ onFlash }) {
       <CourseSelect courses={courses} value={courseId} onChange={setCourseId} />
       {courseId && (
         <>
-          <form onSubmit={createExam} className="space-y-3 mb-6 max-w-2xl">
-            <div className="flex gap-3 flex-wrap">
-              <input className="form-input" placeholder="Exam title" value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })} required />
-              <select className="form-select" value={form.type} onChange={(e) => setForm({ ...form, type: e.target.value })}>
-                {['quiz', 'midterm', 'final', 'test'].map((t) => <option key={t} value={t}>{t}</option>)}
+          <h3 className="font-semibold" style={{ marginBottom: 14 }}>Create an Exam</h3>
+          <form onSubmit={createExam} className="card" style={{ padding: 20, marginBottom: 28, display: 'grid', gap: 16 }}>
+            <div className="flex flex-wrap" style={{ gap: 14 }}>
+              <input className="form-input" placeholder="Exam title" value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })} required style={{ flex: '2 1 220px', minWidth: 0 }} />
+              <select className="form-select" value={form.type} onChange={(e) => setForm({ ...form, type: e.target.value })} style={{ flex: '1 1 140px', minWidth: 0, textTransform: 'capitalize' }}>
+                {['quiz', 'midterm', 'final', 'test'].map((t) => <option key={t} value={t} style={{ textTransform: 'capitalize' }}>{t}</option>)}
               </select>
-              <label className="text-xs" style={{ color: 'var(--ink-soft)' }}>Scheduled date/time
-                <input type="datetime-local" className="form-input" value={form.scheduledDate} onChange={(e) => setForm({ ...form, scheduledDate: e.target.value })} />
+              <label className="text-xs" style={{ color: 'var(--ink-soft)', fontWeight: 600, flex: '1 1 220px', minWidth: 0 }}>Scheduled date/time
+                <input type="datetime-local" className="form-input" value={form.scheduledDate} onChange={(e) => setForm({ ...form, scheduledDate: e.target.value })} style={{ marginTop: 6 }} />
               </label>
             </div>
-            <div className="flex gap-3 flex-wrap">
-              <input className="form-input" placeholder="Venue (room number or online link)" style={{ flex: 1 }} value={form.venue} onChange={(e) => setForm({ ...form, venue: e.target.value })} />
-              <input className="form-input" placeholder="Preparation instructions" style={{ flex: 1 }} value={form.instructions} onChange={(e) => setForm({ ...form, instructions: e.target.value })} />
+            <div className="flex flex-wrap" style={{ gap: 14 }}>
+              <input className="form-input" placeholder="Venue (room number or online link)" style={{ flex: '1 1 220px', minWidth: 0 }} value={form.venue} onChange={(e) => setForm({ ...form, venue: e.target.value })} />
+              <input className="form-input" placeholder="Preparation instructions" style={{ flex: '1 1 220px', minWidth: 0 }} value={form.instructions} onChange={(e) => setForm({ ...form, instructions: e.target.value })} />
             </div>
-            {form.questions.map((q, i) => (
-              <div key={i} className="border border-[var(--sand-line)] rounded-xl p-3">
-                <div className="flex gap-2 items-start">
-                  <input className="form-input" placeholder={`Question ${i + 1} (${q.type})`} value={q.text} onChange={(e) => updateQuestion(i, { text: e.target.value })} required style={{ flex: 1 }} />
-                  <input className="form-input" type="number" placeholder="Marks" value={q.marks} onChange={(e) => updateQuestion(i, { marks: Number(e.target.value) })} style={{ width: 80 }} />
-                  <button type="button" className="btn" style={{ padding: '6px 10px', fontSize: '0.75rem', background: 'var(--sand-line)', color: 'var(--ink)' }} onClick={() => removeQuestion(i)}>Remove</button>
-                </div>
-                {q.type === 'mcq' && (
-                  <div className="mt-2 space-y-1">
-                    {q.options.map((opt, oi) => (
-                      <div key={oi} className="flex gap-2 items-center">
-                        <input type="radio" name={`correct-${i}`} checked={q.correctOption === oi} onChange={() => updateQuestion(i, { correctOption: oi })} />
-                        <input className="form-input" placeholder={`Option ${oi + 1}`} value={opt} onChange={(e) => updateQuestion(i, { options: q.options.map((o, x) => (x === oi ? e.target.value : o)) })} />
+
+            {form.questions.length > 0 && (
+              <div style={{ display: 'grid', gap: 10, paddingTop: 4, borderTop: '1px solid var(--sand-line)' }}>
+                {form.questions.map((q, i) => (
+                  <div key={i} style={{ padding: 14, borderRadius: 14, background: 'var(--sand)' }}>
+                    <div className="flex items-start" style={{ gap: 10 }}>
+                      <input className="form-input" placeholder={`Question ${i + 1} (${q.type})`} value={q.text} onChange={(e) => updateQuestion(i, { text: e.target.value })} required style={{ flex: '1 1 auto', minWidth: 0, background: 'var(--paper-raised)' }} />
+                      <input className="form-input" type="number" placeholder="Marks" value={q.marks} onChange={(e) => updateQuestion(i, { marks: Number(e.target.value) })} style={{ width: 90, flexShrink: 0, background: 'var(--paper-raised)' }} />
+                      <button type="button" className="btn" style={{ padding: '6px 12px', fontSize: '0.75rem', flexShrink: 0, background: 'var(--paper-raised)' }} onClick={() => removeQuestion(i)}>Remove</button>
+                    </div>
+                    {q.type === 'mcq' && (
+                      <div style={{ display: 'grid', gap: 8, marginTop: 10 }}>
+                        {q.options.map((opt, oi) => (
+                          <div key={oi} className="flex items-center" style={{ gap: 10 }}>
+                            <input type="radio" name={`correct-${i}`} checked={q.correctOption === oi} onChange={() => updateQuestion(i, { correctOption: oi })} />
+                            <input className="form-input" placeholder={`Option ${oi + 1}`} value={opt} onChange={(e) => updateQuestion(i, { options: q.options.map((o, x) => (x === oi ? e.target.value : o)) })} style={{ background: 'var(--paper-raised)' }} />
+                          </div>
+                        ))}
+                        <button type="button" className="btn" style={{ padding: '5px 12px', fontSize: '0.72rem', justifySelf: 'start', background: 'var(--paper-raised)' }} onClick={() => updateQuestion(i, { options: [...q.options, ''] })}>+ Option</button>
                       </div>
-                    ))}
-                    <button type="button" className="btn" style={{ padding: '4px 10px', fontSize: '0.72rem' }} onClick={() => updateQuestion(i, { options: [...q.options, ''] })}>+ Option</button>
+                    )}
                   </div>
-                )}
+                ))}
               </div>
-            ))}
-            <div className="flex gap-2">
-              <button type="button" className="btn" style={{ background: 'var(--sand-line)', color: 'var(--ink)' }} onClick={() => addQuestion('mcq')}>+ MCQ Question</button>
-              <button type="button" className="btn" style={{ background: 'var(--sand-line)', color: 'var(--ink)' }} onClick={() => addQuestion('short')}>+ Short Answer Question</button>
-              <button type="submit" className="btn btn-primary">Create Exam</button>
+            )}
+
+            <div className="flex flex-wrap items-center" style={{ gap: 10 }}>
+              <button type="button" className="btn" onClick={() => addQuestion('mcq')}>+ MCQ Question</button>
+              <button type="button" className="btn" onClick={() => addQuestion('short')}>+ Short Answer Question</button>
+              <button type="submit" className="btn btn-primary" style={{ marginLeft: 'auto' }}>Create Exam</button>
             </div>
           </form>
 
+          <h3 className="font-semibold" style={{ marginBottom: 14 }}>My Exams</h3>
           <Table
             headers={['Title', 'Type', 'Scheduled', 'Venue', 'Questions', 'Status', 'Action']}
             rows={exams.map((ex) => [
               ex.title, ex.type, ex.scheduledDate ? new Date(ex.scheduledDate).toLocaleString() : '—', ex.venue || '—', ex.questions.length, ex.published ? <Tag status="approved" /> : <Tag status="pending" />,
-              <div className="flex gap-2">
-                {!ex.published && <button className="btn btn-primary" style={{ padding: '5px 12px', fontSize: '0.78rem' }} onClick={() => publish(ex._id)}>Publish</button>}
-                <button className="btn" style={{ padding: '5px 12px', fontSize: '0.78rem', background: 'var(--sand-line)', color: 'var(--ink)' }} onClick={() => openSubmissions(ex._id)}>Submissions</button>
+              <div className="flex" style={{ gap: 8 }}>
+                {!ex.published && <button className="btn btn-primary" style={{ padding: '6px 14px', fontSize: '0.78rem' }} onClick={() => publish(ex._id)}>Publish</button>}
+                <button className="btn" style={{ padding: '6px 14px', fontSize: '0.78rem' }} onClick={() => openSubmissions(ex._id)}>Submissions</button>
               </div>
             ])}
             empty="No exams created yet."
@@ -3641,13 +4032,18 @@ function ExamSubmissionsView({ exam, submissions, onGrade }) {
   const [drafts, setDrafts] = useState({});
 
   return (
-    <div className="mt-6">
-      <h3 className="font-semibold mb-2">Submissions{exam ? ` — ${exam.title}` : ''}</h3>
-      {submissions.length === 0 && <p style={{ fontSize: 13, color: 'var(--ink-soft)' }}>No submissions yet.</p>}
+    <div style={{ marginTop: 32 }}>
+      <h3 className="font-semibold" style={{ marginBottom: 14 }}>Submissions{exam ? ` — ${exam.title}` : ''}</h3>
+      {submissions.length === 0 && (
+        <div className="student-empty-state" style={{ border: '1px solid var(--sand-line)', borderRadius: 18 }}>
+          <FaFileLines aria-hidden="true" />
+          <p>No submissions yet</p>
+        </div>
+      )}
       {submissions.map((s) => {
         const shortAnswers = s.answers.filter((a) => exam?.questions?.[a.questionIndex]?.type === 'short');
         return (
-          <div key={s._id} className="border border-[var(--sand-line)] rounded-xl p-3 mb-3">
+          <div key={s._id} className="card" style={{ padding: 18, marginBottom: 14 }}>
             <div className="flex items-center justify-between">
               <strong>{s.student?.fullName}</strong>
               <span className="text-sm">Score: {s.score} · <Tag status={s.status === 'graded' ? 'approved' : 'pending'} /></span>
@@ -3690,12 +4086,72 @@ function useTeacherCourses(onFlash) {
   return { courses, courseId, setCourseId };
 }
 
-function CourseSelect({ courses, value, onChange }) {
-  if (courses.length === 0) return <p className="admin-notice">Create a course first (My Courses tab) — students, attendance, homework and results are all recorded against a course.</p>;
+// A styled dropdown (button + floating listbox) so the open list follows the app's own
+// colors — a native <select>'s popup is OS-rendered and can't be restyled with CSS.
+function CustomSelect({ value, onChange, options, ariaLabel, minWidth = 260 }) {
+  const [open, setOpen] = useState(false);
+  const ref = useRef(null);
+
+  useEffect(() => {
+    function onDoc(e) { if (ref.current && !ref.current.contains(e.target)) setOpen(false); }
+    function onKey(e) { if (e.key === 'Escape') setOpen(false); }
+    document.addEventListener('click', onDoc);
+    document.addEventListener('keydown', onKey);
+    return () => { document.removeEventListener('click', onDoc); document.removeEventListener('keydown', onKey); };
+  }, []);
+
+  const selected = options.find((o) => o.value === value);
+
   return (
-    <select className="form-select" value={value} onChange={(e) => onChange(e.target.value)} style={{ maxWidth: 320, marginBottom: 16 }} aria-label="Select course">
-      {courses.map((c) => <option key={c._id} value={c._id}>{c.title}</option>)}
-    </select>
+    <div ref={ref} style={{ position: 'relative', minWidth }}>
+      <button
+        type="button" className="form-select" aria-label={ariaLabel} aria-haspopup="listbox" aria-expanded={open}
+        style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%', cursor: 'pointer', gap: 10 }}
+        onClick={() => setOpen((o) => !o)}
+      >
+        <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{selected ? selected.label : 'Select…'}</span>
+        <FaChevronDown size={12} style={{ transform: open ? 'rotate(180deg)' : 'none', transition: 'transform .15s ease', flexShrink: 0, color: 'var(--ink-soft)' }} aria-hidden="true" />
+      </button>
+      {open && (
+        <div role="listbox" style={{ position: 'absolute', top: 'calc(100% + 6px)', left: 0, right: 0, zIndex: 30, background: 'var(--paper-raised)', border: '1px solid var(--sand-line)', borderRadius: 14, boxShadow: 'var(--shadow-md)', overflow: 'hidden', maxHeight: 260, overflowY: 'auto', padding: 6 }}>
+          {options.map((o) => (
+            <div
+              key={o.value} role="option" aria-selected={o.value === value} aria-disabled={o.disabled || undefined}
+              onClick={() => { if (o.disabled) return; onChange(o.value); setOpen(false); }}
+              className={o.disabled ? '' : 'dropdown-option'}
+              style={{
+                padding: '10px 12px', fontSize: 14, borderRadius: 10,
+                cursor: o.disabled ? 'not-allowed' : 'pointer',
+                background: o.value === value ? 'var(--sand)' : 'transparent',
+                color: o.disabled ? 'var(--ink-soft)' : 'var(--ink)',
+                fontWeight: o.value === value ? 600 : 400,
+                opacity: o.disabled ? 0.6 : 1
+              }}
+            >
+              {o.label}
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function CourseSelect({ courses, value, onChange }) {
+  if (courses.length === 0) {
+    return (
+      <div className="student-empty-state" style={{ border: '1px solid var(--sand-line)', borderRadius: 18, minHeight: 160 }}>
+        <FaBookOpen aria-hidden="true" />
+        <p>Create a course first</p>
+        <span>Go to My Courses — students, attendance, homework and results are all recorded against a course.</span>
+      </div>
+    );
+  }
+  return (
+    <label style={{ display: 'inline-block', marginBottom: 18 }}>
+      <span className="text-xs" style={{ display: 'block', color: 'var(--ink-soft)', fontWeight: 600, marginBottom: 6 }}>Course</span>
+      <CustomSelect value={value} onChange={onChange} ariaLabel="Select course" options={courses.map((c) => ({ value: c._id, label: c.title }))} />
+    </label>
   );
 }
 
@@ -3755,10 +4211,12 @@ function TeacherAttendancePanel({ onFlash }) {
     <div>
       <CourseSelect courses={courses} value={courseId} onChange={setCourseId} />
       {courseId && enrollments.length > 0 && (
-        <form onSubmit={submit} className="mb-6">
-          <div className="flex gap-3 items-end mb-4 flex-wrap">
-            <label>Date <input type="date" className="form-input" value={date} onChange={(e) => setDate(e.target.value)} /></label>
-            <button type="submit" className="btn btn-primary">Save Attendance</button>
+        <form onSubmit={submit} className="card" style={{ padding: 20, marginBottom: 28 }}>
+          <div className="flex items-end flex-wrap" style={{ gap: 14, marginBottom: 18 }}>
+            <label className="text-xs" style={{ color: 'var(--ink-soft)', fontWeight: 600 }}>Date
+              <input type="date" className="form-input" value={date} onChange={(e) => setDate(e.target.value)} style={{ marginTop: 6 }} />
+            </label>
+            <button type="submit" className="btn btn-primary" style={{ padding: '11px 20px', height: 46 }}>Save Attendance</button>
           </div>
           <div className="account-table-wrap overflow-x-auto">
             <table className="w-full text-sm">
@@ -3787,7 +4245,7 @@ function TeacherAttendancePanel({ onFlash }) {
           </div>
         </form>
       )}
-      <h3 className="font-semibold mb-2">Attendance History</h3>
+      <h3 className="font-semibold" style={{ marginBottom: 14 }}>Attendance History</h3>
       <Table headers={['Date', 'Marked']} rows={history.map((h) => [new Date(h.date).toLocaleDateString(), `${h.records.length} students`])} empty="No attendance recorded yet." />
     </div>
   );
@@ -3908,18 +4366,26 @@ function TeacherResultsPanel({ onFlash }) {
     <div>
       <CourseSelect courses={courses} value={courseId} onChange={setCourseId} />
       {courseId && enrollments.length > 0 && (
-        <form onSubmit={submit} className="space-y-3 max-w-md">
-          <select className="form-select" value={form.student} onChange={(e) => setForm({ ...form, student: e.target.value })}>
-            {enrollments.map((en) => <option key={en.student._id} value={en.student._id}>{en.student.fullName}</option>)}
-          </select>
-          <input className="form-input" placeholder="Term (e.g. Mid Term)" value={form.term} onChange={(e) => setForm({ ...form, term: e.target.value })} />
-          <input className="form-input" placeholder="Subject" value={form.subject} onChange={(e) => setForm({ ...form, subject: e.target.value })} />
-          <div className="flex gap-3">
-            <input className="form-input" type="number" placeholder="Marks obtained" value={form.marksObtained} onChange={(e) => setForm({ ...form, marksObtained: e.target.value })} required />
-            <input className="form-input" type="number" placeholder="Total marks" value={form.totalMarks} onChange={(e) => setForm({ ...form, totalMarks: e.target.value })} />
-            <input className="form-input" placeholder="Grade (e.g. A)" value={form.grade} onChange={(e) => setForm({ ...form, grade: e.target.value })} />
+        <form onSubmit={submit} className="card" style={{ padding: 20, display: 'grid', gap: 16, maxWidth: 560 }}>
+          <label className="text-xs" style={{ color: 'var(--ink-soft)', fontWeight: 600 }}>Student
+            <div style={{ marginTop: 6 }}>
+              <CustomSelect
+                value={form.student} onChange={(v) => setForm({ ...form, student: v })} ariaLabel="Select student"
+                options={enrollments.map((en) => ({ value: en.student._id, label: en.student.fullName }))}
+                minWidth="100%"
+              />
+            </div>
+          </label>
+          <div className="flex flex-wrap" style={{ gap: 14 }}>
+            <input className="form-input" placeholder="Term (e.g. Mid Term)" value={form.term} onChange={(e) => setForm({ ...form, term: e.target.value })} style={{ flex: '1 1 200px', minWidth: 0 }} />
+            <input className="form-input" placeholder="Subject" value={form.subject} onChange={(e) => setForm({ ...form, subject: e.target.value })} style={{ flex: '1 1 200px', minWidth: 0 }} />
           </div>
-          <button type="submit" className="btn btn-primary">Record Result</button>
+          <div className="flex flex-wrap" style={{ gap: 14 }}>
+            <input className="form-input" type="number" placeholder="Marks obtained" value={form.marksObtained} onChange={(e) => setForm({ ...form, marksObtained: e.target.value })} required style={{ flex: '1 1 140px', minWidth: 0 }} />
+            <input className="form-input" type="number" placeholder="Total marks" value={form.totalMarks} onChange={(e) => setForm({ ...form, totalMarks: e.target.value })} style={{ flex: '1 1 140px', minWidth: 0 }} />
+            <input className="form-input" placeholder="Grade (e.g. A)" value={form.grade} onChange={(e) => setForm({ ...form, grade: e.target.value })} style={{ flex: '1 1 140px', minWidth: 0 }} />
+          </div>
+          <button type="submit" className="btn btn-primary" style={{ justifySelf: 'start', padding: '8px 20px' }}>Record Result</button>
         </form>
       )}
     </div>
@@ -3944,16 +4410,16 @@ function TeacherSummary({ onNavigate, user }) {
   return (
     <>
       {/* Welcome / Profile Overview */}
-      <div className="flex items-center gap-3" style={{ marginTop: -12, marginBottom: 20 }}>
+      <div className="flex items-center" style={{ gap: 14, marginTop: -12, marginBottom: 24 }}>
         {user?.profilePhoto
-          ? <img src={user.profilePhoto} alt="" style={{ width: 44, height: 44, borderRadius: '50%', objectFit: 'cover' }} />
-          : <div style={{ width: 44, height: 44, borderRadius: '50%', background: 'var(--gold)', color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 700 }}>{(user?.fullName || '?')[0]}</div>}
-        <p style={{ fontSize: 13, color: 'var(--ink-soft)' }}>{user?.fullName}</p>
+          ? <img src={user.profilePhoto} alt="" style={{ width: 48, height: 48, borderRadius: '50%', objectFit: 'cover', flexShrink: 0 }} />
+          : <div style={{ width: 48, height: 48, borderRadius: '50%', background: 'var(--gold)', color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 700, fontSize: 18, flexShrink: 0 }}>{(user?.fullName || '?')[0]}</div>}
+        <strong className="text-sm">{user?.fullName}</strong>
       </div>
 
       {/* 1. Today's Classes */}
       <div className="dash-section-title"><h2>Today's Classes</h2></div>
-      <div className="card" style={{ padding: 12, cursor: 'pointer' }} onClick={() => onNavigate?.('timetable')}>
+      <div className="hover-card card" style={{ padding: 16, cursor: 'pointer' }} onClick={() => onNavigate?.('timetable')}>
         <Table
           headers={['Time', 'Subject', 'Class/Section']}
           rows={dash.todayClasses.map((c) => [`${c.startTime}–${c.endTime}`, c.subject, c.classSection || '—'])}
@@ -3962,65 +4428,94 @@ function TeacherSummary({ onNavigate, user }) {
       </div>
 
       {/* 2. Today's Student Attendance */}
-      <div className="dash-section-title" style={{ marginTop: 24 }}><h2>Today's Student Attendance</h2></div>
-      <div className="grid grid-cols-3 gap-3" style={{ cursor: 'pointer' }} onClick={() => onNavigate?.('attendance')}>
+      <div className="dash-section-title" style={{ marginTop: 28 }}><h2>Today's Student Attendance</h2></div>
+      <div className="grid grid-cols-3" style={{ gap: 14, cursor: 'pointer' }} onClick={() => onNavigate?.('attendance')}>
         <SummaryCard title="Total Marked" count={dash.todayAttendance.total} />
         <SummaryCard title="Present" count={dash.todayAttendance.present} />
         <SummaryCard title="Absent" count={dash.todayAttendance.absent} />
       </div>
 
       {/* 3. Pending Assignments */}
-      <div className="dash-section-title" style={{ marginTop: 24 }}><h2>Assignments</h2></div>
-      <div className="grid grid-cols-2 gap-3" style={{ cursor: 'pointer' }} onClick={() => onNavigate?.('homework')}>
+      <div className="dash-section-title" style={{ marginTop: 28 }}><h2>Assignments</h2></div>
+      <div className="grid grid-cols-2" style={{ gap: 14, cursor: 'pointer' }} onClick={() => onNavigate?.('homework')}>
         <SummaryCard title="Submissions Received" count={dash.assignmentsOverview.submitted} />
         <SummaryCard title="Still Pending" count={dash.assignmentsOverview.pending} />
       </div>
 
       {/* 4. Upcoming Exams — split into the document's exact 3 categories (quizzes / tests /
           major examinations), not one mixed table. "Major examinations" = midterm + final. */}
-      <div className="dash-section-title" style={{ marginTop: 24 }}><h2>Upcoming Exams</h2></div>
-      <div className="card" style={{ padding: 12 }}>
-        {(() => {
-          const quizzes = dash.upcomingExams.filter((e) => e.type === 'quiz');
-          const tests = dash.upcomingExams.filter((e) => e.type === 'test');
-          const majors = dash.upcomingExams.filter((e) => e.type === 'midterm' || e.type === 'final');
-          const rowsFor = (list) => list.map((e) => [e.title, e.courseTitle, e.scheduledDate ? new Date(e.scheduledDate).toLocaleString() : '—']);
-          return (
-            <>
-              <p className="text-xs font-semibold mb-1">Upcoming Quizzes</p>
-              <Table headers={['Title', 'Course', 'Scheduled']} rows={rowsFor(quizzes)} empty="No upcoming quizzes." />
-              <p className="text-xs font-semibold mb-1 mt-3">Tests</p>
-              <Table headers={['Title', 'Course', 'Scheduled']} rows={rowsFor(tests)} empty="No upcoming tests." />
-              <p className="text-xs font-semibold mb-1 mt-3">Major Examinations</p>
-              <Table headers={['Title', 'Course', 'Scheduled']} rows={rowsFor(majors)} empty="No upcoming midterms or finals." />
-            </>
-          );
-        })()}
-        <button type="button" className="btn mt-2" style={{ padding: '5px 14px', fontSize: '0.78rem' }} onClick={() => onNavigate?.('examination')}>View Examinations</button>
-      </div>
+      <div className="dash-section-title" style={{ marginTop: 28 }}><h2>Upcoming Exams</h2></div>
+      {(() => {
+        const quizzes = dash.upcomingExams.filter((e) => e.type === 'quiz');
+        const tests = dash.upcomingExams.filter((e) => e.type === 'test');
+        const majors = dash.upcomingExams.filter((e) => e.type === 'midterm' || e.type === 'final');
+        const rowsFor = (list) => list.map((e) => [e.title, e.courseTitle, e.scheduledDate ? new Date(e.scheduledDate).toLocaleString() : '—']);
+        const groups = [
+          { label: 'Upcoming Quizzes', icon: FaClipboardList, color: 'var(--gold)', list: quizzes, empty: 'No upcoming quizzes.' },
+          { label: 'Tests', icon: FaFileLines, color: 'var(--emerald)', list: tests, empty: 'No upcoming tests.' },
+          { label: 'Major Examinations', icon: FaAward, color: 'var(--rose)', list: majors, empty: 'No upcoming midterms or finals.' }
+        ];
+        return (
+          <div style={{ display: 'grid', gap: 14 }}>
+            {groups.map((g) => (
+              <div key={g.label} className="card" style={{ padding: 18 }}>
+                <div className="flex items-center" style={{ gap: 12, marginBottom: 14 }}>
+                  <span style={{ width: 34, height: 34, borderRadius: 10, background: 'var(--sand)', color: g.color, display: 'grid', placeItems: 'center', flexShrink: 0 }}>
+                    <g.icon aria-hidden="true" size={15} />
+                  </span>
+                  <strong className="text-sm">{g.label}</strong>
+                  <span className="text-xs" style={{ color: 'var(--ink-soft)', marginLeft: 'auto' }}>{g.list.length} scheduled</span>
+                </div>
+                <Table headers={['Title', 'Course', 'Scheduled']} rows={rowsFor(g.list)} empty={g.empty} />
+              </div>
+            ))}
+            <button type="button" className="btn" style={{ padding: '7px 18px', fontSize: '0.78rem', justifySelf: 'start' }} onClick={() => onNavigate?.('examination')}>View Examinations</button>
+          </div>
+        );
+      })()}
 
       {/* 5. Salary Summary — self only */}
-      <div className="dash-section-title" style={{ marginTop: 24 }}><h2>Salary Summary</h2></div>
-      <div className="card" style={{ padding: 20, cursor: 'pointer' }} onClick={() => onNavigate?.('earnings')}>
-        <div className="grid grid-cols-3 gap-3">
-          <p className="text-xs" style={{ color: 'var(--ink-soft)' }}>This month: {dash.salary.currency} {dash.salary.monthly}</p>
-          <p className="text-xs" style={{ color: 'var(--ink-soft)' }}>Received: {dash.salary.currency} {dash.salary.received}</p>
-          <p className="text-xs" style={{ color: 'var(--ink-soft)' }}>Pending: {dash.salary.currency} {dash.salary.pending}</p>
+      <div className="dash-section-title" style={{ marginTop: 28 }}><h2>Salary Summary</h2></div>
+      <div className="hover-card card" style={{ padding: 20, cursor: 'pointer' }} onClick={() => onNavigate?.('earnings')}>
+        <div className="grid grid-cols-3" style={{ gap: 14 }}>
+          <div>
+            <p className="text-xs" style={{ color: 'var(--ink-soft)' }}>This month</p>
+            <strong style={{ fontSize: 22, fontFamily: 'Fraunces, serif', display: 'block', marginTop: 4 }}>{dash.salary.currency} {dash.salary.monthly}</strong>
+          </div>
+          <div>
+            <p className="text-xs" style={{ color: 'var(--ink-soft)' }}>Received</p>
+            <strong style={{ fontSize: 22, fontFamily: 'Fraunces, serif', display: 'block', marginTop: 4, color: 'var(--emerald)' }}>{dash.salary.currency} {dash.salary.received}</strong>
+          </div>
+          <div>
+            <p className="text-xs" style={{ color: 'var(--ink-soft)' }}>Pending</p>
+            <strong style={{ fontSize: 22, fontFamily: 'Fraunces, serif', display: 'block', marginTop: 4, color: dash.salary.pending > 0 ? 'var(--gold)' : undefined }}>{dash.salary.currency} {dash.salary.pending}</strong>
+          </div>
         </div>
       </div>
 
       {/* 6. Notifications */}
-      <div className="dash-section-title" style={{ marginTop: 24 }}><h2>Notifications</h2></div>
-      <div className="card" style={{ padding: 12 }}>
-        {dash.notifications.length === 0 && <p className="text-xs" style={{ color: 'var(--ink-soft)' }}>No notifications yet.</p>}
-        {dash.notifications.map((n) => (
-          <div key={n._id} className="flex items-center justify-between" style={{ padding: '4px 0' }}>
-            <p className="text-xs" style={{ color: n.read ? 'var(--ink-soft)' : 'var(--ink)', fontWeight: n.read ? 400 : 600 }}>{n.title}</p>
-            <span className="text-xs" style={{ color: 'var(--ink-soft)' }}>{new Date(n.createdAt).toLocaleDateString()}</span>
+      <div className="dash-section-title" style={{ marginTop: 28 }}><h2>Notifications</h2></div>
+      {dash.notifications.length === 0 ? (
+        <div className="student-empty-state" style={{ border: '1px solid var(--sand-line)', borderRadius: 18 }}>
+          <FaBell aria-hidden="true" />
+          <p>No notifications yet</p>
+        </div>
+      ) : (
+        <div className="card" style={{ padding: 0 }}>
+          <div className="dash-list" style={{ gap: 0 }}>
+            {dash.notifications.map((n, idx) => (
+              <div key={n._id} className={`dash-list-item${!n.read ? ' unread' : ''}`} style={{ borderBottom: idx < dash.notifications.length - 1 ? '1px solid var(--sand-line)' : 'none' }}>
+                <span className="dash-list-icon c-gold" aria-hidden><FaBell size={14} /></span>
+                <div className="dash-list-body"><div className="title" style={{ fontWeight: n.read ? 400 : 600 }}>{n.title}</div></div>
+                <span className="dash-list-time">{new Date(n.createdAt).toLocaleDateString()}</span>
+              </div>
+            ))}
           </div>
-        ))}
-        <button type="button" className="btn mt-2" style={{ padding: '4px 12px', fontSize: '0.75rem' }} onClick={() => onNavigate?.('notifications')}>View All</button>
-      </div>
+          <div style={{ padding: 12 }}>
+            <button type="button" className="btn" style={{ padding: '6px 14px', fontSize: '0.75rem' }} onClick={() => onNavigate?.('notifications')}>View All</button>
+          </div>
+        </div>
+      )}
     </>
   );
 }
@@ -4115,17 +4610,35 @@ function TeacherResourceLibraryPanel({ onFlash }) {
 
   return (
     <div>
-      <h3 className="font-semibold mb-2">Resource Library</h3>
-      <p className="text-xs mb-3" style={{ color: 'var(--ink-soft)' }}>Every lesson video and downloadable resource across all your courses, in one place. Add or edit these from My Classes → Manage Lessons.</p>
-      {items.length === 0 && <p className="text-sm" style={{ color: 'var(--ink-soft)' }}>No lessons added yet.</p>}
-      {items.map((it, i) => (
-        <div key={i} className="border border-[var(--sand-line)] rounded-xl p-3 mb-2">
-          <strong className="text-sm">{it.lesson}</strong>
-          <p className="text-xs" style={{ color: 'var(--ink-soft)' }}>{it.course}</p>
-          {it.videoUrl && <a href={it.videoUrl} target="_blank" rel="noreferrer" className="text-xs" style={{ color: 'var(--emerald)' }}>▶ Video</a>}
-          {it.resources.map((r, ri) => <a key={ri} href={r.url} target="_blank" rel="noreferrer" className="text-xs ml-2" style={{ color: 'var(--emerald)' }}>📄 {r.name || 'Download'}</a>)}
+      <h3 className="font-semibold" style={{ marginBottom: 4 }}>Resource Library</h3>
+      <p className="text-xs" style={{ color: 'var(--ink-soft)', marginBottom: 18 }}>Every lesson video and downloadable resource across all your courses, in one place. Add or edit these from My Classes → Manage Lessons.</p>
+      {items.length === 0 && (
+        <div className="student-empty-state" style={{ border: '1px solid var(--sand-line)', borderRadius: 18 }}>
+          <FaFileLines aria-hidden="true" />
+          <p>No lessons added yet</p>
         </div>
-      ))}
+      )}
+      <div style={{ display: 'grid', gap: 12 }}>
+        {items.map((it, i) => (
+          <div key={i} className="hover-card card" style={{ padding: 18, display: 'flex', gap: 14, alignItems: 'flex-start' }}>
+            <span style={{ width: 34, height: 34, borderRadius: 10, background: 'var(--sand)', color: 'var(--forest)', display: 'grid', placeItems: 'center', flexShrink: 0 }}>
+              <FaFileLines aria-hidden="true" size={14} />
+            </span>
+            <div style={{ minWidth: 0, flex: 1 }}>
+              <strong className="text-sm">{it.lesson}</strong>
+              <p className="text-xs" style={{ color: 'var(--ink-soft)', marginTop: 2 }}>{it.course}</p>
+              {(it.videoUrl || it.resources.length > 0) && (
+                <div className="flex flex-wrap items-center" style={{ gap: 8, marginTop: 10 }}>
+                  {it.videoUrl && <a href={it.videoUrl} target="_blank" rel="noreferrer" className="text-xs" style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '5px 12px', borderRadius: 999, background: 'var(--sand)', border: '1px solid var(--sand-line)', color: 'var(--forest)', fontWeight: 600 }}>▶ Video</a>}
+                  {it.resources.map((r, ri) => (
+                    <a key={ri} href={r.url} target="_blank" rel="noreferrer" className="text-xs" style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '5px 12px', borderRadius: 999, background: 'var(--sand)', border: '1px solid var(--sand-line)', color: 'var(--forest)', fontWeight: 600 }}>📄 {r.name || 'Download'}</a>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+        ))}
+      </div>
     </div>
   );
 }
@@ -4170,13 +4683,31 @@ function ParentChildDataPanel({ onFlash, kind }) {
     apiRequest(`/parents/children/${studentId}/${kind}`).then(setRows).catch((err) => onFlash(err.message));
   }, [studentId, kind, onFlash]);
 
-  if (children.length === 0) return <p className="admin-notice">No linked children yet — link one from the "My Children" tab first.</p>;
+  if (children.length === 0) {
+    return (
+      <div className="student-empty-state" style={{ border: '1px solid var(--sand-line)', borderRadius: 18, minHeight: 180 }}>
+        <FaUsers aria-hidden="true" />
+        <p>No linked children yet</p>
+        <span>Link one from the "My Children" tab first.</span>
+      </div>
+    );
+  }
 
   return (
     <div>
-      <select className="form-select" value={studentId} onChange={(e) => setStudentId(e.target.value)} style={{ maxWidth: 320, marginBottom: 16 }} aria-label="Select child">
-        {children.map((c) => <option key={c.student._id} value={c.student._id}>{c.student.fullName}</option>)}
-      </select>
+      {children.length > 1 ? (
+        <label style={{ display: 'inline-block', marginBottom: 18 }}>
+          <span className="text-xs" style={{ display: 'block', color: 'var(--ink-soft)', fontWeight: 600, marginBottom: 6 }}>Viewing child</span>
+          <select className="form-select" value={studentId} onChange={(e) => setStudentId(e.target.value)} style={{ minWidth: 240 }} aria-label="Select child">
+            {children.map((c) => <option key={c.student._id} value={c.student._id}>{c.student.fullName}</option>)}
+          </select>
+        </label>
+      ) : (
+        <div className="flex items-center" style={{ gap: 10, marginBottom: 18 }}>
+          <span style={{ width: 32, height: 32, borderRadius: '50%', background: 'var(--emerald)', color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 700, fontSize: 13, flexShrink: 0 }}>{children[0].student.fullName[0]}</span>
+          <strong className="text-sm">{children[0].student.fullName}</strong>
+        </div>
+      )}
       {rows === null && <p role="status" className="admin-notice">Loading...</p>}
       {rows && kind === 'attendance' && (
         <Table
@@ -4328,27 +4859,42 @@ function ParentTeacherMessagesPanel({ onFlash, onNavigate }) {
   }, []);
 
   if (children === null) return <p role="status" className="admin-notice">Loading...</p>;
-  if (children.length === 0) return <p className="admin-notice">No linked children yet — link one from the "My Children" tab first.</p>;
+  if (children.length === 0) {
+    return (
+      <div className="student-empty-state" style={{ border: '1px solid var(--sand-line)', borderRadius: 18, minHeight: 180 }}>
+        <FaUsers aria-hidden="true" />
+        <p>No linked children yet</p>
+        <span>Link one from the "My Children" tab first.</span>
+      </div>
+    );
+  }
 
   return (
     <div>
-      <h3 className="font-semibold mb-3">Teacher Communication</h3>
-      {children.map((c) => (
-        <div key={c.id} className="card mb-3" style={{ padding: 16 }}>
-          <div className="flex items-center justify-between">
-            <div>
-              <strong className="text-sm">{c.name}</strong>
-              <p className="text-xs" style={{ color: 'var(--ink-soft)' }}>Class teacher: {c.classTeacher || 'Not assigned yet'}</p>
+      <h3 className="font-semibold" style={{ marginBottom: 16 }}>Teacher Communication</h3>
+      <div style={{ display: 'grid', gap: 14 }}>
+        {children.map((c) => (
+          <div key={c.id} className="card" style={{ padding: 20 }}>
+            <div className="flex items-center justify-between flex-wrap" style={{ gap: 12 }}>
+              <div className="flex items-center" style={{ gap: 12 }}>
+                <span style={{ width: 40, height: 40, borderRadius: '50%', background: 'var(--emerald)', color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 700, flexShrink: 0 }}>{c.name[0]}</span>
+                <div>
+                  <strong className="text-sm">{c.name}</strong>
+                  <p className="text-xs" style={{ color: 'var(--ink-soft)', marginTop: 2 }}>Class teacher: {c.classTeacher || 'Not assigned yet'}</p>
+                </div>
+              </div>
+              <button type="button" className="btn btn-primary" style={{ padding: '7px 16px', fontSize: '0.78rem', flexShrink: 0 }} onClick={() => onNavigate?.('messages')}>Message Teacher</button>
             </div>
-            <button type="button" className="btn" style={{ padding: '5px 14px', fontSize: '0.78rem' }} onClick={() => onNavigate?.('messages')}>Message Teacher</button>
+            <div style={{ marginTop: 14, paddingTop: 14, borderTop: '1px solid var(--sand-line)' }}>
+              {c.teacherMessage ? (
+                <p className="text-xs" style={{ color: 'var(--ink-soft)' }}>Latest: "{c.teacherMessage.text}" — {new Date(c.teacherMessage.date).toLocaleString()}{c.teacherMessage.unread > 0 ? ` (${c.teacherMessage.unread} unread)` : ''}</p>
+              ) : (
+                <p className="text-xs" style={{ color: 'var(--ink-soft)' }}>No messages with the class teacher yet.</p>
+              )}
+            </div>
           </div>
-          {c.teacherMessage ? (
-            <p className="text-xs mt-2" style={{ color: 'var(--ink-soft)' }}>Latest: "{c.teacherMessage.text}" — {new Date(c.teacherMessage.date).toLocaleString()}{c.teacherMessage.unread > 0 ? ` (${c.teacherMessage.unread} unread)` : ''}</p>
-          ) : (
-            <p className="text-xs mt-2" style={{ color: 'var(--ink-soft)' }}>No messages with the class teacher yet.</p>
-          )}
-        </div>
-      ))}
+        ))}
+      </div>
     </div>
   );
 }
@@ -4372,15 +4918,34 @@ function ParentPaymentRecordsPanel({ onFlash }) {
     apiRequest(`/parents/children/${studentId}/fees`).then(setFees).catch(() => setFees([]));
   }, [studentId]);
 
-  if (children.length === 0) return <p className="admin-notice">No linked children yet — link one from the "My Children" tab first.</p>;
+  if (children.length === 0) {
+    return (
+      <div className="student-empty-state" style={{ border: '1px solid var(--sand-line)', borderRadius: 18, minHeight: 180 }}>
+        <FaUsers aria-hidden="true" />
+        <p>No linked children yet</p>
+        <span>Link one from the "My Children" tab first.</span>
+      </div>
+    );
+  }
 
   const paid = (fees || []).filter((f) => f.status === 'paid');
+  const selectedChild = children.find((c) => c.student._id === studentId);
 
   return (
     <div>
-      <select className="form-select" value={studentId} onChange={(e) => setStudentId(e.target.value)} style={{ maxWidth: 320, marginBottom: 16 }} aria-label="Select child">
-        {children.map((c) => <option key={c.student._id} value={c.student._id}>{c.student.fullName}</option>)}
-      </select>
+      {children.length > 1 ? (
+        <label style={{ display: 'inline-block', marginBottom: 18 }}>
+          <span className="text-xs" style={{ display: 'block', color: 'var(--ink-soft)', fontWeight: 600, marginBottom: 6 }}>Viewing child</span>
+          <select className="form-select" value={studentId} onChange={(e) => setStudentId(e.target.value)} style={{ minWidth: 240 }} aria-label="Select child">
+            {children.map((c) => <option key={c.student._id} value={c.student._id}>{c.student.fullName}</option>)}
+          </select>
+        </label>
+      ) : selectedChild && (
+        <div className="flex items-center" style={{ gap: 10, marginBottom: 18 }}>
+          <span style={{ width: 32, height: 32, borderRadius: '50%', background: 'var(--emerald)', color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 700, fontSize: 13, flexShrink: 0 }}>{selectedChild.student.fullName[0]}</span>
+          <strong className="text-sm">{selectedChild.student.fullName}</strong>
+        </div>
+      )}
       <h3 className="font-semibold mb-2">Payment Records</h3>
       <Table
         headers={['Title', 'Amount', 'Paid Via', 'Paid On']}
@@ -4406,7 +4971,13 @@ function ParentSummary({ onNavigate }) {
   if (error) return <div role="alert" className="admin-notice error">{error}</div>;
   if (!dash) return <p role="status" className="admin-notice">Loading your dashboard...</p>;
   if (dash.children.length === 0) {
-    return <p className="admin-notice">No linked children yet — link one from the "My Children" tab first, then approve it from the student's account.</p>;
+    return (
+      <div className="student-empty-state" style={{ border: '1px solid var(--sand-line)', borderRadius: 18, minHeight: 200 }}>
+        <FaUsers aria-hidden="true" />
+        <p>No linked children yet</p>
+        <span>Link one from the "My Children" tab first, then approve it from the student's own account.</span>
+      </div>
+    );
   }
 
   const child = dash.children.find((c) => c.id === selectedChild) || dash.children[0];
@@ -4429,95 +5000,121 @@ function ParentSummary({ onNavigate }) {
     <>
       {/* 1. Children Overview */}
       <div className="dash-section-title" style={{ marginTop: -12 }}><h2>Children Overview</h2></div>
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+      <div className="grid grid-cols-1 md:grid-cols-2" style={{ gap: 14 }}>
         {dash.children.map((c) => (
-          <div key={c.id} className="card" style={{ padding: 16, cursor: 'pointer', border: c.id === child.id ? '2px solid var(--emerald)' : undefined }} onClick={() => setSelectedChild(c.id)}>
-            <div className="flex items-center gap-3">
+          <div key={c.id} className="hover-card card" style={{ padding: 18, cursor: 'pointer', border: c.id === child.id ? '2px solid var(--emerald)' : '1px solid var(--sand-line)' }} onClick={() => setSelectedChild(c.id)}>
+            <div className="flex items-center" style={{ gap: 12 }}>
               {c.profilePhoto
-                ? <img src={c.profilePhoto} alt="" style={{ width: 40, height: 40, borderRadius: '50%', objectFit: 'cover' }} />
-                : <div style={{ width: 40, height: 40, borderRadius: '50%', background: 'var(--emerald)', color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 700 }}>{c.name[0]}</div>}
+                ? <img src={c.profilePhoto} alt="" style={{ width: 44, height: 44, borderRadius: '50%', objectFit: 'cover', flexShrink: 0 }} />
+                : <div style={{ width: 44, height: 44, borderRadius: '50%', background: 'var(--emerald)', color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 700, flexShrink: 0 }}>{c.name[0]}</div>}
               <div>
                 <strong className="text-sm">{c.name}</strong>
-                <p className="text-xs" style={{ color: 'var(--ink-soft)' }}>{c.age !== null ? `Age ${c.age} · ` : ''}{c.class || 'No class assigned'}</p>
+                <p className="text-xs" style={{ color: 'var(--ink-soft)', marginTop: 2 }}>{c.age !== null ? `Age ${c.age} · ` : ''}{c.class || 'No class assigned'}</p>
               </div>
             </div>
-            <p className="text-xs mt-2" style={{ color: 'var(--ink-soft)' }}>{c.school || 'Not connected to an institution'} · Roll #{c.rollNumber || '—'}</p>
-            <p className="text-xs" style={{ color: 'var(--ink-soft)' }}>Program: {c.program || '—'} · Term: {c.currentTerm || '—'}</p>
-            <p className="text-xs" style={{ color: 'var(--ink-soft)' }}>Class teacher: {c.classTeacher || '—'}</p>
+            <div style={{ marginTop: 12, paddingTop: 12, borderTop: '1px solid var(--sand-line)' }}>
+              <p className="text-xs" style={{ color: 'var(--ink-soft)' }}>{c.school || 'Not connected to an institution'} · Roll #{c.rollNumber || '—'}</p>
+              <p className="text-xs" style={{ color: 'var(--ink-soft)', marginTop: 4 }}>Program: {c.program || '—'} · Term: {c.currentTerm || '—'}</p>
+              <p className="text-xs" style={{ color: 'var(--ink-soft)', marginTop: 4 }}>Class teacher: {c.classTeacher || '—'}</p>
+            </div>
           </div>
         ))}
       </div>
-      {dash.children.length > 1 && <p className="text-xs mt-2" style={{ color: 'var(--ink-soft)' }}>Showing details below for <strong>{child.name}</strong> — click another child's card to switch.</p>}
+      {dash.children.length > 1 && <p className="text-xs" style={{ color: 'var(--ink-soft)', marginTop: 10 }}>Showing details below for <strong>{child.name}</strong> — click another child's card to switch.</p>}
 
       {/* 2. Today's Attendance */}
       <div className="dash-section-title" style={{ marginTop: 32 }}><h2>Today's Attendance — {child.name}</h2></div>
-      <div className="card" style={{ padding: 20 }}>
+      <div className="card" style={{ padding: child.todayAttendance ? 20 : 0 }}>
         {child.todayAttendance ? (
           <>
-            <Tag status={ATTENDANCE_TAG[child.todayAttendance.status] || 'pending'} />
-            <span className="text-sm" style={{ marginLeft: 8 }}>{ATTENDANCE_STATUS_LABEL[child.todayAttendance.status] || child.todayAttendance.status}</span>
-            {child.todayAttendance.reason && <p className="text-xs mt-1" style={{ color: 'var(--ink-soft)' }}>Absence reason: {child.todayAttendance.reason}</p>}
+            <div className="flex items-center" style={{ gap: 10 }}>
+              <Tag status={ATTENDANCE_TAG[child.todayAttendance.status] || 'pending'} />
+              <span className="text-sm">{ATTENDANCE_STATUS_LABEL[child.todayAttendance.status] || child.todayAttendance.status}</span>
+            </div>
+            {child.todayAttendance.reason && <p className="text-xs" style={{ color: 'var(--ink-soft)', marginTop: 8 }}>Absence reason: {child.todayAttendance.reason}</p>}
           </>
-        ) : <p className="text-xs" style={{ color: 'var(--ink-soft)' }}>Not marked yet today.</p>}
+        ) : (
+          <div className="student-empty-state">
+            <FaClipboardCheck aria-hidden="true" />
+            <p>Not marked yet today</p>
+            <span>The teacher hasn't recorded attendance for today yet.</span>
+          </div>
+        )}
       </div>
 
       {/* 3. Upcoming Exams */}
       <div className="dash-section-title" style={{ marginTop: 32 }}><h2>Upcoming Exams — {child.name}</h2></div>
-      <div className="card" style={{ padding: 12 }}>
+      <div className="card" style={{ padding: 16 }}>
         <Table
           headers={['Subject', 'Exam', 'Date', 'Venue / Link', 'Instructions']}
           rows={child.upcomingExams.map((e) => [e.subject || '—', e.title, e.scheduledDate ? new Date(e.scheduledDate).toLocaleString() : '—', e.venue || '—', e.instructions || '—'])}
           empty="No upcoming exams scheduled."
         />
-        <button type="button" className="btn mt-2" style={{ padding: '5px 14px', fontSize: '0.78rem' }} onClick={() => onNavigate?.('examSchedule')}>View Full Exam Schedule</button>
+        <button type="button" className="btn" style={{ padding: '6px 14px', fontSize: '0.78rem', marginTop: 12 }} onClick={() => onNavigate?.('examSchedule')}>View Full Exam Schedule</button>
       </div>
 
       {/* 4. Pending Fees */}
       <div className="dash-section-title" style={{ marginTop: 32 }}><h2>Pending Fees</h2></div>
-      {dash.children.map((c) => c.fees.length > 0 && (
-        <div key={c.id} className="card mb-3" style={{ padding: 16 }}>
-          <strong className="text-sm">{c.name}</strong>
-          {c.fees.map((f, i) => (
-            <div key={i} className="flex items-center justify-between mt-2">
-              <div>
-                <p className="text-xs" style={{ color: 'var(--ink-soft)' }}>{f.institution} — Total {f.currency} {f.total} · Paid {f.currency} {f.paid} · Remaining {f.currency} {f.remaining}</p>
-                <p className="text-xs" style={{ color: 'var(--ink-soft)' }}>Due: {f.dueDate ? new Date(f.dueDate).toLocaleDateString() : '—'} · <Tag status={f.status === 'paid' ? 'approved' : f.status === 'overdue' ? 'rejected' : 'pending'} /></p>
-              </div>
-              {f.remaining > 0 && <button type="button" className="btn btn-primary" style={{ padding: '5px 14px', fontSize: '0.78rem' }} onClick={() => onNavigate?.('fees')}>Pay Now</button>}
+      <div style={{ display: 'grid', gap: 14 }}>
+        {dash.children.map((c) => c.fees.length > 0 && (
+          <div key={c.id} className="card" style={{ padding: 18 }}>
+            <strong className="text-sm">{c.name}</strong>
+            <div style={{ marginTop: 10 }}>
+              {c.fees.map((f, i) => (
+                <div key={i} className="flex items-center justify-between flex-wrap" style={{ gap: 12, padding: '10px 0', borderTop: i > 0 ? '1px solid var(--sand-line)' : 'none' }}>
+                  <div>
+                    <p className="text-xs" style={{ color: 'var(--ink-soft)' }}>{f.institution} — Total {f.currency} {f.total} · Paid {f.currency} {f.paid} · Remaining {f.currency} {f.remaining}</p>
+                    <p className="text-xs" style={{ color: 'var(--ink-soft)', marginTop: 4 }}>Due: {f.dueDate ? new Date(f.dueDate).toLocaleDateString() : '—'} · <Tag status={f.status === 'paid' ? 'approved' : f.status === 'overdue' ? 'rejected' : 'pending'} /></p>
+                  </div>
+                  {f.remaining > 0 && <button type="button" className="btn btn-primary" style={{ padding: '6px 14px', fontSize: '0.78rem', flexShrink: 0 }} onClick={() => onNavigate?.('fees')}>Pay Now</button>}
+                </div>
+              ))}
             </div>
-          ))}
-        </div>
-      ))}
-      {totalPendingFees === 0 && <div className="card" style={{ padding: 16 }}><p className="text-xs" style={{ color: 'var(--ink-soft)' }}>No outstanding fees right now.</p></div>}
+          </div>
+        ))}
+        {totalPendingFees === 0 && (
+          <div className="student-empty-state" style={{ border: '1px solid var(--sand-line)', borderRadius: 18 }}>
+            <FaWallet aria-hidden="true" />
+            <p>No outstanding fees right now</p>
+          </div>
+        )}
+      </div>
 
       {/* 5. Teacher Messages */}
       <div className="dash-section-title" style={{ marginTop: 32 }}><h2>Teacher Messages</h2></div>
-      {dash.children.map((c) => (
-        <div key={c.id} className="card mb-2" style={{ padding: 16 }}>
-          <div className="flex items-center justify-between">
-            <div>
-              <strong className="text-sm">{c.classTeacher || 'No class teacher assigned'}</strong>
-              <p className="text-xs" style={{ color: 'var(--ink-soft)' }}>Re: {c.name}</p>
-              {c.teacherMessage ? (
-                <p className="text-xs mt-1" style={{ color: 'var(--ink-soft)' }}>"{c.teacherMessage.text}" — {new Date(c.teacherMessage.date).toLocaleString()}{c.teacherMessage.unread > 0 ? ` · ${c.teacherMessage.unread} unread` : ''}</p>
-              ) : <p className="text-xs mt-1" style={{ color: 'var(--ink-soft)' }}>No messages yet.</p>}
+      <div style={{ display: 'grid', gap: 12 }}>
+        {dash.children.map((c) => (
+          <div key={c.id} className="card" style={{ padding: 18 }}>
+            <div className="flex items-center justify-between flex-wrap" style={{ gap: 12 }}>
+              <div>
+                <strong className="text-sm">{c.classTeacher || 'No class teacher assigned'}</strong>
+                <p className="text-xs" style={{ color: 'var(--ink-soft)', marginTop: 4 }}>Re: {c.name}</p>
+                {c.teacherMessage ? (
+                  <p className="text-xs" style={{ color: 'var(--ink-soft)', marginTop: 6 }}>"{c.teacherMessage.text}" — {new Date(c.teacherMessage.date).toLocaleString()}{c.teacherMessage.unread > 0 ? ` · ${c.teacherMessage.unread} unread` : ''}</p>
+                ) : <p className="text-xs" style={{ color: 'var(--ink-soft)', marginTop: 6 }}>No messages yet.</p>}
+              </div>
+              <button type="button" className="btn" style={{ padding: '6px 14px', fontSize: '0.78rem', flexShrink: 0 }} onClick={() => onNavigate?.('messages')}>{c.teacherMessage ? 'View / Reply' : 'Message Teacher'}</button>
             </div>
-            <button type="button" className="btn" style={{ padding: '5px 14px', fontSize: '0.78rem' }} onClick={() => onNavigate?.('messages')}>{c.teacherMessage ? 'View / Reply' : 'Message Teacher'}</button>
           </div>
-        </div>
-      ))}
+        ))}
+      </div>
 
       {/* 6. Notifications */}
       <div className="dash-section-title" style={{ marginTop: 32 }}><h2>Notifications</h2></div>
-      <div className="card" style={{ padding: 12 }}>
-        {dash.notifications.length === 0 && <p className="text-xs" style={{ color: 'var(--ink-soft)' }}>No notifications yet.</p>}
-        {dash.notifications.map((n) => (
-          <div key={n._id} className="flex items-center justify-between" style={{ padding: '4px 0' }}>
+      <div className="card" style={{ padding: dash.notifications.length === 0 ? 0 : 12 }}>
+        {dash.notifications.length === 0 && (
+          <div className="student-empty-state">
+            <FaBell aria-hidden="true" />
+            <p>No notifications yet</p>
+          </div>
+        )}
+        {dash.notifications.map((n, idx) => (
+          <div key={n._id} className="flex items-center justify-between" style={{ padding: '10px 4px', borderBottom: idx < dash.notifications.length - 1 ? '1px solid var(--sand-line)' : 'none' }}>
             <p className="text-xs" style={{ color: n.read ? 'var(--ink-soft)' : 'var(--ink)', fontWeight: n.read ? 400 : 600 }}>{n.title}</p>
             <span className="text-xs" style={{ color: 'var(--ink-soft)' }}>{new Date(n.createdAt).toLocaleDateString()}</span>
           </div>
         ))}
-        <button type="button" className="btn mt-2" style={{ padding: '4px 12px', fontSize: '0.75rem' }} onClick={() => onNavigate?.('notifications')}>View All</button>
+        {dash.notifications.length > 0 && <button type="button" className="btn" style={{ padding: '6px 14px', fontSize: '0.75rem', marginTop: 8 }} onClick={() => onNavigate?.('notifications')}>View All</button>}
       </div>
 
       {/* Quick Actions */}
@@ -4638,67 +5235,86 @@ function RepDashboardPanel({ onFlash, onNavigate, repInfo, user }) {
 
       {/* 3. Student Inquiries */}
       <div className="dash-section-title"><h2>Student Inquiries</h2></div>
-      <div className="card" style={{ padding: 12, marginBottom: 20 }}>
+      <div className="card" style={{ padding: 16, marginBottom: 20 }}>
         <Table
           headers={['Student', 'Program', 'Country', 'Status', 'Assigned Rep', 'Date']}
           rows={dash.inquiries.slice(0, 5).map((i) => [i.student?.fullName, i.interestedProgram, i.country || '—', <Tag status={REP_INQUIRY_TAG[i.status]} />, i.assignedRepresentative?.fullName || 'Unassigned', new Date(i.createdAt).toLocaleDateString()])}
           empty="No inquiries yet."
         />
-        <button type="button" className="btn mt-2" style={{ padding: '5px 14px', fontSize: '0.78rem' }} onClick={() => onNavigate?.('inquiries')}>View / Respond</button>
+        <button type="button" className="btn" style={{ padding: '6px 14px', fontSize: '0.78rem', marginTop: 12 }} onClick={() => onNavigate?.('inquiries')}>View / Respond</button>
       </div>
 
       {/* 4. Institution Applications */}
       <div className="dash-section-title"><h2>Institution Applications</h2></div>
-      <div className="card" style={{ padding: 12, marginBottom: 20 }}>
+      <div className="card" style={{ padding: 16, marginBottom: 20 }}>
         <Table
           headers={['Applicant', 'Program', 'Documents', 'Missing', 'Status', 'Progress', 'Applied']}
           rows={dash.applications.slice(0, 5).map((a) => [a.applicant?.fullName, a.program, a.documents?.length || 0, a.missingRequirements?.length ? a.missingRequirements.join(', ') : '—', <Tag status={REP_APP_TAG[a.status]} />, `${a.admissionProgress}%`, a.submittedAt ? new Date(a.submittedAt).toLocaleDateString() : 'Draft'])}
           empty="No applications yet."
         />
-        <button type="button" className="btn mt-2" style={{ padding: '5px 14px', fontSize: '0.78rem' }} onClick={() => onNavigate?.('applications')}>Review Applications</button>
+        <button type="button" className="btn" style={{ padding: '6px 14px', fontSize: '0.78rem', marginTop: 12 }} onClick={() => onNavigate?.('applications')}>Review Applications</button>
       </div>
 
       {/* 5. Upcoming Meetings/Consultations */}
       <div className="dash-section-title"><h2>Upcoming Meetings</h2></div>
-      <div className="card" style={{ padding: 12, marginBottom: 20 }}>
-        {dash.upcomingMeetings.length === 0 && <p className="text-xs" style={{ color: 'var(--ink-soft)' }}>No meetings scheduled.</p>}
-        {dash.upcomingMeetings.map((m) => {
-          const st = MEETING_STATUS[m.status] || MEETING_STATUS.scheduled;
-          return (
-            <div key={m._id} className="flex items-center justify-between flex-wrap gap-2" style={{ padding: '8px 0', borderBottom: '1px solid var(--sand-line)' }}>
-              <div>
-                <strong className="text-sm">{m.student?.fullName}</strong>
-                <p className="text-xs" style={{ color: 'var(--ink-soft)' }}>{m.program || 'General consultation'}</p>
-                <p className="text-xs" style={{ color: 'var(--ink-soft)' }}>{new Date(m.scheduledDate).toLocaleString()} · {MEETING_MODE_LABEL[m.mode] || m.mode}</p>
-                <p className="text-xs" style={{ color: 'var(--ink-soft)' }}>{m.mode === 'physical' ? (m.location || 'Location to be confirmed') : (m.meetingLink || 'Meeting link to be shared')}</p>
-                <Tag status={st.tag} label={st.label} />
+      {dash.upcomingMeetings.length === 0 ? (
+        <div className="student-empty-state" style={{ border: '1px solid var(--sand-line)', borderRadius: 18, marginBottom: 20 }}>
+          <FaCalendarCheck aria-hidden="true" />
+          <p>No meetings scheduled</p>
+        </div>
+      ) : (
+        <div style={{ display: 'grid', gap: 12, marginBottom: 20 }}>
+          {dash.upcomingMeetings.map((m) => {
+            const st = MEETING_STATUS[m.status] || MEETING_STATUS.scheduled;
+            return (
+              <div key={m._id} className="card" style={{ padding: 18 }}>
+                <div className="flex items-center justify-between flex-wrap" style={{ gap: 12 }}>
+                  <div>
+                    <strong className="text-sm">{m.student?.fullName}</strong>
+                    <p className="text-xs" style={{ color: 'var(--ink-soft)', marginTop: 4 }}>{m.program || 'General consultation'}</p>
+                    <p className="text-xs" style={{ color: 'var(--ink-soft)', marginTop: 4 }}>{new Date(m.scheduledDate).toLocaleString()} · {MEETING_MODE_LABEL[m.mode] || m.mode}</p>
+                    <p className="text-xs" style={{ color: 'var(--ink-soft)', marginTop: 4 }}>{m.mode === 'physical' ? (m.location || 'Location to be confirmed') : (m.meetingLink || 'Meeting link to be shared')}</p>
+                    <span style={{ display: 'inline-block', marginTop: 8 }}><Tag status={st.tag} label={st.label} /></span>
+                  </div>
+                  {m.mode !== 'physical' && m.meetingLink ? <a className="btn btn-primary" style={{ padding: '7px 16px', fontSize: '0.75rem', flexShrink: 0 }} href={m.meetingLink} target="_blank" rel="noreferrer">Join Meeting</a> : <button type="button" className="btn" style={{ padding: '7px 16px', fontSize: '0.75rem', flexShrink: 0 }} onClick={() => onNavigate?.('meetings')}>View Details</button>}
+                </div>
               </div>
-              {m.mode !== 'physical' && m.meetingLink ? <a className="btn btn-primary" style={{ padding: '5px 12px', fontSize: '0.75rem' }} href={m.meetingLink} target="_blank" rel="noreferrer">Join Meeting</a> : <button type="button" className="btn" style={{ padding: '5px 12px', fontSize: '0.75rem' }} onClick={() => onNavigate?.('meetings')}>View Details</button>}
-            </div>
-          );
-        })}
-      </div>
+            );
+          })}
+        </div>
+      )}
 
       {/* 7. Follow-ups */}
       <div className="dash-section-title"><h2>Follow-ups Needed</h2></div>
-      <div className="card" style={{ padding: 12, marginBottom: 20 }}>
-        <p className="text-xs" style={{ color: 'var(--ink-soft)' }}>{dash.followUps.unansweredInquiries.length} unanswered inquiries · {dash.followUps.followUpInquiries.length} marked follow-up · {dash.followUps.documentsRequired.length} waiting on documents · {dash.followUps.pendingApplicationActions.length} applications need action · {dash.followUps.meetingReminders.length} meetings within 48h</p>
-        {dash.followUps.admissionDeadline && <p className="text-xs mt-1" style={{ color: 'var(--rose)' }}>Admission deadline: {new Date(dash.followUps.admissionDeadline).toLocaleDateString()}</p>}
-        <button type="button" className="btn mt-2" style={{ padding: '5px 14px', fontSize: '0.78rem' }} onClick={() => onNavigate?.('followUps')}>View Follow-ups</button>
+      <div className="card" style={{ padding: 18, marginBottom: 20 }}>
+        <p className="text-xs" style={{ color: 'var(--ink-soft)', lineHeight: 1.7 }}>{dash.followUps.unansweredInquiries.length} unanswered inquiries · {dash.followUps.followUpInquiries.length} marked follow-up · {dash.followUps.documentsRequired.length} waiting on documents · {dash.followUps.pendingApplicationActions.length} applications need action · {dash.followUps.meetingReminders.length} meetings within 48h</p>
+        {dash.followUps.admissionDeadline && <p className="text-xs" style={{ color: 'var(--rose)', fontWeight: 600, marginTop: 8 }}>Admission deadline: {new Date(dash.followUps.admissionDeadline).toLocaleDateString()}</p>}
+        <button type="button" className="btn" style={{ padding: '6px 14px', fontSize: '0.78rem', marginTop: 12 }} onClick={() => onNavigate?.('followUps')}>View Follow-ups</button>
       </div>
 
       {/* 10. Notifications */}
       <div className="dash-section-title"><h2>Notifications</h2></div>
-      <div className="card" style={{ padding: 12, marginBottom: 20 }}>
-        {dash.notifications.length === 0 && <p className="text-xs" style={{ color: 'var(--ink-soft)' }}>No notifications yet.</p>}
-        {dash.notifications.map((n) => (
-          <div key={n._id} className="flex items-center justify-between" style={{ padding: '4px 0' }}>
-            <p className="text-xs" style={{ color: n.read ? 'var(--ink-soft)' : 'var(--ink)', fontWeight: n.read ? 400 : 600 }}>{n.title}</p>
-            <span className="text-xs" style={{ color: 'var(--ink-soft)' }}>{new Date(n.createdAt).toLocaleDateString()}</span>
+      {dash.notifications.length === 0 ? (
+        <div className="student-empty-state" style={{ border: '1px solid var(--sand-line)', borderRadius: 18, marginBottom: 20 }}>
+          <FaBell aria-hidden="true" />
+          <p>No notifications yet</p>
+        </div>
+      ) : (
+        <div className="card" style={{ padding: 0, marginBottom: 20 }}>
+          <div className="dash-list" style={{ gap: 0 }}>
+            {dash.notifications.map((n, idx) => (
+              <div key={n._id} className={`dash-list-item${!n.read ? ' unread' : ''}`} style={{ borderBottom: idx < dash.notifications.length - 1 ? '1px solid var(--sand-line)' : 'none' }}>
+                <span className="dash-list-icon c-gold" aria-hidden><FaBell size={14} /></span>
+                <div className="dash-list-body"><div className="title" style={{ fontWeight: n.read ? 400 : 600 }}>{n.title}</div></div>
+                <span className="dash-list-time">{new Date(n.createdAt).toLocaleDateString()}</span>
+              </div>
+            ))}
           </div>
-        ))}
-        <button type="button" className="btn mt-2" style={{ padding: '4px 12px', fontSize: '0.75rem' }} onClick={() => onNavigate?.('notifications')}>View All</button>
-      </div>
+          <div style={{ padding: 12 }}>
+            <button type="button" className="btn" style={{ padding: '6px 14px', fontSize: '0.75rem' }} onClick={() => onNavigate?.('notifications')}>View All</button>
+          </div>
+        </div>
+      )}
 
       {/* 11. Recent Activity */}
       <RecentActivity items={dash.recentActivity.map((a) => ({ ...a, desc: '', status: 'approved' }))} />
@@ -4751,35 +5367,50 @@ function RepInquiriesPanel({ onFlash, repInfo, user }) {
 
   return (
     <div>
-      <h3 className="font-semibold mb-2">Student Inquiries</h3>
-      {inquiries.length === 0 && <p className="text-sm" style={{ color: 'var(--ink-soft)' }}>No inquiries yet.</p>}
-      {inquiries.map((i) => (
-        <div key={i._id} className="border border-[var(--sand-line)] rounded-xl p-4 mb-3">
-          <div className="flex items-center justify-between flex-wrap gap-2">
-            <div>
-              <strong className="text-sm">{i.student?.fullName}</strong> — {i.interestedProgram}
-              <p className="text-xs mt-1" style={{ color: 'var(--ink-soft)' }}>{i.qualification || '—'} · {i.country || '—'} · {new Date(i.createdAt).toLocaleDateString()} · Assigned: {i.assignedRepresentative?.fullName || 'Unassigned'}</p>
-              {i.message && <p className="text-sm mt-1">"{i.message}"</p>}
-            </div>
-            <div className="flex gap-2 items-center">
-              <Tag status={REP_INQUIRY_TAG[i.status]} label={REP_INQUIRY_STATUS_LABEL[i.status]} />
-              <select className="form-select" value={i.status} onChange={(e) => setStatus(i._id, e.target.value)} style={{ fontSize: '0.78rem', padding: '4px 8px' }}>
-                {REP_INQUIRY_STATUS.map((s) => <option key={s} value={s}>{REP_INQUIRY_STATUS_LABEL[s]}</option>)}
-              </select>
-              {!i.assignedRepresentative && <button type="button" className="btn" style={{ padding: '4px 10px', fontSize: '0.72rem' }} onClick={() => assignToMe(i._id)}>Assign to me</button>}
-            </div>
-          </div>
-          {i.responses.length > 0 && (
-            <div className="mt-2" style={{ borderTop: '1px solid var(--sand-line)', paddingTop: 8 }}>
-              {i.responses.map((r, ri) => <p key={ri} className="text-xs" style={{ color: 'var(--ink-soft)' }}>{new Date(r.createdAt).toLocaleString()}: {r.text}</p>)}
-            </div>
-          )}
-          <div className="flex gap-2 items-end mt-2">
-            <input className="form-input" placeholder="Reply to student..." value={replies[i._id] || ''} onChange={(e) => setReplies({ ...replies, [i._id]: e.target.value })} style={{ flex: 1 }} />
-            <button type="button" className="btn btn-primary" style={{ padding: '5px 14px', fontSize: '0.78rem' }} onClick={() => respond(i._id)}>Respond</button>
-          </div>
+      <h3 className="font-semibold" style={{ marginBottom: 16 }}>Student Inquiries</h3>
+      {inquiries.length === 0 && (
+        <div className="student-empty-state" style={{ border: '1px solid var(--sand-line)', borderRadius: 18 }}>
+          <FaClipboardList aria-hidden="true" />
+          <p>No inquiries yet</p>
         </div>
-      ))}
+      )}
+      <div style={{ display: 'grid', gap: 14 }}>
+        {inquiries.map((i) => (
+          <div key={i._id} className="card" style={{ padding: 20 }}>
+            <div className="flex items-start justify-between flex-wrap" style={{ gap: 14 }}>
+              <div className="flex items-start" style={{ gap: 12 }}>
+                <span style={{ width: 38, height: 38, borderRadius: '50%', background: 'var(--forest)', color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 700, flexShrink: 0 }}>{(i.student?.fullName || '?')[0]}</span>
+                <div>
+                  <strong className="text-sm">{i.student?.fullName}</strong>
+                  <p className="text-xs" style={{ color: 'var(--ink-soft)', marginTop: 2 }}>{i.interestedProgram}</p>
+                  <p className="text-xs" style={{ color: 'var(--ink-soft)', marginTop: 4 }}>
+                    {i.qualification ? `${i.qualification} · ` : ''}{i.country || 'Country not set'} · {new Date(i.createdAt).toLocaleDateString()} · Assigned: {i.assignedRepresentative?.fullName || 'Unassigned'}
+                  </p>
+                  {i.message && <p className="text-sm" style={{ marginTop: 6 }}>"{i.message}"</p>}
+                </div>
+              </div>
+              <div className="flex items-center" style={{ gap: 10, flexShrink: 0 }}>
+                <div style={{ minWidth: 150 }}>
+                  <CustomSelect
+                    value={i.status} onChange={(v) => setStatus(i._id, v)} ariaLabel="Inquiry status" minWidth="100%"
+                    options={REP_INQUIRY_STATUS.map((s) => ({ value: s, label: REP_INQUIRY_STATUS_LABEL[s] }))}
+                  />
+                </div>
+                {!i.assignedRepresentative && <button type="button" className="btn" style={{ padding: '8px 14px', fontSize: '0.72rem' }} onClick={() => assignToMe(i._id)}>Assign to me</button>}
+              </div>
+            </div>
+            {i.responses.length > 0 && (
+              <div style={{ marginTop: 14, paddingTop: 14, borderTop: '1px solid var(--sand-line)', display: 'grid', gap: 6 }}>
+                {i.responses.map((r, ri) => <p key={ri} className="text-xs" style={{ color: 'var(--ink-soft)' }}>{new Date(r.createdAt).toLocaleString()}: {r.text}</p>)}
+              </div>
+            )}
+            <div className="flex items-end" style={{ gap: 12, marginTop: 14 }}>
+              <input className="form-input" placeholder="Reply to student..." value={replies[i._id] || ''} onChange={(e) => setReplies({ ...replies, [i._id]: e.target.value })} style={{ flex: '1 1 auto', minWidth: 0 }} />
+              <button type="button" className="btn btn-primary" style={{ padding: '8px 16px', fontSize: '0.78rem', flexShrink: 0 }} onClick={() => respond(i._id)}>Respond</button>
+            </div>
+          </div>
+        ))}
+      </div>
     </div>
   );
 }
@@ -4809,37 +5440,56 @@ function RepApplicationsPanel({ onFlash, repInfo, user }) {
 
   return (
     <div>
-      <h3 className="font-semibold mb-2">Institution Applications</h3>
-      <p className="text-xs mb-3" style={{ color: 'var(--ink-soft)' }}>You can move applications through review — final Accept/Reject only works if your institution granted you that permission.</p>
-      {applications.length === 0 && <p className="text-sm" style={{ color: 'var(--ink-soft)' }}>No applications yet.</p>}
-      {applications.map((a) => (
-        <div key={a._id} className="border border-[var(--sand-line)] rounded-xl p-4 mb-3">
-          <div className="flex items-center justify-between flex-wrap gap-2">
-            <div>
-              <strong className="text-sm">{a.applicant?.fullName}</strong> — {a.program}
-              <p className="text-xs mt-1" style={{ color: 'var(--ink-soft)' }}>Applied: {a.submittedAt ? new Date(a.submittedAt).toLocaleDateString() : 'Draft'} · Assigned: {a.assignedRepresentative?.fullName || 'Unassigned'} · {a.documents.length} document(s) submitted</p>
-              <p className="text-xs mt-1" style={{ color: 'var(--ink-soft)' }}>Admission progress: {a.admissionProgress}%</p>
-              {a.missingRequirements.length > 0 && <p className="text-xs mt-1" style={{ color: 'var(--rose)' }}>Missing: {a.missingRequirements.join(', ')}</p>}
-              {a.documents.length > 0 && <p className="text-xs mt-1" style={{ color: 'var(--ink-soft)' }}>{a.documents.map((d) => d.name).join(', ')}</p>}
-            </div>
-            <div className="flex gap-2 items-center">
-              <Tag status={REP_APP_TAG[a.status]} label={REP_APP_STATUS_LABEL[a.status]} />
-              <select className="form-select" value={a.status} onChange={(e) => setStatus(a._id, e.target.value)} style={{ fontSize: '0.78rem', padding: '4px 8px' }}>
-                {REP_APP_STATUS.map((s) => {
-                  const canApprove = repInfo?.permissions?.includes('application:approve');
-                  const locked = ['accepted', 'rejected'].includes(s) && !canApprove;
-                  return <option key={s} value={s} disabled={locked}>{REP_APP_STATUS_LABEL[s]}{locked ? ' (needs approval permission)' : ''}</option>;
-                })}
-              </select>
-              {!a.assignedRepresentative && <button type="button" className="btn" style={{ padding: '4px 10px', fontSize: '0.72rem' }} onClick={() => assignToMe(a._id)}>Assign to me</button>}
-            </div>
-          </div>
-          <div className="flex gap-2 items-end mt-2">
-            <input className="form-input" placeholder="Missing documents (comma separated)" value={missingDraft[a._id] || ''} onChange={(e) => setMissingDraft({ ...missingDraft, [a._id]: e.target.value })} style={{ flex: 1 }} />
-            <button type="button" className="btn" style={{ padding: '5px 14px', fontSize: '0.78rem' }} onClick={() => saveMissing(a._id)}>Request Documents</button>
-          </div>
+      <h3 className="font-semibold" style={{ marginBottom: 4 }}>Institution Applications</h3>
+      <p className="text-xs" style={{ color: 'var(--ink-soft)', marginBottom: 18 }}>You can move applications through review — final Accept/Reject only works if your institution granted you that permission.</p>
+      {applications.length === 0 && (
+        <div className="student-empty-state" style={{ border: '1px solid var(--sand-line)', borderRadius: 18 }}>
+          <FaFileLines aria-hidden="true" />
+          <p>No applications yet</p>
         </div>
-      ))}
+      )}
+      <div style={{ display: 'grid', gap: 14 }}>
+        {applications.map((a) => {
+          const canApprove = repInfo?.permissions?.includes('application:approve');
+          return (
+            <div key={a._id} className="card" style={{ padding: 20 }}>
+              <div className="flex items-start justify-between flex-wrap" style={{ gap: 14 }}>
+                <div className="flex items-start" style={{ gap: 12 }}>
+                  <span style={{ width: 38, height: 38, borderRadius: '50%', background: 'var(--forest)', color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 700, flexShrink: 0 }}>{(a.applicant?.fullName || '?')[0]}</span>
+                  <div>
+                    <strong className="text-sm">{a.applicant?.fullName}</strong>
+                    <p className="text-xs" style={{ color: 'var(--ink-soft)', marginTop: 2 }}>{a.program}</p>
+                    <p className="text-xs" style={{ color: 'var(--ink-soft)', marginTop: 4 }}>Applied: {a.submittedAt ? new Date(a.submittedAt).toLocaleDateString() : 'Draft'} · Assigned: {a.assignedRepresentative?.fullName || 'Unassigned'} · {a.documents.length} document(s) submitted</p>
+                    <div className="student-progress-row" style={{ maxWidth: 220, marginTop: 8, marginBottom: 0 }}>
+                      <span className="text-xs">Admission progress</span>
+                      <strong className="text-xs">{a.admissionProgress}%</strong>
+                    </div>
+                    <progress className="student-progress-bar" max="100" value={a.admissionProgress} style={{ maxWidth: 220 }} aria-label="Admission progress" />
+                    {a.missingRequirements.length > 0 && <p className="text-xs" style={{ color: 'var(--rose)', fontWeight: 600, marginTop: 8 }}>Missing: {a.missingRequirements.join(', ')}</p>}
+                    {a.documents.length > 0 && <p className="text-xs" style={{ color: 'var(--ink-soft)', marginTop: 6 }}>{a.documents.map((d) => d.name).join(', ')}</p>}
+                  </div>
+                </div>
+                <div className="flex items-center" style={{ gap: 10, flexShrink: 0 }}>
+                  <div style={{ minWidth: 170 }}>
+                    <CustomSelect
+                      value={a.status} onChange={(v) => setStatus(a._id, v)} ariaLabel="Application status" minWidth="100%"
+                      options={REP_APP_STATUS.map((s) => {
+                        const locked = ['accepted', 'rejected'].includes(s) && !canApprove;
+                        return { value: s, label: REP_APP_STATUS_LABEL[s] + (locked ? ' 🔒' : ''), disabled: locked };
+                      })}
+                    />
+                  </div>
+                  {!a.assignedRepresentative && <button type="button" className="btn" style={{ padding: '8px 14px', fontSize: '0.72rem' }} onClick={() => assignToMe(a._id)}>Assign to me</button>}
+                </div>
+              </div>
+              <div className="flex items-end" style={{ gap: 12, marginTop: 16, paddingTop: 16, borderTop: '1px solid var(--sand-line)' }}>
+                <input className="form-input" placeholder="Missing documents (comma separated)" value={missingDraft[a._id] || ''} onChange={(e) => setMissingDraft({ ...missingDraft, [a._id]: e.target.value })} style={{ flex: '1 1 auto', minWidth: 0 }} />
+                <button type="button" className="btn" style={{ padding: '8px 16px', fontSize: '0.78rem', flexShrink: 0 }} onClick={() => saveMissing(a._id)}>Request Documents</button>
+              </div>
+            </div>
+          );
+        })}
+      </div>
     </div>
   );
 }
@@ -4897,22 +5547,23 @@ function RepMeetingsPanel({ onFlash, repInfo }) {
 
   return (
     <div>
-      <h3 className="font-semibold mb-2">Meetings / Consultations</h3>
-      <form onSubmit={schedule} className="space-y-2 max-w-lg mb-6 border border-[var(--sand-line)] rounded-xl p-3">
+      <h3 className="font-semibold" style={{ marginBottom: 14 }}>Meetings / Consultations</h3>
+      <form onSubmit={schedule} className="card" style={{ padding: 20, display: 'grid', gap: 14, marginBottom: 28, maxWidth: 620 }}>
         <input className="form-input" placeholder="Student's User ID" value={form.studentId} onChange={(e) => setForm({ ...form, studentId: e.target.value })} required />
         <input className="form-input" placeholder="Course / Program" value={form.program} onChange={(e) => setForm({ ...form, program: e.target.value })} />
-        <div className="flex gap-2">
-          <input type="datetime-local" className="form-input" value={form.scheduledDate} onChange={(e) => setForm({ ...form, scheduledDate: e.target.value })} required />
-          <select className="form-select" value={form.mode} onChange={(e) => setForm({ ...form, mode: e.target.value })}>
-            <option value="video">Video</option>
-            <option value="audio">Audio</option>
-            <option value="physical">Physical</option>
-          </select>
+        <div className="flex flex-wrap" style={{ gap: 14 }}>
+          <input type="datetime-local" className="form-input" value={form.scheduledDate} onChange={(e) => setForm({ ...form, scheduledDate: e.target.value })} required style={{ flex: '1 1 220px', minWidth: 0 }} />
+          <div style={{ flex: '1 1 160px', minWidth: 0 }}>
+            <CustomSelect
+              value={form.mode} onChange={(v) => setForm({ ...form, mode: v })} ariaLabel="Meeting mode" minWidth="100%"
+              options={[{ value: 'video', label: 'Video' }, { value: 'audio', label: 'Audio' }, { value: 'physical', label: 'Physical' }]}
+            />
+          </div>
         </div>
         {form.mode === 'physical'
           ? <input className="form-input" placeholder="Location" value={form.location} onChange={(e) => setForm({ ...form, location: e.target.value })} />
           : <input className="form-input" placeholder="Meeting link" value={form.meetingLink} onChange={(e) => setForm({ ...form, meetingLink: e.target.value })} />}
-        <button type="submit" className="btn btn-primary">Schedule Meeting</button>
+        <button type="submit" className="btn btn-primary" style={{ justifySelf: 'start', padding: '8px 20px' }}>Schedule Meeting</button>
       </form>
       <Table
         loading={meetings === null}
@@ -4922,10 +5573,10 @@ function RepMeetingsPanel({ onFlash, repInfo }) {
           m.mode === 'physical' ? (m.location || '—') : (m.meetingLink || '—'),
           <Tag status={(MEETING_STATUS[m.status] || MEETING_STATUS.scheduled).tag} label={(MEETING_STATUS[m.status] || MEETING_STATUS.scheduled).label} />,
           m.status === 'scheduled' ? (
-            <div className="flex gap-2">
-              {m.mode !== 'physical' && m.meetingLink && <a className="btn btn-primary" style={{ padding: '4px 10px', fontSize: '0.72rem' }} href={m.meetingLink} target="_blank" rel="noreferrer">Join</a>}
-              <button className="btn" style={{ padding: '4px 10px', fontSize: '0.72rem' }} onClick={() => setStatus(m._id, 'completed')}>Mark Done</button>
-              <button className="btn" style={{ padding: '4px 10px', fontSize: '0.72rem' }} onClick={() => setStatus(m._id, 'cancelled')}>Cancel</button>
+            <div className="flex" style={{ gap: 8, flexWrap: 'wrap' }}>
+              {m.mode !== 'physical' && m.meetingLink && <a className="btn btn-primary" style={{ padding: '6px 12px', fontSize: '0.72rem' }} href={m.meetingLink} target="_blank" rel="noreferrer">Join</a>}
+              <button className="btn" style={{ padding: '6px 12px', fontSize: '0.72rem' }} onClick={() => setStatus(m._id, 'completed')}>Mark Done</button>
+              <button className="btn" style={{ padding: '6px 12px', fontSize: '0.72rem' }} onClick={() => setStatus(m._id, 'cancelled')}>Cancel</button>
             </div>
           ) : '—'
         ])}
@@ -4993,12 +5644,14 @@ function RepMessagesPanel({ onFlash, repInfo, user }) {
   const categorizedIds = new Set([...applicantMsgs, ...studentMsgs, ...parentMsgs, ...adminMsgs, ...staffMsgs].map((c) => c.user._id));
   const otherMsgs = conversations.filter((c) => !categorizedIds.has(c.user._id));
 
+  const repMsgLabel = { fontSize: 11, fontWeight: 700, letterSpacing: '.05em', textTransform: 'uppercase', color: 'var(--ink-soft)' };
+
   function ConversationGroup({ title, items }) {
     if (items.length === 0) return null;
     return (
-      <div className="mb-4">
-        <strong className="text-xs">{title}</strong>
-        <div className="dash-list mt-1">
+      <div style={{ marginBottom: 16 }}>
+        <p style={repMsgLabel}>{title}</p>
+        <div className="dash-list" style={{ marginTop: 10 }}>
           {items.map((c) => (
             <div key={c.user._id} className={`dash-list-item${activeUser?._id === c.user._id ? ' unread' : ''}`} style={{ cursor: 'pointer' }} onClick={() => openThread(c.user)}>
               <span className="dash-list-icon c-forest" aria-hidden><FaUser size={14} /></span>
@@ -5012,40 +5665,52 @@ function RepMessagesPanel({ onFlash, repInfo, user }) {
   }
 
   return (
-    <div className="grid g2" style={{ gap: 24 }}>
+    <div className="grid g2" style={{ gap: 20, alignItems: 'start' }}>
       <div>
-        <h3 className="font-semibold mb-2">Messages</h3>
-        <p className="text-xs mb-3" style={{ color: 'var(--ink-soft)' }}>To start a new conversation, ask for their User ID and use the "New Message" box on the right.</p>
+        <h3 className="font-semibold" style={{ marginBottom: 4 }}>Messages</h3>
+        <p className="text-xs" style={{ color: 'var(--ink-soft)', marginBottom: 18 }}>To start a new conversation, ask for their User ID and use the "New Message" box on the right.</p>
         <ConversationGroup title="Applicants" items={applicantMsgs} />
         <ConversationGroup title="Students" items={studentMsgs} />
         <ConversationGroup title="Parents / Guardians" items={parentMsgs} />
         <ConversationGroup title="Institution Admin" items={adminMsgs} />
         <ConversationGroup title="Other Permitted Staff" items={staffMsgs} />
         <ConversationGroup title="Other" items={otherMsgs} />
-        {conversations.length === 0 && <p className="text-xs" style={{ color: 'var(--ink-soft)' }}>No conversations yet.</p>}
+        {conversations.length === 0 && (
+          <div className="student-empty-state" style={{ border: '1px solid var(--sand-line)', borderRadius: 18 }}>
+            <FaCommentDots aria-hidden="true" />
+            <p>No conversations yet</p>
+          </div>
+        )}
       </div>
-      <div>
-        <h3 className="font-semibold mb-2">{activeUser ? activeUser.fullName : 'New Message'}</h3>
+      <div className="card" style={{ padding: 20 }}>
+        <h3 className="font-semibold" style={{ marginBottom: 14 }}>{activeUser ? activeUser.fullName : 'New Message'}</h3>
         {!activeUser && (
-          <input className="form-input mb-3" placeholder="Recipient's User ID" onKeyDown={(e) => {
-            if (e.key === 'Enter' && e.target.value.trim()) { openThread({ _id: e.target.value.trim(), fullName: 'New recipient' }); }
-          }} />
+          <label style={{ display: 'block' }}>
+            <span className="text-xs" style={{ display: 'block', color: 'var(--ink-soft)', fontWeight: 600, marginBottom: 6 }}>Recipient's User ID</span>
+            <input className="form-input" placeholder="Paste a User ID and press Enter" onKeyDown={(e) => {
+              if (e.key === 'Enter' && e.target.value.trim()) { openThread({ _id: e.target.value.trim(), fullName: 'New recipient' }); }
+            }} />
+          </label>
         )}
         {activeUser && (
           <>
-            <div className="card reveal in" style={{ padding: '8px 12px', marginBottom: 12, maxHeight: 320, overflowY: 'auto' }}>
+            <div className="card reveal in" style={{ padding: '10px 14px', marginBottom: 14, maxHeight: 320, overflowY: 'auto' }}>
               {thread === null && <p role="status" className="admin-notice">Loading...</p>}
-              {thread && thread.length === 0 && <p style={{ fontSize: 13, color: 'var(--ink-soft)' }}>No messages yet.</p>}
-              {(thread || []).map((m) => (
-                <div key={m._id} style={{ padding: '8px 4px', borderBottom: '1px solid var(--sand-line)' }}>
+              {thread && thread.length === 0 && (
+                <div className="student-empty-state" style={{ minHeight: 100, padding: '16px 0' }}>
+                  <p>No messages yet</p>
+                </div>
+              )}
+              {(thread || []).map((m, idx) => (
+                <div key={m._id} style={{ padding: '10px 4px', borderBottom: idx < thread.length - 1 ? '1px solid var(--sand-line)' : 'none' }}>
                   <div style={{ fontSize: 13 }}>{m.text}</div>
-                  <div style={{ fontSize: 11, color: 'var(--ink-soft)' }}>{new Date(m.createdAt).toLocaleString()}</div>
+                  <div style={{ fontSize: 11, color: 'var(--ink-soft)', marginTop: 4 }}>{new Date(m.createdAt).toLocaleString()}</div>
                 </div>
               ))}
             </div>
-            <form onSubmit={send} className="flex gap-3 items-end">
-              <input className="form-input" placeholder="Type a message..." value={text} onChange={(e) => setText(e.target.value)} required />
-              <button type="submit" className="btn btn-primary">Send</button>
+            <form onSubmit={send} className="flex items-end" style={{ gap: 12 }}>
+              <input className="form-input" placeholder="Type a message..." value={text} onChange={(e) => setText(e.target.value)} required style={{ flex: '1 1 auto', minWidth: 0 }} />
+              <button type="submit" className="btn btn-primary" style={{ flexShrink: 0 }}>Send</button>
             </form>
           </>
         )}
@@ -5119,37 +5784,55 @@ function RepInstitutionInfoPanel({ onFlash, repInfo, section }) {
   if (institution === undefined) return <p role="status" className="admin-notice">Loading...</p>;
   if (!institution) return <p className="admin-notice">Institution not found.</p>;
 
+  const infoLabel = { fontSize: 11, fontWeight: 700, letterSpacing: '.05em', textTransform: 'uppercase', color: 'var(--ink-soft)' };
+
   return (
     <div>
-      <p className="text-xs mb-3" style={{ color: 'var(--ink-soft)' }}>Read-only — you're viewing your institution's approved information. Only the owner can change official details (fees, programs).</p>
+      <div className="flex items-start" style={{ gap: 12, padding: 16, borderRadius: 14, background: 'var(--sand)', marginBottom: 20 }}>
+        <span style={{ width: 32, height: 32, borderRadius: 10, background: 'var(--paper-raised)', color: 'var(--forest)', display: 'grid', placeItems: 'center', flexShrink: 0 }}>
+          <FaShieldHalved aria-hidden="true" size={14} />
+        </span>
+        <p className="text-xs" style={{ color: 'var(--ink-soft)', lineHeight: 1.6 }}>Read-only — you're viewing your institution's approved information. Only the owner can change official details (fees, programs).</p>
+      </div>
+
       {section === 'programs' && (
         <>
-          <h3 className="font-semibold mb-2">Programs & Courses</h3>
+          <h3 className="font-semibold" style={{ marginBottom: 14 }}>Programs & Courses</h3>
           <Table headers={['Title', 'Subject', 'Teacher']} rows={courses.map((c) => [c.title, c.subject || '—', c.teacher?.fullName || '—'])} empty="No published programs yet." />
         </>
       )}
       {section === 'admissions' && (
         <>
-          <h3 className="font-semibold mb-2">Admissions Information</h3>
-          <div className="card" style={{ padding: 16, marginBottom: 16 }}>
+          <h3 className="font-semibold" style={{ marginBottom: 14 }}>Admissions Information</h3>
+          <div className="card" style={{ padding: 20, marginBottom: 16 }}>
             <p className="text-sm">{institution.description || 'No description set yet.'}</p>
-            <p className="text-xs mt-2" style={{ color: 'var(--ink-soft)' }}>{institution.address || institution.city}, {institution.country}</p>
-            <p className="text-xs" style={{ color: 'var(--ink-soft)' }}>{institution.contactEmail} {institution.contactPhone ? `· ${institution.contactPhone}` : ''}</p>
+            <p className="text-xs" style={{ color: 'var(--ink-soft)', marginTop: 10 }}>{institution.address || institution.city}, {institution.country}</p>
+            <p className="text-xs" style={{ color: 'var(--ink-soft)', marginTop: 4 }}>{institution.contactEmail} {institution.contactPhone ? `· ${institution.contactPhone}` : ''}</p>
           </div>
-          <h4 className="font-semibold mb-2">Admission Requirements</h4>
-          <p className="text-sm mb-4" style={{ color: 'var(--ink-soft)' }}>{institution.admissionRequirements || 'Not published yet.'}</p>
-          <h4 className="font-semibold mb-2">Admission Deadline</h4>
-          <p className="text-sm mb-4" style={{ color: 'var(--ink-soft)' }}>{institution.admissionDeadline ? new Date(institution.admissionDeadline).toLocaleDateString() : 'Not set.'}</p>
-          <h4 className="font-semibold mb-2">Fee Structure</h4>
-          <Table headers={['Title', 'Amount', 'Due']} rows={fees.map((f) => [f.title, `${f.currency} ${f.amount}`, f.dueDate ? new Date(f.dueDate).toLocaleDateString() : '—'])} empty="No fee records published yet." />
-          <h4 className="font-semibold mb-2 mt-4">Campus Information</h4>
+
+          <div className="card" style={{ padding: 20, marginBottom: 16, display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 18 }}>
+            <div>
+              <p style={infoLabel}>Admission Requirements</p>
+              <p className="text-sm" style={{ color: 'var(--ink-soft)', marginTop: 8 }}>{institution.admissionRequirements || 'Not published yet.'}</p>
+            </div>
+            <div>
+              <p style={infoLabel}>Admission Deadline</p>
+              <p className="text-sm" style={{ color: 'var(--ink-soft)', marginTop: 8 }}>{institution.admissionDeadline ? new Date(institution.admissionDeadline).toLocaleDateString() : 'Not set.'}</p>
+            </div>
+          </div>
+
+          <h4 className="font-semibold" style={{ marginBottom: 12 }}>Fee Structure</h4>
+          <div style={{ marginBottom: 20 }}>
+            <Table headers={['Title', 'Amount', 'Due']} rows={fees.map((f) => [f.title, `${f.currency} ${f.amount}`, f.dueDate ? new Date(f.dueDate).toLocaleDateString() : '—'])} empty="No fee records published yet." />
+          </div>
+          <h4 className="font-semibold" style={{ marginBottom: 12 }}>Campus Information</h4>
           <Table headers={['Campus', 'Address']} rows={campuses.map((c) => [c.name, c.address || '—'])} empty="No campuses published yet." />
         </>
       )}
       {section === 'scholarships' && (
         <>
-          <h3 className="font-semibold mb-2">Scholarships</h3>
-          <p className="text-xs mb-2" style={{ color: 'var(--ink-soft)' }}>This platform's scholarships aren't tied to a specific institution — these are open, platform-wide scholarships you can point students to.</p>
+          <h3 className="font-semibold" style={{ marginBottom: 4 }}>Scholarships</h3>
+          <p className="text-xs" style={{ color: 'var(--ink-soft)', marginBottom: 14 }}>This platform's scholarships aren't tied to a specific institution — these are open, platform-wide scholarships you can point students to.</p>
           <Table headers={['Title', 'Amount', 'Deadline']} rows={scholarships.map((s) => [s.title, `${s.currency} ${s.amount}`, s.applicationDeadline ? new Date(s.applicationDeadline).toLocaleDateString() : '—'])} empty="No open scholarships right now." />
         </>
       )}
@@ -5194,42 +5877,62 @@ function RepVirtualFairPanel({ onFlash, repInfo }) {
 
   return (
     <div>
-      <h3 className="font-semibold mb-2">Virtual Career/Education Fair</h3>
-      <form onSubmit={create} className="space-y-2 max-w-lg mb-6 border border-[var(--sand-line)] rounded-xl p-3">
+      <h3 className="font-semibold" style={{ marginBottom: 14 }}>Virtual Career/Education Fair</h3>
+      <form onSubmit={create} className="card" style={{ padding: 20, display: 'grid', gap: 14, marginBottom: 28, maxWidth: 640 }}>
         <input className="form-input" placeholder="Fair title" value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })} required />
         <textarea className="form-input" placeholder="Description" rows={2} value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} />
-        <input type="datetime-local" className="form-input" value={form.scheduledDate} onChange={(e) => setForm({ ...form, scheduledDate: e.target.value })} required />
+        <div className="flex flex-wrap" style={{ gap: 14 }}>
+          <input type="datetime-local" className="form-input" value={form.scheduledDate} onChange={(e) => setForm({ ...form, scheduledDate: e.target.value })} required style={{ flex: '1 1 220px', minWidth: 0 }} />
+        </div>
         <input className="form-input" placeholder="Video call link (Zoom/Meet/Teams)" value={form.videoCallLink} onChange={(e) => setForm({ ...form, videoCallLink: e.target.value })} />
         <input className="form-input" placeholder="Brochure link (optional)" value={form.brochureUrl} onChange={(e) => setForm({ ...form, brochureUrl: e.target.value })} />
-        <button type="submit" className="btn btn-primary">Create Fair Booth</button>
+        <button type="submit" className="btn btn-primary" style={{ justifySelf: 'start', padding: '8px 20px' }}>Create Fair Booth</button>
       </form>
-      {(fairs || []).map((f) => (
-        <div key={f._id} className="border border-[var(--sand-line)] rounded-xl p-4 mb-3">
-          <strong className="text-sm">{f.title}</strong>
-          <p className="text-xs mt-1" style={{ color: 'var(--ink-soft)' }}>{new Date(f.scheduledDate).toLocaleString()} · {f.registeredStudents.length} students registered</p>
-          {f.description && <p className="text-sm mt-1">{f.description}</p>}
-          <div className="flex gap-2 mt-2">
-            {f.videoCallLink && <a className="btn btn-primary" style={{ padding: '5px 14px', fontSize: '0.78rem' }} href={f.videoCallLink} target="_blank" rel="noreferrer">Start Video Call</a>}
-            {f.brochureUrl && <a className="btn" style={{ padding: '5px 14px', fontSize: '0.78rem' }} href={f.brochureUrl} target="_blank" rel="noreferrer">📄 Brochure</a>}
-          </div>
-          {f.registeredStudents.length > 0 && (
-            <div className="mt-3" style={{ borderTop: '1px solid var(--sand-line)', paddingTop: 10 }}>
-              <strong className="text-xs">Registered Students — Schedule a Meeting</strong>
-              {f.registeredStudents.map((s) => {
-                const key = `${f._id}:${s._id}`;
-                return (
-                  <div key={s._id} className="flex gap-2 items-center mt-2 flex-wrap">
-                    <span className="text-xs" style={{ minWidth: 140 }}>{s.fullName}</span>
-                    <input type="datetime-local" className="form-input" style={{ maxWidth: 200 }} value={meetingDraft[key] || ''} onChange={(e) => setMeetingDraft({ ...meetingDraft, [key]: e.target.value })} />
-                    <button type="button" className="btn" style={{ padding: '4px 10px', fontSize: '0.72rem' }} onClick={() => scheduleMeeting(f, s)}>Schedule Meeting</button>
-                  </div>
-                );
-              })}
-            </div>
-          )}
+
+      {fairs && fairs.length === 0 && (
+        <div className="student-empty-state" style={{ border: '1px solid var(--sand-line)', borderRadius: 18 }}>
+          <FaCalendarCheck aria-hidden="true" />
+          <p>No fairs created yet</p>
         </div>
-      ))}
-      {fairs && fairs.length === 0 && <p className="text-sm" style={{ color: 'var(--ink-soft)' }}>No fairs created yet.</p>}
+      )}
+
+      <div style={{ display: 'grid', gap: 14 }}>
+        {(fairs || []).map((f) => (
+          <div key={f._id} className="card" style={{ padding: 20 }}>
+            <div className="flex items-start" style={{ gap: 14 }}>
+              <span style={{ width: 40, height: 40, borderRadius: 12, background: 'var(--sand)', color: 'var(--forest)', display: 'grid', placeItems: 'center', flexShrink: 0 }}>
+                <FaCalendarCheck aria-hidden="true" size={16} />
+              </span>
+              <div style={{ minWidth: 0, flex: 1 }}>
+                <strong className="text-sm">{f.title}</strong>
+                <p className="text-xs" style={{ color: 'var(--ink-soft)', marginTop: 4 }}>{new Date(f.scheduledDate).toLocaleString()} · {f.registeredStudents.length} students registered</p>
+                {f.description && <p className="text-sm" style={{ marginTop: 8 }}>{f.description}</p>}
+                <div className="flex flex-wrap" style={{ gap: 10, marginTop: 12 }}>
+                  {f.videoCallLink && <a className="btn btn-primary" style={{ padding: '7px 16px', fontSize: '0.78rem' }} href={f.videoCallLink} target="_blank" rel="noreferrer">Start Video Call</a>}
+                  {f.brochureUrl && <a className="btn" style={{ padding: '7px 16px', fontSize: '0.78rem' }} href={f.brochureUrl} target="_blank" rel="noreferrer">📄 Brochure</a>}
+                </div>
+              </div>
+            </div>
+            {f.registeredStudents.length > 0 && (
+              <div style={{ marginTop: 16, paddingTop: 16, borderTop: '1px solid var(--sand-line)' }}>
+                <p className="text-xs" style={{ fontWeight: 700, letterSpacing: '.04em', textTransform: 'uppercase', color: 'var(--ink-soft)', marginBottom: 10 }}>Registered Students — Schedule a Meeting</p>
+                <div style={{ display: 'grid', gap: 8 }}>
+                  {f.registeredStudents.map((s) => {
+                    const key = `${f._id}:${s._id}`;
+                    return (
+                      <div key={s._id} className="flex items-center flex-wrap" style={{ gap: 10, padding: 10, borderRadius: 14, background: 'var(--sand)' }}>
+                        <span className="text-xs" style={{ minWidth: 140, fontWeight: 600 }}>{s.fullName}</span>
+                        <input type="datetime-local" className="form-input" style={{ maxWidth: 200, background: 'var(--paper-raised)' }} value={meetingDraft[key] || ''} onChange={(e) => setMeetingDraft({ ...meetingDraft, [key]: e.target.value })} />
+                        <button type="button" className="btn" style={{ padding: '6px 12px', fontSize: '0.72rem', background: 'var(--paper-raised)' }} onClick={() => scheduleMeeting(f, s)}>Schedule Meeting</button>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+          </div>
+        ))}
+      </div>
     </div>
   );
 }
@@ -5361,7 +6064,7 @@ function InstitutionPayrollPanel({ onFlash }) {
     <div>
       <h3 className="font-semibold mb-2">Payroll</h3>
       <form onSubmit={generate} className="flex gap-2 items-end mb-4 flex-wrap">
-        <input className="form-input" placeholder="Staff User ID" required value={form.staffId} onChange={(e) => setForm({ ...form, staffId: e.target.value })} style={{ minWidth: 220 }} />
+        <input className="form-input" placeholder="Staff User ID" required value={form.staffId} onChange={(e) => setForm({ ...form, staffId: e.target.value })} style={{ minWidth: 0 }} />
         <input className="form-input" type="number" min="1" max="12" placeholder="Month" value={form.month} onChange={(e) => setForm({ ...form, month: e.target.value })} style={{ maxWidth: 90 }} />
         <input className="form-input" type="number" placeholder="Year" value={form.year} onChange={(e) => setForm({ ...form, year: e.target.value })} style={{ maxWidth: 100 }} />
         <input className="form-input" type="number" placeholder="Basic Salary" required value={form.basicSalary} onChange={(e) => setForm({ ...form, basicSalary: e.target.value })} style={{ maxWidth: 140 }} />
@@ -5538,7 +6241,7 @@ function InstitutionCertificatesPanel({ onFlash }) {
     <div>
       <form onSubmit={issue} className="flex gap-3 items-end mb-3 flex-wrap">
         <input className="form-input" placeholder="Student's User ID" value={form.studentId} onChange={(e) => setForm({ ...form, studentId: e.target.value })} required />
-        <input className="form-input" placeholder="Certificate title (e.g. Certificate of Completion)" value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })} required style={{ minWidth: 260 }} />
+        <input className="form-input" placeholder="Certificate title (e.g. Certificate of Completion)" value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })} required style={{ minWidth: 0 }} />
         <button type="submit" className="btn btn-primary">Issue Certificate</button>
       </form>
       <Table
@@ -5983,41 +6686,62 @@ function EmployerPostJobPanel({ onFlash }) {
     } catch (err) { onFlash(err.message); }
   }
 
+  const fieldLabel = { fontSize: 11, fontWeight: 700, letterSpacing: '.04em', textTransform: 'uppercase', color: 'var(--ink-soft)', display: 'block', marginBottom: 6 };
+
   return (
-    <form onSubmit={submit} className="space-y-3 max-w-lg">
-      <input className="form-input" placeholder="Job title" value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })} required />
-      <input className="form-input" placeholder="Company name" value={form.company} onChange={(e) => setForm({ ...form, company: e.target.value })} required />
-      <input className="form-input" placeholder="Company logo URL (optional)" value={form.companyLogo} onChange={(e) => setForm({ ...form, companyLogo: e.target.value })} />
-      <div className="flex gap-3">
-        <select className="form-select" value={form.type} onChange={(e) => setForm({ ...form, type: e.target.value })}>
-          {JOB_TYPES.map((t) => <option key={t} value={t}>{t.replace('_', ' ')}</option>)}
-        </select>
-        <select className="form-select" value={form.workMode} onChange={(e) => setForm({ ...form, workMode: e.target.value })}>
-          {WORK_MODES.map((m) => <option key={m} value={m}>{m[0].toUpperCase() + m.slice(1)}</option>)}
-        </select>
+    <form onSubmit={submit} style={{ display: 'grid', gap: 20, maxWidth: 720 }}>
+      <div className="card" style={{ padding: 20, display: 'grid', gap: 14 }}>
+        <p style={fieldLabel}>Basic Information</p>
+        <input className="form-input" placeholder="Job title" value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })} required />
+        <div className="flex flex-wrap" style={{ gap: 14 }}>
+          <input className="form-input" placeholder="Company name" value={form.company} onChange={(e) => setForm({ ...form, company: e.target.value })} required style={{ flex: '1 1 220px', minWidth: 0 }} />
+          <input className="form-input" placeholder="Company logo URL (optional)" value={form.companyLogo} onChange={(e) => setForm({ ...form, companyLogo: e.target.value })} style={{ flex: '1 1 220px', minWidth: 0 }} />
+        </div>
+        <div className="flex flex-wrap" style={{ gap: 14 }}>
+          <div style={{ flex: '1 1 200px', minWidth: 0 }}>
+            <CustomSelect value={form.type} onChange={(v) => setForm({ ...form, type: v })} ariaLabel="Job type" minWidth="100%" options={JOB_TYPES.map((t) => ({ value: t, label: t.replace('_', ' ').replace(/\b\w/g, (c) => c.toUpperCase()) }))} />
+          </div>
+          <div style={{ flex: '1 1 200px', minWidth: 0 }}>
+            <CustomSelect value={form.workMode} onChange={(v) => setForm({ ...form, workMode: v })} ariaLabel="Work mode" minWidth="100%" options={WORK_MODES.map((m) => ({ value: m, label: m[0].toUpperCase() + m.slice(1) }))} />
+          </div>
+        </div>
       </div>
-      <div className="flex gap-3">
-        <input className="form-input" placeholder="Country code (e.g. PK)" value={form.country} onChange={(e) => setForm({ ...form, country: e.target.value })} required />
-        <input className="form-input" placeholder="City" value={form.city} onChange={(e) => setForm({ ...form, city: e.target.value })} />
+
+      <div className="card" style={{ padding: 20, display: 'grid', gap: 14 }}>
+        <p style={fieldLabel}>Location & Compensation</p>
+        <div className="flex flex-wrap" style={{ gap: 14 }}>
+          <input className="form-input" placeholder="Country code (e.g. PK)" value={form.country} onChange={(e) => setForm({ ...form, country: e.target.value })} required style={{ flex: '1 1 160px', minWidth: 0 }} />
+          <input className="form-input" placeholder="City" value={form.city} onChange={(e) => setForm({ ...form, city: e.target.value })} style={{ flex: '1 1 160px', minWidth: 0 }} />
+        </div>
+        <div className="flex flex-wrap" style={{ gap: 14 }}>
+          <input className="form-input" type="number" placeholder="Salary min" value={form.salaryMin} onChange={(e) => setForm({ ...form, salaryMin: e.target.value })} style={{ flex: '1 1 150px', minWidth: 0 }} />
+          <input className="form-input" type="number" placeholder="Salary max" value={form.salaryMax} onChange={(e) => setForm({ ...form, salaryMax: e.target.value })} style={{ flex: '1 1 150px', minWidth: 0 }} />
+          <input className="form-input" type="number" placeholder="Years experience" value={form.experienceYears} onChange={(e) => setForm({ ...form, experienceYears: e.target.value })} style={{ flex: '1 1 150px', minWidth: 0 }} />
+        </div>
       </div>
-      <div className="flex gap-3">
-        <input className="form-input" type="number" placeholder="Salary min" value={form.salaryMin} onChange={(e) => setForm({ ...form, salaryMin: e.target.value })} />
-        <input className="form-input" type="number" placeholder="Salary max" value={form.salaryMax} onChange={(e) => setForm({ ...form, salaryMax: e.target.value })} />
-        <input className="form-input" type="number" placeholder="Years experience" value={form.experienceYears} onChange={(e) => setForm({ ...form, experienceYears: e.target.value })} />
+
+      <div className="card" style={{ padding: 20, display: 'grid', gap: 14 }}>
+        <p style={fieldLabel}>Requirements & Description</p>
+        <input className="form-input" placeholder="Education required" value={form.education} onChange={(e) => setForm({ ...form, education: e.target.value })} />
+        <input className="form-input" placeholder="Skills (comma separated)" value={form.skills} onChange={(e) => setForm({ ...form, skills: e.target.value })} />
+        <textarea className="form-input" placeholder="Job description" rows={5} value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} />
       </div>
-      <input className="form-input" placeholder="Education required" value={form.education} onChange={(e) => setForm({ ...form, education: e.target.value })} />
-      <input className="form-input" placeholder="Skills (comma separated)" value={form.skills} onChange={(e) => setForm({ ...form, skills: e.target.value })} />
-      <textarea className="form-input" placeholder="Job description" rows={5} value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} />
-      <label className="block text-xs" style={{ color: 'var(--ink-soft)' }}>Application deadline (optional)
-        <input className="form-input" type="date" value={form.applicationDeadline} onChange={(e) => setForm({ ...form, applicationDeadline: e.target.value })} />
-      </label>
-      <label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={form.visaSponsorship} onChange={(e) => setForm({ ...form, visaSponsorship: e.target.checked })} /> Visa sponsorship available</label>
-      <div className="flex gap-3 items-center">
-        <select className="form-select" value={form.status} onChange={(e) => setForm({ ...form, status: e.target.value })}>
-          <option value="active">Post now (Active)</option>
-          <option value="draft">Save as Draft</option>
-        </select>
-        <button type="submit" className="btn btn-primary">{form.status === 'draft' ? 'Save Draft' : 'Post Job'}</button>
+
+      <div className="card" style={{ padding: 20, display: 'grid', gap: 14 }}>
+        <p style={fieldLabel}>Deadline & Visibility</p>
+        <label className="text-xs" style={{ color: 'var(--ink-soft)', fontWeight: 600 }}>Application deadline (optional)
+          <input className="form-input" type="date" value={form.applicationDeadline} onChange={(e) => setForm({ ...form, applicationDeadline: e.target.value })} style={{ marginTop: 6, maxWidth: 220 }} />
+        </label>
+        <label className="flex items-center text-sm" style={{ gap: 8 }}><input type="checkbox" checked={form.visaSponsorship} onChange={(e) => setForm({ ...form, visaSponsorship: e.target.checked })} /> Visa sponsorship available</label>
+        <div className="flex flex-wrap items-end" style={{ gap: 14 }}>
+          <div style={{ flex: '1 1 220px', minWidth: 0 }}>
+            <CustomSelect
+              value={form.status} onChange={(v) => setForm({ ...form, status: v })} ariaLabel="Job visibility" minWidth="100%"
+              options={[{ value: 'active', label: 'Post now (Active)' }, { value: 'draft', label: 'Save as Draft' }]}
+            />
+          </div>
+          <button type="submit" className="btn btn-primary" style={{ flexShrink: 0, padding: '11px 22px', height: 46 }}>{form.status === 'draft' ? 'Save Draft' : 'Post Job'}</button>
+        </div>
       </div>
     </form>
   );
@@ -6111,6 +6835,7 @@ function EmployerJobsPanel({ onFlash }) {
 
   return (
     <div>
+      <h3 className="font-semibold" style={{ marginBottom: 14 }}>My Jobs</h3>
       <Table
         headers={['Title', 'Company', 'Location', 'Type', 'Posted', 'Deadline', 'Applicants', 'Status', 'Action']}
         rows={jobs.map((j) => [
@@ -6119,85 +6844,97 @@ function EmployerJobsPanel({ onFlash }) {
           j.applicationDeadline ? new Date(j.applicationDeadline).toLocaleDateString() : '—',
           j.applicantCount ?? 0,
           <Tag status={JOB_STATUS[j.status]?.tag || 'pending'} label={JOB_STATUS[j.status]?.label || j.status} />,
-          <div className="flex gap-2 flex-wrap">
-            <button className="btn" style={{ padding: '5px 12px', fontSize: '0.78rem' }} onClick={() => setViewingJob(j)}>View</button>
-            <button className="btn" style={{ padding: '5px 12px', fontSize: '0.78rem' }} onClick={() => startEdit(j)}>Edit</button>
+          <div className="flex" style={{ gap: 8, flexWrap: 'wrap' }}>
+            <button className="btn" style={{ padding: '6px 12px', fontSize: '0.78rem' }} onClick={() => setViewingJob(j)}>View</button>
+            <button className="btn" style={{ padding: '6px 12px', fontSize: '0.78rem' }} onClick={() => startEdit(j)}>Edit</button>
             {(j.status === 'active' || j.status === 'paused') && (
-              <button className="btn" style={{ padding: '5px 12px', fontSize: '0.78rem', background: 'var(--sand-line)', color: 'var(--ink)' }} onClick={() => setJobStatus(j, j.status === 'active' ? 'paused' : 'active')}>{j.status === 'active' ? 'Pause' : 'Resume'}</button>
+              <button className="btn" style={{ padding: '6px 12px', fontSize: '0.78rem' }} onClick={() => setJobStatus(j, j.status === 'active' ? 'paused' : 'active')}>{j.status === 'active' ? 'Pause' : 'Resume'}</button>
             )}
-            <button className="btn btn-primary" style={{ padding: '5px 12px', fontSize: '0.78rem' }} onClick={() => viewApplicants(j._id)}>Manage Candidates</button>
+            <button className="btn btn-primary" style={{ padding: '6px 12px', fontSize: '0.78rem' }} onClick={() => viewApplicants(j._id)}>Manage Candidates</button>
           </div>
         ])}
         empty="You haven't posted any jobs yet."
       />
       <JobDetailModal job={viewingJob} onClose={() => setViewingJob(null)} />
       {editingJobId && editForm && (
-        <div className="card mt-4" style={{ padding: 16, maxWidth: 520 }}>
+        <div className="card" style={{ padding: 20, marginTop: 20, maxWidth: 560 }}>
           <strong className="text-sm">Edit Job</strong>
-          <div className="space-y-2 mt-2">
+          <div style={{ display: 'grid', gap: 12, marginTop: 14 }}>
             <input className="form-input" placeholder="Job title" value={editForm.title} onChange={(e) => setEditForm({ ...editForm, title: e.target.value })} />
             <input className="form-input" placeholder="Company" value={editForm.company} onChange={(e) => setEditForm({ ...editForm, company: e.target.value })} />
-            <div className="flex gap-2">
-              <input className="form-input" placeholder="City" value={editForm.city} onChange={(e) => setEditForm({ ...editForm, city: e.target.value })} />
-              <input className="form-input" placeholder="Country code" value={editForm.country} onChange={(e) => setEditForm({ ...editForm, country: e.target.value })} />
+            <div className="flex flex-wrap" style={{ gap: 12 }}>
+              <input className="form-input" placeholder="City" value={editForm.city} onChange={(e) => setEditForm({ ...editForm, city: e.target.value })} style={{ flex: '1 1 150px', minWidth: 0 }} />
+              <input className="form-input" placeholder="Country code" value={editForm.country} onChange={(e) => setEditForm({ ...editForm, country: e.target.value })} style={{ flex: '1 1 150px', minWidth: 0 }} />
             </div>
-            <div className="flex gap-2">
-              <input className="form-input" type="number" placeholder="Salary min" value={editForm.salaryMin} onChange={(e) => setEditForm({ ...editForm, salaryMin: e.target.value ? Number(e.target.value) : '' })} />
-              <input className="form-input" type="number" placeholder="Salary max" value={editForm.salaryMax} onChange={(e) => setEditForm({ ...editForm, salaryMax: e.target.value ? Number(e.target.value) : '' })} />
+            <div className="flex flex-wrap" style={{ gap: 12 }}>
+              <input className="form-input" type="number" placeholder="Salary min" value={editForm.salaryMin} onChange={(e) => setEditForm({ ...editForm, salaryMin: e.target.value ? Number(e.target.value) : '' })} style={{ flex: '1 1 150px', minWidth: 0 }} />
+              <input className="form-input" type="number" placeholder="Salary max" value={editForm.salaryMax} onChange={(e) => setEditForm({ ...editForm, salaryMax: e.target.value ? Number(e.target.value) : '' })} style={{ flex: '1 1 150px', minWidth: 0 }} />
             </div>
-            <label className="block text-xs" style={{ color: 'var(--ink-soft)' }}>Application deadline
-              <input className="form-input" type="date" value={editForm.applicationDeadline} onChange={(e) => setEditForm({ ...editForm, applicationDeadline: e.target.value })} />
+            <label className="text-xs" style={{ color: 'var(--ink-soft)', fontWeight: 600 }}>Application deadline
+              <input className="form-input" type="date" value={editForm.applicationDeadline} onChange={(e) => setEditForm({ ...editForm, applicationDeadline: e.target.value })} style={{ marginTop: 6, maxWidth: 220 }} />
             </label>
             <textarea className="form-input" placeholder="Description" rows={3} value={editForm.description} onChange={(e) => setEditForm({ ...editForm, description: e.target.value })} />
-            <div className="flex gap-2">
-              <button type="button" className="btn btn-primary" style={{ padding: '5px 14px', fontSize: '0.78rem' }} onClick={() => saveEdit(editingJobId)}>Save Changes</button>
-              <button type="button" className="btn" style={{ padding: '5px 14px', fontSize: '0.78rem' }} onClick={() => setEditingJobId(null)}>Cancel</button>
+            <div className="flex" style={{ gap: 10 }}>
+              <button type="button" className="btn btn-primary" style={{ padding: '7px 16px', fontSize: '0.78rem' }} onClick={() => saveEdit(editingJobId)}>Save Changes</button>
+              <button type="button" className="btn" style={{ padding: '7px 16px', fontSize: '0.78rem' }} onClick={() => setEditingJobId(null)}>Cancel</button>
             </div>
           </div>
         </div>
       )}
       {openJob && (
-        <div className="mt-6">
-          <h3 className="font-semibold mb-2">Manage Candidates</h3>
-          {applicants.length === 0 && <p className="text-sm" style={{ color: 'var(--ink-soft)' }}>No applicants yet.</p>}
-          {applicants.map((a) => (
-            <div key={a._id} className="border border-[var(--sand-line)] rounded-xl p-3 mb-2">
-              <div className="flex items-center justify-between flex-wrap gap-2">
-                <div className="flex items-start gap-3">
-                  {a.applicant?.profilePhoto
-                    ? <img src={a.applicant.profilePhoto} alt="" style={{ width: 36, height: 36, borderRadius: '50%', objectFit: 'cover' }} />
-                    : <div style={{ width: 36, height: 36, borderRadius: '50%', background: 'var(--forest)', color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 700, fontSize: '0.85rem' }}>{(a.applicant?.fullName || '?')[0]}</div>}
-                  <div>
-                    <strong className="text-sm">{a.applicant?.fullName}</strong>
-                    <p className="text-xs" style={{ color: 'var(--ink-soft)' }}>{a.applicant?.email}</p>
-                    <p className="text-xs" style={{ color: 'var(--ink-soft)' }}>{a.resumeSnapshot?.skills?.length > 0 ? a.resumeSnapshot.skills.join(', ') : 'No skills listed'} · {a.resumeSnapshot?.experienceLevel || 'Experience not set'} · {a.resumeSnapshot?.location || 'Location not set'}</p>
-                    <p className="text-xs">{a.resumeSnapshot?.cvFileUrl ? <a href={a.resumeSnapshot.cvFileUrl} target="_blank" rel="noreferrer">View CV/Resume</a> : <span style={{ color: 'var(--ink-soft)' }}>No CV uploaded</span>} · Applied {new Date(a.createdAt).toLocaleDateString()}</p>
+        <div style={{ marginTop: 32 }}>
+          <h3 className="font-semibold" style={{ marginBottom: 14 }}>Manage Candidates</h3>
+          {applicants.length === 0 && (
+            <div className="student-empty-state" style={{ border: '1px solid var(--sand-line)', borderRadius: 18 }}>
+              <FaUsers aria-hidden="true" />
+              <p>No applicants yet</p>
+            </div>
+          )}
+          <div style={{ display: 'grid', gap: 12 }}>
+            {applicants.map((a) => (
+              <div key={a._id} className="card" style={{ padding: 18 }}>
+                <div className="flex items-center justify-between flex-wrap" style={{ gap: 12 }}>
+                  <div className="flex items-start" style={{ gap: 12 }}>
+                    {a.applicant?.profilePhoto
+                      ? <img src={a.applicant.profilePhoto} alt="" style={{ width: 40, height: 40, borderRadius: '50%', objectFit: 'cover', flexShrink: 0 }} />
+                      : <div style={{ width: 40, height: 40, borderRadius: '50%', background: 'var(--forest)', color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 700, fontSize: '0.85rem', flexShrink: 0 }}>{(a.applicant?.fullName || '?')[0]}</div>}
+                    <div>
+                      <strong className="text-sm">{a.applicant?.fullName}</strong>
+                      <p className="text-xs" style={{ color: 'var(--ink-soft)', marginTop: 2 }}>{a.applicant?.email}</p>
+                      <p className="text-xs" style={{ color: 'var(--ink-soft)', marginTop: 4 }}>{a.resumeSnapshot?.skills?.length > 0 ? a.resumeSnapshot.skills.join(', ') : 'No skills listed'} · {a.resumeSnapshot?.experienceLevel || 'Experience not set'} · {a.resumeSnapshot?.location || 'Location not set'}</p>
+                      <p className="text-xs" style={{ marginTop: 4 }}>{a.resumeSnapshot?.cvFileUrl ? <a href={a.resumeSnapshot.cvFileUrl} target="_blank" rel="noreferrer">View CV/Resume</a> : <span style={{ color: 'var(--ink-soft)' }}>No CV uploaded</span>} · Applied {new Date(a.createdAt).toLocaleDateString()}</p>
+                    </div>
+                  </div>
+                  <div className="flex items-center" style={{ gap: 10, flexShrink: 0 }}>
+                    <div style={{ minWidth: 160 }}>
+                      <CustomSelect
+                        value={a.status} onChange={(v) => setAppStatus(a._id, v)} ariaLabel="Candidate status" minWidth="100%"
+                        options={['pending', 'viewed', 'shortlisted', 'interview', 'selected', 'rejected', 'hired'].map((s) => ({ value: s, label: CANDIDATE_STATUS[s].label }))}
+                      />
+                    </div>
+                    <button type="button" className="btn" style={{ padding: '8px 14px', fontSize: '0.75rem' }} onClick={() => setInterviewFormFor(interviewFormFor === a._id ? null : a._id)}>Schedule Interview</button>
                   </div>
                 </div>
-                <div className="flex gap-2 items-center">
-                  <select className="form-select" value={a.status} onChange={(e) => setAppStatus(a._id, e.target.value)} style={{ fontSize: '0.78rem', padding: '4px 8px' }}>
-                    {['pending', 'viewed', 'shortlisted', 'interview', 'selected', 'rejected', 'hired'].map((s) => <option key={s} value={s}>{CANDIDATE_STATUS[s].label}</option>)}
-                  </select>
-                  <button type="button" className="btn" style={{ padding: '5px 12px', fontSize: '0.75rem' }} onClick={() => setInterviewFormFor(interviewFormFor === a._id ? null : a._id)}>Schedule Interview</button>
-                </div>
+                {interviewFormFor === a._id && (
+                  <div className="flex items-end flex-wrap" style={{ gap: 12, borderTop: '1px solid var(--sand-line)', paddingTop: 14, marginTop: 14 }}>
+                    <label className="text-xs" style={{ color: 'var(--ink-soft)', fontWeight: 600 }}>Date/Time
+                      <input type="datetime-local" className="form-input" value={interviewForm.scheduledDate} onChange={(e) => setInterviewForm({ ...interviewForm, scheduledDate: e.target.value })} style={{ marginTop: 6 }} />
+                    </label>
+                    <div style={{ minWidth: 140 }}>
+                      <CustomSelect
+                        value={interviewForm.mode} onChange={(v) => setInterviewForm({ ...interviewForm, mode: v })} ariaLabel="Interview mode" minWidth="100%"
+                        options={[{ value: 'online', label: 'Online' }, { value: 'physical', label: 'Physical' }]}
+                      />
+                    </div>
+                    {interviewForm.mode === 'online'
+                      ? <input className="form-input" placeholder="Meeting link" value={interviewForm.meetingLink} onChange={(e) => setInterviewForm({ ...interviewForm, meetingLink: e.target.value })} style={{ flex: '1 1 200px', minWidth: 0 }} />
+                      : <input className="form-input" placeholder="Location / address" value={interviewForm.location} onChange={(e) => setInterviewForm({ ...interviewForm, location: e.target.value })} style={{ flex: '1 1 200px', minWidth: 0 }} />}
+                    <button type="button" className="btn btn-primary" style={{ padding: '8px 16px', fontSize: '0.78rem', flexShrink: 0 }} onClick={() => submitInterview(a._id)}>Confirm</button>
+                  </div>
+                )}
               </div>
-              {interviewFormFor === a._id && (
-                <div className="flex gap-2 items-end flex-wrap mt-3" style={{ borderTop: '1px solid var(--sand-line)', paddingTop: 10 }}>
-                  <label className="text-xs">Date/Time
-                    <input type="datetime-local" className="form-input" value={interviewForm.scheduledDate} onChange={(e) => setInterviewForm({ ...interviewForm, scheduledDate: e.target.value })} />
-                  </label>
-                  <select className="form-select" value={interviewForm.mode} onChange={(e) => setInterviewForm({ ...interviewForm, mode: e.target.value })}>
-                    <option value="online">Online</option>
-                    <option value="physical">Physical</option>
-                  </select>
-                  {interviewForm.mode === 'online'
-                    ? <input className="form-input" placeholder="Meeting link" value={interviewForm.meetingLink} onChange={(e) => setInterviewForm({ ...interviewForm, meetingLink: e.target.value })} style={{ minWidth: 200 }} />
-                    : <input className="form-input" placeholder="Location / address" value={interviewForm.location} onChange={(e) => setInterviewForm({ ...interviewForm, location: e.target.value })} style={{ minWidth: 200 }} />}
-                  <button type="button" className="btn btn-primary" style={{ padding: '5px 14px', fontSize: '0.78rem' }} onClick={() => submitInterview(a._id)}>Confirm</button>
-                </div>
-              )}
-            </div>
-          ))}
+            ))}
+          </div>
         </div>
       )}
     </div>
@@ -6312,8 +7049,8 @@ function RecommendedFundingRequestsPanel({ onFlash }) {
 
   return (
     <div>
-      <h3 className="font-semibold mb-2">Recommended Funding Requests</h3>
-      <p className="text-xs mb-3" style={{ color: 'var(--ink-soft)' }}>Computed ranking — verified requests, lowest-funded first, closest deadlines first. Not AI-generated.</p>
+      <h3 className="font-semibold" style={{ marginBottom: 4 }}>Recommended Funding Requests</h3>
+      <p className="text-xs" style={{ color: 'var(--ink-soft)', marginBottom: 16 }}>Computed ranking — verified requests, lowest-funded first, closest deadlines first. Not AI-generated.</p>
       <Table
         headers={['Student/Institution', 'Type', 'Required', 'Collected', 'Remaining', 'Purpose', 'Country', 'Verification', 'Deadline', 'Actions']}
         rows={requests.map((r) => [
@@ -6326,11 +7063,11 @@ function RecommendedFundingRequestsPanel({ onFlash }) {
           r.country || '—',
           <Tag status={VERIFICATION_TAG[r.verificationStatus]} label={VERIFICATION_LABEL[r.verificationStatus]} />,
           r.applicationDeadline ? new Date(r.applicationDeadline).toLocaleDateString() : '—',
-          <div className="flex gap-2 flex-wrap">
-            <button type="button" className="btn" style={{ padding: '4px 10px', fontSize: '0.72rem' }} onClick={() => setViewing(r)}>View Request</button>
-            <button type="button" className="btn" style={{ padding: '4px 10px', fontSize: '0.72rem' }} onClick={() => toggleSave(r._id)}>{savedIds.includes(r._id) ? '★ Saved' : '☆ Save'}</button>
-            {r.requestType === 'student' && <button type="button" className="btn" style={{ padding: '4px 10px', fontSize: '0.72rem' }} disabled={r.verificationStatus !== 'verified'} title={r.verificationStatus !== 'verified' ? 'Only Super Admin-verified requests can receive donations.' : undefined} onClick={() => startDonate(r, 'sponsorship')}>Sponsor Student</button>}
-            <button type="button" className="btn btn-primary" style={{ padding: '4px 10px', fontSize: '0.72rem' }} disabled={r.verificationStatus !== 'verified'} title={r.verificationStatus !== 'verified' ? 'Only Super Admin-verified requests can receive donations.' : undefined} onClick={() => startDonate(r, 'donation')}>Donate Now</button>
+          <div className="flex flex-wrap" style={{ gap: 8 }}>
+            <button type="button" className="btn" style={{ padding: '6px 12px', fontSize: '0.72rem' }} onClick={() => setViewing(r)}>View Request</button>
+            <button type="button" className="btn" style={{ padding: '6px 12px', fontSize: '0.72rem' }} onClick={() => toggleSave(r._id)}>{savedIds.includes(r._id) ? '★ Saved' : '☆ Save'}</button>
+            {r.requestType === 'student' && <button type="button" className="btn" style={{ padding: '6px 12px', fontSize: '0.72rem' }} disabled={r.verificationStatus !== 'verified'} title={r.verificationStatus !== 'verified' ? 'Only Super Admin-verified requests can receive donations.' : undefined} onClick={() => startDonate(r, 'sponsorship')}>Sponsor Student</button>}
+            <button type="button" className="btn btn-primary" style={{ padding: '6px 12px', fontSize: '0.72rem' }} disabled={r.verificationStatus !== 'verified'} title={r.verificationStatus !== 'verified' ? 'Only Super Admin-verified requests can receive donations.' : undefined} onClick={() => startDonate(r, 'donation')}>Donate Now</button>
           </div>
         ])}
         empty="No funding requests to recommend yet."
@@ -6433,29 +7170,29 @@ function DonationOpportunitiesPanel({ onFlash }) {
 
   return (
     <div>
-      <h3 className="font-semibold mb-2">Donation Opportunities</h3>
-      <p className="text-xs mb-3" style={{ color: 'var(--ink-soft)' }}>Browse every open funding request across all categories.</p>
+      <h3 className="font-semibold" style={{ marginBottom: 4 }}>Donation Opportunities</h3>
+      <p className="text-xs" style={{ color: 'var(--ink-soft)', marginBottom: 16 }}>Browse every open funding request across all categories.</p>
 
-      <div className="flex gap-2 flex-wrap mb-3">
-        <button type="button" className={`btn${filters.category === '' ? ' btn-primary' : ''}`} style={{ padding: '4px 12px', fontSize: '0.75rem' }} onClick={() => setFilters({ ...filters, category: '' })}>All</button>
+      <div className="flex flex-wrap" style={{ gap: 8, marginBottom: 16 }}>
+        <button type="button" className={`btn${filters.category === '' ? ' btn-primary' : ''}`} style={{ padding: '6px 14px', fontSize: '0.75rem' }} onClick={() => setFilters({ ...filters, category: '' })}>All</button>
         {FUNDING_CATEGORIES.map((c) => (
-          <button key={c.value} type="button" className={`btn${filters.category === c.value ? ' btn-primary' : ''}`} style={{ padding: '4px 12px', fontSize: '0.75rem' }} onClick={() => setFilters({ ...filters, category: c.value })}>{c.label}</button>
+          <button key={c.value} type="button" className={`btn${filters.category === c.value ? ' btn-primary' : ''}`} style={{ padding: '6px 14px', fontSize: '0.75rem' }} onClick={() => setFilters({ ...filters, category: c.value })}>{c.label}</button>
         ))}
       </div>
 
-      <div className="grid grid-cols-2 md:grid-cols-6 gap-2 mb-3">
+      <div className="card grid grid-cols-2 md:grid-cols-6" style={{ padding: 16, gap: 12, marginBottom: 20, alignItems: 'end' }}>
         <input className="form-input" placeholder="Country code" value={filters.country} onChange={(e) => setFilters({ ...filters, country: e.target.value.toUpperCase() })} />
-        <select className="form-select" value={filters.institution} onChange={(e) => setFilters({ ...filters, institution: e.target.value })}>
-          <option value="">Any institution</option>
-          {institutions.map((i) => <option key={i._id} value={i._id}>{i.name}</option>)}
-        </select>
-        <select className="form-select" value={filters.educationLevel} onChange={(e) => setFilters({ ...filters, educationLevel: e.target.value })}>
-          <option value="">Any education level</option>
-          {EDUCATION_LEVELS.map((l) => <option key={l} value={l}>{l[0].toUpperCase() + l.slice(1)}</option>)}
-        </select>
+        <CustomSelect
+          value={filters.institution} onChange={(v) => setFilters({ ...filters, institution: v })} ariaLabel="Filter by institution" minWidth="100%"
+          options={[{ value: '', label: 'Any institution' }, ...institutions.map((i) => ({ value: i._id, label: i.name }))]}
+        />
+        <CustomSelect
+          value={filters.educationLevel} onChange={(v) => setFilters({ ...filters, educationLevel: v })} ariaLabel="Filter by education level" minWidth="100%"
+          options={[{ value: '', label: 'Any education level' }, ...EDUCATION_LEVELS.map((l) => ({ value: l, label: l[0].toUpperCase() + l.slice(1) }))]}
+        />
         <input className="form-input" type="number" placeholder="Min amount" value={filters.minAmount} onChange={(e) => setFilters({ ...filters, minAmount: e.target.value })} />
         <input className="form-input" type="number" placeholder="Max amount" value={filters.maxAmount} onChange={(e) => setFilters({ ...filters, maxAmount: e.target.value })} />
-        <label className="flex items-center gap-2 text-xs"><input type="checkbox" checked={filters.verifiedOnly} onChange={(e) => setFilters({ ...filters, verifiedOnly: e.target.checked })} /> Verified only</label>
+        <label className="flex items-center text-xs" style={{ gap: 8, minHeight: 46 }}><input type="checkbox" checked={filters.verifiedOnly} onChange={(e) => setFilters({ ...filters, verifiedOnly: e.target.checked })} /> Verified only</label>
       </div>
 
       <Table
@@ -6568,46 +7305,63 @@ function ActiveSponsorshipsPanel({ onFlash }) {
 
   return (
     <div>
-      <h3 className="font-semibold mb-2">Active Sponsorships</h3>
-      <p className="text-xs mb-3" style={{ color: 'var(--ink-soft)' }}>Your real sponsorship commitments, created automatically when you approve a scholarship application.</p>
-      {sponsorships.length === 0 && <p className="text-sm" style={{ color: 'var(--ink-soft)' }}>No sponsorships yet — approve a scholarship application to create one.</p>}
+      <h3 className="font-semibold" style={{ marginBottom: 4 }}>Active Sponsorships</h3>
+      <p className="text-xs" style={{ color: 'var(--ink-soft)', marginBottom: 16 }}>Your real sponsorship commitments, created automatically when you approve a scholarship application.</p>
+      {sponsorships.length === 0 && (
+        <div className="student-empty-state" style={{ border: '1px solid var(--sand-line)', borderRadius: 18 }}>
+          <FaGraduationCap aria-hidden="true" />
+          <p>No sponsorships yet</p>
+          <span>Approve a scholarship application to create one.</span>
+        </div>
+      )}
+      <div style={{ display: 'grid', gap: 14 }}>
       {sponsorships.map((s) => {
         const st = SPONSORSHIP_STATUS[s.status] || SPONSORSHIP_STATUS.pending;
+        const pct = s.amount > 0 ? Math.min(100, Math.round((s.paidAmount / s.amount) * 100)) : 0;
         return (
-          <div key={s._id} className="border border-[var(--sand-line)] rounded-xl p-3 mb-3">
-            <div className="flex items-center justify-between flex-wrap gap-2">
-              <div>
-                <strong className="text-sm">{s.student?.fullName || 'Sponsored student'}</strong>
-                <p className="text-xs" style={{ color: 'var(--ink-soft)' }}>{s.scholarship?.title}{s.institution?.name ? ` · ${s.institution.name}` : ' · Institution not set on student profile'}</p>
-                <p className="text-xs mt-1" style={{ color: 'var(--ink-soft)' }}>
-                  <strong>Committed:</strong> {s.currency} {s.amount} · <strong>Paid:</strong> {s.currency} {s.paidAmount} · <strong>Remaining:</strong> {s.currency} {s.remainingAmount}
-                </p>
-                <p className="text-xs" style={{ color: 'var(--ink-soft)' }}>
-                  <strong>Next payment date:</strong> {s.nextPaymentDate ? new Date(s.nextPaymentDate).toLocaleDateString() : 'Not scheduled'}
-                </p>
-                <div className="mt-1"><Tag status={st.tag} label={st.label} /></div>
+          <div key={s._id} className="card" style={{ padding: 20 }}>
+            <div className="flex items-start justify-between flex-wrap" style={{ gap: 14 }}>
+              <div className="flex items-start" style={{ gap: 12 }}>
+                <span style={{ width: 38, height: 38, borderRadius: '50%', background: 'var(--emerald)', color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 700, flexShrink: 0 }}>{(s.student?.fullName || '?')[0]}</span>
+                <div style={{ minWidth: 220 }}>
+                  <strong className="text-sm">{s.student?.fullName || 'Sponsored student'}</strong>
+                  <p className="text-xs" style={{ color: 'var(--ink-soft)', marginTop: 2 }}>{s.scholarship?.title}{s.institution?.name ? ` · ${s.institution.name}` : ' · Institution not set on student profile'}</p>
+                  <div className="student-progress-row" style={{ maxWidth: 240, marginTop: 10, marginBottom: 4 }}>
+                    <span className="text-xs">{s.currency} {s.paidAmount} of {s.currency} {s.amount}</span>
+                    <strong className="text-xs">{pct}%</strong>
+                  </div>
+                  <progress className="student-progress-bar" max="100" value={pct} style={{ maxWidth: 240 }} aria-label="Sponsorship paid progress" />
+                  <p className="text-xs" style={{ color: 'var(--ink-soft)', marginTop: 8 }}>
+                    Remaining: {s.currency} {s.remainingAmount} · Next payment: {s.nextPaymentDate ? new Date(s.nextPaymentDate).toLocaleDateString() : 'Not scheduled'}
+                  </p>
+                  <span style={{ display: 'inline-block', marginTop: 8 }}><Tag status={st.tag} label={st.label} /></span>
+                </div>
               </div>
-              <div className="flex gap-2 items-center flex-wrap">
-                <select className="form-input" style={{ padding: '5px 8px', fontSize: '0.75rem' }} value={s.status} onChange={(e) => changeStatus(s._id, e.target.value)}>
-                  {Object.entries(SPONSORSHIP_STATUS).map(([val, meta]) => <option key={val} value={val}>{meta.label}</option>)}
-                </select>
-                <button type="button" className="btn" style={{ padding: '5px 12px', fontSize: '0.75rem' }} onClick={() => (paymentFor === s._id ? setPaymentFor(null) : startPayment(s))}>Record Payment</button>
+              <div className="flex items-center flex-wrap" style={{ gap: 10, flexShrink: 0 }}>
+                <div style={{ minWidth: 150 }}>
+                  <CustomSelect
+                    value={s.status} onChange={(v) => changeStatus(s._id, v)} ariaLabel="Sponsorship status" minWidth="100%"
+                    options={Object.entries(SPONSORSHIP_STATUS).map(([val, meta]) => ({ value: val, label: meta.label }))}
+                  />
+                </div>
+                <button type="button" className="btn" style={{ padding: '8px 14px', fontSize: '0.75rem' }} onClick={() => (paymentFor === s._id ? setPaymentFor(null) : startPayment(s))}>Record Payment</button>
               </div>
             </div>
             {paymentFor === s._id && (
-              <div className="flex gap-2 items-end mt-3 flex-wrap" style={{ borderTop: '1px solid var(--sand-line)', paddingTop: 10 }}>
-                <label className="text-xs">Paid amount so far ({s.currency})
-                  <input type="number" min="0" className="form-input" value={paidAmount} onChange={(e) => setPaidAmount(e.target.value)} />
+              <div className="flex items-end flex-wrap" style={{ gap: 14, borderTop: '1px solid var(--sand-line)', paddingTop: 16, marginTop: 16 }}>
+                <label className="text-xs" style={{ color: 'var(--ink-soft)', fontWeight: 600 }}>Paid amount so far ({s.currency})
+                  <input type="number" min="0" className="form-input" value={paidAmount} onChange={(e) => setPaidAmount(e.target.value)} style={{ marginTop: 6 }} />
                 </label>
-                <label className="text-xs">Next payment date
-                  <input type="date" className="form-input" value={nextPaymentDate} onChange={(e) => setNextPaymentDate(e.target.value)} />
+                <label className="text-xs" style={{ color: 'var(--ink-soft)', fontWeight: 600 }}>Next payment date
+                  <input type="date" className="form-input" value={nextPaymentDate} onChange={(e) => setNextPaymentDate(e.target.value)} style={{ marginTop: 6 }} />
                 </label>
-                <button type="button" className="btn btn-primary" style={{ padding: '5px 14px', fontSize: '0.78rem' }} onClick={() => submitPayment(s)}>Save</button>
+                <button type="button" className="btn btn-primary" style={{ padding: '8px 16px', fontSize: '0.78rem' }} onClick={() => submitPayment(s)}>Save</button>
               </div>
             )}
           </div>
         );
       })}
+      </div>
     </div>
   );
 }
@@ -6667,8 +7421,8 @@ function DonationHistoryPanel({ onFlash }) {
 
   return (
     <div>
-      <h3 className="font-semibold mb-2">Donation History</h3>
-      <p className="text-xs mb-3" style={{ color: 'var(--ink-soft)' }}>Your real donation and sponsorship contributions. No live payment gateway — status reflects what you confirm actually happened.</p>
+      <h3 className="font-semibold" style={{ marginBottom: 4 }}>Donation History</h3>
+      <p className="text-xs" style={{ color: 'var(--ink-soft)', marginBottom: 16 }}>Your real donation and sponsorship contributions. No live payment gateway — status reflects what you confirm actually happened.</p>
       <Table
         headers={['Date', 'Recipient', 'Purpose', 'Amount', 'Payment Method', 'Transaction ID', 'Status', 'Actions']}
         rows={donations.map((d) => [
@@ -6678,10 +7432,13 @@ function DonationHistoryPanel({ onFlash }) {
           `${d.currency} ${d.amount}`,
           PAYMENT_METHOD_LABEL[d.paymentMethod] || d.paymentMethod,
           d.transactionId,
-          <select className="form-select" style={{ padding: '4px 6px', fontSize: '0.72rem' }} value={d.status} onChange={(e) => changeStatus(d._id, e.target.value)}>
-            {Object.entries(DONATION_STATUS).map(([val, meta]) => <option key={val} value={val}>{meta.label}</option>)}
-          </select>,
-          <button type="button" className="btn" style={{ padding: '4px 10px', fontSize: '0.72rem' }} onClick={() => setReceiptFor(d)}>View Receipt</button>
+          <div style={{ minWidth: 140 }}>
+            <CustomSelect
+              value={d.status} onChange={(v) => changeStatus(d._id, v)} ariaLabel="Donation status" minWidth="100%"
+              options={Object.entries(DONATION_STATUS).map(([val, meta]) => ({ value: val, label: meta.label }))}
+            />
+          </div>,
+          <button type="button" className="btn" style={{ padding: '6px 12px', fontSize: '0.72rem' }} onClick={() => setReceiptFor(d)}>View Receipt</button>
         ])}
         empty="No donations recorded yet."
       />
@@ -6741,9 +7498,9 @@ function ImpactOverviewPanel({ onFlash }) {
 
   return (
     <div>
-      <h3 className="font-semibold mb-2">Impact Overview</h3>
-      <p className="text-xs mb-3" style={{ color: 'var(--ink-soft)' }}>Computed from your own real sponsorships and donations — nothing fabricated or estimated.</p>
-      <div className="grid grid-cols-2 md:grid-cols-3 gap-3 mb-4">
+      <div className="dash-section-title"><h2>Impact Overview</h2></div>
+      <p className="text-xs" style={{ color: 'var(--ink-soft)', marginBottom: 16 }}>Computed from your own real sponsorships and donations — nothing fabricated or estimated.</p>
+      <div className="grid grid-cols-2 md:grid-cols-3" style={{ gap: 14, marginBottom: 20 }}>
         <SummaryCard title="Total Students Supported" count={studentIds.size} />
         <SummaryCard title="Scholarships Funded" count={scholarshipIds.size} />
         <SummaryCard title="Courses Sponsored" count={courseRequestIds.size} />
@@ -6751,18 +7508,25 @@ function ImpactOverviewPanel({ onFlash }) {
         <SummaryCard title="Completed Education Goals" count={completedGoals} />
       </div>
 
-      <h4 className="font-semibold mb-2" style={{ fontSize: 15 }}>Donation Utilization Summary</h4>
-      {Object.keys(utilByCurrency).length === 0 && <p className="text-sm" style={{ color: 'var(--ink-soft)' }}>No donations or sponsorships yet.</p>}
-      <Table
-        headers={['Currency', 'One-Time Donations', 'Sponsorship Paid', 'Sponsorship Committed', 'Utilization']}
-        rows={Object.entries(utilByCurrency).map(([currency, b]) => {
-          const totalCommitted = b.donated + b.sponsorshipCommitted;
-          const totalMoved = b.donated + b.sponsorshipPaid;
-          const pct = totalCommitted > 0 ? Math.round((totalMoved / totalCommitted) * 100) : 0;
-          return [currency, `${currency} ${b.donated}`, `${currency} ${b.sponsorshipPaid}`, `${currency} ${b.sponsorshipCommitted}`, `${pct}%`];
-        })}
-        empty="No donations or sponsorships yet."
-      />
+      <h4 className="font-semibold" style={{ fontSize: 15, marginBottom: 12 }}>Donation Utilization Summary</h4>
+      {Object.keys(utilByCurrency).length === 0 && (
+        <div className="student-empty-state" style={{ border: '1px solid var(--sand-line)', borderRadius: 18 }}>
+          <FaChartLine aria-hidden="true" />
+          <p>No donations or sponsorships yet</p>
+        </div>
+      )}
+      {Object.keys(utilByCurrency).length > 0 && (
+        <Table
+          headers={['Currency', 'One-Time Donations', 'Sponsorship Paid', 'Sponsorship Committed', 'Utilization']}
+          rows={Object.entries(utilByCurrency).map(([currency, b]) => {
+            const totalCommitted = b.donated + b.sponsorshipCommitted;
+            const totalMoved = b.donated + b.sponsorshipPaid;
+            const pct = totalCommitted > 0 ? Math.round((totalMoved / totalCommitted) * 100) : 0;
+            return [currency, `${currency} ${b.donated}`, `${currency} ${b.sponsorshipPaid}`, `${currency} ${b.sponsorshipCommitted}`, <strong>{pct}%</strong>];
+          })}
+          empty="No donations or sponsorships yet."
+        />
+      )}
     </div>
   );
 }
@@ -6864,40 +7628,68 @@ function ImpactReportsPanel({ onFlash, onNavigate }) {
 
   return (
     <div>
-      <div className="flex items-center justify-between flex-wrap gap-2 mb-2">
+      <div className="flex items-center justify-between flex-wrap" style={{ gap: 12, marginBottom: 4 }}>
         <h3 className="font-semibold">Impact Reports</h3>
-        {live.length > 0 && <button type="button" className="btn btn-primary" onClick={downloadAll}>Download Full Report</button>}
+        {live.length > 0 && <button type="button" className="btn btn-primary" style={{ padding: '8px 16px', fontSize: '0.8rem' }} onClick={downloadAll}>Download Full Report</button>}
       </div>
-      <p className="text-xs mb-3" style={{ color: 'var(--ink-soft)' }}>Computed from your real sponsorship and message data — not AI-generated (no AI is wired into this app).</p>
-      {live.length === 0 && <p className="text-sm" style={{ color: 'var(--ink-soft)' }}>No active sponsorships to report on yet.</p>}
+      <p className="text-xs" style={{ color: 'var(--ink-soft)', marginBottom: 18 }}>Computed from your real sponsorship and message data — not AI-generated (no AI is wired into this app).</p>
+      {live.length === 0 && (
+        <div className="student-empty-state" style={{ border: '1px solid var(--sand-line)', borderRadius: 18 }}>
+          <FaChartLine aria-hidden="true" />
+          <p>No active sponsorships to report on yet</p>
+        </div>
+      )}
+      <div style={{ display: 'grid', gap: 14 }}>
       {live.map((s) => {
         const pct = s.amount > 0 ? Math.round((s.paidAmount / s.amount) * 100) : 0;
         const lastMessage = lastMessageByStudent[s.student?._id];
         const milestones = buildMilestones(s);
         const st = SPONSORSHIP_STATUS[s.status] || SPONSORSHIP_STATUS.pending;
+        const rowLabel = { fontSize: 11, fontWeight: 700, letterSpacing: '.04em', textTransform: 'uppercase', color: 'var(--ink-soft)' };
         return (
-          <div key={s._id} className="border border-[var(--sand-line)] rounded-xl p-3 mb-3">
-            <div className="flex items-center justify-between flex-wrap gap-2 mb-2">
-              <div>
-                <strong className="text-sm">{s.student?.fullName}</strong>
-                <p className="text-xs" style={{ color: 'var(--ink-soft)' }}>{s.scholarship?.title}</p>
+          <div key={s._id} className="card" style={{ padding: 20 }}>
+            <div className="flex items-center justify-between flex-wrap" style={{ gap: 12, marginBottom: 16 }}>
+              <div className="flex items-center" style={{ gap: 12 }}>
+                <span style={{ width: 38, height: 38, borderRadius: '50%', background: 'var(--emerald)', color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 700, flexShrink: 0 }}>{(s.student?.fullName || '?')[0]}</span>
+                <div>
+                  <strong className="text-sm">{s.student?.fullName}</strong>
+                  <p className="text-xs" style={{ color: 'var(--ink-soft)', marginTop: 2 }}>{s.scholarship?.title}</p>
+                </div>
               </div>
               <Tag status={st.tag} label={st.label} />
             </div>
 
-            <p className="text-xs mb-1"><strong>Recipient progress:</strong> {pct}% funded ({s.currency} {s.paidAmount} of {s.currency} {s.amount})</p>
-            <p className="text-xs mb-1"><strong>Academic progress:</strong> {s.institution?.name || 'Institution not set'}{s.program ? ` · ${s.program}` : ''}{s.currentTerm ? ` · ${s.currentTerm}` : ''}{!s.institution && !s.program ? ' — not set on student profile yet' : ''}</p>
-            <p className="text-xs mb-1"><strong>Funding utilization:</strong> {s.currency} {s.remainingAmount} remaining of {s.currency} {s.amount}</p>
-            <p className="text-xs mb-1"><strong>Completed milestones:</strong> {milestones.length === 0 ? 'None yet' : milestones.map((m) => `${m.label} (${m.date})`).join(' · ')}</p>
-            <p className="text-xs mb-2"><strong>Institution/student update:</strong> {lastMessage ? `"${lastMessage.lastMessage}" — ${new Date(lastMessage.lastAt).toLocaleDateString()}` : 'No messages exchanged yet.'}</p>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 16, paddingBottom: 16, borderBottom: '1px solid var(--sand-line)' }}>
+              <div>
+                <p style={rowLabel}>Recipient Progress</p>
+                <p className="text-xs" style={{ marginTop: 6 }}>{pct}% funded ({s.currency} {s.paidAmount} of {s.currency} {s.amount})</p>
+              </div>
+              <div>
+                <p style={rowLabel}>Academic Progress</p>
+                <p className="text-xs" style={{ marginTop: 6 }}>{s.institution?.name || 'Institution not set'}{s.program ? ` · ${s.program}` : ''}{s.currentTerm ? ` · ${s.currentTerm}` : ''}{!s.institution && !s.program ? ' — not set on student profile yet' : ''}</p>
+              </div>
+              <div>
+                <p style={rowLabel}>Funding Utilization</p>
+                <p className="text-xs" style={{ marginTop: 6 }}>{s.currency} {s.remainingAmount} remaining of {s.currency} {s.amount}</p>
+              </div>
+              <div>
+                <p style={rowLabel}>Institution/Student Update</p>
+                <p className="text-xs" style={{ marginTop: 6 }}>{lastMessage ? `"${lastMessage.lastMessage}" — ${new Date(lastMessage.lastAt).toLocaleDateString()}` : 'No messages exchanged yet.'}</p>
+              </div>
+            </div>
+            <div style={{ marginTop: 16 }}>
+              <p style={rowLabel}>Completed Milestones</p>
+              <p className="text-xs" style={{ marginTop: 6, color: 'var(--ink-soft)' }}>{milestones.length === 0 ? 'None yet' : milestones.map((m) => `${m.label} (${m.date})`).join(' · ')}</p>
+            </div>
 
-            <div className="flex gap-2 flex-wrap">
-              <button type="button" className="btn" style={{ padding: '5px 12px', fontSize: '0.75rem' }} onClick={() => onNavigate && onNavigate('messages')}>Message Student</button>
-              <button type="button" className="btn btn-primary" style={{ padding: '5px 12px', fontSize: '0.75rem' }} onClick={() => download(s)}>Download Report</button>
+            <div className="flex flex-wrap" style={{ gap: 10, marginTop: 16 }}>
+              <button type="button" className="btn" style={{ padding: '7px 16px', fontSize: '0.75rem' }} onClick={() => onNavigate && onNavigate('messages')}>Message Student</button>
+              <button type="button" className="btn btn-primary" style={{ padding: '7px 16px', fontSize: '0.75rem' }} onClick={() => download(s)}>Download Report</button>
             </div>
           </div>
         );
       })}
+      </div>
     </div>
   );
 }
@@ -6939,8 +7731,8 @@ function FundingRequestApplicationsPanel({ onFlash }) {
 
   return (
     <div>
-      <h3 className="font-semibold mb-2">Funding Request Applications</h3>
-      <p className="text-xs mb-3" style={{ color: 'var(--ink-soft)' }}>Every funding request submitted on the platform, across every status.</p>
+      <h3 className="font-semibold" style={{ marginBottom: 4 }}>Funding Request Applications</h3>
+      <p className="text-xs" style={{ color: 'var(--ink-soft)', marginBottom: 16 }}>Every funding request submitted on the platform, across every status.</p>
       <Table
         headers={['Applicant', 'Category', 'Requested Amount', 'Documents', 'Institution', 'Verification', 'Application Status', 'Actions']}
         rows={applications.map((r) => [
@@ -6950,10 +7742,13 @@ function FundingRequestApplicationsPanel({ onFlash }) {
           r.documents?.length > 0 ? `${r.documents.length} attached` : 'None',
           r.institution?.name || '—',
           <Tag status={VERIFICATION_TAG[r.verificationStatus]} label={VERIFICATION_LABEL[r.verificationStatus]} />,
-          <select className="form-select" style={{ padding: '4px 6px', fontSize: '0.72rem' }} value={r.applicationStatus} onChange={(e) => changeStatus(r._id, e.target.value)}>
-            {Object.entries(FUNDING_APP_STATUS).map(([val, meta]) => <option key={val} value={val}>{meta.label}</option>)}
-          </select>,
-          <button type="button" className="btn" style={{ padding: '4px 10px', fontSize: '0.72rem' }} onClick={() => setViewing(r)}>View Request</button>
+          <div style={{ minWidth: 150 }}>
+            <CustomSelect
+              value={r.applicationStatus} onChange={(v) => changeStatus(r._id, v)} ariaLabel="Application status" minWidth="100%"
+              options={Object.entries(FUNDING_APP_STATUS).map(([val, meta]) => ({ value: val, label: meta.label }))}
+            />
+          </div>,
+          <button type="button" className="btn" style={{ padding: '6px 12px', fontSize: '0.72rem' }} onClick={() => setViewing(r)}>View Request</button>
         ])}
         empty="No funding request applications yet."
       />
@@ -7229,7 +8024,7 @@ function DonorMessagesPanel({ onFlash }) {
   }
 
   return (
-    <div className="grid g2" style={{ gap: 24 }}>
+    <div className="grid g2" style={{ gap: 24, alignItems: 'start' }}>
       <div>
         <h3 className="font-semibold mb-2">Messages</h3>
         <p className="text-xs mb-3" style={{ color: 'var(--ink-soft)' }}>To start a new conversation, ask for their User ID and use the "New Message" box on the right.</p>
@@ -7305,26 +8100,34 @@ function DonorRecentActivityPanel({ onFlash }) {
 
   function Feed({ title, items, empty }) {
     return (
-      <div className="mb-4">
-        <h4 className="font-semibold mb-2" style={{ fontSize: 15 }}>{title}</h4>
-        {items.length === 0 && <p className="text-xs" style={{ color: 'var(--ink-soft)' }}>{empty}</p>}
-        <div className="dash-list">
-          {items.map((it, i) => (
-            <div key={i} className="dash-list-item">
-              <span className="dash-list-icon c-forest" aria-hidden><FaCalendarCheck size={14} /></span>
-              <div className="dash-list-body"><div className="title">{it.label}</div></div>
-              <span className="dash-list-time">{new Date(it.date).toLocaleDateString()}</span>
+      <div style={{ marginBottom: 20 }}>
+        <h4 className="font-semibold" style={{ fontSize: 15, marginBottom: 10 }}>{title}</h4>
+        {items.length === 0 ? (
+          <div className="student-empty-state" style={{ border: '1px solid var(--sand-line)', borderRadius: 18, minHeight: 110 }}>
+            <FaCalendarCheck aria-hidden="true" />
+            <span className="text-xs" style={{ color: 'var(--ink-soft)' }}>{empty}</span>
+          </div>
+        ) : (
+          <div className="card" style={{ padding: 0 }}>
+            <div className="dash-list" style={{ gap: 0 }}>
+              {items.map((it, i) => (
+                <div key={i} className="dash-list-item" style={{ borderBottom: i < items.length - 1 ? '1px solid var(--sand-line)' : 'none' }}>
+                  <span className="dash-list-icon c-forest" aria-hidden><FaCalendarCheck size={14} /></span>
+                  <div className="dash-list-body"><div className="title">{it.label}</div></div>
+                  <span className="dash-list-time">{new Date(it.date).toLocaleDateString()}</span>
+                </div>
+              ))}
             </div>
-          ))}
-        </div>
+          </div>
+        )}
       </div>
     );
   }
 
   return (
     <div>
-      <h3 className="font-semibold mb-2">Recent Activity</h3>
-      <p className="text-xs mb-3" style={{ color: 'var(--ink-soft)' }}>"Downloaded receipts" and "Generated impact report" are logged in this browser only (no server record exists for a file download).</p>
+      <h3 className="font-semibold" style={{ marginBottom: 4 }}>Recent Activity</h3>
+      <p className="text-xs" style={{ color: 'var(--ink-soft)', marginBottom: 18 }}>"Downloaded receipts" and "Generated impact report" are logged in this browser only (no server record exists for a file download).</p>
 
       <Feed
         title="Recent Donations"
@@ -7391,23 +8194,41 @@ function DonorVerificationPanel({ onFlash }) {
 
   return (
     <div>
-      <h3 className="font-semibold mb-2">Verification / Documents</h3>
-      <p className="text-xs mb-3" style={{ color: 'var(--ink-soft)' }}>
-        Status: <Tag status={VERIFICATION_TAG[status]} label={VERIFICATION_LABEL[status]} />
-        {status === 'rejected' && request?.reviewNotes && <> — {request.reviewNotes}</>}
-      </p>
-      <p className="text-xs mb-2" style={{ color: 'var(--ink-soft)' }}>Only a Super Admin-verified donor can post scholarships or donate. Submit documents (ID, proof of funds, organization registration, etc.) for review.</p>
-      <div className="flex gap-2 items-end mb-3 flex-wrap">
-        <input className="form-input" placeholder="Paste a document link (PDF/image URL)" value={docUrl} onChange={(e) => setDocUrl(e.target.value)} style={{ minWidth: 260 }} />
-        <button type="button" className="btn btn-primary" style={{ padding: '5px 14px', fontSize: '0.78rem' }} onClick={addDocument}>Add Document</button>
-      </div>
-      {(request?.documents || []).length === 0 && <p className="text-xs" style={{ color: 'var(--ink-soft)' }}>No documents submitted yet.</p>}
-      {(request?.documents || []).map((d) => (
-        <div key={d} className="flex items-center justify-between" style={{ padding: '4px 0' }}>
-          <a href={d} target="_blank" rel="noreferrer" className="text-xs">{d}</a>
-          <button type="button" className="btn" style={{ padding: '3px 10px', fontSize: '0.72rem' }} onClick={() => removeDocument(d)}>Remove</button>
+      <h3 className="font-semibold" style={{ marginBottom: 16 }}>Verification / Documents</h3>
+
+      <div className="flex items-start" style={{ gap: 12, padding: 18, borderRadius: 16, background: 'var(--sand)', marginBottom: 20 }}>
+        <span style={{ width: 34, height: 34, borderRadius: 10, background: 'var(--paper-raised)', color: 'var(--forest)', display: 'grid', placeItems: 'center', flexShrink: 0 }}>
+          <FaShieldHalved aria-hidden="true" size={15} />
+        </span>
+        <div>
+          <div className="flex items-center" style={{ gap: 8 }}>
+            <strong className="text-sm">Status:</strong>
+            <Tag status={VERIFICATION_TAG[status]} label={VERIFICATION_LABEL[status]} />
+          </div>
+          {status === 'rejected' && request?.reviewNotes && <p className="text-xs" style={{ color: 'var(--rose)', marginTop: 6 }}>{request.reviewNotes}</p>}
+          <p className="text-xs" style={{ color: 'var(--ink-soft)', marginTop: 6, lineHeight: 1.6 }}>Only a Super Admin-verified donor can post scholarships or donate. Submit documents (ID, proof of funds, organization registration, etc.) for review.</p>
         </div>
-      ))}
+      </div>
+
+      <div className="card" style={{ padding: 20 }}>
+        <p className="text-xs" style={{ fontWeight: 700, letterSpacing: '.04em', textTransform: 'uppercase', color: 'var(--ink-soft)', marginBottom: 14 }}>Submitted Documents</p>
+        <div className="flex items-end flex-wrap" style={{ gap: 12, marginBottom: 16 }}>
+          <input className="form-input" placeholder="Paste a document link (PDF/image URL)" value={docUrl} onChange={(e) => setDocUrl(e.target.value)} style={{ flex: '1 1 auto', minWidth: 0 }} />
+          <button type="button" className="btn btn-primary" style={{ padding: '8px 16px', fontSize: '0.78rem', flexShrink: 0 }} onClick={addDocument}>Add Document</button>
+        </div>
+        {(request?.documents || []).length === 0 ? (
+          <p className="text-xs" style={{ color: 'var(--ink-soft)' }}>No documents submitted yet.</p>
+        ) : (
+          <div style={{ display: 'grid', gap: 8 }}>
+            {(request?.documents || []).map((d) => (
+              <div key={d} className="flex items-center justify-between flex-wrap" style={{ gap: 10, padding: 12, borderRadius: 12, background: 'var(--sand)' }}>
+                <a href={d} target="_blank" rel="noreferrer" className="text-xs" style={{ overflowWrap: 'anywhere' }}>📄 {d}</a>
+                <button type="button" className="btn" style={{ padding: '5px 12px', fontSize: '0.72rem', background: 'var(--paper-raised)', flexShrink: 0 }} onClick={() => removeDocument(d)}>Remove</button>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
     </div>
   );
 }
@@ -7532,129 +8353,179 @@ function DonorDashboardPanel({ user, onFlash, onNavigate }) {
     <>
       {/* 1. Donor Profile */}
       <div className="card" style={{ padding: 20, marginBottom: 20 }}>
-        <div className="flex items-center justify-between flex-wrap gap-3">
-          <div className="flex items-center gap-3">
+        <div className="flex items-center justify-between flex-wrap" style={{ gap: 14 }}>
+          <div className="flex items-center" style={{ gap: 14 }}>
             {user?.profilePhoto
-              ? <img src={user.profilePhoto} alt="" style={{ width: 44, height: 44, borderRadius: isOrg ? 8 : '50%', objectFit: 'cover' }} />
-              : <div style={{ width: 44, height: 44, borderRadius: isOrg ? 8 : '50%', background: 'var(--emerald)', color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 700 }}>{(user?.fullName || '?')[0]}</div>}
+              ? <img src={user.profilePhoto} alt="" style={{ width: 48, height: 48, borderRadius: isOrg ? 10 : '50%', objectFit: 'cover', flexShrink: 0 }} />
+              : <div style={{ width: 48, height: 48, borderRadius: isOrg ? 10 : '50%', background: 'var(--emerald)', color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 700, fontSize: 18, flexShrink: 0 }}>{(user?.fullName || '?')[0]}</div>}
             <div>
               <strong className="text-sm">{user?.fullName}</strong>
-              <p className="text-xs mt-1" style={{ color: 'var(--ink-soft)' }}>
+              <p className="text-xs" style={{ color: 'var(--ink-soft)', marginTop: 2 }}>
                 {user?.donorType ? (user.donorType === 'organization' ? 'Organization' : 'Individual') : 'Donor type not set'}
                 {isOrg && ` · ${user?.companyName || 'Organization name not set'}`}
                 {' · '}{user?.country || 'Country not set'}
               </p>
-              <p className="text-xs mt-1" style={{ color: 'var(--ink-soft)' }}>
-                Verification: <Tag status={VERIFICATION_TAG[verStatus]} label={VERIFICATION_LABEL[verStatus]} /> · Account: <Tag status={ACCOUNT_STATUS_TAG[user?.status] || 'pending'} label={ACCOUNT_STATUS_LABEL[user?.status] || user?.status} />
-              </p>
+              <div className="flex items-center" style={{ gap: 8, marginTop: 6 }}>
+                <Tag status={VERIFICATION_TAG[verStatus]} label={VERIFICATION_LABEL[verStatus]} />
+                <Tag status={ACCOUNT_STATUS_TAG[user?.status] || 'pending'} label={ACCOUNT_STATUS_LABEL[user?.status] || user?.status} />
+              </div>
             </div>
           </div>
-          <span className="text-xs" style={{ color: 'var(--ink-soft)' }}>Profile {completeness}% complete</span>
+          <div style={{ minWidth: 160 }}>
+            <div className="student-progress-row" style={{ marginBottom: 6 }}>
+              <span className="text-xs">Profile</span>
+              <strong className="text-xs">{completeness}%</strong>
+            </div>
+            <progress className="student-progress-bar" max="100" value={completeness} aria-label="Profile completeness" />
+          </div>
         </div>
       </div>
 
       {/* 2. Main Summary Cards */}
-      <div className="grid grid-cols-3 md:grid-cols-4 gap-3" style={{ marginBottom: 20 }}>
-        <SummaryCard title="Total Donations" count={fmtMoney('totalDonations')} />
-        <SummaryCard title="Active Sponsorships" count={summary?.activeSponsorships ?? '—'} />
-        <SummaryCard title="Sponsored Students" count={summary?.sponsoredStudents ?? '—'} />
-        <SummaryCard title="Pending Requests" count={summary?.pendingRequests ?? '—'} />
-        <SummaryCard title="Total Impact" count={summary ? `${summary.totalImpact} students` : '—'} />
-        <SummaryCard title="Available Wallet Balance" count={fmtMoney('walletBalance')} />
-        <SummaryCard title="Upcoming Commitments" count={summary?.upcomingCommitments ?? '—'} />
-        <SummaryCard title="Completed Donations" count={summary?.completedDonations ?? '—'} />
+      <div className="grid grid-cols-3 md:grid-cols-4" style={{ gap: 14, marginBottom: 20 }}>
+        <SummaryCard title="Total Donations" count={fmtMoney('totalDonations')} onClick={() => onNavigate?.('donationHistory')} />
+        <SummaryCard title="Active Sponsorships" count={summary?.activeSponsorships ?? '—'} onClick={() => onNavigate?.('activeSponsorships')} />
+        <SummaryCard title="Sponsored Students" count={summary?.sponsoredStudents ?? '—'} onClick={() => onNavigate?.('sponsoredStudents')} />
+        <SummaryCard title="Pending Requests" count={summary?.pendingRequests ?? '—'} onClick={() => onNavigate?.('fundingApplications')} />
+        <SummaryCard title="Total Impact" count={summary ? `${summary.totalImpact} students` : '—'} onClick={() => onNavigate?.('impactOverview')} />
+        <SummaryCard title="Available Wallet Balance" count={fmtMoney('walletBalance')} onClick={() => onNavigate?.('wallet')} />
+        <SummaryCard title="Upcoming Commitments" count={summary?.upcomingCommitments ?? '—'} onClick={() => onNavigate?.('activeSponsorships')} />
+        <SummaryCard title="Completed Donations" count={summary?.completedDonations ?? '—'} onClick={() => onNavigate?.('donationHistory')} />
       </div>
 
       {/* 3. Recommended Requests */}
       <div className="dash-section-title"><h2>Recommended Requests</h2></div>
-      <div className="card" style={{ padding: 12, marginBottom: 20 }}>
-        {(recommended?.length ?? 0) === 0 && <p className="text-xs" style={{ color: 'var(--ink-soft)' }}>{recommended === null ? 'Loading...' : 'No recommended requests right now.'}</p>}
-        {recommended?.slice(0, 5).map((r) => (
-          <div key={r._id} className="flex items-center justify-between flex-wrap gap-2" style={{ padding: '6px 0', borderBottom: '1px solid var(--sand-line)' }}>
-            <div>
-              <strong className="text-sm">{r.title}</strong>
-              <p className="text-xs" style={{ color: 'var(--ink-soft)' }}>{r.requestedBy?.fullName || r.institution?.name} · {r.currency} {r.remainingAmount} remaining</p>
+      {(recommended?.length ?? 0) === 0 ? (
+        <div className="student-empty-state" style={{ border: '1px solid var(--sand-line)', borderRadius: 18, marginBottom: 20 }}>
+          <FaHandshake aria-hidden="true" />
+          <p>{recommended === null ? 'Loading...' : 'No recommended requests right now'}</p>
+        </div>
+      ) : (
+        <div style={{ display: 'grid', gap: 10, marginBottom: 20 }}>
+          {recommended?.slice(0, 5).map((r) => (
+            <div key={r._id} className="hover-card card" style={{ padding: 16, display: 'flex', alignItems: 'center', gap: 14 }}>
+              <span style={{ width: 36, height: 36, borderRadius: 10, background: 'var(--sand)', color: 'var(--emerald)', display: 'grid', placeItems: 'center', flexShrink: 0 }}><FaHandshake aria-hidden="true" size={14} /></span>
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <strong className="text-sm">{r.title}</strong>
+                <p className="text-xs" style={{ color: 'var(--ink-soft)', marginTop: 2 }}>{r.requestedBy?.fullName || r.institution?.name} · {r.currency} {r.remainingAmount} remaining</p>
+              </div>
             </div>
-          </div>
-        ))}
-        <button type="button" className="btn mt-2" style={{ padding: '4px 12px', fontSize: '0.75rem' }} onClick={() => onNavigate?.('recommendedFunding')}>View All</button>
-      </div>
+          ))}
+          <button type="button" className="btn" style={{ padding: '6px 14px', fontSize: '0.75rem', justifySelf: 'start' }} onClick={() => onNavigate?.('recommendedFunding')}>View All</button>
+        </div>
+      )}
 
       {/* 4. Active Sponsorships */}
       <div className="dash-section-title"><h2>Active Sponsorships</h2></div>
-      <div className="card" style={{ padding: 12, marginBottom: 20 }}>
-        {(sponsorships?.filter((s) => s.status !== 'cancelled').length ?? 0) === 0 && <p className="text-xs" style={{ color: 'var(--ink-soft)' }}>{sponsorships === null ? 'Loading...' : 'No active sponsorships yet.'}</p>}
-        {sponsorships?.filter((s) => s.status !== 'cancelled').slice(0, 5).map((s) => (
-          <div key={s._id} className="flex items-center justify-between flex-wrap gap-2" style={{ padding: '6px 0', borderBottom: '1px solid var(--sand-line)' }}>
-            <div>
-              <strong className="text-sm">{s.student?.fullName}</strong>
-              <p className="text-xs" style={{ color: 'var(--ink-soft)' }}>{s.currency} {s.paidAmount} of {s.currency} {s.amount} paid</p>
+      {(sponsorships?.filter((s) => s.status !== 'cancelled').length ?? 0) === 0 ? (
+        <div className="student-empty-state" style={{ border: '1px solid var(--sand-line)', borderRadius: 18, marginBottom: 20 }}>
+          <FaGraduationCap aria-hidden="true" />
+          <p>{sponsorships === null ? 'Loading...' : 'No active sponsorships yet'}</p>
+        </div>
+      ) : (
+        <div style={{ display: 'grid', gap: 10, marginBottom: 20 }}>
+          {sponsorships?.filter((s) => s.status !== 'cancelled').slice(0, 5).map((s) => (
+            <div key={s._id} className="card" style={{ padding: 16, display: 'flex', alignItems: 'center', gap: 14 }}>
+              <span style={{ width: 36, height: 36, borderRadius: '50%', background: 'var(--emerald)', color: '#fff', display: 'grid', placeItems: 'center', flexShrink: 0, fontWeight: 700, fontSize: 13 }}>{(s.student?.fullName || '?')[0]}</span>
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <strong className="text-sm">{s.student?.fullName}</strong>
+                <p className="text-xs" style={{ color: 'var(--ink-soft)', marginTop: 2 }}>{s.currency} {s.paidAmount} of {s.currency} {s.amount} paid</p>
+              </div>
+              <Tag status={SPONSORSHIP_STATUS[s.status]?.tag} label={SPONSORSHIP_STATUS[s.status]?.label} />
             </div>
-            <Tag status={SPONSORSHIP_STATUS[s.status]?.tag} label={SPONSORSHIP_STATUS[s.status]?.label} />
-          </div>
-        ))}
-        <button type="button" className="btn mt-2" style={{ padding: '4px 12px', fontSize: '0.75rem' }} onClick={() => onNavigate?.('activeSponsorships')}>View All</button>
-      </div>
+          ))}
+          <button type="button" className="btn" style={{ padding: '6px 14px', fontSize: '0.75rem', justifySelf: 'start' }} onClick={() => onNavigate?.('activeSponsorships')}>View All</button>
+        </div>
+      )}
 
       {/* 5. Donation History */}
       <div className="dash-section-title"><h2>Donation History</h2></div>
-      <div className="card" style={{ padding: 12, marginBottom: 20 }}>
-        {(donations?.length ?? 0) === 0 && <p className="text-xs" style={{ color: 'var(--ink-soft)' }}>{donations === null ? 'Loading...' : 'No donations yet.'}</p>}
-        {donations?.slice(0, 5).map((d) => (
-          <div key={d._id} className="flex items-center justify-between flex-wrap gap-2" style={{ padding: '6px 0', borderBottom: '1px solid var(--sand-line)' }}>
-            <div>
-              <strong className="text-sm">{d.currency} {d.amount}</strong>
-              <p className="text-xs" style={{ color: 'var(--ink-soft)' }}>{d.fundingRequest?.title || 'Funding request'} · {new Date(d.createdAt).toLocaleDateString()}</p>
-            </div>
-            <Tag status={DONATION_STATUS[d.status]?.tag} label={DONATION_STATUS[d.status]?.label} />
+      {(donations?.length ?? 0) === 0 ? (
+        <div className="student-empty-state" style={{ border: '1px solid var(--sand-line)', borderRadius: 18, marginBottom: 20 }}>
+          <FaWallet aria-hidden="true" />
+          <p>{donations === null ? 'Loading...' : 'No donations yet'}</p>
+        </div>
+      ) : (
+        <div className="card" style={{ padding: 0, marginBottom: 20 }}>
+          <div className="dash-list" style={{ gap: 0 }}>
+            {donations?.slice(0, 5).map((d, idx, arr) => (
+              <div key={d._id} className="dash-list-item" style={{ borderBottom: idx < Math.min(arr.length, 5) - 1 ? '1px solid var(--sand-line)' : 'none' }}>
+                <span className="dash-list-icon c-emerald" aria-hidden><FaWallet size={14} /></span>
+                <div className="dash-list-body"><div className="title">{d.currency} {d.amount}</div><div className="desc">{d.fundingRequest?.title || 'Funding request'} · {new Date(d.createdAt).toLocaleDateString()}</div></div>
+                <Tag status={DONATION_STATUS[d.status]?.tag} label={DONATION_STATUS[d.status]?.label} />
+              </div>
+            ))}
           </div>
-        ))}
-        <button type="button" className="btn mt-2" style={{ padding: '4px 12px', fontSize: '0.75rem' }} onClick={() => onNavigate?.('donationHistory')}>View All</button>
-      </div>
+          <div style={{ padding: 12 }}>
+            <button type="button" className="btn" style={{ padding: '6px 14px', fontSize: '0.75rem' }} onClick={() => onNavigate?.('donationHistory')}>View All</button>
+          </div>
+        </div>
+      )}
 
-      {/* 6. Impact Overview */}
-      <div className="dash-section-title"><h2>Impact Overview</h2></div>
+      {/* 6. Impact Overview — the panel renders its own "Impact Overview" heading already,
+          so no separate SectionHeading here (that was causing a duplicate title). */}
       <ImpactOverviewPanel onFlash={onFlash} />
 
       {/* 7. Applications */}
       <div className="dash-section-title"><h2>Funding Request Applications</h2></div>
-      <div className="card" style={{ padding: 12, marginBottom: 20 }}>
-        {(applications?.length ?? 0) === 0 && <p className="text-xs" style={{ color: 'var(--ink-soft)' }}>{applications === null ? 'Loading...' : 'No applications yet.'}</p>}
-        {applications?.slice(0, 5).map((r) => (
-          <div key={r._id} className="flex items-center justify-between flex-wrap gap-2" style={{ padding: '6px 0', borderBottom: '1px solid var(--sand-line)' }}>
-            <div>
-              <strong className="text-sm">{r.title}</strong>
-              <p className="text-xs" style={{ color: 'var(--ink-soft)' }}>{r.requestedBy?.fullName || '—'} · {r.currency} {r.requiredAmount}</p>
+      {(applications?.length ?? 0) === 0 ? (
+        <div className="student-empty-state" style={{ border: '1px solid var(--sand-line)', borderRadius: 18, marginBottom: 20 }}>
+          <FaFileLines aria-hidden="true" />
+          <p>{applications === null ? 'Loading...' : 'No applications yet'}</p>
+        </div>
+      ) : (
+        <div style={{ display: 'grid', gap: 10, marginBottom: 20 }}>
+          {applications?.slice(0, 5).map((r) => (
+            <div key={r._id} className="card" style={{ padding: 16, display: 'flex', alignItems: 'center', gap: 14 }}>
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <strong className="text-sm">{r.title}</strong>
+                <p className="text-xs" style={{ color: 'var(--ink-soft)', marginTop: 2 }}>{r.requestedBy?.fullName || '—'} · {r.currency} {r.requiredAmount}</p>
+              </div>
+              <Tag status={FUNDING_APP_STATUS[r.applicationStatus]?.tag} label={FUNDING_APP_STATUS[r.applicationStatus]?.label} />
             </div>
-            <Tag status={FUNDING_APP_STATUS[r.applicationStatus]?.tag} label={FUNDING_APP_STATUS[r.applicationStatus]?.label} />
-          </div>
-        ))}
-        <button type="button" className="btn mt-2" style={{ padding: '4px 12px', fontSize: '0.75rem' }} onClick={() => onNavigate?.('fundingApplications')}>View All</button>
-      </div>
+          ))}
+          <button type="button" className="btn" style={{ padding: '6px 14px', fontSize: '0.75rem', justifySelf: 'start' }} onClick={() => onNavigate?.('fundingApplications')}>View All</button>
+        </div>
+      )}
 
       {/* 8. Wallet */}
       <div className="dash-section-title"><h2>Wallet</h2></div>
-      <div className="card" style={{ padding: 16, marginBottom: 20 }}>
-        <p className="text-xs" style={{ color: 'var(--ink-soft)' }}>Total Deposited: {wallet === null ? 'Loading...' : (wallet.filter((d) => d.status === 'confirmed').length === 0 ? '0' : Object.entries(wallet.filter((d) => d.status === 'confirmed').reduce((acc, d) => { acc[d.currency] = (acc[d.currency] || 0) + d.amount; return acc; }, {})).map(([c, v]) => `${c} ${v}`).join(', '))}</p>
-        <button type="button" className="btn mt-2" style={{ padding: '4px 12px', fontSize: '0.75rem' }} onClick={() => onNavigate?.('wallet')}>Open Wallet</button>
+      <div className="card" style={{ padding: 20, marginBottom: 20 }}>
+        <div className="flex items-center" style={{ gap: 10, marginBottom: 10 }}>
+          <span style={{ width: 32, height: 32, borderRadius: 10, background: 'var(--sand)', color: 'var(--emerald)', display: 'grid', placeItems: 'center', flexShrink: 0 }}><FaWallet aria-hidden="true" size={14} /></span>
+          <p className="text-xs" style={{ color: 'var(--ink-soft)' }}>Total Deposited</p>
+        </div>
+        <strong style={{ fontSize: 24, fontFamily: 'Fraunces, serif', display: 'block' }}>{wallet === null ? 'Loading...' : (wallet.filter((d) => d.status === 'confirmed').length === 0 ? '0' : Object.entries(wallet.filter((d) => d.status === 'confirmed').reduce((acc, d) => { acc[d.currency] = (acc[d.currency] || 0) + d.amount; return acc; }, {})).map(([c, v]) => `${c} ${v}`).join(', '))}</strong>
+        <button type="button" className="btn" style={{ padding: '6px 14px', fontSize: '0.75rem', marginTop: 14 }} onClick={() => onNavigate?.('wallet')}>Open Wallet</button>
       </div>
 
       {/* 9. Notifications / Recent Activity */}
       <div className="dash-section-title"><h2>Notifications</h2></div>
-      <div className="card" style={{ padding: 16, marginBottom: 20 }}>
-        {(notifications?.length ?? 0) === 0 && <p className="text-xs" style={{ color: 'var(--ink-soft)' }}>{notifications === null ? 'Loading...' : 'No notifications yet.'}</p>}
-        {notifications?.map((n) => (
-          <div key={n._id} className="flex items-center justify-between gap-2" style={{ padding: '4px 0' }}>
-            <p className="text-xs" style={{ color: n.read ? 'var(--ink-soft)' : 'var(--ink)', fontWeight: n.read ? 400 : 600 }}>{n.title}</p>
-            <span className="text-xs" style={{ color: 'var(--ink-soft)' }}>{new Date(n.createdAt).toLocaleDateString()}</span>
+      {(notifications?.length ?? 0) === 0 ? (
+        <div className="student-empty-state" style={{ border: '1px solid var(--sand-line)', borderRadius: 18, marginBottom: 20 }}>
+          <FaBell aria-hidden="true" />
+          <p>{notifications === null ? 'Loading...' : 'No notifications yet'}</p>
+        </div>
+      ) : (
+        <div className="card" style={{ padding: 0, marginBottom: 20 }}>
+          <div className="dash-list" style={{ gap: 0 }}>
+            {notifications?.map((n, idx) => (
+              <div key={n._id} className={`dash-list-item${!n.read ? ' unread' : ''}`} style={{ borderBottom: idx < notifications.length - 1 ? '1px solid var(--sand-line)' : 'none' }}>
+                <span className="dash-list-icon c-gold" aria-hidden><FaBell size={14} /></span>
+                <div className="dash-list-body"><div className="title" style={{ fontWeight: n.read ? 400 : 600 }}>{n.title}</div></div>
+                <span className="dash-list-time">{new Date(n.createdAt).toLocaleDateString()}</span>
+              </div>
+            ))}
           </div>
-        ))}
-        <button type="button" className="btn mt-2" style={{ padding: '4px 12px', fontSize: '0.75rem' }} onClick={() => onNavigate?.('donorNotifications')}>View All</button>
-      </div>
+          <div style={{ padding: 12 }}>
+            <button type="button" className="btn" style={{ padding: '6px 14px', fontSize: '0.75rem' }} onClick={() => onNavigate?.('donorNotifications')}>View All</button>
+          </div>
+        </div>
+      )}
       <div className="dash-section-title"><h2>Recent Activity</h2></div>
-      <div className="card" style={{ padding: 16, marginBottom: 20 }}>
+      <div className="card" style={{ padding: 20, marginBottom: 20 }}>
         <p className="text-xs" style={{ color: 'var(--ink-soft)' }}>Donations, sponsorships, wallet transactions, receipts and impact reports — all in one feed.</p>
-        <button type="button" className="btn mt-2" style={{ padding: '4px 12px', fontSize: '0.75rem' }} onClick={() => onNavigate?.('donorRecentActivity')}>View Recent Activity</button>
+        <button type="button" className="btn" style={{ padding: '6px 14px', fontSize: '0.75rem', marginTop: 14 }} onClick={() => onNavigate?.('donorRecentActivity')}>View Recent Activity</button>
       </div>
 
       {/* 10. Quick Actions */}
@@ -7784,38 +8655,45 @@ function SellerDashboardPanel({ user, onFlash, onChanged, onNavigate }) {
     <>
       {/* 1. Seller Profile */}
       <div className="card" style={{ padding: 20, marginBottom: 20 }}>
-        <div className="flex items-center justify-between flex-wrap gap-3">
-          <div className="flex items-center gap-3">
+        <div className="flex items-center justify-between flex-wrap" style={{ gap: 14 }}>
+          <div className="flex items-center" style={{ gap: 14 }}>
             {user?.profilePhoto
-              ? <img src={user.profilePhoto} alt="" style={{ width: 44, height: 44, borderRadius: 8, objectFit: 'cover' }} />
-              : <div style={{ width: 44, height: 44, borderRadius: 8, background: 'var(--gold)', color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 700 }}>{(user?.companyName || user?.fullName || '?')[0]}</div>}
+              ? <img src={user.profilePhoto} alt="" style={{ width: 48, height: 48, borderRadius: 10, objectFit: 'cover', flexShrink: 0 }} />
+              : <div style={{ width: 48, height: 48, borderRadius: 10, background: 'var(--gold)', color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 700, fontSize: 18, flexShrink: 0 }}>{(user?.companyName || user?.fullName || '?')[0]}</div>}
             <div>
               <strong className="text-sm">{user?.companyName || 'Store name not set'}</strong>
-              <p className="text-xs mt-1" style={{ color: 'var(--ink-soft)' }}>
-                {profile?.sellerRating !== null && profile?.sellerRating !== undefined ? `★ ${profile.sellerRating} (${profile.totalReviews} review${profile.totalReviews === 1 ? '' : 's'})` : 'No reviews yet'}
+              <p className="text-xs" style={{ color: 'var(--ink-soft)', marginTop: 2 }}>
+                {profile?.sellerRating !== null && profile?.sellerRating !== undefined ? <><FaStar size={11} style={{ color: 'var(--gold)', verticalAlign: -1 }} /> {profile.sellerRating} ({profile.totalReviews} review{profile.totalReviews === 1 ? '' : 's'})</> : 'No reviews yet'}
               </p>
-              <p className="text-xs mt-1" style={{ color: 'var(--ink-soft)' }}>
-                Verification: <Tag status={VERIFICATION_TAG[verStatus]} label={VERIFICATION_LABEL[verStatus]} /> · Store: <Tag status={profile?.storeStatus === 'open' ? 'approved' : 'rejected'} label={profile?.storeStatus === 'open' ? 'Open' : 'Closed'} />
-              </p>
+              <div className="flex items-center" style={{ gap: 8, marginTop: 6 }}>
+                <Tag status={VERIFICATION_TAG[verStatus]} label={VERIFICATION_LABEL[verStatus]} />
+                <Tag status={profile?.storeStatus === 'open' ? 'approved' : 'rejected'} label={profile?.storeStatus === 'open' ? 'Store Open' : 'Store Closed'} />
+              </div>
             </div>
           </div>
-          <div className="flex flex-col items-end gap-2">
-            <span className="text-xs" style={{ color: 'var(--ink-soft)' }}>Profile {completeness}% complete</span>
-            {profile && <button type="button" className="btn" style={{ padding: '4px 12px', fontSize: '0.75rem' }} onClick={toggleStoreStatus}>{profile.storeStatus === 'open' ? 'Close Store' : 'Reopen Store'}</button>}
+          <div className="flex flex-col items-end" style={{ gap: 10 }}>
+            <div style={{ minWidth: 160 }}>
+              <div className="student-progress-row" style={{ marginBottom: 6 }}>
+                <span className="text-xs">Profile</span>
+                <strong className="text-xs">{completeness}%</strong>
+              </div>
+              <progress className="student-progress-bar" max="100" value={completeness} aria-label="Profile completeness" />
+            </div>
+            {profile && <button type="button" className="btn" style={{ padding: '5px 14px', fontSize: '0.75rem' }} onClick={toggleStoreStatus}>{profile.storeStatus === 'open' ? 'Close Store' : 'Reopen Store'}</button>}
           </div>
         </div>
       </div>
 
       {/* 2. Main Summary Cards */}
       <div className="grid grid-cols-3 md:grid-cols-4 gap-3" style={{ marginBottom: 20 }}>
-        <SummaryCard title="Total Products/Listings" count={summary?.totalListings ?? '—'} />
-        <SummaryCard title="Active Listings" count={summary?.activeListings ?? '—'} />
-        <SummaryCard title="Pending Orders" count={summary?.pendingOrders ?? '—'} />
-        <SummaryCard title="Completed Orders" count={summary?.completedOrders ?? '—'} />
-        <SummaryCard title="Total Sales" count={fmtMoney('totalSales')} />
-        <SummaryCard title="Total Earnings" count={fmtMoney('totalEarnings')} />
-        <SummaryCard title="Available Balance" count={fmtMoney('availableBalance')} />
-        <SummaryCard title="Pending Balance" count={fmtMoney('pendingBalance')} />
+        <SummaryCard title="Total Products/Listings" count={summary?.totalListings ?? '—'} onClick={() => onNavigate?.('listings')} />
+        <SummaryCard title="Active Listings" count={summary?.activeListings ?? '—'} onClick={() => onNavigate?.('listings')} />
+        <SummaryCard title="Pending Orders" count={summary?.pendingOrders ?? '—'} onClick={() => onNavigate?.('orders')} />
+        <SummaryCard title="Completed Orders" count={summary?.completedOrders ?? '—'} onClick={() => onNavigate?.('orders')} />
+        <SummaryCard title="Total Sales" count={fmtMoney('totalSales')} onClick={() => onNavigate?.('salesAnalytics')} />
+        <SummaryCard title="Total Earnings" count={fmtMoney('totalEarnings')} onClick={() => onNavigate?.('earningsCommission')} />
+        <SummaryCard title="Available Balance" count={fmtMoney('availableBalance')} onClick={() => onNavigate?.('sellerWallet')} />
+        <SummaryCard title="Pending Balance" count={fmtMoney('pendingBalance')} onClick={() => onNavigate?.('sellerWallet')} />
       </div>
 
       {/* 3. Sales Overview */}
@@ -7826,13 +8704,26 @@ function SellerDashboardPanel({ user, onFlash, onChanged, onNavigate }) {
       {Object.entries(salesOverview?.totalsByCurrency || {}).map(([currency, s]) => {
         const maxDay = Math.max(...s.dailySales.map((d) => d.total), 1);
         return (
-          <div key={currency} className="card" style={{ padding: 16, marginBottom: 20 }}>
-            <strong className="text-sm">{currency}</strong>
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mt-2 mb-3">
-              <p className="text-xs" style={{ color: 'var(--ink-soft)' }}>Today: <strong>{currency} {s.today}</strong>{s.todayChangePct !== null && <span style={{ color: s.todayChangePct >= 0 ? 'var(--emerald)' : 'var(--rose, #e11d48)' }}> ({s.todayChangePct >= 0 ? '+' : ''}{s.todayChangePct}% vs yesterday)</span>}</p>
-              <p className="text-xs" style={{ color: 'var(--ink-soft)' }}>This Week: <strong>{currency} {s.thisWeek}</strong>{s.weekChangePct !== null && <span style={{ color: s.weekChangePct >= 0 ? 'var(--emerald)' : 'var(--rose, #e11d48)' }}> ({s.weekChangePct >= 0 ? '+' : ''}{s.weekChangePct}% vs last week)</span>}</p>
-              <p className="text-xs" style={{ color: 'var(--ink-soft)' }}>This Month: <strong>{currency} {s.thisMonth}</strong>{s.monthChangePct !== null && <span style={{ color: s.monthChangePct >= 0 ? 'var(--emerald)' : 'var(--rose, #e11d48)' }}> ({s.monthChangePct >= 0 ? '+' : ''}{s.monthChangePct}% vs last month)</span>}</p>
-              <p className="text-xs" style={{ color: 'var(--ink-soft)' }}>Total Revenue: <strong>{currency} {s.totalRevenue}</strong> · {s.orderCount} order{s.orderCount === 1 ? '' : 's'}</p>
+          <div key={currency} className="card" style={{ padding: 18, marginBottom: 20 }}>
+            <div className="flex items-center" style={{ gap: 10, marginBottom: 14 }}>
+              <span style={{ width: 32, height: 32, borderRadius: 10, background: 'var(--sand)', color: 'var(--forest)', display: 'grid', placeItems: 'center', flexShrink: 0 }}><FaChartLine aria-hidden="true" size={14} /></span>
+              <strong className="text-sm">Sales Overview — {currency}</strong>
+            </div>
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-4">
+              {[
+                { label: 'Today', value: s.today, pct: s.todayChangePct, note: 'vs yesterday' },
+                { label: 'This Week', value: s.thisWeek, pct: s.weekChangePct, note: 'vs last week' },
+                { label: 'This Month', value: s.thisMonth, pct: s.monthChangePct, note: 'vs last month' },
+                { label: 'Total Revenue', value: s.totalRevenue, pct: null, note: `${s.orderCount} order${s.orderCount === 1 ? '' : 's'}` }
+              ].map((row) => (
+                <div key={row.label} style={{ padding: 12, borderRadius: 14, background: 'var(--sand)' }}>
+                  <span style={{ fontSize: 11, fontWeight: 700, letterSpacing: '.04em', textTransform: 'uppercase', color: 'var(--ink-soft)' }}>{row.label}</span>
+                  <strong style={{ fontSize: 20, fontFamily: 'Fraunces, serif', display: 'block', marginTop: 4 }}>{currency} {row.value}</strong>
+                  <span className="text-xs" style={{ color: row.pct !== null ? (row.pct >= 0 ? 'var(--emerald)' : 'var(--rose, #e11d48)') : 'var(--ink-soft)' }}>
+                    {row.pct !== null ? `${row.pct >= 0 ? '+' : ''}${row.pct}% ${row.note}` : row.note}
+                  </span>
+                </div>
+              ))}
             </div>
             <p className="text-xs mb-1" style={{ color: 'var(--ink-soft)' }}>Last 14 days (delivered/completed orders only):</p>
             <div className="flex items-end gap-1" style={{ height: 70 }}>
@@ -7846,117 +8737,144 @@ function SellerDashboardPanel({ user, onFlash, onChanged, onNavigate }) {
 
       {/* 4. Recent Orders */}
       <div className="dash-section-title"><h2>Recent Orders</h2></div>
-      <div className="card" style={{ padding: 12, marginBottom: 20 }}>
-        {(recentOrders?.length ?? 0) === 0 && <p className="text-xs" style={{ color: 'var(--ink-soft)' }}>{recentOrders === null ? 'Loading...' : 'No orders received yet.'}</p>}
-        {recentOrders?.slice(0, 5).map((o) => (
-          <div key={o._id} className="flex items-center justify-between flex-wrap gap-2" style={{ padding: '6px 0', borderBottom: '1px solid var(--sand-line)' }}>
-            <div>
-              <strong className="text-sm">{o.product?.title}</strong>
-              <p className="text-xs" style={{ color: 'var(--ink-soft)' }}>{o.buyer?.fullName} · Qty {o.quantity} · {o.currency} {o.totalPrice} · {new Date(o.createdAt).toLocaleDateString()}</p>
+      {(recentOrders?.length ?? 0) === 0 ? (
+        <div className="student-empty-state" style={{ border: '1px solid var(--sand-line)', borderRadius: 18, marginBottom: 20 }}>
+          <FaCartShopping aria-hidden="true" />
+          <p>{recentOrders === null ? 'Loading...' : 'No orders received yet'}</p>
+        </div>
+      ) : (
+        <div style={{ display: 'grid', gap: 10, marginBottom: 20 }}>
+          {recentOrders?.slice(0, 5).map((o) => (
+            <div key={o._id} className="hover-card card flex items-center justify-between flex-wrap" style={{ padding: 14, gap: 12 }}>
+              <div className="flex items-center" style={{ gap: 12, minWidth: 0 }}>
+                <span style={{ width: 34, height: 34, borderRadius: 10, background: 'var(--sand)', color: 'var(--forest)', display: 'grid', placeItems: 'center', flexShrink: 0 }}><FaCartShopping aria-hidden="true" size={13} /></span>
+                <div style={{ minWidth: 0 }}>
+                  <strong className="text-sm">{o.product?.title}</strong>
+                  <p className="text-xs" style={{ color: 'var(--ink-soft)', marginTop: 2 }}>{o.buyer?.fullName} · Qty {o.quantity} · {o.currency} {o.totalPrice} · {new Date(o.createdAt).toLocaleDateString()}</p>
+                </div>
+              </div>
+              <div className="flex items-center gap-2" style={{ flexShrink: 0 }}>
+                <Tag status={PAYMENT_STATUS[o.paymentStatus]?.tag} label={PAYMENT_STATUS[o.paymentStatus]?.label} />
+                <Tag status={ORDER_STATUS[o.status]?.tag} label={ORDER_STATUS[o.status]?.label} />
+              </div>
             </div>
-            <div className="flex items-center gap-2">
-              <Tag status={PAYMENT_STATUS[o.paymentStatus]?.tag} label={PAYMENT_STATUS[o.paymentStatus]?.label} />
-              <Tag status={ORDER_STATUS[o.status]?.tag} label={ORDER_STATUS[o.status]?.label} />
-            </div>
-          </div>
-        ))}
-      </div>
+          ))}
+          <button type="button" className="btn" style={{ padding: '6px 14px', fontSize: '0.75rem', justifySelf: 'start' }} onClick={() => onNavigate?.('orders')}>View All</button>
+        </div>
+      )}
 
       {/* Listings — per the parent layout order, a quick preview before Pending Actions */}
       <div className="dash-section-title"><h2>Listings</h2></div>
-      <div className="card" style={{ padding: 12, marginBottom: 20 }}>
-        {(products?.length ?? 0) === 0 && <p className="text-xs" style={{ color: 'var(--ink-soft)' }}>{products === null ? 'Loading...' : 'No listings yet.'}</p>}
-        {products?.slice(0, 5).map((p) => {
-          const st = PRODUCT_STATUS[p.status] || PRODUCT_STATUS.draft;
-          return (
-            <div key={p._id} className="flex items-center justify-between flex-wrap gap-2" style={{ padding: '6px 0', borderBottom: '1px solid var(--sand-line)' }}>
-              <div>
-                <strong className="text-sm">{p.title}</strong>
-                <p className="text-xs" style={{ color: 'var(--ink-soft)' }}>{p.category} · {p.currency} {p.price}</p>
+      {(products?.length ?? 0) === 0 ? (
+        <div className="student-empty-state" style={{ border: '1px solid var(--sand-line)', borderRadius: 18, marginBottom: 20 }}>
+          <FaBoxOpen aria-hidden="true" />
+          <p>{products === null ? 'Loading...' : 'No listings yet'}</p>
+        </div>
+      ) : (
+        <div style={{ display: 'grid', gap: 10, marginBottom: 20 }}>
+          {products?.slice(0, 5).map((p) => {
+            const st = PRODUCT_STATUS[p.status] || PRODUCT_STATUS.draft;
+            return (
+              <div key={p._id} className="hover-card card flex items-center justify-between flex-wrap" style={{ padding: 14, gap: 12 }}>
+                <div className="flex items-center" style={{ gap: 12, minWidth: 0 }}>
+                  <span style={{ width: 34, height: 34, borderRadius: 10, background: 'var(--sand)', color: 'var(--gold)', display: 'grid', placeItems: 'center', flexShrink: 0 }}><FaBoxOpen aria-hidden="true" size={13} /></span>
+                  <div style={{ minWidth: 0 }}>
+                    <strong className="text-sm">{p.title}</strong>
+                    <p className="text-xs" style={{ color: 'var(--ink-soft)', marginTop: 2 }}>{p.category} · {p.currency} {p.price}</p>
+                  </div>
+                </div>
+                <Tag status={st.tag} label={st.label} />
               </div>
-              <Tag status={st.tag} label={st.label} />
-            </div>
-          );
-        })}
-        <button type="button" className="btn mt-2" style={{ padding: '4px 12px', fontSize: '0.75rem' }} onClick={() => onNavigate?.('listings')}>View All</button>
-      </div>
+            );
+          })}
+          <button type="button" className="btn" style={{ padding: '6px 14px', fontSize: '0.75rem', justifySelf: 'start' }} onClick={() => onNavigate?.('listings')}>View All</button>
+        </div>
+      )}
 
       {/* 6. Pending Actions */}
       <div className="dash-section-title"><h2>Pending Actions</h2></div>
       {pendingActions === null && <p className="text-xs mb-4" style={{ color: 'var(--ink-soft)' }}>Loading...</p>}
-      {pendingActions && (
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-3" style={{ marginBottom: 20 }}>
-          <div className="card" style={{ padding: 14 }}>
-            <strong className="text-sm">New Orders Requiring Confirmation ({pendingActions.newOrders.length})</strong>
-            {pendingActions.newOrders.length === 0 && <p className="text-xs mt-1" style={{ color: 'var(--ink-soft)' }}>None.</p>}
-            {pendingActions.newOrders.slice(0, 5).map((o) => (
-              <div key={o._id} className="flex items-center justify-between gap-2 mt-2">
-                <span className="text-xs">{o.buyer?.fullName} — {o.product?.title}</span>
-                <button type="button" className="btn" style={{ padding: '3px 10px', fontSize: '0.7rem' }} onClick={() => confirmOrder(o._id)}>Confirm</button>
-              </div>
-            ))}
+      {pendingActions && (() => {
+        const Header = ({ icon: Icon, color, title, count }) => (
+          <div className="flex items-center" style={{ gap: 10, marginBottom: 10 }}>
+            <span style={{ width: 30, height: 30, borderRadius: 9, background: 'var(--sand)', color: `var(--${color})`, display: 'grid', placeItems: 'center', flexShrink: 0 }}><Icon aria-hidden="true" size={13} /></span>
+            <strong className="text-sm">{title} ({count})</strong>
           </div>
-
-          <div className="card" style={{ padding: 14 }}>
-            <strong className="text-sm">Products Pending Approval ({pendingActions.pendingApprovalProducts.length})</strong>
-            {pendingActions.pendingApprovalProducts.length === 0 && <p className="text-xs mt-1" style={{ color: 'var(--ink-soft)' }}>None.</p>}
-            {pendingActions.pendingApprovalProducts.slice(0, 5).map((p) => <p key={p._id} className="text-xs mt-1" style={{ color: 'var(--ink-soft)' }}>{p.title}</p>)}
-            {pendingActions.pendingApprovalProducts.length > 0 && <p className="text-xs mt-2" style={{ color: 'var(--ink-soft)' }}>Awaiting Super Admin review.</p>}
-          </div>
-
-          <div className="card" style={{ padding: 14 }}>
-            <strong className="text-sm">Low-Stock Products ({pendingActions.lowStockProducts.length})</strong>
-            {pendingActions.lowStockProducts.length === 0 && <p className="text-xs mt-1" style={{ color: 'var(--ink-soft)' }}>None.</p>}
-            {pendingActions.lowStockProducts.slice(0, 5).map((p) => <p key={p._id} className="text-xs mt-1" style={{ color: 'var(--ink-soft)' }}>{p.title} — {p.stock} left</p>)}
-          </div>
-
-          <div className="card" style={{ padding: 14 }}>
-            <strong className="text-sm">Orders Requiring Shipment ({pendingActions.ordersRequiringShipment.length})</strong>
-            {pendingActions.ordersRequiringShipment.length === 0 && <p className="text-xs mt-1" style={{ color: 'var(--ink-soft)' }}>None.</p>}
-            {pendingActions.ordersRequiringShipment.slice(0, 5).map((o) => (
-              <div key={o._id} className="flex items-center justify-between gap-2 mt-2">
-                <span className="text-xs">{o.buyer?.fullName} — {o.product?.title}</span>
-                <button type="button" className="btn" style={{ padding: '3px 10px', fontSize: '0.7rem' }} onClick={() => markShipped(o._id)}>Mark Shipped</button>
-              </div>
-            ))}
-          </div>
-
-          <div className="card" style={{ padding: 14 }}>
-            <strong className="text-sm">Buyer Cancellation Requests ({pendingActions.cancellationRequests.length})</strong>
-            {pendingActions.cancellationRequests.length === 0 && <p className="text-xs mt-1" style={{ color: 'var(--ink-soft)' }}>None.</p>}
-            {pendingActions.cancellationRequests.slice(0, 5).map((o) => (
-              <div key={o._id} className="mt-2">
-                <p className="text-xs">{o.buyer?.fullName} — {o.product?.title}{o.cancellationReason ? `: "${o.cancellationReason}"` : ''}</p>
-                <div className="flex gap-2 mt-1">
-                  <button type="button" className="btn btn-primary" style={{ padding: '3px 10px', fontSize: '0.7rem' }} onClick={() => respondCancellation(o._id, true)}>Approve</button>
-                  <button type="button" className="btn" style={{ padding: '3px 10px', fontSize: '0.7rem' }} onClick={() => respondCancellation(o._id, false)}>Deny</button>
+        );
+        return (
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3" style={{ marginBottom: 20 }}>
+            <div className="card" style={{ padding: 16 }}>
+              <Header icon={FaCartShopping} color="forest" title="New Orders Requiring Confirmation" count={pendingActions.newOrders.length} />
+              {pendingActions.newOrders.length === 0 && <p className="text-xs" style={{ color: 'var(--ink-soft)' }}>None.</p>}
+              {pendingActions.newOrders.slice(0, 5).map((o) => (
+                <div key={o._id} className="flex items-center justify-between gap-2 mt-2">
+                  <span className="text-xs">{o.buyer?.fullName} — {o.product?.title}</span>
+                  <button type="button" className="btn" style={{ padding: '3px 10px', fontSize: '0.7rem' }} onClick={() => confirmOrder(o._id)}>Confirm</button>
                 </div>
-              </div>
-            ))}
-          </div>
+              ))}
+            </div>
 
-          <div className="card" style={{ padding: 14 }}>
-            <strong className="text-sm">Refund/Return Requests ({pendingActions.refundRequests.length})</strong>
-            {pendingActions.refundRequests.length === 0 && <p className="text-xs mt-1" style={{ color: 'var(--ink-soft)' }}>None.</p>}
-            {pendingActions.refundRequests.slice(0, 5).map((o) => (
-              <div key={o._id} className="mt-2">
-                <p className="text-xs">{o.buyer?.fullName} — {o.product?.title}{o.refundReason ? `: "${o.refundReason}"` : ''}</p>
-                <div className="flex gap-2 mt-1">
-                  <button type="button" className="btn btn-primary" style={{ padding: '3px 10px', fontSize: '0.7rem' }} onClick={() => respondRefund(o._id, true)}>Approve</button>
-                  <button type="button" className="btn" style={{ padding: '3px 10px', fontSize: '0.7rem' }} onClick={() => respondRefund(o._id, false)}>Deny</button>
+            <div className="card" style={{ padding: 16 }}>
+              <Header icon={FaClipboardList} color="gold" title="Products Pending Approval" count={pendingActions.pendingApprovalProducts.length} />
+              {pendingActions.pendingApprovalProducts.length === 0 && <p className="text-xs" style={{ color: 'var(--ink-soft)' }}>None.</p>}
+              {pendingActions.pendingApprovalProducts.slice(0, 5).map((p) => <p key={p._id} className="text-xs mt-1" style={{ color: 'var(--ink-soft)' }}>{p.title}</p>)}
+              {pendingActions.pendingApprovalProducts.length > 0 && <p className="text-xs mt-2" style={{ color: 'var(--ink-soft)' }}>Awaiting Super Admin review.</p>}
+            </div>
+
+            <div className="card" style={{ padding: 16 }}>
+              <Header icon={FaTriangleExclamation} color="gold" title="Low-Stock Products" count={pendingActions.lowStockProducts.length} />
+              {pendingActions.lowStockProducts.length === 0 && <p className="text-xs" style={{ color: 'var(--ink-soft)' }}>None.</p>}
+              {pendingActions.lowStockProducts.slice(0, 5).map((p) => <p key={p._id} className="text-xs mt-1" style={{ color: 'var(--ink-soft)' }}>{p.title} — {p.stock} left</p>)}
+            </div>
+
+            <div className="card" style={{ padding: 16 }}>
+              <Header icon={FaTruck} color="forest" title="Orders Requiring Shipment" count={pendingActions.ordersRequiringShipment.length} />
+              {pendingActions.ordersRequiringShipment.length === 0 && <p className="text-xs" style={{ color: 'var(--ink-soft)' }}>None.</p>}
+              {pendingActions.ordersRequiringShipment.slice(0, 5).map((o) => (
+                <div key={o._id} className="flex items-center justify-between gap-2 mt-2">
+                  <span className="text-xs">{o.buyer?.fullName} — {o.product?.title}</span>
+                  <button type="button" className="btn" style={{ padding: '3px 10px', fontSize: '0.7rem' }} onClick={() => markShipped(o._id)}>Mark Shipped</button>
                 </div>
-              </div>
-            ))}
-          </div>
+              ))}
+            </div>
 
-          <div className="card" style={{ padding: 14 }}>
-            <strong className="text-sm">Unanswered Buyer Messages ({pendingActions.unansweredMessages.length})</strong>
-            {pendingActions.unansweredMessages.length === 0 && <p className="text-xs mt-1" style={{ color: 'var(--ink-soft)' }}>None.</p>}
-            {pendingActions.unansweredMessages.slice(0, 5).map((m) => <p key={m.buyer._id} className="text-xs mt-1" style={{ color: 'var(--ink-soft)' }}>{m.buyer.fullName}: "{m.lastMessage}"</p>)}
-            {pendingActions.unansweredMessages.length > 0 && <button type="button" className="btn mt-2" style={{ padding: '4px 12px', fontSize: '0.75rem' }} onClick={() => onNavigate?.('messages')}>Reply</button>}
+            <div className="card" style={{ padding: 16 }}>
+              <Header icon={FaXmark} color="rose" title="Buyer Cancellation Requests" count={pendingActions.cancellationRequests.length} />
+              {pendingActions.cancellationRequests.length === 0 && <p className="text-xs" style={{ color: 'var(--ink-soft)' }}>None.</p>}
+              {pendingActions.cancellationRequests.slice(0, 5).map((o) => (
+                <div key={o._id} className="mt-2">
+                  <p className="text-xs">{o.buyer?.fullName} — {o.product?.title}{o.cancellationReason ? `: "${o.cancellationReason}"` : ''}</p>
+                  <div className="flex gap-2 mt-1">
+                    <button type="button" className="btn btn-primary" style={{ padding: '3px 10px', fontSize: '0.7rem' }} onClick={() => respondCancellation(o._id, true)}>Approve</button>
+                    <button type="button" className="btn" style={{ padding: '3px 10px', fontSize: '0.7rem' }} onClick={() => respondCancellation(o._id, false)}>Deny</button>
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            <div className="card" style={{ padding: 16 }}>
+              <Header icon={FaSackDollar} color="rose" title="Refund/Return Requests" count={pendingActions.refundRequests.length} />
+              {pendingActions.refundRequests.length === 0 && <p className="text-xs" style={{ color: 'var(--ink-soft)' }}>None.</p>}
+              {pendingActions.refundRequests.slice(0, 5).map((o) => (
+                <div key={o._id} className="mt-2">
+                  <p className="text-xs">{o.buyer?.fullName} — {o.product?.title}{o.refundReason ? `: "${o.refundReason}"` : ''}</p>
+                  <div className="flex gap-2 mt-1">
+                    <button type="button" className="btn btn-primary" style={{ padding: '3px 10px', fontSize: '0.7rem' }} onClick={() => respondRefund(o._id, true)}>Approve</button>
+                    <button type="button" className="btn" style={{ padding: '3px 10px', fontSize: '0.7rem' }} onClick={() => respondRefund(o._id, false)}>Deny</button>
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            <div className="card" style={{ padding: 16 }}>
+              <Header icon={FaCommentDots} color="forest" title="Unanswered Buyer Messages" count={pendingActions.unansweredMessages.length} />
+              {pendingActions.unansweredMessages.length === 0 && <p className="text-xs" style={{ color: 'var(--ink-soft)' }}>None.</p>}
+              {pendingActions.unansweredMessages.slice(0, 5).map((m) => <p key={m.buyer._id} className="text-xs mt-1" style={{ color: 'var(--ink-soft)' }}>{m.buyer.fullName}: "{m.lastMessage}"</p>)}
+              {pendingActions.unansweredMessages.length > 0 && <button type="button" className="btn mt-2" style={{ padding: '4px 12px', fontSize: '0.75rem' }} onClick={() => onNavigate?.('sellerMessages')}>Reply</button>}
+            </div>
           </div>
-        </div>
-      )}
+        );
+      })()}
 
       {/* 7. Best-Selling Products */}
       <div className="dash-section-title"><h2>Best-Selling Products</h2></div>
@@ -7980,14 +8898,20 @@ function SellerDashboardPanel({ user, onFlash, onChanged, onNavigate }) {
       {inventory && inventory.items.length > 0 && (
         <>
           <div className="grid grid-cols-2 md:grid-cols-2 gap-3 mb-3">
-            <div className="card" style={{ padding: 14 }}>
-              <strong className="text-sm">Low Stock ({inventory.lowStock.length})</strong>
-              {inventory.lowStock.length === 0 && <p className="text-xs mt-1" style={{ color: 'var(--ink-soft)' }}>None.</p>}
+            <div className="card" style={{ padding: 16 }}>
+              <div className="flex items-center" style={{ gap: 10, marginBottom: 10 }}>
+                <span style={{ width: 30, height: 30, borderRadius: 9, background: 'var(--sand)', color: 'var(--gold)', display: 'grid', placeItems: 'center', flexShrink: 0 }}><FaTriangleExclamation aria-hidden="true" size={13} /></span>
+                <strong className="text-sm">Low Stock ({inventory.lowStock.length})</strong>
+              </div>
+              {inventory.lowStock.length === 0 && <p className="text-xs" style={{ color: 'var(--ink-soft)' }}>None.</p>}
               {inventory.lowStock.map((p) => <p key={p._id} className="text-xs mt-1" style={{ color: 'var(--ink-soft)' }}>{p.title} — {p.stock} left</p>)}
             </div>
-            <div className="card" style={{ padding: 14 }}>
-              <strong className="text-sm">Out of Stock ({inventory.outOfStock.length})</strong>
-              {inventory.outOfStock.length === 0 && <p className="text-xs mt-1" style={{ color: 'var(--ink-soft)' }}>None.</p>}
+            <div className="card" style={{ padding: 16 }}>
+              <div className="flex items-center" style={{ gap: 10, marginBottom: 10 }}>
+                <span style={{ width: 30, height: 30, borderRadius: 9, background: 'var(--sand)', color: 'var(--rose, #e11d48)', display: 'grid', placeItems: 'center', flexShrink: 0 }}><FaBoxOpen aria-hidden="true" size={13} /></span>
+                <strong className="text-sm">Out of Stock ({inventory.outOfStock.length})</strong>
+              </div>
+              {inventory.outOfStock.length === 0 && <p className="text-xs" style={{ color: 'var(--ink-soft)' }}>None.</p>}
               {inventory.outOfStock.map((p) => <p key={p._id} className="text-xs mt-1" style={{ color: 'var(--ink-soft)' }}>{p.title}</p>)}
             </div>
           </div>
@@ -8012,55 +8936,86 @@ function SellerDashboardPanel({ user, onFlash, onChanged, onNavigate }) {
       <div className="dash-section-title"><h2>Earnings & Commission</h2></div>
       <p className="text-xs mb-2" style={{ color: 'var(--ink-soft)' }}>CareerZ's commission ({earnings?.commissionRate ?? '—'}%, set by Super Admin) is deducted automatically from delivered/completed sales. No real payment processor is integrated yet, so Payment Charges are honestly 0.</p>
       {Object.keys(earnings?.totalsByCurrency || {}).length === 0 && <p className="text-xs mb-4" style={{ color: 'var(--ink-soft)' }}>{earnings === null ? 'Loading...' : 'No sales yet.'}</p>}
-      {Object.entries(earnings?.totalsByCurrency || {}).map(([currency, e]) => (
-        <div key={currency} className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-4">
-          <div className="card" style={{ padding: 14 }}><strong className="text-sm">Gross Sales</strong><p className="text-xs mt-1" style={{ color: 'var(--ink-soft)' }}>{currency} {e.grossSales}</p></div>
-          <div className="card" style={{ padding: 14 }}><strong className="text-sm">Platform Commission</strong><p className="text-xs mt-1" style={{ color: 'var(--ink-soft)' }}>{currency} {e.platformCommission}</p></div>
-          <div className="card" style={{ padding: 14 }}><strong className="text-sm">Payment Charges</strong><p className="text-xs mt-1" style={{ color: 'var(--ink-soft)' }}>{currency} {e.paymentCharges}</p></div>
-          <div className="card" style={{ padding: 14 }}><strong className="text-sm">Refund Deductions</strong><p className="text-xs mt-1" style={{ color: 'var(--ink-soft)' }}>{currency} {e.refundDeductions}</p></div>
-          <div className="card" style={{ padding: 14 }}><strong className="text-sm">Net Earnings</strong><p className="text-xs mt-1" style={{ color: 'var(--ink-soft)' }}>{currency} {e.netEarnings}</p></div>
-          <div className="card" style={{ padding: 14 }}><strong className="text-sm">Pending Earnings</strong><p className="text-xs mt-1" style={{ color: 'var(--ink-soft)' }}>{currency} {e.pendingEarnings}</p></div>
-          <div className="card" style={{ padding: 14 }}><strong className="text-sm">Available Earnings</strong><p className="text-xs mt-1" style={{ color: 'var(--ink-soft)' }}>{currency} {e.availableEarnings}</p></div>
-        </div>
-      ))}
+      {Object.entries(earnings?.totalsByCurrency || {}).map(([currency, e]) => {
+        const rows = [
+          { label: 'Gross Sales', value: e.grossSales, color: 'ink' },
+          { label: 'Platform Commission', value: e.platformCommission, color: 'gold' },
+          { label: 'Payment Charges', value: e.paymentCharges, color: 'ink' },
+          { label: 'Refund Deductions', value: e.refundDeductions, color: 'rose, #e11d48' },
+          { label: 'Net Earnings', value: e.netEarnings, color: 'emerald' },
+          { label: 'Pending Earnings', value: e.pendingEarnings, color: 'gold' },
+          { label: 'Available Earnings', value: e.availableEarnings, color: 'emerald' }
+        ];
+        return (
+          <div key={currency} className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-4">
+            {rows.map((r) => (
+              <div key={r.label} className="card" style={{ padding: 16 }}>
+                <span style={{ fontSize: 11, fontWeight: 700, letterSpacing: '.04em', textTransform: 'uppercase', color: 'var(--ink-soft)' }}>{r.label}</span>
+                <strong style={{ fontSize: 22, fontFamily: 'Fraunces, serif', display: 'block', marginTop: 4, color: `var(--${r.color})` }}>{currency} {r.value}</strong>
+              </div>
+            ))}
+          </div>
+        );
+      })}
 
       {/* Reviews — per the parent layout order, before Messages/Notifications */}
       <div className="dash-section-title"><h2>Reviews</h2></div>
-      <div className="card" style={{ padding: 12, marginBottom: 20 }}>
-        {(reviews?.length ?? 0) === 0 && <p className="text-xs" style={{ color: 'var(--ink-soft)' }}>{reviews === null ? 'Loading...' : 'No reviews yet.'}</p>}
-        {reviews?.slice(0, 3).map((r) => (
-          <div key={r._id} className="flex items-center justify-between flex-wrap gap-2" style={{ padding: '6px 0', borderBottom: '1px solid var(--sand-line)' }}>
-            <div>
-              <strong className="text-sm">{r.buyer?.fullName}</strong>
-              <p className="text-xs" style={{ color: 'var(--ink-soft)' }}>{r.product?.title} · ★ {r.rating}{r.comment ? ` · "${r.comment}"` : ''}</p>
+      {(reviews?.length ?? 0) === 0 ? (
+        <div className="student-empty-state" style={{ border: '1px solid var(--sand-line)', borderRadius: 18, marginBottom: 20 }}>
+          <FaStar aria-hidden="true" />
+          <p>{reviews === null ? 'Loading...' : 'No reviews yet'}</p>
+        </div>
+      ) : (
+        <div style={{ display: 'grid', gap: 10, marginBottom: 20 }}>
+          {reviews?.slice(0, 3).map((r) => (
+            <div key={r._id} className="card flex items-center" style={{ padding: 14, gap: 12 }}>
+              <span style={{ width: 34, height: 34, borderRadius: '50%', background: 'var(--gold)', color: '#fff', display: 'grid', placeItems: 'center', flexShrink: 0, fontWeight: 700, fontSize: 13 }}>{(r.buyer?.fullName || '?')[0]}</span>
+              <div style={{ minWidth: 0 }}>
+                <strong className="text-sm">{r.buyer?.fullName}</strong>
+                <p className="text-xs" style={{ color: 'var(--ink-soft)', marginTop: 2 }}>{r.product?.title} · ★ {r.rating}{r.comment ? ` · "${r.comment}"` : ''}</p>
+              </div>
             </div>
-          </div>
-        ))}
-        <button type="button" className="btn mt-2" style={{ padding: '4px 12px', fontSize: '0.75rem' }} onClick={() => onNavigate?.('sellerReviews')}>View All</button>
-      </div>
+          ))}
+          <button type="button" className="btn" style={{ padding: '6px 14px', fontSize: '0.75rem', justifySelf: 'start' }} onClick={() => onNavigate?.('sellerReviews')}>View All</button>
+        </div>
+      )}
 
       {/* Messages / Notifications preview — item 12's "Dashboard par recent messages aur unread
           count show hoga", plus item 13's Notifications feed */}
       <div className="dash-section-title"><h2>Messages / Notifications</h2></div>
       <div className="grid grid-cols-1 md:grid-cols-2 gap-3" style={{ marginBottom: 20 }}>
-        <div className="card" style={{ padding: 16 }}>
-          <strong className="text-xs">Messages — Unread: {conversations?.reduce((sum, c) => sum + c.unread, 0) ?? 0}</strong>
-          {(conversations?.length ?? 0) === 0 && <p className="text-xs mt-1" style={{ color: 'var(--ink-soft)' }}>{conversations === null ? 'Loading...' : 'No conversations yet.'}</p>}
-          {conversations?.slice(0, 3).map((c) => (
-            <p key={c.user._id} className="text-xs mt-1" style={{ color: c.unread > 0 ? 'var(--ink)' : 'var(--ink-soft)', fontWeight: c.unread > 0 ? 600 : 400 }}>{c.user.fullName}{c.unread > 0 ? ` (${c.unread})` : ''} — {c.lastMessage}</p>
-          ))}
-          <button type="button" className="btn mt-2" style={{ padding: '4px 12px', fontSize: '0.75rem' }} onClick={() => onNavigate?.('sellerMessages')}>View Messages</button>
+        <div className="card" style={{ padding: 0 }}>
+          <div className="flex items-center" style={{ gap: 10, padding: '14px 16px', borderBottom: '1px solid var(--sand-line)' }}>
+            <span style={{ width: 30, height: 30, borderRadius: 9, background: 'var(--sand)', color: 'var(--forest)', display: 'grid', placeItems: 'center', flexShrink: 0 }}><FaCommentDots aria-hidden="true" size={13} /></span>
+            <strong className="text-sm">Messages — Unread: {conversations?.reduce((sum, c) => sum + c.unread, 0) ?? 0}</strong>
+          </div>
+          <div style={{ padding: '6px 16px' }}>
+            {(conversations?.length ?? 0) === 0 && <p className="text-xs" style={{ color: 'var(--ink-soft)', padding: '8px 0' }}>{conversations === null ? 'Loading...' : 'No conversations yet.'}</p>}
+            {conversations?.slice(0, 3).map((c) => (
+              <p key={c.user._id} className="text-xs" style={{ color: c.unread > 0 ? 'var(--ink)' : 'var(--ink-soft)', fontWeight: c.unread > 0 ? 600 : 400, padding: '6px 0' }}>{c.user.fullName}{c.unread > 0 ? ` (${c.unread})` : ''} — {c.lastMessage}</p>
+            ))}
+          </div>
+          <div style={{ padding: 12 }}>
+            <button type="button" className="btn" style={{ padding: '6px 14px', fontSize: '0.75rem' }} onClick={() => onNavigate?.('sellerMessages')}>View Messages</button>
+          </div>
         </div>
-        <div className="card" style={{ padding: 16 }}>
-          <strong className="text-xs">Notifications</strong>
-          {(notifications?.length ?? 0) === 0 && <p className="text-xs mt-1" style={{ color: 'var(--ink-soft)' }}>{notifications === null ? 'Loading...' : 'No notifications yet.'}</p>}
-          {notifications?.map((n) => (
-            <div key={n._id} className="flex items-center justify-between gap-2" style={{ padding: '4px 0' }}>
-              <p className="text-xs" style={{ color: n.read ? 'var(--ink-soft)' : 'var(--ink)', fontWeight: n.read ? 400 : 600 }}>{n.title}</p>
-              <span className="text-xs" style={{ color: 'var(--ink-soft)' }}>{new Date(n.createdAt).toLocaleDateString()}</span>
-            </div>
-          ))}
-          <button type="button" className="btn mt-2" style={{ padding: '4px 12px', fontSize: '0.75rem' }} onClick={() => onNavigate?.('sellerNotifications')}>View All</button>
+        <div className="card" style={{ padding: 0 }}>
+          <div className="flex items-center" style={{ gap: 10, padding: '14px 16px', borderBottom: '1px solid var(--sand-line)' }}>
+            <span style={{ width: 30, height: 30, borderRadius: 9, background: 'var(--sand)', color: 'var(--gold)', display: 'grid', placeItems: 'center', flexShrink: 0 }}><FaBell aria-hidden="true" size={13} /></span>
+            <strong className="text-sm">Notifications</strong>
+          </div>
+          <div style={{ padding: '6px 16px' }}>
+            {(notifications?.length ?? 0) === 0 && <p className="text-xs" style={{ color: 'var(--ink-soft)', padding: '8px 0' }}>{notifications === null ? 'Loading...' : 'No notifications yet.'}</p>}
+            {notifications?.map((n) => (
+              <div key={n._id} className="flex items-center justify-between gap-2" style={{ padding: '6px 0' }}>
+                <p className="text-xs" style={{ color: n.read ? 'var(--ink-soft)' : 'var(--ink)', fontWeight: n.read ? 400 : 600 }}>{n.title}</p>
+                <span className="text-xs" style={{ color: 'var(--ink-soft)' }}>{new Date(n.createdAt).toLocaleDateString()}</span>
+              </div>
+            ))}
+          </div>
+          <div style={{ padding: 12 }}>
+            <button type="button" className="btn" style={{ padding: '6px 14px', fontSize: '0.75rem' }} onClick={() => onNavigate?.('sellerNotifications')}>View All</button>
+          </div>
         </div>
       </div>
 
@@ -8068,20 +9023,23 @@ function SellerDashboardPanel({ user, onFlash, onChanged, onNavigate }) {
       <div className="dash-section-title"><h2>Recent Activity</h2></div>
       {(() => {
         const feeds = [
-          { title: 'New Listing Created', items: [...(products || [])].sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt)).slice(0, 5).map((p) => ({ date: p.createdAt, label: p.title })) },
-          { title: 'Product Updated', items: [...(products || [])].filter((p) => p.updatedAt !== p.createdAt).sort((a, b) => new Date(b.updatedAt) - new Date(a.updatedAt)).slice(0, 5).map((p) => ({ date: p.updatedAt, label: p.title })) },
-          { title: 'Order Received', items: [...(recentOrders || [])].sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt)).slice(0, 5).map((o) => ({ date: o.createdAt, label: `${o.buyer?.fullName} — ${o.product?.title} (${o.currency} ${o.totalPrice})` })) },
-          { title: 'Order Shipped/Delivered', items: [...(recentOrders || [])].filter((o) => ['shipped', 'delivered', 'completed'].includes(o.status)).sort((a, b) => new Date(b.updatedAt) - new Date(a.updatedAt)).slice(0, 5).map((o) => ({ date: o.updatedAt, label: `${o.product?.title} — ${ORDER_STATUS[o.status]?.label}` })) },
-          { title: 'Payment Received', items: [...(recentOrders || [])].filter((o) => o.paymentStatus === 'paid').sort((a, b) => new Date(b.updatedAt) - new Date(a.updatedAt)).slice(0, 5).map((o) => ({ date: o.updatedAt, label: `${o.currency} ${o.totalPrice} — ${o.product?.title}` })) },
-          { title: 'Refund Completed', items: [...(recentOrders || [])].filter((o) => o.status === 'refunded').sort((a, b) => new Date(b.updatedAt) - new Date(a.updatedAt)).slice(0, 5).map((o) => ({ date: o.updatedAt, label: `${o.currency} ${o.totalPrice} — ${o.product?.title}` })) },
-          { title: 'Withdrawal Requested', items: [...(withdrawals || [])].sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt)).slice(0, 5).map((w) => ({ date: w.createdAt, label: `${w.currency} ${w.amount} (${SELLER_WITHDRAWAL_STATUS[w.status]?.label})` })) }
+          { title: 'New Listing Created', icon: FaBoxOpen, items: [...(products || [])].sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt)).slice(0, 5).map((p) => ({ date: p.createdAt, label: p.title })) },
+          { title: 'Product Updated', icon: FaBoxesStacked, items: [...(products || [])].filter((p) => p.updatedAt !== p.createdAt).sort((a, b) => new Date(b.updatedAt) - new Date(a.updatedAt)).slice(0, 5).map((p) => ({ date: p.updatedAt, label: p.title })) },
+          { title: 'Order Received', icon: FaCartShopping, items: [...(recentOrders || [])].sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt)).slice(0, 5).map((o) => ({ date: o.createdAt, label: `${o.buyer?.fullName} — ${o.product?.title} (${o.currency} ${o.totalPrice})` })) },
+          { title: 'Order Shipped/Delivered', icon: FaTruck, items: [...(recentOrders || [])].filter((o) => ['shipped', 'delivered', 'completed'].includes(o.status)).sort((a, b) => new Date(b.updatedAt) - new Date(a.updatedAt)).slice(0, 5).map((o) => ({ date: o.updatedAt, label: `${o.product?.title} — ${ORDER_STATUS[o.status]?.label}` })) },
+          { title: 'Payment Received', icon: FaMoneyBillWave, items: [...(recentOrders || [])].filter((o) => o.paymentStatus === 'paid').sort((a, b) => new Date(b.updatedAt) - new Date(a.updatedAt)).slice(0, 5).map((o) => ({ date: o.updatedAt, label: `${o.currency} ${o.totalPrice} — ${o.product?.title}` })) },
+          { title: 'Refund Completed', icon: FaSackDollar, items: [...(recentOrders || [])].filter((o) => o.status === 'refunded').sort((a, b) => new Date(b.updatedAt) - new Date(a.updatedAt)).slice(0, 5).map((o) => ({ date: o.updatedAt, label: `${o.currency} ${o.totalPrice} — ${o.product?.title}` })) },
+          { title: 'Withdrawal Requested', icon: FaWallet, items: [...(withdrawals || [])].sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt)).slice(0, 5).map((w) => ({ date: w.createdAt, label: `${w.currency} ${w.amount} (${SELLER_WITHDRAWAL_STATUS[w.status]?.label})` })) }
         ];
         return (
           <div className="grid grid-cols-1 md:grid-cols-2 gap-3" style={{ marginBottom: 20 }}>
             {feeds.map((f) => (
-              <div key={f.title} className="card" style={{ padding: 14 }}>
-                <strong className="text-sm">{f.title}</strong>
-                {f.items.length === 0 && <p className="text-xs mt-1" style={{ color: 'var(--ink-soft)' }}>None yet.</p>}
+              <div key={f.title} className="card" style={{ padding: 16 }}>
+                <div className="flex items-center" style={{ gap: 10, marginBottom: 10 }}>
+                  <span style={{ width: 30, height: 30, borderRadius: 9, background: 'var(--sand)', color: 'var(--forest)', display: 'grid', placeItems: 'center', flexShrink: 0 }}><f.icon aria-hidden="true" size={13} /></span>
+                  <strong className="text-sm">{f.title}</strong>
+                </div>
+                {f.items.length === 0 && <p className="text-xs" style={{ color: 'var(--ink-soft)' }}>None yet.</p>}
                 {f.items.map((it, i) => (
                   <div key={i} className="flex items-center justify-between gap-2 mt-1">
                     <span className="text-xs">{it.label}</span>
@@ -8176,22 +9134,24 @@ function AgentCandidatesPanel({ onFlash }) {
 
   return (
     <div>
-      <h3 className="font-semibold mb-2">Candidates</h3>
-      <p className="text-xs mb-3" style={{ color: 'var(--ink-soft)' }}>Every applicant across all your placements — manage their hiring status here.</p>
-      <div className="flex gap-2 items-center mb-3 flex-wrap">
-        <select className="form-select" value={jobFilter} onChange={(e) => setJobFilter(e.target.value)}>
-          <option value="">All placements</option>
-          {jobs.map((j) => <option key={j._id} value={j._id}>{j.title}</option>)}
-        </select>
-        <label className="flex items-center gap-2 text-xs"><input type="checkbox" checked={suitableOnly} onChange={(e) => setSuitableOnly(e.target.checked)} /> Suitable candidates only (skills match the job)</label>
+      <h3 className="font-semibold" style={{ marginBottom: 4 }}>Candidates</h3>
+      <p className="text-xs" style={{ color: 'var(--ink-soft)', marginBottom: 16 }}>Every applicant across all your placements — manage their hiring status here.</p>
+      <div className="card flex items-center flex-wrap" style={{ padding: 16, gap: 16, marginBottom: 20 }}>
+        <div style={{ minWidth: 220 }}>
+          <CustomSelect
+            value={jobFilter} onChange={setJobFilter} ariaLabel="Filter by placement" minWidth="100%"
+            options={[{ value: '', label: 'All placements' }, ...jobs.map((j) => ({ value: j._id, label: j.title }))]}
+          />
+        </div>
+        <label className="flex items-center text-xs" style={{ gap: 8 }}><input type="checkbox" checked={suitableOnly} onChange={(e) => setSuitableOnly(e.target.checked)} /> Suitable candidates only (skills match the job)</label>
       </div>
       <Table
         headers={['Candidate', 'Applied Job', 'Skills', 'Experience', 'Location', 'CV/Resume', 'Applied', 'Status']}
         rows={filtered.map((c) => [
-          <div className="flex items-center gap-2">
+          <div className="flex items-center" style={{ gap: 10 }}>
             {c.applicant?.profilePhoto
-              ? <img src={c.applicant.profilePhoto} alt="" style={{ width: 28, height: 28, borderRadius: '50%', objectFit: 'cover' }} />
-              : <div style={{ width: 28, height: 28, borderRadius: '50%', background: 'var(--forest)', color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 700, fontSize: '0.7rem' }}>{(c.applicant?.fullName || '?')[0]}</div>}
+              ? <img src={c.applicant.profilePhoto} alt="" style={{ width: 30, height: 30, borderRadius: '50%', objectFit: 'cover', flexShrink: 0 }} />
+              : <div style={{ width: 30, height: 30, borderRadius: '50%', background: 'var(--forest)', color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 700, fontSize: '0.7rem', flexShrink: 0 }}>{(c.applicant?.fullName || '?')[0]}</div>}
             <span>{c.applicant?.fullName}</span>
           </div>,
           c.job.title,
@@ -8200,9 +9160,12 @@ function AgentCandidatesPanel({ onFlash }) {
           c.resumeSnapshot?.location || '—',
           c.resumeSnapshot?.cvFileUrl ? <a href={c.resumeSnapshot.cvFileUrl} target="_blank" rel="noreferrer">View CV</a> : 'Not uploaded',
           new Date(c.createdAt).toLocaleDateString(),
-          <select className="form-select" value={c.status} onChange={(e) => setStatus(c._id, e.target.value)} style={{ fontSize: '0.78rem', padding: '4px 8px' }}>
-            {['pending', 'viewed', 'shortlisted', 'interview', 'selected', 'rejected', 'hired'].map((s) => <option key={s} value={s}>{CANDIDATE_STATUS[s].label}</option>)}
-          </select>
+          <div style={{ minWidth: 140 }}>
+            <CustomSelect
+              value={c.status} onChange={(v) => setStatus(c._id, v)} ariaLabel="Candidate status" minWidth="100%"
+              options={['pending', 'viewed', 'shortlisted', 'interview', 'selected', 'rejected', 'hired'].map((s) => ({ value: s, label: CANDIDATE_STATUS[s].label }))}
+            />
+          </div>
         ])}
         empty="No candidates yet — once someone applies to your placements, they'll show up here."
       />
@@ -8293,23 +9256,41 @@ function AgentVerificationPanel({ user, onFlash }) {
 
   return (
     <div>
-      <h3 className="font-semibold mb-2">Verification / Documents</h3>
-      <p className="text-xs mb-3" style={{ color: 'var(--ink-soft)' }}>
-        Status: <Tag status={VERIFICATION_TAG[status]} label={VERIFICATION_LABEL[status]} />
-        {status === 'rejected' && request?.reviewNotes && <> — {request.reviewNotes}</>}
-      </p>
-      <p className="text-xs mb-2" style={{ color: 'var(--ink-soft)' }}>Only a verified agent can post jobs. Submit documents (business license, ID, etc.) for Super Admin review.</p>
-      <div className="flex gap-2 items-end mb-3 flex-wrap">
-        <input className="form-input" placeholder="Paste a document link (PDF/image URL)" value={docUrl} onChange={(e) => setDocUrl(e.target.value)} style={{ minWidth: 260 }} />
-        <button type="button" className="btn btn-primary" style={{ padding: '5px 14px', fontSize: '0.78rem' }} onClick={addDocument}>Add Document</button>
-      </div>
-      {(request?.documents || []).length === 0 && <p className="text-xs" style={{ color: 'var(--ink-soft)' }}>No documents submitted yet.</p>}
-      {(request?.documents || []).map((d) => (
-        <div key={d} className="flex items-center justify-between" style={{ padding: '4px 0' }}>
-          <a href={d} target="_blank" rel="noreferrer" className="text-xs">{d}</a>
-          <button type="button" className="btn" style={{ padding: '3px 10px', fontSize: '0.72rem' }} onClick={() => removeDocument(d)}>Remove</button>
+      <h3 className="font-semibold" style={{ marginBottom: 16 }}>Verification / Documents</h3>
+
+      <div className="flex items-start" style={{ gap: 12, padding: 18, borderRadius: 16, background: 'var(--sand)', marginBottom: 20 }}>
+        <span style={{ width: 34, height: 34, borderRadius: 10, background: 'var(--paper-raised)', color: 'var(--forest)', display: 'grid', placeItems: 'center', flexShrink: 0 }}>
+          <FaShieldHalved aria-hidden="true" size={15} />
+        </span>
+        <div>
+          <div className="flex items-center" style={{ gap: 8 }}>
+            <strong className="text-sm">Status:</strong>
+            <Tag status={VERIFICATION_TAG[status]} label={VERIFICATION_LABEL[status]} />
+          </div>
+          {status === 'rejected' && request?.reviewNotes && <p className="text-xs" style={{ color: 'var(--rose)', marginTop: 6 }}>{request.reviewNotes}</p>}
+          <p className="text-xs" style={{ color: 'var(--ink-soft)', marginTop: 6, lineHeight: 1.6 }}>Only a verified agent can post jobs. Submit documents (business license, ID, etc.) for Super Admin review.</p>
         </div>
-      ))}
+      </div>
+
+      <div className="card" style={{ padding: 20 }}>
+        <p className="text-xs" style={{ fontWeight: 700, letterSpacing: '.04em', textTransform: 'uppercase', color: 'var(--ink-soft)', marginBottom: 14 }}>Submitted Documents</p>
+        <div className="flex items-end flex-wrap" style={{ gap: 12, marginBottom: 16 }}>
+          <input className="form-input" placeholder="Paste a document link (PDF/image URL)" value={docUrl} onChange={(e) => setDocUrl(e.target.value)} style={{ flex: '1 1 auto', minWidth: 0 }} />
+          <button type="button" className="btn btn-primary" style={{ padding: '8px 16px', fontSize: '0.78rem', flexShrink: 0 }} onClick={addDocument}>Add Document</button>
+        </div>
+        {(request?.documents || []).length === 0 ? (
+          <p className="text-xs" style={{ color: 'var(--ink-soft)' }}>No documents submitted yet.</p>
+        ) : (
+          <div style={{ display: 'grid', gap: 8 }}>
+            {(request?.documents || []).map((d) => (
+              <div key={d} className="flex items-center justify-between flex-wrap" style={{ gap: 10, padding: 12, borderRadius: 12, background: 'var(--sand)' }}>
+                <a href={d} target="_blank" rel="noreferrer" className="text-xs" style={{ overflowWrap: 'anywhere' }}>📄 {d}</a>
+                <button type="button" className="btn" style={{ padding: '5px 12px', fontSize: '0.72rem', background: 'var(--paper-raised)', flexShrink: 0 }} onClick={() => removeDocument(d)}>Remove</button>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
     </div>
   );
 }
@@ -8373,30 +9354,41 @@ function RecommendedCandidatesPanel({ onFlash }) {
 
   return (
     <div>
-      <h3 className="font-semibold mb-2">Recommended Candidates</h3>
-      <p className="text-xs mb-3" style={{ color: 'var(--ink-soft)' }}>Computed match against your placement's requirements — skills, experience, location and qualification. Not AI-generated; every score is explainable from the candidate's CV and the job's requirements.</p>
-      <select className="form-select mb-3" value={jobId} onChange={(e) => setJobId(e.target.value)}>
-        {jobs.map((j) => <option key={j._id} value={j._id}>{j.title}</option>)}
-      </select>
-      {jobs.length === 0 && <p className="text-sm" style={{ color: 'var(--ink-soft)' }}>Post a placement first to see recommended candidates for it.</p>}
+      <h3 className="font-semibold" style={{ marginBottom: 4 }}>Recommended Candidates</h3>
+      <p className="text-xs" style={{ color: 'var(--ink-soft)', marginBottom: 16 }}>Computed match against your placement's requirements — skills, experience, location and qualification. Not AI-generated; every score is explainable from the candidate's CV and the job's requirements.</p>
+      {jobs.length > 0 && (
+        <div className="card" style={{ padding: 16, marginBottom: 20, maxWidth: 360 }}>
+          <label>
+            <span className="text-xs" style={{ display: 'block', color: 'var(--ink-soft)', fontWeight: 600, marginBottom: 6 }}>Placement</span>
+            <CustomSelect value={jobId} onChange={setJobId} ariaLabel="Select placement" minWidth="100%" options={jobs.map((j) => ({ value: j._id, label: j.title }))} />
+          </label>
+        </div>
+      )}
+      {jobs.length === 0 && (
+        <div className="student-empty-state" style={{ border: '1px solid var(--sand-line)', borderRadius: 18 }}>
+          <FaBriefcase aria-hidden="true" />
+          <p>Post a placement first</p>
+          <span>You'll see recommended candidates for it here.</span>
+        </div>
+      )}
       {candidates === null && jobs.length > 0 && <p role="status" className="admin-notice">Loading...</p>}
       <Table
-        headers={['Candidate', 'Skills Match', 'Experience Match', 'Location Match', 'Qualification Match', 'Recommendation', 'Actions']}
+        headers={['Candidate', 'Skills', 'Experience', 'Location', 'Qualification', 'Recommendation', 'Actions']}
         rows={(candidates || []).map((c) => [
-          <div className="flex items-center gap-2">
+          <div style={{ display: 'flex', flexDirection: 'row', alignItems: 'center', gap: 10 }}>
             {c.candidate.profilePhoto
-              ? <img src={c.candidate.profilePhoto} alt="" style={{ width: 28, height: 28, borderRadius: '50%', objectFit: 'cover' }} />
-              : <div style={{ width: 28, height: 28, borderRadius: '50%', background: 'var(--forest)', color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 700, fontSize: '0.7rem' }}>{(c.candidate.fullName || '?')[0]}</div>}
-            <span>{c.candidate.fullName}</span>
+              ? <img src={c.candidate.profilePhoto} alt="" style={{ width: 30, height: 30, borderRadius: '50%', objectFit: 'cover', flexShrink: 0 }} />
+              : <div style={{ width: 30, height: 30, borderRadius: '50%', background: 'var(--forest)', color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 700, fontSize: '0.7rem', flexShrink: 0 }}>{(c.candidate.fullName || '?')[0]}</div>}
+            <span style={{ whiteSpace: 'nowrap' }}>{c.candidate.fullName}</span>
           </div>,
-          `${c.skillsMatchPercent}%`,
+          <strong>{c.skillsMatchPercent}%</strong>,
           c.experienceMatch ? <Tag status="approved" label="Match" /> : <Tag status="rejected" label="No Match" />,
           c.locationMatch ? <Tag status="approved" label="Match" /> : <Tag status="rejected" label="No Match" />,
           c.qualificationMatch ? <Tag status="approved" label="Match" /> : <Tag status="rejected" label="No Match" />,
           c.recommended ? <Tag status="approved" label="Recommended" /> : <Tag status="pending" label="Not Recommended" />,
-          <div className="flex gap-2">
-            <button type="button" className="btn" style={{ padding: '4px 10px', fontSize: '0.72rem' }} onClick={() => setViewingCandidate(c)}>View Profile</button>
-            <button type="button" className="btn btn-primary" style={{ padding: '4px 10px', fontSize: '0.72rem' }} disabled={c.alreadyApplied} onClick={() => shortlist(c.candidate._id)}>{c.alreadyApplied ? 'Already in pipeline' : 'Shortlist Candidate'}</button>
+          <div className="flex" style={{ gap: 8, flexWrap: 'wrap' }}>
+            <button type="button" className="btn" style={{ padding: '6px 12px', fontSize: '0.72rem' }} onClick={() => setViewingCandidate(c)}>View Profile</button>
+            <button type="button" className="btn btn-primary" style={{ padding: '6px 12px', fontSize: '0.72rem' }} disabled={c.alreadyApplied} onClick={() => shortlist(c.candidate._id)}>{c.alreadyApplied ? 'Already in pipeline' : 'Shortlist Candidate'}</button>
           </div>
         ])}
         empty="No candidates in the pool match this placement yet."
@@ -8444,46 +9436,56 @@ function AgentInterviewsPanel({ onFlash }) {
 
   return (
     <div>
-      <h3 className="font-semibold mb-2">Upcoming Interviews</h3>
-      {interviews.length === 0 && <p className="text-sm" style={{ color: 'var(--ink-soft)' }}>No interviews scheduled yet.</p>}
+      <h3 className="font-semibold" style={{ marginBottom: 16 }}>Upcoming Interviews</h3>
+      {interviews.length === 0 && (
+        <div className="student-empty-state" style={{ border: '1px solid var(--sand-line)', borderRadius: 18 }}>
+          <FaCalendarCheck aria-hidden="true" />
+          <p>No interviews scheduled yet</p>
+        </div>
+      )}
+      <div style={{ display: 'grid', gap: 14 }}>
       {interviews.map((i) => {
         const st = INTERVIEW_STATUS[i.status] || INTERVIEW_STATUS.scheduled;
         return (
-          <div key={i._id} className="border border-[var(--sand-line)] rounded-xl p-3 mb-3">
-            <div className="flex items-center justify-between flex-wrap gap-2">
-              <div>
-                <strong className="text-sm">{i.candidate?.fullName}</strong>
-                <p className="text-xs" style={{ color: 'var(--ink-soft)' }}>{i.job?.title} · {i.job?.company}</p>
-                <p className="text-xs" style={{ color: 'var(--ink-soft)' }}>{new Date(i.scheduledDate).toLocaleString()} · {i.mode === 'physical' ? 'Physical' : 'Online'} · {i.mode === 'physical' ? (i.location || 'Location TBD') : (i.meetingLink || 'Link TBD')}</p>
-                {i.feedback && <p className="text-xs mt-1" style={{ color: 'var(--ink-soft)' }}><strong>Feedback:</strong> {i.feedback}</p>}
-                <Tag status={st.tag} label={st.label} />
+          <div key={i._id} className="card" style={{ padding: 20 }}>
+            <div className="flex items-start justify-between flex-wrap" style={{ gap: 14 }}>
+              <div className="flex items-start" style={{ gap: 12 }}>
+                <span style={{ width: 38, height: 38, borderRadius: '50%', background: 'var(--forest)', color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 700, flexShrink: 0 }}>{(i.candidate?.fullName || '?')[0]}</span>
+                <div>
+                  <strong className="text-sm">{i.candidate?.fullName}</strong>
+                  <p className="text-xs" style={{ color: 'var(--ink-soft)', marginTop: 2 }}>{i.job?.title} · {i.job?.company}</p>
+                  <p className="text-xs" style={{ color: 'var(--ink-soft)', marginTop: 4 }}>{new Date(i.scheduledDate).toLocaleString()} · {i.mode === 'physical' ? 'Physical' : 'Online'} · {i.mode === 'physical' ? (i.location || 'Location TBD') : (i.meetingLink || 'Link TBD')}</p>
+                  {i.feedback && <p className="text-xs" style={{ color: 'var(--ink-soft)', marginTop: 6 }}><strong>Feedback:</strong> {i.feedback}</p>}
+                  <span style={{ display: 'inline-block', marginTop: 8 }}><Tag status={st.tag} label={st.label} /></span>
+                </div>
               </div>
               {i.status === 'scheduled' && (
-                <div className="flex gap-2 flex-wrap">
-                  {i.mode === 'online' && i.meetingLink && <a className="btn btn-primary" style={{ padding: '5px 12px', fontSize: '0.75rem' }} href={i.meetingLink} target="_blank" rel="noreferrer">Join Interview</a>}
-                  <button type="button" className="btn" style={{ padding: '5px 12px', fontSize: '0.75rem' }} onClick={() => { setRescheduleFor(rescheduleFor === i._id ? null : i._id); setFeedbackFor(null); }}>Reschedule</button>
-                  <button type="button" className="btn" style={{ padding: '5px 12px', fontSize: '0.75rem' }} onClick={() => cancel(i._id)}>Cancel</button>
-                  <button type="button" className="btn" style={{ padding: '5px 12px', fontSize: '0.75rem' }} onClick={() => { setFeedbackFor(feedbackFor === i._id ? null : i._id); setRescheduleFor(null); }}>Add Feedback</button>
+                <div className="flex flex-wrap" style={{ gap: 8, flexShrink: 0 }}>
+                  {i.mode === 'online' && i.meetingLink && <a className="btn btn-primary" style={{ padding: '7px 14px', fontSize: '0.75rem' }} href={i.meetingLink} target="_blank" rel="noreferrer">Join Interview</a>}
+                  <button type="button" className="btn" style={{ padding: '7px 14px', fontSize: '0.75rem' }} onClick={() => { setRescheduleFor(rescheduleFor === i._id ? null : i._id); setFeedbackFor(null); }}>Reschedule</button>
+                  <button type="button" className="btn" style={{ padding: '7px 14px', fontSize: '0.75rem' }} onClick={() => cancel(i._id)}>Cancel</button>
+                  <button type="button" className="btn" style={{ padding: '7px 14px', fontSize: '0.75rem' }} onClick={() => { setFeedbackFor(feedbackFor === i._id ? null : i._id); setRescheduleFor(null); }}>Add Feedback</button>
                 </div>
               )}
             </div>
             {rescheduleFor === i._id && (
-              <div className="flex gap-2 items-end mt-3" style={{ borderTop: '1px solid var(--sand-line)', paddingTop: 10 }}>
-                <label className="text-xs">New date/time
-                  <input type="datetime-local" className="form-input" value={rescheduleDate} onChange={(e) => setRescheduleDate(e.target.value)} />
+              <div className="flex items-end flex-wrap" style={{ gap: 12, borderTop: '1px solid var(--sand-line)', paddingTop: 14, marginTop: 14 }}>
+                <label className="text-xs" style={{ color: 'var(--ink-soft)', fontWeight: 600 }}>New date/time
+                  <input type="datetime-local" className="form-input" value={rescheduleDate} onChange={(e) => setRescheduleDate(e.target.value)} style={{ marginTop: 6 }} />
                 </label>
-                <button type="button" className="btn btn-primary" style={{ padding: '5px 14px', fontSize: '0.78rem' }} onClick={() => submitReschedule(i._id)}>Confirm</button>
+                <button type="button" className="btn btn-primary" style={{ padding: '8px 16px', fontSize: '0.78rem' }} onClick={() => submitReschedule(i._id)}>Confirm</button>
               </div>
             )}
             {feedbackFor === i._id && (
-              <div className="flex gap-2 items-end mt-3 flex-wrap" style={{ borderTop: '1px solid var(--sand-line)', paddingTop: 10 }}>
-                <textarea className="form-input" placeholder="Interview feedback..." rows={2} value={feedbackText} onChange={(e) => setFeedbackText(e.target.value)} style={{ flex: 1, minWidth: 200 }} />
-                <button type="button" className="btn btn-primary" style={{ padding: '5px 14px', fontSize: '0.78rem' }} onClick={() => submitFeedback(i._id)}>Save Feedback</button>
+              <div className="flex items-end flex-wrap" style={{ gap: 12, borderTop: '1px solid var(--sand-line)', paddingTop: 14, marginTop: 14 }}>
+                <textarea className="form-input" placeholder="Interview feedback..." rows={2} value={feedbackText} onChange={(e) => setFeedbackText(e.target.value)} style={{ flex: '1 1 auto', minWidth: 0 }} />
+                <button type="button" className="btn btn-primary" style={{ padding: '8px 16px', fontSize: '0.78rem', flexShrink: 0 }} onClick={() => submitFeedback(i._id)}>Save Feedback</button>
               </div>
             )}
           </div>
         );
       })}
+      </div>
     </div>
   );
 }
@@ -8554,7 +9556,7 @@ function AgentMessagesPanel({ onFlash }) {
   }
 
   return (
-    <div className="grid g2" style={{ gap: 24 }}>
+    <div className="grid g2" style={{ gap: 24, alignItems: 'start' }}>
       <div>
         <h3 className="font-semibold mb-2">Messages</h3>
         <p className="text-xs mb-3" style={{ color: 'var(--ink-soft)' }}>To start a new conversation, ask for their User ID and use the "New Message" box on the right.</p>
@@ -8673,32 +9675,54 @@ function AgentWalletPanel({ onFlash }) {
 
   return (
     <div>
-      <h3 className="font-semibold mb-2">Wallet</h3>
-      <p className="text-xs mb-3" style={{ color: 'var(--ink-soft)' }}>No real payment processor is wired up yet — "Withdraw Funds" creates a real, trackable request; nothing here moves actual money.</p>
-      {currencies.length === 0 && <p className="text-sm" style={{ color: 'var(--ink-soft)' }}>No commission earned yet — your wallet is empty.</p>}
-      {currencies.map((currency) => {
-        const t = data.totalsByCurrency[currency];
-        return (
-          <div key={currency} className="card" style={{ padding: 16, marginBottom: 16 }}>
-            <strong className="text-sm">{currency} Wallet</strong>
-            <div className="grid grid-cols-3 gap-3 mt-2">
-              <p className="text-xs" style={{ color: 'var(--ink-soft)' }}>Available Balance: <strong>{currency} {t.available}</strong></p>
-              <p className="text-xs" style={{ color: 'var(--ink-soft)' }}>Pending Balance: <strong>{currency} {t.pending}</strong></p>
-              <p className="text-xs" style={{ color: 'var(--ink-soft)' }}>Total Earnings: <strong>{currency} {t.earned}</strong></p>
+      <h3 className="font-semibold" style={{ marginBottom: 4 }}>Wallet</h3>
+      <p className="text-xs" style={{ color: 'var(--ink-soft)', marginBottom: 18 }}>No real payment processor is wired up yet — "Withdraw Funds" creates a real, trackable request; nothing here moves actual money.</p>
+      {currencies.length === 0 && (
+        <div className="student-empty-state" style={{ border: '1px solid var(--sand-line)', borderRadius: 18, marginBottom: 20 }}>
+          <FaWallet aria-hidden="true" />
+          <p>No commission earned yet</p>
+          <span>Your wallet is empty.</span>
+        </div>
+      )}
+      <div style={{ display: 'grid', gap: 14, marginBottom: 24 }}>
+        {currencies.map((currency) => {
+          const t = data.totalsByCurrency[currency];
+          return (
+            <div key={currency} className="card" style={{ padding: 20 }}>
+              <div className="flex items-center" style={{ gap: 10, marginBottom: 16 }}>
+                <span style={{ width: 32, height: 32, borderRadius: 10, background: 'var(--sand)', color: 'var(--forest)', display: 'grid', placeItems: 'center', flexShrink: 0 }}><FaWallet aria-hidden="true" size={14} /></span>
+                <strong className="text-sm">{currency} Wallet</strong>
+              </div>
+              <div className="grid grid-cols-3" style={{ gap: 14 }}>
+                <div>
+                  <p className="text-xs" style={{ color: 'var(--ink-soft)' }}>Available Balance</p>
+                  <strong style={{ fontSize: 22, fontFamily: 'Fraunces, serif', display: 'block', marginTop: 4, color: 'var(--emerald)' }}>{currency} {t.available}</strong>
+                </div>
+                <div>
+                  <p className="text-xs" style={{ color: 'var(--ink-soft)' }}>Pending Balance</p>
+                  <strong style={{ fontSize: 22, fontFamily: 'Fraunces, serif', display: 'block', marginTop: 4, color: t.pending > 0 ? 'var(--gold)' : undefined }}>{currency} {t.pending}</strong>
+                </div>
+                <div>
+                  <p className="text-xs" style={{ color: 'var(--ink-soft)' }}>Total Earnings</p>
+                  <strong style={{ fontSize: 22, fontFamily: 'Fraunces, serif', display: 'block', marginTop: 4 }}>{currency} {t.earned}</strong>
+                </div>
+              </div>
+              <button type="button" className="btn btn-primary" style={{ padding: '8px 18px', fontSize: '0.78rem', marginTop: 16 }} disabled={t.available <= 0} onClick={() => withdraw(currency)}>Withdraw Funds ({currency} {t.available})</button>
             </div>
-            <button type="button" className="btn btn-primary mt-3" style={{ padding: '5px 14px', fontSize: '0.78rem' }} disabled={t.available <= 0} onClick={() => withdraw(currency)}>Withdraw Funds ({currency} {t.available})</button>
-          </div>
-        );
-      })}
+          );
+        })}
+      </div>
 
-      <h4 className="font-semibold mb-2 mt-4">Transaction History</h4>
-      <Table
-        headers={['Candidate', 'Job', 'Amount', 'Status', 'Date']}
-        rows={data.commissions.map((c) => [c.candidate?.fullName, c.job?.title, `${c.currency} ${c.amount}`, <Tag status={COMMISSION_STATUS[c.status].tag} label={COMMISSION_STATUS[c.status].label} />, new Date(c.createdAt).toLocaleDateString()])}
-        empty="No transactions yet."
-      />
+      <h4 className="font-semibold" style={{ marginBottom: 12 }}>Transaction History</h4>
+      <div style={{ marginBottom: 24 }}>
+        <Table
+          headers={['Candidate', 'Job', 'Amount', 'Status', 'Date']}
+          rows={data.commissions.map((c) => [c.candidate?.fullName, c.job?.title, `${c.currency} ${c.amount}`, <Tag status={COMMISSION_STATUS[c.status].tag} label={COMMISSION_STATUS[c.status].label} />, new Date(c.createdAt).toLocaleDateString()])}
+          empty="No transactions yet."
+        />
+      </div>
 
-      <h4 className="font-semibold mb-2 mt-4">Withdrawal History</h4>
+      <h4 className="font-semibold" style={{ marginBottom: 12 }}>Withdrawal History</h4>
       <Table
         headers={['Amount', 'Currency', 'Status', 'Requested', 'Processed']}
         rows={withdrawals.map((w) => [
@@ -8762,144 +9786,201 @@ function AgentDashboardPanel({ user, onFlash, onNavigate }) {
     <>
       {/* 1. Agent Profile */}
       <div className="card" style={{ padding: 20, marginBottom: 20 }}>
-        <div className="flex items-center justify-between flex-wrap gap-3">
-          <div className="flex items-center gap-3">
+        <div className="flex items-center justify-between flex-wrap" style={{ gap: 14 }}>
+          <div className="flex items-center" style={{ gap: 14 }}>
             {user?.profilePhoto
-              ? <img src={user.profilePhoto} alt="" style={{ width: 44, height: 44, borderRadius: '50%', objectFit: 'cover' }} />
-              : <div style={{ width: 44, height: 44, borderRadius: '50%', background: 'var(--gold)', color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 700 }}>{(user?.fullName || '?')[0]}</div>}
+              ? <img src={user.profilePhoto} alt="" style={{ width: 48, height: 48, borderRadius: '50%', objectFit: 'cover', flexShrink: 0 }} />
+              : <div style={{ width: 48, height: 48, borderRadius: '50%', background: 'var(--gold)', color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 700, fontSize: 18, flexShrink: 0 }}>{(user?.fullName || '?')[0]}</div>}
             <div>
               <strong className="text-sm">{user?.fullName}</strong>
-              <p className="text-xs mt-1" style={{ color: 'var(--ink-soft)' }}>{user?.companyName || 'No agency name set'} · {user?.country || 'Country not set'}</p>
-              <p className="text-xs mt-1" style={{ color: 'var(--ink-soft)' }}>
-                Verification: <Tag status={VERIFICATION_TAG[verStatus]} label={VERIFICATION_LABEL[verStatus]} /> · Account: <Tag status={ACCOUNT_STATUS_TAG[user?.status] || 'pending'} label={ACCOUNT_STATUS_LABEL[user?.status] || user?.status} />
-              </p>
+              <p className="text-xs" style={{ color: 'var(--ink-soft)', marginTop: 2 }}>{user?.companyName || 'No agency name set'} · {user?.country || 'Country not set'}</p>
+              <div className="flex items-center" style={{ gap: 8, marginTop: 6 }}>
+                <Tag status={VERIFICATION_TAG[verStatus]} label={VERIFICATION_LABEL[verStatus]} />
+                <Tag status={ACCOUNT_STATUS_TAG[user?.status] || 'pending'} label={ACCOUNT_STATUS_LABEL[user?.status] || user?.status} />
+              </div>
             </div>
           </div>
-          <span className="text-xs" style={{ color: 'var(--ink-soft)' }}>Profile {completeness}% complete</span>
+          <div style={{ minWidth: 160 }}>
+            <div className="student-progress-row" style={{ marginBottom: 6 }}>
+              <span className="text-xs">Profile</span>
+              <strong className="text-xs">{completeness}%</strong>
+            </div>
+            <progress className="student-progress-bar" max="100" value={completeness} aria-label="Profile completeness" />
+          </div>
         </div>
       </div>
 
       {/* 2. Main Summary Cards */}
-      <div className="grid grid-cols-3 md:grid-cols-4 gap-3" style={{ marginBottom: 20 }}>
-        <SummaryCard title="Active Job Posts" count={summary?.activeJobPosts ?? '—'} />
-        <SummaryCard title="Total Applicants" count={summary?.totalApplicants ?? '—'} />
-        <SummaryCard title="Shortlisted Candidates" count={summary?.shortlistedCandidates ?? '—'} />
-        <SummaryCard title="Scheduled Interviews" count={summary?.scheduledInterviews ?? '—'} />
-        <SummaryCard title="Successful Hires" count={summary?.successfulHires ?? '—'} />
-        <SummaryCard title="Total Commission" count={fmtMoney('earned')} />
-        <SummaryCard title="Pending Commission" count={fmtMoney('pending')} />
-        <SummaryCard title="Wallet Balance" count={fmtMoney('paid')} />
+      <div className="grid grid-cols-3 md:grid-cols-4" style={{ gap: 14, marginBottom: 20 }}>
+        <SummaryCard title="Active Job Posts" count={summary?.activeJobPosts ?? '—'} onClick={() => onNavigate?.('jobs')} />
+        <SummaryCard title="Total Applicants" count={summary?.totalApplicants ?? '—'} onClick={() => onNavigate?.('candidates')} />
+        <SummaryCard title="Shortlisted Candidates" count={summary?.shortlistedCandidates ?? '—'} onClick={() => onNavigate?.('candidates')} />
+        <SummaryCard title="Scheduled Interviews" count={summary?.scheduledInterviews ?? '—'} onClick={() => onNavigate?.('interviews')} />
+        <SummaryCard title="Successful Hires" count={summary?.successfulHires ?? '—'} onClick={() => onNavigate?.('commission')} />
+        <SummaryCard title="Total Commission" count={fmtMoney('earned')} onClick={() => onNavigate?.('commission')} />
+        <SummaryCard title="Pending Commission" count={fmtMoney('pending')} onClick={() => onNavigate?.('commission')} />
+        <SummaryCard title="Wallet Balance" count={fmtMoney('paid')} onClick={() => onNavigate?.('wallet')} />
       </div>
 
       {/* 3. Active Jobs */}
       <div className="dash-section-title"><h2>Active Jobs</h2></div>
-      <div className="card" style={{ padding: 12, marginBottom: 20 }}>
-        {(jobs?.filter((j) => j.status === 'active').length ?? 0) === 0 && <p className="text-xs" style={{ color: 'var(--ink-soft)' }}>No active job posts.</p>}
-        {jobs?.filter((j) => j.status === 'active').slice(0, 5).map((j) => (
-          <div key={j._id} className="flex items-center justify-between flex-wrap gap-2" style={{ padding: '6px 0', borderBottom: '1px solid var(--sand-line)' }}>
-            <div>
-              <strong className="text-sm">{j.title}</strong>
-              <p className="text-xs" style={{ color: 'var(--ink-soft)' }}>{j.company} · {[j.city, j.country].filter(Boolean).join(', ')}</p>
+      {(jobs?.filter((j) => j.status === 'active').length ?? 0) === 0 ? (
+        <div className="student-empty-state" style={{ border: '1px solid var(--sand-line)', borderRadius: 18, marginBottom: 20 }}>
+          <FaBriefcase aria-hidden="true" />
+          <p>No active job posts</p>
+        </div>
+      ) : (
+        <div style={{ display: 'grid', gap: 10, marginBottom: 20 }}>
+          {jobs?.filter((j) => j.status === 'active').slice(0, 5).map((j) => (
+            <div key={j._id} className="hover-card card" style={{ padding: 16, display: 'flex', alignItems: 'center', gap: 14, cursor: 'pointer' }} onClick={() => onNavigate?.('jobs')}>
+              <span style={{ width: 36, height: 36, borderRadius: 10, background: 'var(--sand)', color: 'var(--forest)', display: 'grid', placeItems: 'center', flexShrink: 0 }}><FaBriefcase aria-hidden="true" size={14} /></span>
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <strong className="text-sm">{j.title}</strong>
+                <p className="text-xs" style={{ color: 'var(--ink-soft)', marginTop: 2 }}>{j.company} · {[j.city, j.country].filter(Boolean).join(', ')}</p>
+              </div>
+              <span className="text-xs" style={{ color: 'var(--ink-soft)', flexShrink: 0 }}>{j.applicantCount ?? 0} applicants</span>
             </div>
-            <span className="text-xs" style={{ color: 'var(--ink-soft)' }}>{j.applicantCount ?? 0} applicants</span>
-          </div>
-        ))}
-        <button type="button" className="btn mt-2" style={{ padding: '4px 12px', fontSize: '0.75rem' }} onClick={() => onNavigate?.('jobs')}>View All</button>
-      </div>
+          ))}
+          <button type="button" className="btn" style={{ padding: '6px 14px', fontSize: '0.75rem', justifySelf: 'start' }} onClick={() => onNavigate?.('jobs')}>View All</button>
+        </div>
+      )}
 
       {/* 4. New / Recommended Candidates */}
       <div className="dash-section-title"><h2>New / Recommended Candidates</h2></div>
-      <div className="card" style={{ padding: 12, marginBottom: 20 }}>
-        {(newCandidates?.length ?? 0) === 0 && <p className="text-xs" style={{ color: 'var(--ink-soft)' }}>No new candidates yet.</p>}
-        {newCandidates?.slice(0, 5).map((c) => (
-          <div key={c._id} className="flex items-center justify-between flex-wrap gap-2" style={{ padding: '6px 0', borderBottom: '1px solid var(--sand-line)' }}>
-            <div>
-              <strong className="text-sm">{c.applicant?.fullName}</strong>
-              <p className="text-xs" style={{ color: 'var(--ink-soft)' }}>{c.job.title} · Applied {new Date(c.createdAt).toLocaleDateString()}</p>
-            </div>
+      <div className="card" style={{ padding: (newCandidates?.length ?? 0) === 0 ? 0 : 12, marginBottom: 20 }}>
+        {(newCandidates?.length ?? 0) === 0 && (
+          <div className="student-empty-state">
+            <FaUsers aria-hidden="true" />
+            <p>No new candidates yet</p>
           </div>
-        ))}
-        <div className="flex gap-2 mt-2">
-          <button type="button" className="btn" style={{ padding: '4px 12px', fontSize: '0.75rem' }} onClick={() => onNavigate?.('candidates')}>View Applications</button>
-          <button type="button" className="btn" style={{ padding: '4px 12px', fontSize: '0.75rem' }} onClick={() => onNavigate?.('recommended')}>Search Candidates</button>
+        )}
+        {(newCandidates?.length ?? 0) > 0 && (
+          <div className="dash-list" style={{ gap: 0 }}>
+            {newCandidates?.slice(0, 5).map((c, idx) => (
+              <div key={c._id} className="dash-list-item" style={{ borderBottom: idx < Math.min(newCandidates.length, 5) - 1 ? '1px solid var(--sand-line)' : 'none' }}>
+                <span className="dash-list-icon c-forest" aria-hidden><FaUser size={14} /></span>
+                <div className="dash-list-body"><div className="title">{c.applicant?.fullName}</div><div className="desc">{c.job.title}</div></div>
+                <span className="dash-list-time">{new Date(c.createdAt).toLocaleDateString()}</span>
+              </div>
+            ))}
+          </div>
+        )}
+        <div className="flex flex-wrap" style={{ gap: 8, padding: (newCandidates?.length ?? 0) === 0 ? 0 : '12px 12px 0' }}>
+          <button type="button" className="btn" style={{ padding: '6px 14px', fontSize: '0.75rem' }} onClick={() => onNavigate?.('candidates')}>View Applications</button>
+          <button type="button" className="btn" style={{ padding: '6px 14px', fontSize: '0.75rem' }} onClick={() => onNavigate?.('recommended')}>Search Candidates</button>
         </div>
       </div>
 
       {/* 5. Upcoming Interviews */}
       <div className="dash-section-title"><h2>Upcoming Interviews</h2></div>
-      <div className="card" style={{ padding: 12, marginBottom: 20 }}>
-        {(interviews?.filter((i) => i.status === 'scheduled').length ?? 0) === 0 && <p className="text-xs" style={{ color: 'var(--ink-soft)' }}>No interviews scheduled.</p>}
-        {interviews?.filter((i) => i.status === 'scheduled').slice(0, 5).map((i) => (
-          <div key={i._id} className="flex items-center justify-between flex-wrap gap-2" style={{ padding: '6px 0', borderBottom: '1px solid var(--sand-line)' }}>
-            <div>
-              <strong className="text-sm">{i.candidate?.fullName}</strong>
-              <p className="text-xs" style={{ color: 'var(--ink-soft)' }}>{i.job?.title} · {new Date(i.scheduledDate).toLocaleString()}</p>
-            </div>
+      {(interviews?.filter((i) => i.status === 'scheduled').length ?? 0) === 0 ? (
+        <div className="student-empty-state" style={{ border: '1px solid var(--sand-line)', borderRadius: 18, marginBottom: 20 }}>
+          <FaCalendarCheck aria-hidden="true" />
+          <p>No interviews scheduled</p>
+        </div>
+      ) : (
+        <div className="card" style={{ padding: 0, marginBottom: 20 }}>
+          <div className="dash-list" style={{ gap: 0 }}>
+            {interviews?.filter((i) => i.status === 'scheduled').slice(0, 5).map((i, idx, arr) => (
+              <div key={i._id} className="dash-list-item" style={{ borderBottom: idx < arr.length - 1 ? '1px solid var(--sand-line)' : 'none' }}>
+                <span className="dash-list-icon c-gold" aria-hidden><FaCalendarCheck size={14} /></span>
+                <div className="dash-list-body"><div className="title">{i.candidate?.fullName}</div><div className="desc">{i.job?.title} · {new Date(i.scheduledDate).toLocaleString()}</div></div>
+              </div>
+            ))}
           </div>
-        ))}
-        <button type="button" className="btn mt-2" style={{ padding: '4px 12px', fontSize: '0.75rem' }} onClick={() => onNavigate?.('interviews')}>View All</button>
-      </div>
+          <div style={{ padding: 12 }}>
+            <button type="button" className="btn" style={{ padding: '6px 14px', fontSize: '0.75rem' }} onClick={() => onNavigate?.('interviews')}>View All</button>
+          </div>
+        </div>
+      )}
 
       {/* 7. Recent Hires */}
       <div className="dash-section-title"><h2>Recent Hires</h2></div>
-      <div className="card" style={{ padding: 12, marginBottom: 20 }}>
-        {(commissions?.commissions?.length ?? 0) === 0 && <p className="text-xs" style={{ color: 'var(--ink-soft)' }}>No hires yet.</p>}
-        {commissions?.commissions?.slice(0, 5).map((c) => {
-          const st = COMMISSION_STATUS[c.status];
-          return (
-            <div key={c._id} className="flex items-center justify-between flex-wrap gap-2" style={{ padding: '6px 0', borderBottom: '1px solid var(--sand-line)' }}>
-              <div>
-                <strong className="text-sm">{c.candidate?.fullName}</strong>
-                <p className="text-xs" style={{ color: 'var(--ink-soft)' }}>{c.job?.title} · {c.job?.company} · Hired {new Date(c.createdAt).toLocaleDateString()}</p>
+      {(commissions?.commissions?.length ?? 0) === 0 ? (
+        <div className="student-empty-state" style={{ border: '1px solid var(--sand-line)', borderRadius: 18, marginBottom: 20 }}>
+          <FaAward aria-hidden="true" />
+          <p>No hires yet</p>
+        </div>
+      ) : (
+        <div style={{ display: 'grid', gap: 10, marginBottom: 20 }}>
+          {commissions?.commissions?.slice(0, 5).map((c) => {
+            const st = COMMISSION_STATUS[c.status];
+            return (
+              <div key={c._id} className="card" style={{ padding: 16, display: 'flex', alignItems: 'center', gap: 14 }}>
+                <span style={{ width: 36, height: 36, borderRadius: '50%', background: 'var(--forest)', color: '#fff', display: 'grid', placeItems: 'center', flexShrink: 0, fontWeight: 700, fontSize: 13 }}>{(c.candidate?.fullName || '?')[0]}</span>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <strong className="text-sm">{c.candidate?.fullName}</strong>
+                  <p className="text-xs" style={{ color: 'var(--ink-soft)', marginTop: 2 }}>{c.job?.title} · {c.job?.company} · Hired {new Date(c.createdAt).toLocaleDateString()}</p>
+                </div>
+                <div className="flex items-center" style={{ gap: 8, flexShrink: 0 }}>
+                  <span className="text-sm" style={{ fontWeight: 700 }}>{c.currency} {c.amount}</span>
+                  <Tag status={st.tag} label={st.label} />
+                </div>
               </div>
-              <div className="flex items-center gap-2">
-                <span className="text-xs">{c.currency} {c.amount}</span>
-                <Tag status={st.tag} label={st.label} />
-              </div>
-            </div>
-          );
-        })}
-        <button type="button" className="btn mt-2" style={{ padding: '4px 12px', fontSize: '0.75rem' }} onClick={() => onNavigate?.('commission')}>View All</button>
-      </div>
+            );
+          })}
+          <button type="button" className="btn" style={{ padding: '6px 14px', fontSize: '0.75rem', justifySelf: 'start' }} onClick={() => onNavigate?.('commission')}>View All</button>
+        </div>
+      )}
 
       {/* Commission / Wallet */}
       <div className="dash-section-title"><h2>Commission / Wallet</h2></div>
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-3" style={{ marginBottom: 20 }}>
-        <div className="card" style={{ padding: 16 }}>
-          <strong className="text-sm">Commission</strong>
-          <p className="text-xs mt-1" style={{ color: 'var(--ink-soft)' }}>Earned: {fmtMoney('earned')} · Pending: {fmtMoney('pending')}</p>
-          <button type="button" className="btn mt-2" style={{ padding: '4px 12px', fontSize: '0.75rem' }} onClick={() => onNavigate?.('commission')}>View Commissions</button>
+      <div className="grid grid-cols-1 md:grid-cols-2" style={{ gap: 14, marginBottom: 20 }}>
+        <div className="card" style={{ padding: 20 }}>
+          <div className="flex items-center" style={{ gap: 10, marginBottom: 10 }}>
+            <span style={{ width: 32, height: 32, borderRadius: 10, background: 'var(--sand)', color: 'var(--emerald)', display: 'grid', placeItems: 'center', flexShrink: 0 }}><FaSackDollar aria-hidden="true" size={14} /></span>
+            <strong className="text-sm">Commission</strong>
+          </div>
+          <p className="text-xs" style={{ color: 'var(--ink-soft)' }}>Earned: <strong style={{ color: 'var(--ink)' }}>{fmtMoney('earned')}</strong> · Pending: <strong style={{ color: 'var(--gold)' }}>{fmtMoney('pending')}</strong></p>
+          <button type="button" className="btn" style={{ padding: '6px 14px', fontSize: '0.75rem', marginTop: 14 }} onClick={() => onNavigate?.('commission')}>View Commissions</button>
         </div>
-        <div className="card" style={{ padding: 16 }}>
-          <strong className="text-sm">Wallet</strong>
-          <p className="text-xs mt-1" style={{ color: 'var(--ink-soft)' }}>Available: {fmtMoney('available')} · Withdrawn: {fmtMoney('paid')}</p>
-          <button type="button" className="btn mt-2" style={{ padding: '4px 12px', fontSize: '0.75rem' }} onClick={() => onNavigate?.('wallet')}>Open Wallet</button>
+        <div className="card" style={{ padding: 20 }}>
+          <div className="flex items-center" style={{ gap: 10, marginBottom: 10 }}>
+            <span style={{ width: 32, height: 32, borderRadius: 10, background: 'var(--sand)', color: 'var(--forest)', display: 'grid', placeItems: 'center', flexShrink: 0 }}><FaWallet aria-hidden="true" size={14} /></span>
+            <strong className="text-sm">Wallet</strong>
+          </div>
+          <p className="text-xs" style={{ color: 'var(--ink-soft)' }}>Available: <strong style={{ color: 'var(--ink)' }}>{fmtMoney('available')}</strong> · Withdrawn: <strong style={{ color: 'var(--ink)' }}>{fmtMoney('paid')}</strong></p>
+          <button type="button" className="btn" style={{ padding: '6px 14px', fontSize: '0.75rem', marginTop: 14 }} onClick={() => onNavigate?.('wallet')}>Open Wallet</button>
         </div>
       </div>
 
       {/* Messages */}
       <div className="dash-section-title"><h2>Messages</h2></div>
-      <div className="card" style={{ padding: 16 }}>
-        <strong className="text-xs">Unread: {conversations?.reduce((sum, c) => sum + c.unread, 0) ?? 0}</strong>
-        {(conversations?.length ?? 0) === 0 && <p className="text-xs mt-1" style={{ color: 'var(--ink-soft)' }}>No conversations yet.</p>}
-        {conversations?.slice(0, 3).map((c) => (
-          <p key={c.user._id} className="text-xs mt-1" style={{ color: c.unread > 0 ? 'var(--ink)' : 'var(--ink-soft)', fontWeight: c.unread > 0 ? 600 : 400 }}>{c.user.fullName}{c.unread > 0 ? ` (${c.unread})` : ''} — {c.lastMessage}</p>
+      <div className="card" style={{ padding: 20, marginBottom: 20 }}>
+        <div className="flex items-center justify-between" style={{ marginBottom: (conversations?.length ?? 0) === 0 ? 0 : 12 }}>
+          <strong className="text-sm">Unread messages</strong>
+          <strong style={{ fontSize: 22, fontFamily: 'Fraunces, serif' }}>{conversations?.reduce((sum, c) => sum + c.unread, 0) ?? 0}</strong>
+        </div>
+        {(conversations?.length ?? 0) === 0 && <p className="text-xs" style={{ color: 'var(--ink-soft)', marginTop: 10 }}>No conversations yet.</p>}
+        {conversations?.slice(0, 3).map((c, idx) => (
+          <p key={c.user._id} className="text-xs" style={{ color: c.unread > 0 ? 'var(--ink)' : 'var(--ink-soft)', fontWeight: c.unread > 0 ? 600 : 400, marginTop: idx === 0 ? 0 : 8, paddingTop: idx === 0 ? 0 : 8, borderTop: idx === 0 ? 'none' : '1px solid var(--sand-line)' }}>{c.user.fullName}{c.unread > 0 ? ` (${c.unread})` : ''} — {c.lastMessage}</p>
         ))}
-        <button type="button" className="btn mt-2" style={{ padding: '4px 12px', fontSize: '0.75rem' }} onClick={() => onNavigate?.('agentMessages')}>View Messages</button>
+        <button type="button" className="btn" style={{ padding: '6px 14px', fontSize: '0.75rem', marginTop: 14 }} onClick={() => onNavigate?.('agentMessages')}>View Messages</button>
       </div>
 
       {/* Notifications */}
       <div className="dash-section-title"><h2>Notifications</h2></div>
-      <div className="card" style={{ padding: 16, marginBottom: 20 }}>
-        {(notifications?.length ?? 0) === 0 && <p className="text-xs" style={{ color: 'var(--ink-soft)' }}>No notifications yet.</p>}
-        {notifications?.map((n) => (
-          <div key={n._id} className="flex items-center justify-between gap-2" style={{ padding: '4px 0' }}>
-            <p className="text-xs" style={{ color: n.read ? 'var(--ink-soft)' : 'var(--ink)', fontWeight: n.read ? 400 : 600 }}>{n.title}</p>
-            <span className="text-xs" style={{ color: 'var(--ink-soft)' }}>{new Date(n.createdAt).toLocaleDateString()}</span>
+      {(notifications?.length ?? 0) === 0 ? (
+        <div className="student-empty-state" style={{ border: '1px solid var(--sand-line)', borderRadius: 18, marginBottom: 20 }}>
+          <FaBell aria-hidden="true" />
+          <p>No notifications yet</p>
+        </div>
+      ) : (
+        <div className="card" style={{ padding: 0, marginBottom: 20 }}>
+          <div className="dash-list" style={{ gap: 0 }}>
+            {notifications?.map((n, idx) => (
+              <div key={n._id} className={`dash-list-item${!n.read ? ' unread' : ''}`} style={{ borderBottom: idx < notifications.length - 1 ? '1px solid var(--sand-line)' : 'none' }}>
+                <span className="dash-list-icon c-gold" aria-hidden><FaBell size={14} /></span>
+                <div className="dash-list-body"><div className="title" style={{ fontWeight: n.read ? 400 : 600 }}>{n.title}</div></div>
+                <span className="dash-list-time">{new Date(n.createdAt).toLocaleDateString()}</span>
+              </div>
+            ))}
           </div>
-        ))}
-        <button type="button" className="btn mt-2" style={{ padding: '4px 12px', fontSize: '0.75rem' }} onClick={() => onNavigate?.('agentNotifications')}>View All</button>
-      </div>
+          <div style={{ padding: 12 }}>
+            <button type="button" className="btn" style={{ padding: '6px 14px', fontSize: '0.75rem' }} onClick={() => onNavigate?.('agentNotifications')}>View All</button>
+          </div>
+        </div>
+      )}
 
       {/* 12. Recent Activity */}
       <RecentActivity items={(recentActivity || []).map((a) => ({ ...a, desc: '', status: 'approved' }))} />
@@ -9305,21 +10386,34 @@ function ProfilePanel({ user, onFlash, onChanged }) {
 
   if (!user) return null;
   return (
-    <div className="account-profile-details">
-      <p><strong>Name:</strong> {user.fullName}</p>
-      <p className="mt-1"><strong>Email:</strong> {user.email} {user.emailVerified ? <Tag status="approved" /> : <Tag status="pending" />}</p>
-      <p className="mt-1"><strong>Roles:</strong> {user.roles.join(', ')}</p>
-      <p className="mt-1"><strong>Status:</strong> {user.status}</p>
+    <div className="card" style={{ padding: 22, marginBottom: 20 }}>
+      <h3 className="font-semibold" style={{ marginBottom: 12 }}>Personal Information</h3>
+      <div className="account-profile-details">
+        <p><strong>Name:</strong> {user.fullName}</p>
+        <p><strong>Email:</strong> {user.email} {user.emailVerified ? <Tag status="approved" /> : <Tag status="pending" />}</p>
+        <p><strong>Roles:</strong> {user.roles.join(', ')}</p>
+        <p><strong>Status:</strong> {user.status}</p>
+      </div>
 
       {!user.emailVerified && (
-        <div className="mt-4 p-4 rounded-xl" style={{ background: 'var(--sand)', border: '1px solid var(--sand-line)' }}>
-          <p className="text-sm mb-3"><strong>Verify your email</strong> — the code is printed in the backend terminal (SMTP not configured yet, so it isn't emailed for real).</p>
-          <button type="button" className="btn btn-primary" style={{ padding: '6px 16px', fontSize: '0.8rem' }} onClick={resend}>
+        <div style={{ marginTop: 18, padding: 20, borderRadius: 16, background: 'var(--sand)' }}>
+          <div className="flex items-start" style={{ gap: 12 }}>
+            <span style={{ width: 36, height: 36, borderRadius: 10, background: 'var(--paper-raised)', color: 'var(--forest)', display: 'grid', placeItems: 'center', flexShrink: 0 }}>
+              <FaShieldHalved aria-hidden="true" size={16} />
+            </span>
+            <div>
+              <strong className="text-sm">Verify your email</strong>
+              <p className="text-xs" style={{ color: 'var(--ink-soft)', marginTop: 4 }}>The code is printed in the backend terminal — SMTP isn't configured yet, so it isn't emailed for real.</p>
+            </div>
+          </div>
+
+          <button type="button" className="btn btn-primary" style={{ padding: '8px 18px', fontSize: '0.8rem', marginTop: 16 }} onClick={resend}>
             {sent ? 'Resend code' : 'Send verification code'}
           </button>
-          <form onSubmit={verify} className="flex gap-3 items-end flex-wrap mt-3">
-            <input className="form-input" placeholder="6-digit code" value={code} onChange={(e) => setCode(e.target.value)} style={{ maxWidth: 180 }} />
-            <button type="submit" className="btn btn-primary" style={{ padding: '6px 16px', fontSize: '0.8rem' }}>Verify</button>
+
+          <form onSubmit={verify} className="flex items-end flex-wrap" style={{ gap: 12, marginTop: 16, paddingTop: 16, borderTop: '1px solid var(--sand-line)' }}>
+            <input className="form-input" placeholder="6-digit code" value={code} onChange={(e) => setCode(e.target.value)} style={{ maxWidth: 180, minWidth: 0, background: 'var(--paper-raised)' }} />
+            <button type="submit" className="btn btn-primary" style={{ padding: '8px 18px', fontSize: '0.8rem', flexShrink: 0 }}>Verify</button>
           </form>
         </div>
       )}
@@ -9355,11 +10449,14 @@ function RolesPanel({ onFlash, onChanged }) {
       <div className="admin-section-heading"><div><h2>My Roles</h2><p>Request access to another workspace.</p></div><FaUserShield aria-hidden="true" /></div>
       {loading && <p role="status" className="admin-notice">Loading your records...</p>}
       {loadError && <div role="alert" className="admin-notice error">{loadError} <button type="button" onClick={load}>Retry</button></div>}
-      <form onSubmit={submit} className="flex gap-3 items-end mb-6 flex-wrap">
-        <select aria-label="Role to request" className="form-select" value={role} onChange={(e) => setRole(e.target.value)}>
-          {roleOptions.map((r) => <option key={r} value={r}>{r.replace(/_/g, ' ')}</option>)}
-        </select>
-        <button type="submit" className="btn btn-primary">Submit Request</button>
+      <form onSubmit={submit} className="flex items-end flex-wrap" style={{ gap: 12, marginBottom: 24 }}>
+        <div style={{ flex: '1 1 220px', minWidth: 0 }}>
+          <CustomSelect
+            value={role} onChange={setRole} ariaLabel="Role to request" minWidth="100%"
+            options={roleOptions.map((r) => ({ value: r, label: r.replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase()) }))}
+          />
+        </div>
+        <button type="submit" className="btn btn-primary" style={{ flexShrink: 0 }}>Submit Request</button>
       </form>
       <h3 className="font-semibold mb-2">My Requests</h3>
       <Table loading={loading} error={loadError} onRetry={load} headers={['Role', 'Status', 'Requested']} rows={requests.map((r) => [r.requestedRole, <Tag status={r.status} />, new Date(r.createdAt).toLocaleDateString()])} empty="No requests yet." />
@@ -9387,13 +10484,14 @@ function SupportComplaintPanel({ onFlash }) {
   return (
     <div className="admin-section admin-account-card" style={{ marginTop: 20 }}>
       <div className="admin-section-heading"><div><h2>Report a Problem</h2><p>File a complaint for the platform team to review.</p></div><FaShieldHalved aria-hidden="true" /></div>
-      <form onSubmit={submit} className="space-y-3 max-w-lg mb-6">
+      <form onSubmit={submit} style={{ display: 'grid', gap: 12, marginBottom: 24 }}>
         <input className="form-input" placeholder="Subject" required value={form.subject} onChange={(e) => setForm({ ...form, subject: e.target.value })} />
-        <select className="form-select" value={form.category} onChange={(e) => setForm({ ...form, category: e.target.value })}>
-          {['harassment', 'fraud', 'technical', 'billing', 'content', 'other'].map((c) => <option key={c} value={c}>{c}</option>)}
-        </select>
+        <CustomSelect
+          value={form.category} onChange={(v) => setForm({ ...form, category: v })} ariaLabel="Complaint category" minWidth="100%"
+          options={['harassment', 'fraud', 'technical', 'billing', 'content', 'other'].map((c) => ({ value: c, label: c.charAt(0).toUpperCase() + c.slice(1) }))}
+        />
         <textarea className="form-input" placeholder="Describe the issue" rows={3} required value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} />
-        <button type="submit" className="btn btn-primary">Submit Complaint</button>
+        <button type="submit" className="btn btn-primary" style={{ justifySelf: 'start', padding: '7px 18px' }}>Submit Complaint</button>
       </form>
       <Table
         loading={complaints === null}
@@ -9788,30 +10886,48 @@ function TeacherPanel({ onFlash }) {
     try { await apiRequest(`/courses/${id}`, { method: 'PATCH', body: { published: true } }); onFlash('Course published.', 'success'); load(); } catch (err) { onFlash(err.message); }
   }
 
+  const fieldLabel = { fontSize: 11, fontWeight: 700, letterSpacing: '.04em', textTransform: 'uppercase', color: 'var(--ink-soft)', display: 'block', marginBottom: 6 };
+
   return (
     <div>
-      <form onSubmit={create} className="flex gap-3 items-end mb-6 flex-wrap">
-        <input className="form-input" placeholder="Course title" value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })} />
-        <input className="form-input" placeholder="Subject" value={form.subject} onChange={(e) => setForm({ ...form, subject: e.target.value })} />
-        <select className="form-select" value={form.institution} onChange={(e) => setForm({ ...form, institution: e.target.value, classSection: '' })}>
-          <option value="">Independent (no institution)</option>
-          {myInstitutions.map((i) => <option key={i._id} value={i._id}>{i.name}</option>)}
-        </select>
-        {form.institution && (
-          <select className="form-select" value={form.classSection} onChange={(e) => setForm({ ...form, classSection: e.target.value })}>
-            <option value="">No class section</option>
-            {sectionsForInstitution.map((s) => <option key={s._id} value={s._id}>{s.name}</option>)}
-          </select>
-        )}
-        <button type="submit" className="btn btn-primary">Create Course</button>
+      <h3 className="font-semibold" style={{ marginBottom: 14 }}>Create a New Course</h3>
+      <form onSubmit={create} className="card" style={{ padding: 20, marginBottom: 28 }}>
+        <div className="flex flex-wrap items-end" style={{ gap: 14 }}>
+          <label style={{ flex: '1 1 200px', minWidth: 0 }}>
+            <span style={fieldLabel}>Course title</span>
+            <input className="form-input" placeholder="e.g. Grade 9 Physics" value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })} />
+          </label>
+          <label style={{ flex: '1 1 160px', minWidth: 0 }}>
+            <span style={fieldLabel}>Subject</span>
+            <input className="form-input" placeholder="e.g. Physics" value={form.subject} onChange={(e) => setForm({ ...form, subject: e.target.value })} />
+          </label>
+          <label style={{ flex: '1 1 200px', minWidth: 0 }}>
+            <span style={fieldLabel}>Institution</span>
+            <select className="form-select" value={form.institution} onChange={(e) => setForm({ ...form, institution: e.target.value, classSection: '' })}>
+              <option value="">Independent (no institution)</option>
+              {myInstitutions.map((i) => <option key={i._id} value={i._id}>{i.name}</option>)}
+            </select>
+          </label>
+          {form.institution && (
+            <label style={{ flex: '1 1 180px', minWidth: 0 }}>
+              <span style={fieldLabel}>Class section</span>
+              <select className="form-select" value={form.classSection} onChange={(e) => setForm({ ...form, classSection: e.target.value })}>
+                <option value="">No class section</option>
+                {sectionsForInstitution.map((s) => <option key={s._id} value={s._id}>{s.name}</option>)}
+              </select>
+            </label>
+          )}
+          <button type="submit" className="btn btn-primary" style={{ flexShrink: 0, padding: '11px 20px', height: 46 }}>Create Course</button>
+        </div>
       </form>
+      <h3 className="font-semibold" style={{ marginBottom: 14 }}>My Courses</h3>
       <Table
         headers={['Title', 'Published', 'Action']}
         rows={courses.map((c) => [
           c.title, c.published ? <Tag status="approved" /> : <Tag status="pending" />,
-          <div className="flex gap-2">
-            {!c.published && <button className="btn btn-primary" style={{ padding: '5px 12px', fontSize: '0.78rem' }} onClick={() => publish(c._id)}>Publish</button>}
-            <button className="btn" style={{ padding: '5px 12px', fontSize: '0.78rem' }} onClick={() => setOpenCourseId(c._id)}>Manage Lessons</button>
+          <div className="flex" style={{ gap: 8 }}>
+            {!c.published && <button className="btn btn-primary" style={{ padding: '6px 14px', fontSize: '0.78rem' }} onClick={() => publish(c._id)}>Publish</button>}
+            <button className="btn" style={{ padding: '6px 14px', fontSize: '0.78rem' }} onClick={() => setOpenCourseId(c._id)}>Manage Lessons</button>
           </div>
         ])}
         empty="No courses yet."
@@ -9844,29 +10960,50 @@ function TeacherLessonsPanel({ courseId, onFlash, onClose }) {
   }
 
   return (
-    <div className="card reveal in mt-4" style={{ padding: 20 }}>
-      <div className="flex items-center justify-between mb-3">
+    <div className="card reveal in" style={{ padding: 20, marginTop: 16 }}>
+      <div className="flex items-center justify-between" style={{ marginBottom: 18 }}>
         <h4 className="font-semibold">{data?.course?.title || 'Lessons'}</h4>
-        {onClose && <button type="button" className="btn" style={{ padding: '4px 12px', fontSize: '0.78rem' }} onClick={onClose}>Close</button>}
+        {onClose && <button type="button" className="btn" style={{ padding: '6px 14px', fontSize: '0.78rem' }} onClick={onClose}>Close</button>}
       </div>
-      <form onSubmit={addLesson} className="space-y-2 max-w-lg mb-6">
+      <form onSubmit={addLesson} style={{ display: 'grid', gap: 12, marginBottom: 24, paddingBottom: 24, borderBottom: '1px solid var(--sand-line)' }}>
         <input className="form-input" placeholder="Lesson title" required value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })} />
         <textarea className="form-input" placeholder="Notes / content" rows={3} value={form.content} onChange={(e) => setForm({ ...form, content: e.target.value })} />
         <input className="form-input" placeholder="Video link (YouTube, Drive, etc. — optional)" value={form.videoUrl} onChange={(e) => setForm({ ...form, videoUrl: e.target.value })} />
-        <div className="flex gap-2">
-          <input className="form-input" placeholder="Resource name (optional)" value={form.resourceName} onChange={(e) => setForm({ ...form, resourceName: e.target.value })} />
-          <input className="form-input" placeholder="Resource link (optional)" value={form.resourceUrl} onChange={(e) => setForm({ ...form, resourceUrl: e.target.value })} />
+        <div className="flex flex-wrap" style={{ gap: 12 }}>
+          <input className="form-input" placeholder="Resource name (optional)" value={form.resourceName} onChange={(e) => setForm({ ...form, resourceName: e.target.value })} style={{ flex: '1 1 200px', minWidth: 0 }} />
+          <input className="form-input" placeholder="Resource link (optional)" value={form.resourceUrl} onChange={(e) => setForm({ ...form, resourceUrl: e.target.value })} style={{ flex: '1 1 200px', minWidth: 0 }} />
         </div>
-        <button type="submit" className="btn btn-primary">Add Lesson</button>
+        <button type="submit" className="btn btn-primary" style={{ justifySelf: 'start', padding: '8px 20px' }}>Add Lesson</button>
       </form>
-      {(data?.lessons || []).map((l) => (
-        <div key={l._id} className="border border-[var(--sand-line)] rounded-xl p-3 mb-2">
-          <strong className="text-sm">{l.title}</strong>
-          {l.content && <p className="text-sm mt-1" style={{ whiteSpace: 'pre-wrap' }}>{l.content}</p>}
-          {l.videoUrl && <a href={l.videoUrl} target="_blank" rel="noreferrer" className="text-xs" style={{ color: 'var(--emerald)' }}>▶ Video link</a>}
+      {(data?.lessons || []).length > 0 && (
+        <div style={{ display: 'grid', gap: 12 }}>
+          {data.lessons.map((l, i) => (
+            <div key={l._id} className="hover-card card" style={{ padding: 18, display: 'flex', gap: 14, alignItems: 'flex-start' }}>
+              <span style={{ width: 34, height: 34, borderRadius: 10, background: 'var(--sand)', color: 'var(--forest)', display: 'grid', placeItems: 'center', flexShrink: 0, fontWeight: 700, fontSize: 13 }}>{i + 1}</span>
+              <div style={{ minWidth: 0, flex: 1 }}>
+                <strong className="text-sm">{l.title}</strong>
+                {l.content && <p className="text-sm" style={{ whiteSpace: 'pre-wrap', marginTop: 6, color: 'var(--ink-soft)' }}>{l.content}</p>}
+                {(l.videoUrl || (l.resources || []).length > 0) && (
+                  <div className="flex flex-wrap items-center" style={{ gap: 8, marginTop: 12 }}>
+                    {l.videoUrl && (
+                      <a href={l.videoUrl} target="_blank" rel="noreferrer" className="text-xs" style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '5px 12px', borderRadius: 999, background: 'var(--sand)', border: '1px solid var(--sand-line)', color: 'var(--forest)', fontWeight: 600 }}>▶ Video link</a>
+                    )}
+                    {(l.resources || []).map((r, ri) => (
+                      <a key={ri} href={r.url} target="_blank" rel="noreferrer" className="text-xs" style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '5px 12px', borderRadius: 999, background: 'var(--sand)', border: '1px solid var(--sand-line)', color: 'var(--forest)', fontWeight: 600 }}>📄 {r.name || 'Download'}</a>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </div>
+          ))}
         </div>
-      ))}
-      {data && data.lessons.length === 0 && <p style={{ fontSize: 13, color: 'var(--ink-soft)' }}>No lessons added yet.</p>}
+      )}
+      {data && data.lessons.length === 0 && (
+        <div className="student-empty-state">
+          <FaFileLines aria-hidden="true" />
+          <p>No lessons added yet</p>
+        </div>
+      )}
     </div>
   );
 }
@@ -9909,23 +11046,39 @@ function TeacherStudentCommunicationPanel({ onFlash, onNavigate }) {
 
   return (
     <div>
-      <h3 className="font-semibold mb-2">Student Communication</h3>
-      {students.length === 0 && <p className="text-sm" style={{ color: 'var(--ink-soft)' }}>No students enrolled in your courses yet.</p>}
-      {students.map((s) => {
-        const convo = conversations.find((c) => c.user._id === s._id);
-        return (
-          <div key={s._id} className="border border-[var(--sand-line)] rounded-xl p-3 mb-2">
-            <div className="flex items-center justify-between flex-wrap gap-2">
-              <div>
-                <strong className="text-sm">{s.fullName}</strong>
-                <p className="text-xs" style={{ color: 'var(--ink-soft)' }}>{s.courseTitle}</p>
-                {convo ? <p className="text-xs mt-1" style={{ color: 'var(--ink-soft)' }}>"{convo.lastMessage}" — {new Date(convo.lastAt).toLocaleString()}{convo.unread > 0 ? ` · ${convo.unread} unread` : ''}</p> : <p className="text-xs mt-1" style={{ color: 'var(--ink-soft)' }}>No messages yet.</p>}
+      <h3 className="font-semibold" style={{ marginBottom: 16 }}>Student Communication</h3>
+      {students.length === 0 && (
+        <div className="student-empty-state" style={{ border: '1px solid var(--sand-line)', borderRadius: 18 }}>
+          <FaUsers aria-hidden="true" />
+          <p>No students enrolled in your courses yet</p>
+        </div>
+      )}
+      <div style={{ display: 'grid', gap: 12 }}>
+        {students.map((s) => {
+          const convo = conversations.find((c) => c.user._id === s._id);
+          return (
+            <div key={s._id} className="hover-card card" style={{ padding: 18 }}>
+              <div className="flex items-center justify-between flex-wrap" style={{ gap: 14 }}>
+                <div className="flex items-center" style={{ gap: 12 }}>
+                  <span style={{ width: 40, height: 40, borderRadius: '50%', background: 'var(--gold)', color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 700, flexShrink: 0 }}>{s.fullName[0]}</span>
+                  <div>
+                    <strong className="text-sm">{s.fullName}</strong>
+                    <p className="text-xs" style={{ color: 'var(--ink-soft)', marginTop: 2 }}>{s.courseTitle}</p>
+                  </div>
+                </div>
+                <button type="button" className="btn btn-primary" style={{ padding: '7px 16px', fontSize: '0.78rem', flexShrink: 0 }} onClick={() => onNavigate?.('messages')}>{convo ? 'View / Reply' : 'Message'}</button>
               </div>
-              <button type="button" className="btn" style={{ padding: '5px 14px', fontSize: '0.78rem' }} onClick={() => onNavigate?.('messages')}>{convo ? 'View / Reply' : 'Message'}</button>
+              <div style={{ marginTop: 14, paddingTop: 14, borderTop: '1px solid var(--sand-line)' }}>
+                {convo ? (
+                  <p className="text-xs" style={{ color: 'var(--ink-soft)' }}>"{convo.lastMessage}" — {new Date(convo.lastAt).toLocaleString()}{convo.unread > 0 ? ` · ${convo.unread} unread` : ''}</p>
+                ) : (
+                  <p className="text-xs" style={{ color: 'var(--ink-soft)' }}>No messages yet.</p>
+                )}
+              </div>
             </div>
-          </div>
-        );
-      })}
+          );
+        })}
+      </div>
     </div>
   );
 }
@@ -9944,13 +11097,24 @@ function ParentPanel({ onFlash }) {
 
   return (
     <div>
-      <form onSubmit={link} className="flex gap-3 items-end mb-6 flex-wrap">
-        <input className="form-input" type="email" placeholder="Student's email" value={email} onChange={(e) => setEmail(e.target.value)} />
-        <select className="form-select" value={relationship} onChange={(e) => setRelationship(e.target.value)}>
-          {['father', 'mother', 'guardian', 'sponsor'].map((r) => <option key={r} value={r}>{r}</option>)}
-        </select>
-        <button type="submit" className="btn btn-primary">Send Link Request</button>
+      <h3 className="font-semibold" style={{ marginBottom: 4 }}>Link a Child</h3>
+      <p className="text-xs" style={{ color: 'var(--ink-soft)', marginBottom: 16 }}>Enter your child's account email — they'll need to approve the request from their own account before you can see their data.</p>
+      <form onSubmit={link} className="card" style={{ padding: 20, marginBottom: 28 }}>
+        <div className="flex flex-wrap items-end" style={{ gap: 14 }}>
+          <label style={{ flex: '2 1 240px', minWidth: 0 }}>
+            <span className="text-xs" style={{ display: 'block', color: 'var(--ink-soft)', fontWeight: 600, marginBottom: 6 }}>Student's email</span>
+            <input className="form-input" type="email" placeholder="e.g. child@example.com" value={email} onChange={(e) => setEmail(e.target.value)} />
+          </label>
+          <label style={{ flex: '1 1 160px', minWidth: 0 }}>
+            <span className="text-xs" style={{ display: 'block', color: 'var(--ink-soft)', fontWeight: 600, marginBottom: 6 }}>Relationship</span>
+            <select className="form-select" value={relationship} onChange={(e) => setRelationship(e.target.value)} style={{ textTransform: 'capitalize' }}>
+              {['father', 'mother', 'guardian', 'sponsor'].map((r) => <option key={r} value={r} style={{ textTransform: 'capitalize' }}>{r}</option>)}
+            </select>
+          </label>
+          <button type="submit" className="btn btn-primary" style={{ flexShrink: 0, padding: '11px 20px', height: 46 }}>Send Link Request</button>
+        </div>
       </form>
+      <h3 className="font-semibold mb-2">My Children</h3>
       <Table headers={['Name', 'Email']} rows={children.map((c) => [c.student.fullName, c.student.email])} empty="No approved children yet." />
     </div>
   );
@@ -9995,11 +11159,17 @@ function MessagesPanel({ onFlash }) {
   }
 
   return (
-    <div className="grid g2" style={{ gap: 24 }}>
+    <div className="grid g2" style={{ gap: 20, alignItems: 'start' }}>
       <div>
-        <h3 className="font-semibold mb-2">Conversations</h3>
+        <h3 className="font-semibold" style={{ marginBottom: 18 }}>Conversations</h3>
         {conversations === null && <p role="status" className="admin-notice">Loading...</p>}
-        {conversations && conversations.length === 0 && <p style={{ fontSize: 13, color: 'var(--ink-soft)' }}>No conversations yet. Start one on the right using a User ID.</p>}
+        {conversations && conversations.length === 0 && (
+          <div className="student-empty-state" style={{ border: '1px solid var(--sand-line)', borderRadius: 18 }}>
+            <FaCommentDots aria-hidden="true" />
+            <p>No conversations yet</p>
+            <span>Start one on the right using a User ID.</span>
+          </div>
+        )}
         <div className="dash-list">
           {(conversations || []).map((c) => (
             <div key={c.user._id} className={`dash-list-item${activeUser?._id === c.user._id ? ' unread' : ''}`} style={{ cursor: 'pointer' }} onClick={() => openThread(c.user)}>
@@ -10010,26 +11180,34 @@ function MessagesPanel({ onFlash }) {
           ))}
         </div>
       </div>
-      <div>
-        <h3 className="font-semibold mb-2">{activeUser ? activeUser.fullName : 'New Message'}</h3>
+      <div className="card" style={{ padding: 20 }}>
+        <h3 className="font-semibold" style={{ marginBottom: 14 }}>{activeUser ? activeUser.fullName : 'New Message'}</h3>
         {!activeUser && (
-          <input className="form-input mb-3" placeholder="Recipient's User ID" value={newRecipientId} onChange={(e) => setNewRecipientId(e.target.value)} />
+          <label style={{ display: 'block', marginBottom: 14 }}>
+            <span className="text-xs" style={{ display: 'block', color: 'var(--ink-soft)', fontWeight: 600, marginBottom: 6 }}>Recipient's User ID</span>
+            <input className="form-input" placeholder="Paste a User ID to start a new conversation" value={newRecipientId} onChange={(e) => setNewRecipientId(e.target.value)} />
+          </label>
         )}
         {activeUser && (
-          <div className="card reveal in" style={{ padding: '8px 12px', marginBottom: 12, maxHeight: 320, overflowY: 'auto' }}>
+          <div className="card reveal in" style={{ padding: '10px 14px', marginBottom: 14, maxHeight: 320, overflowY: 'auto' }}>
             {thread === null && <p role="status" className="admin-notice">Loading...</p>}
-            {thread && thread.length === 0 && <p style={{ fontSize: 13, color: 'var(--ink-soft)' }}>No messages yet — say hello.</p>}
-            {(thread || []).map((m) => (
-              <div key={m._id} style={{ padding: '8px 4px', borderBottom: '1px solid var(--sand-line)' }}>
+            {thread && thread.length === 0 && (
+              <div className="student-empty-state" style={{ minHeight: 100, padding: '16px 0' }}>
+                <p>No messages yet</p>
+                <span>Say hello to start the conversation.</span>
+              </div>
+            )}
+            {(thread || []).map((m, idx) => (
+              <div key={m._id} style={{ padding: '10px 4px', borderBottom: idx < thread.length - 1 ? '1px solid var(--sand-line)' : 'none' }}>
                 <div style={{ fontSize: 13 }}>{m.text}</div>
-                <div style={{ fontSize: 11, color: 'var(--ink-soft)' }}>{new Date(m.createdAt).toLocaleString()}</div>
+                <div style={{ fontSize: 11, color: 'var(--ink-soft)', marginTop: 4 }}>{new Date(m.createdAt).toLocaleString()}</div>
               </div>
             ))}
           </div>
         )}
-        <form onSubmit={send} className="flex gap-3 items-end">
-          <input className="form-input" placeholder="Type a message..." value={text} onChange={(e) => setText(e.target.value)} required />
-          <button type="submit" className="btn btn-primary">Send</button>
+        <form onSubmit={send} className="flex items-end" style={{ gap: 12 }}>
+          <input className="form-input" placeholder="Type a message..." value={text} onChange={(e) => setText(e.target.value)} required style={{ flex: '1 1 auto', minWidth: 0 }} />
+          <button type="submit" className="btn btn-primary" style={{ flexShrink: 0 }}>Send</button>
         </form>
       </div>
     </div>
@@ -10051,23 +11229,33 @@ function NotificationsPanel({ onFlash }) {
     try { await apiRequest('/notifications/mine/read-all', { method: 'PATCH' }); load(); } catch (err) { onFlash(err.message); }
   }
 
+  const unreadCount = (notifications || []).filter((n) => !n.read).length;
+
   return (
     <div>
-      <div className="flex items-center justify-between mb-3">
-        <h3 className="font-semibold">Notifications</h3>
-        <button type="button" className="btn" style={{ padding: '6px 14px', fontSize: '0.8rem', background: 'var(--sand-line)', color: 'var(--ink)' }} onClick={markAllRead}>Mark all read</button>
+      <div className="flex items-center justify-between" style={{ marginBottom: 16 }}>
+        <h3 className="font-semibold">Notifications{unreadCount > 0 ? ` (${unreadCount} unread)` : ''}</h3>
+        {unreadCount > 0 && <button type="button" className="btn" style={{ padding: '6px 14px', fontSize: '0.8rem' }} onClick={markAllRead}>Mark all read</button>}
       </div>
       {notifications === null && <p role="status" className="admin-notice">Loading...</p>}
-      {notifications && notifications.length === 0 && <p style={{ fontSize: 13, color: 'var(--ink-soft)' }}>No notifications yet.</p>}
-      <div className="dash-list">
-        {(notifications || []).map((n) => (
-          <div key={n._id} className={`dash-list-item${!n.read ? ' unread' : ''}`} style={{ cursor: n.read ? 'default' : 'pointer' }} onClick={() => !n.read && markRead(n._id)}>
-            <span className="dash-list-icon c-forest" aria-hidden><FaBell size={14} /></span>
-            <div className="dash-list-body"><div className="title">{n.title}</div><div className="desc">{n.body}</div></div>
-            <span className="dash-list-time">{new Date(n.createdAt).toLocaleDateString()}</span>
-          </div>
-        ))}
-      </div>
+      {notifications && notifications.length === 0 && (
+        <div className="student-empty-state" style={{ border: '1px solid var(--sand-line)', borderRadius: 18 }}>
+          <FaBell aria-hidden="true" />
+          <p>No notifications yet</p>
+          <span>Updates and reminders that matter to you will show up here.</span>
+        </div>
+      )}
+      {notifications && notifications.length > 0 && (
+        <div className="dash-list" style={{ border: '1px solid var(--sand-line)', borderRadius: 18, background: 'var(--paper-raised)', overflow: 'hidden', gap: 0 }}>
+          {notifications.map((n, idx) => (
+            <div key={n._id} className={`dash-list-item${!n.read ? ' unread' : ''}`} style={{ cursor: n.read ? 'default' : 'pointer', borderBottom: idx < notifications.length - 1 ? '1px solid var(--sand-line)' : 'none' }} onClick={() => !n.read && markRead(n._id)}>
+              <span className="dash-list-icon c-forest" aria-hidden><FaBell size={14} /></span>
+              <div className="dash-list-body"><div className="title">{n.title}</div><div className="desc">{n.body}</div></div>
+              <span className="dash-list-time">{new Date(n.createdAt).toLocaleDateString()}</span>
+            </div>
+          ))}
+        </div>
+      )}
     </div>
   );
 }
@@ -10149,10 +11337,19 @@ function CalendarPanel({ onFlash }) {
 
       {!loading && (
         <>
-          <div className="flex items-center justify-between mb-3">
-            <button type="button" className="btn" style={{ padding: '5px 14px', fontSize: '0.8rem' }} onClick={() => setViewDate(new Date(viewDate.getFullYear(), viewDate.getMonth() - 1, 1))}>‹ Prev</button>
-            <strong>{viewDate.toLocaleDateString(undefined, { month: 'long', year: 'numeric' })}</strong>
-            <button type="button" className="btn" style={{ padding: '5px 14px', fontSize: '0.8rem' }} onClick={() => setViewDate(new Date(viewDate.getFullYear(), viewDate.getMonth() + 1, 1))}>Next ›</button>
+          <div className="flex items-center justify-between" style={{ marginBottom: 14, padding: '10px 16px', background: 'var(--paper-raised)', border: '1px solid var(--sand-line)', borderRadius: 14 }}>
+            <button type="button" className="btn" style={{ padding: '6px 14px', fontSize: '0.8rem' }} onClick={() => setViewDate(new Date(viewDate.getFullYear(), viewDate.getMonth() - 1, 1))}>‹ Prev</button>
+            <strong style={{ fontFamily: 'Fraunces, serif', fontSize: 16 }}>{viewDate.toLocaleDateString(undefined, { month: 'long', year: 'numeric' })}</strong>
+            <button type="button" className="btn" style={{ padding: '6px 14px', fontSize: '0.8rem' }} onClick={() => setViewDate(new Date(viewDate.getFullYear(), viewDate.getMonth() + 1, 1))}>Next ›</button>
+          </div>
+
+          <div className="flex flex-wrap items-center" style={{ gap: 16, marginBottom: 14 }}>
+            {Object.entries(CAL_EVENT_LABEL).map(([type, label]) => (
+              <span key={type} className="flex items-center text-xs" style={{ gap: 6, color: 'var(--ink-soft)' }}>
+                <span style={{ width: 8, height: 8, borderRadius: '50%', background: CAL_EVENT_COLOR[type], display: 'inline-block' }} />
+                {label}
+              </span>
+            ))}
           </div>
 
           <div className="grid grid-cols-7 gap-1 mb-4" style={{ textAlign: 'center' }}>
@@ -10184,18 +11381,18 @@ function CalendarPanel({ onFlash }) {
             })}
           </div>
 
-          <div className="card mb-6" style={{ padding: 16 }}>
-            <strong className="text-sm">{selectedDate.toLocaleDateString(undefined, { weekday: 'long', month: 'long', day: 'numeric' })}</strong>
-            {selectedEvents.length === 0 && <p className="text-xs mt-2" style={{ color: 'var(--ink-soft)' }}>Nothing scheduled on this date.</p>}
+          <div className="card" style={{ padding: 20, marginBottom: 16 }}>
+            <strong className="text-sm" style={{ fontFamily: 'Fraunces, serif', fontSize: 15 }}>{selectedDate.toLocaleDateString(undefined, { weekday: 'long', month: 'long', day: 'numeric' })}</strong>
+            {selectedEvents.length === 0 && <p className="text-xs" style={{ color: 'var(--ink-soft)', marginTop: 10 }}>Nothing scheduled on this date.</p>}
             {selectedEvents.map((e, i) => (
-              <div key={i} className="flex items-center gap-2 mt-2">
+              <div key={i} className="flex items-center" style={{ gap: 8, marginTop: 10 }}>
                 <span style={{ width: 8, height: 8, borderRadius: '50%', background: CAL_EVENT_COLOR[e.type], display: 'inline-block', flexShrink: 0 }} />
                 <p className="text-xs">{CAL_EVENT_LABEL[e.type]}: <strong>{e.title}</strong> {e.detail ? `— ${e.detail}` : ''}</p>
               </div>
             ))}
           </div>
 
-          <p className="text-xs mb-4" style={{ color: 'var(--ink-soft)' }}>Personal events aren't supported yet — this calendar only shows real classes, assignments, exams and fee deadlines pulled from your account.</p>
+          <p className="text-xs" style={{ color: 'var(--ink-soft)', marginBottom: 20, fontStyle: 'italic' }}>Personal events aren't supported yet — this calendar only shows real classes, assignments, exams and fee deadlines pulled from your account.</p>
 
           {(timetable && timetable.length > 0) && (
             <div className="mb-6">
@@ -10272,14 +11469,14 @@ function SettingsPanel({ user, onFlash, onChanged }) {
   return (
     <div>
       <h3 className="font-semibold mb-3">Account Settings</h3>
-      <form onSubmit={saveProfile} className="space-y-3 max-w-md mb-8">
-        <div className="flex items-center gap-3">
+      <form onSubmit={saveProfile} className="card" style={{ padding: 22, display: 'grid', gap: 14, maxWidth: 480, marginBottom: 24 }}>
+        <div className="flex items-center" style={{ gap: 14 }}>
           {form.profilePhoto
-            ? <img src={form.profilePhoto} alt="" style={{ width: 56, height: 56, borderRadius: '50%', objectFit: 'cover' }} onError={(e) => { e.target.style.display = 'none'; }} />
-            : <div style={{ width: 56, height: 56, borderRadius: '50%', background: 'var(--forest)', color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 700, fontSize: 20 }}>{(form.fullName || '?')[0]}</div>}
-          <input className="form-input" placeholder="Profile photo URL (paste an image link)" value={form.profilePhoto} onChange={(e) => setForm({ ...form, profilePhoto: e.target.value })} style={{ flex: 1 }} />
+            ? <img src={form.profilePhoto} alt="" style={{ width: 56, height: 56, borderRadius: '50%', objectFit: 'cover', flexShrink: 0 }} onError={(e) => { e.target.style.display = 'none'; }} />
+            : <div style={{ width: 56, height: 56, borderRadius: '50%', background: 'var(--forest)', color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 700, fontSize: 20, flexShrink: 0 }}>{(form.fullName || '?')[0]}</div>}
+          <input className="form-input" placeholder="Profile photo URL (paste an image link)" value={form.profilePhoto} onChange={(e) => setForm({ ...form, profilePhoto: e.target.value })} style={{ flex: '1 1 auto', minWidth: 0 }} />
         </div>
-        <p className="text-xs" style={{ color: 'var(--ink-soft)', marginTop: -6 }}>No file storage is wired up yet — upload your photo somewhere (Google Drive, Imgur, etc.), share it publicly, and paste the direct image link here.</p>
+        <p className="text-xs" style={{ color: 'var(--ink-soft)', marginTop: -4 }}>No file storage is wired up yet — upload your photo somewhere (Google Drive, Imgur, etc.), share it publicly, and paste the direct image link here.</p>
         <input className="form-input" placeholder="Full name" value={form.fullName} onChange={(e) => setForm({ ...form, fullName: e.target.value })} />
         {isDonor && (
           <select className="form-select" value={form.donorType} onChange={(e) => setForm({ ...form, donorType: e.target.value })}>
@@ -10289,7 +11486,7 @@ function SettingsPanel({ user, onFlash, onChanged }) {
           </select>
         )}
         {showCompanyName && <input className="form-input" placeholder={isDonor ? 'Organization name' : isSeller ? 'Store name' : 'Company / Agency name'} value={form.companyName} onChange={(e) => setForm({ ...form, companyName: e.target.value })} />}
-        {isSeller && <p className="text-xs" style={{ color: 'var(--ink-soft)', marginTop: -6 }}>The profile photo above also doubles as your store logo.</p>}
+        {isSeller && <p className="text-xs" style={{ color: 'var(--ink-soft)', marginTop: -4 }}>The profile photo above also doubles as your store logo.</p>}
         <input className="form-input" placeholder="Phone" value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} />
         <input className="form-input" placeholder="Country code (e.g. PK)" value={form.country || ''} onChange={(e) => setForm({ ...form, country: e.target.value })} />
         <select className="form-select" value={form.language} onChange={(e) => setForm({ ...form, language: e.target.value })}>
@@ -10297,15 +11494,15 @@ function SettingsPanel({ user, onFlash, onChanged }) {
           <option value="ur">Urdu</option>
           <option value="ar">Arabic</option>
         </select>
-        <button type="submit" className="btn btn-primary">Save Settings</button>
+        <button type="submit" className="btn btn-primary" style={{ padding: '7px 18px', justifySelf: 'start' }}>Save Settings</button>
       </form>
 
       <h3 className="font-semibold mb-3">Change Password</h3>
-      <form onSubmit={changePassword} className="space-y-3 max-w-md">
+      <form onSubmit={changePassword} className="card" style={{ padding: 22, display: 'grid', gap: 14, maxWidth: 480 }}>
         <input className="form-input" type="password" placeholder="Current password" value={pwForm.currentPassword} onChange={(e) => setPwForm({ ...pwForm, currentPassword: e.target.value })} required />
         <input className="form-input" type="password" placeholder="New password" value={pwForm.newPassword} onChange={(e) => setPwForm({ ...pwForm, newPassword: e.target.value })} required minLength={8} />
         <input className="form-input" type="password" placeholder="Confirm new password" value={pwForm.confirmPassword} onChange={(e) => setPwForm({ ...pwForm, confirmPassword: e.target.value })} required minLength={8} />
-        <button type="submit" className="btn btn-primary">Update Password</button>
+        <button type="submit" className="btn btn-primary" style={{ padding: '7px 18px', justifySelf: 'start' }}>Update Password</button>
       </form>
     </div>
   );
@@ -10322,12 +11519,18 @@ const FAQ_ITEMS = [
 function HelpCenterPanel({ onFlash }) {
   return (
     <div>
-      <h3 className="font-semibold mb-3">Help Center</h3>
-      <div className="space-y-3 mb-8">
+      <h3 className="font-semibold" style={{ marginBottom: 4 }}>Frequently Asked Questions</h3>
+      <p className="text-xs" style={{ color: 'var(--ink-soft)', marginBottom: 16 }}>Quick answers to the questions we hear most.</p>
+      <div style={{ display: 'grid', gap: 12, marginBottom: 28 }}>
         {FAQ_ITEMS.map((item) => (
-          <div key={item.q} className="border border-[var(--sand-line)] rounded-xl p-4">
-            <strong className="text-sm">{item.q}</strong>
-            <p className="text-sm mt-1" style={{ color: 'var(--ink-soft)' }}>{item.a}</p>
+          <div key={item.q} className="card" style={{ padding: 18, display: 'flex', gap: 14, alignItems: 'flex-start' }}>
+            <span style={{ display: 'grid', placeItems: 'center', width: 32, height: 32, borderRadius: 10, background: 'var(--sand)', color: 'var(--emerald)', flexShrink: 0 }}>
+              <FaCircleQuestion aria-hidden="true" size={15} />
+            </span>
+            <div>
+              <strong className="text-sm">{item.q}</strong>
+              <p className="text-sm" style={{ color: 'var(--ink-soft)', marginTop: 6 }}>{item.a}</p>
+            </div>
           </div>
         ))}
       </div>

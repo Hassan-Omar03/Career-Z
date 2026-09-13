@@ -1,3 +1,4 @@
+import { FaCircleCheck, FaCircleXmark } from 'react-icons/fa6';
 import { useEffect, useState } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { apiRequest, ApiError } from '../api/client';
@@ -32,7 +33,7 @@ export default function VerifyCertificate() {
 
         {!state.loading && state.error && (
           <div style={styles.invalidBox}>
-            <div style={styles.invalidIcon}>✕</div>
+            <div style={styles.invalidIcon}><FaCircleXmark aria-hidden="true" /></div>
             <h2 style={styles.invalidTitle}>Not a valid certificate</h2>
             <p style={styles.muted}>{state.error}</p>
           </div>
@@ -40,7 +41,7 @@ export default function VerifyCertificate() {
 
         {!state.loading && state.cert && (
           <div style={styles.validBox}>
-            <div style={styles.validIcon}>✓</div>
+            <div style={styles.validIcon}><FaCircleCheck aria-hidden="true" /></div>
             <h2 style={styles.validTitle}>Certificate Verified</h2>
             <dl style={styles.detailList}>
               <dt style={styles.dt}>Title</dt>
@@ -94,7 +95,8 @@ const styles = {
     background: '#fee2e2',
     color: '#dc2626',
     fontSize: 28,
-    lineHeight: '56px',
+    display: 'grid',
+    placeItems: 'center',
     margin: '0 auto 12px'
   },
   invalidTitle: { margin: '0 0 8px', color: '#dc2626', fontSize: 18 },
@@ -106,13 +108,14 @@ const styles = {
     background: '#dcfce7',
     color: '#16a34a',
     fontSize: 28,
-    lineHeight: '56px',
+    display: 'grid',
+    placeItems: 'center',
     margin: '0 auto 12px'
   },
   validTitle: { margin: '0 0 16px', color: '#16a34a', fontSize: 18 },
   detailList: { textAlign: 'left', margin: 0 },
   dt: { fontSize: 12, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: 0.5, marginTop: 10 },
-  dd: { margin: '2px 0 0', fontSize: 15, color: '#0f172a', fontWeight: 600 },
+  dd: { overflowWrap: 'anywhere', margin: '2px 0 0', fontSize: 15, color: '#0f172a', fontWeight: 600 },
   homeLink: {
     display: 'inline-block',
     marginTop: 28,
