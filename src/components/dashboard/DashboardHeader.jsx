@@ -2,6 +2,7 @@ import ThemeIcon from '../ThemeIcon';
 import { useEffect, useRef, useState } from 'react';
 import { useTheme } from '../../hooks/useTheme';
 import LanguageSelector from '../LanguageSelector';
+import VoiceNavButton from '../VoiceNavButton';
 import { FaShieldHalved, FaRightFromBracket, FaBars, FaMagnifyingGlass, FaPlus, FaWallet, FaCommentDots, FaBell, FaChevronDown } from 'react-icons/fa6';
 
 function useDropdown() {
@@ -19,7 +20,7 @@ function useDropdown() {
   return { open, setOpen, ref };
 }
 
-export default function DashboardHeader({ user, onSidebarToggle, onLogout, onNavigate }) {
+export default function DashboardHeader({ user, onSidebarToggle, onLogout, onNavigate, navItems = [] }) {
   const { theme, toggleTheme } = useTheme();
   const quickActions = useDropdown();
   const profileMenu = useDropdown();
@@ -92,6 +93,7 @@ export default function DashboardHeader({ user, onSidebarToggle, onLogout, onNav
         </button>
 
         <LanguageSelector />
+        <VoiceNavButton navItems={navItems} onNavigate={onNavigate} />
 
         <button className="icon-btn" aria-label={theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'} onClick={toggleTheme}>
           <ThemeIcon theme={theme} />

@@ -1,5 +1,6 @@
 import { FaEarthAmericas, FaChevronDown } from 'react-icons/fa6';
 import { useEffect, useRef, useState } from 'react';
+import { useTranslation } from '../context/TranslationContext';
 
 const LANGUAGES = [
   { code: 'en', label: 'EN', flag: '🇬🇧', name: 'English' },
@@ -22,11 +23,11 @@ const LANGUAGES = [
   { code: 'ko', label: 'KO', flag: '🇰🇷', name: 'Korean' }
 ];
 
-const RTL_LANGS = ['ur', 'ar', 'fa', 'he'];
-
+// Real, live translation (see TranslationContext) drives this — not a hardcoded per-language
+// dictionary. onChange is optional, for callers that want to react to the language change too.
 export default function LanguageSelector({ onChange }) {
+  const { lang: active, setLang, enabled, translating } = useTranslation();
   const [open, setOpen] = useState(false);
-  const [active, setActive] = useState('en');
   const wrapRef = useRef(null);
 
   useEffect(() => {
@@ -38,14 +39,12 @@ export default function LanguageSelector({ onChange }) {
   }, []);
 
   function selectLang(lang) {
-    setActive(lang.code);
     setOpen(false);
-    document.documentElement.lang = lang.code;
-    document.documentElement.dir = RTL_LANGS.includes(lang.code) ? 'rtl' : 'ltr';
+    setLang(lang.code);
     onChange?.(lang.code);
   }
 
-  const current = LANGUAGES.find((l) => l.code === active);
+  const current = LANGUAGES.find((l) => l.code === active) || LANGUAGES[0];
 
   return (
     <div className="lang-select-wrap" ref={wrapRef}>
@@ -57,10 +56,15 @@ export default function LanguageSelector({ onChange }) {
         onClick={(e) => { e.stopPropagation(); setOpen((o) => !o); }}
       >
         <FaEarthAmericas size={18} aria-hidden="true" />
-        <span className="lang-label">{current.label}</span>
+        <span className="lang-label">{translating ? '…' : current.label}</span>
         <FaChevronDown size={10} aria-hidden="true" />
       </button>
       <div className={`lang-dropdown${open ? ' open' : ''}`} role="listbox" aria-label="Language options">
+        {enabled === false && (
+          <p style={{ padding: '8px 12px', fontSize: 12, color: 'var(--ink-soft, #6b7280)', margin: 0 }}>
+            Live translation isn't set up yet — English only for now.
+          </p>
+        )}
         {LANGUAGES.map((l) => (
           <button key={l.code} className={l.code === active ? 'active' : ''} onClick={() => selectLang(l)}>
             <span className="flag">{l.flag}</span> {l.name}

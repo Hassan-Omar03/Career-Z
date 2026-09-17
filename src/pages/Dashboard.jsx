@@ -3,7 +3,9 @@ import {
   FaGauge, FaBuilding, FaChalkboardUser, FaBookOpen, FaClipboardList, FaAward, FaFileLines,
   FaGraduationCap, FaBriefcase, FaStore, FaWallet, FaSackDollar, FaSchool, FaChartLine,
   FaCalendarCheck, FaMoneyBillWave, FaHandshake, FaHourglassHalf, FaGear, FaBell, FaCommentDots, FaCircleQuestion, FaChevronDown,
-  FaCartShopping, FaBoxOpen, FaBoxesStacked, FaTruck, FaStar, FaTriangleExclamation
+  FaCartShopping, FaBoxOpen, FaBoxesStacked, FaTruck, FaStar, FaTriangleExclamation, FaQrcode, FaLock,
+  FaEarthAmericas, FaDatabase, FaUserGear, FaNewspaper, FaWandMagicSparkles,
+  FaUserGraduate, FaBed, FaKitMedical, FaCalendarDays, FaHeadset, FaRobot
 } from 'react-icons/fa6';
 import { Children, useEffect, useRef, useState } from 'react';
 import { useLocation } from 'react-router-dom';
@@ -11,6 +13,7 @@ import { useAuth } from '../context/AuthContext';
 import { apiRequest } from '../api/client';
 import { verifyEmail, resendVerification } from '../api/auth';
 import DashboardLayout from '../components/dashboard/DashboardLayout';
+import CampusTourViewer from '../components/CampusTourViewer';
 import {
   OverviewStats, WalletCard, QuickActions,
   ProfileCompletion, MiniCalendar, RecommendedGrid, RecentActivity
@@ -53,12 +56,18 @@ const WORKSPACES = {
       { key: 'classes', label: 'My Classes', icon: FaChalkboardUser },
       { key: 'courses', label: 'My Courses', icon: FaBookOpen },
       { key: 'assignments', label: 'Assignments & Tests', icon: FaClipboardList },
+      { key: 'learningAnalytics', label: 'Learning Analytics', icon: FaChartLine },
       { key: 'certificates', label: 'Certificates', icon: FaAward },
+      { key: 'digitalLocker', label: 'Digital Locker', icon: FaLock },
+      { key: 'studentId', label: 'Digital Student ID', icon: FaQrcode },
       { key: 'applications', label: 'Applications', icon: FaFileLines },
       { key: 'scholarships', label: 'Scholarships', icon: FaGraduationCap },
       { key: 'jobs', label: 'Jobs', icon: FaBriefcase },
       { key: 'marketplace', label: 'Marketplace', icon: FaStore },
-      { key: 'wallet', label: 'Wallet', icon: FaWallet }
+      { key: 'wallet', label: 'Wallet', icon: FaWallet },
+      { key: 'goals', label: 'Goals & Achievements', icon: FaAward },
+      { key: 'community', label: 'Study Groups', icon: FaUsers },
+      { key: 'campusLife', label: 'Campus Life', icon: FaNewspaper }
     ]
   },
   teacher: {
@@ -79,6 +88,7 @@ const WORKSPACES = {
       { key: 'liveClasses', label: 'Live Classes', icon: FaChalkboardUser },
       { key: 'studentCommunication', label: 'Student Communication', icon: FaCommentDots },
       { key: 'ptm', label: 'Parent-Teacher Meeting', icon: FaHandshake },
+      { key: 'engagement', label: 'Class Engagement', icon: FaCommentDots },
       { key: 'earnings', label: 'Salary & Finance', icon: FaSackDollar },
       { key: 'performance', label: 'Performance Overview', icon: FaChartLine },
       { key: 'resourceLibrary', label: 'Resource Library', icon: FaFileLines },
@@ -105,6 +115,8 @@ const WORKSPACES = {
       { key: 'performance', label: 'Performance Overview', icon: FaChartLine },
       { key: 'institutionInfo', label: 'School/Institution Info', icon: FaBuilding },
       { key: 'portfolio', label: 'Digital Portfolio', icon: FaFileLines },
+      { key: 'health', label: 'Health Record', icon: FaClipboardCheck },
+      { key: 'permissions', label: 'Permissions & Consent', icon: FaShieldHalved },
       { key: 'wallet', label: 'Wallet / Payment Records', icon: FaWallet },
       { key: 'profile', label: 'Personal Information', icon: FaUser }
     ]
@@ -115,6 +127,7 @@ const WORKSPACES = {
     nav: [
       { key: 'summary', label: 'Dashboard', icon: FaGauge },
       { key: 'institution', label: 'My Institution', icon: FaSchool },
+      { key: 'admissions', label: 'Admission Management', icon: FaUserGraduate },
       { key: 'staff', label: 'Staff Management', icon: FaUsers },
       { key: 'teachers', label: 'Teacher Management', icon: FaChalkboardUser },
       { key: 'students', label: 'Student Management', icon: FaUsers },
@@ -124,8 +137,18 @@ const WORKSPACES = {
       { key: 'payroll', label: 'Payroll', icon: FaMoneyBillWave },
       { key: 'examination', label: 'Examination Management', icon: FaAward },
       { key: 'certificates', label: 'Certificates & Degrees', icon: FaGraduationCap },
+      { key: 'library', label: 'Library Management', icon: FaBookOpen },
+      { key: 'hostel', label: 'Hostel Management', icon: FaBed },
+      { key: 'transport', label: 'Transport Management', icon: FaTruck },
+      { key: 'inventory', label: 'Inventory Management', icon: FaBoxesStacked },
+      { key: 'health', label: 'Medical & Health', icon: FaKitMedical },
+      { key: 'events', label: 'Events & Activities', icon: FaCalendarDays },
+      { key: 'helpdesk', label: 'Complaint & Help Desk', icon: FaHeadset },
+      { key: 'aiAssistant', label: 'AI Operations Assistant', icon: FaRobot },
       { key: 'reports', label: 'Reports', icon: FaChartLine },
       { key: 'communication', label: 'Communication Center', icon: FaBell },
+      { key: 'campusLife', label: 'Newsletter & Magazine', icon: FaNewspaper },
+      { key: 'campusTour', label: 'Virtual Campus Tour', icon: FaSchool },
       { key: 'profile', label: 'My Account', icon: FaUser }
     ]
   },
@@ -144,12 +167,17 @@ const WORKSPACES = {
     greeting: 'Platform overview and moderation.',
     nav: [
       { key: 'summary', label: 'Dashboard', icon: FaGauge },
+      { key: 'worldmap', label: 'World Map', icon: FaEarthAmericas },
       { key: 'institutions_mgmt', label: 'Institution Management', icon: FaBuildingColumns },
       { key: 'agents', label: 'Agent Management', icon: FaUsers },
       { key: 'donors', label: 'Donor Management', icon: FaHandshake },
+      { key: 'staff', label: 'Staff Management', icon: FaUserGear },
       { key: 'finance', label: 'Financial Management', icon: FaSackDollar },
       { key: 'complaints', label: 'Complaint Management', icon: FaClipboardList },
       { key: 'security', label: 'Security & Monitoring', icon: FaShieldHalved },
+      { key: 'cms', label: 'Content (Pages & Blog)', icon: FaNewspaper },
+      { key: 'backups', label: 'Backups & Maintenance', icon: FaDatabase },
+      { key: 'aiInsights', label: 'AI Insights', icon: FaWandMagicSparkles },
       { key: 'settings', label: 'Global Settings', icon: FaGear },
       { key: 'analytics', label: 'Reports', icon: FaChartLine },
       { key: 'profile', label: 'Profile', icon: FaUser }
@@ -456,16 +484,203 @@ function StudentWorkspace({ tab, user, onFlash, onChanged, onNavigate }) {
   if (tab === 'classes') return <TimetableView onFlash={onFlash} url="/students/me/timetable" />;
   if (tab === 'jobs') return <StudentJobsPanel onFlash={onFlash} user={user} />;
   if (tab === 'certificates') return <StudentCertificatesPanel onFlash={onFlash} />;
+  if (tab === 'digitalLocker') return <StudentDigitalLockerPanel onFlash={onFlash} />;
+  if (tab === 'studentId') return <StudentDigitalIdPanel onFlash={onFlash} />;
+  if (tab === 'learningAnalytics') return <StudentLearningAnalyticsPanel onFlash={onFlash} />;
+  if (tab === 'goals') return <StudentGoalsAchievementsPanel onFlash={onFlash} />;
+  if (tab === 'community') return <StudentCommunityPanel onFlash={onFlash} user={user} />;
   if (tab === 'scholarships') return <ScholarshipsPanel onFlash={onFlash} user={user} />;
   if (tab === 'marketplace') return <MarketplacePanel onFlash={onFlash} user={user} />;
   if (tab === 'institutions') return <StudentInstitutionsPanel onFlash={onFlash} />;
   if (tab === 'applications') return <StudentApplicationsPanel onFlash={onFlash} />;
+  if (tab === 'campusLife') return <StudentCampusLifePanel onFlash={onFlash} />;
   return <ComingSoon label={tab} />;
 }
 
 // Every field here (dateOfBirth, program, currentTerm, guardianContact, careerGoal, skills,
 // languages) was already accepted by PATCH /students/me on the backend but had no form
 // anywhere in the UI to actually set it — this is that form.
+function StudentCampusLifePanel({ onFlash }) {
+  const [section, setSection] = useState('ask');
+  const [myQuestions, setMyQuestions] = useState(null);
+  const [askForm, setAskForm] = useState({ subject: '', question: '' });
+  const [polls, setPolls] = useState(null);
+  const [newsletters, setNewsletters] = useState(null);
+  const [magazine, setMagazine] = useState(null);
+  const [mySubmissions, setMySubmissions] = useState(null);
+  const [subForm, setSubForm] = useState({ title: '', type: 'article', content: '' });
+
+  function loadQuestions() { apiRequest('/anonymous-questions/mine').then(setMyQuestions).catch((err) => onFlash(err.message)); }
+  function loadPolls() { apiRequest('/polls/available').then(setPolls).catch((err) => onFlash(err.message)); }
+  function loadNewsletters() { apiRequest('/newsletters/published').then(setNewsletters).catch((err) => onFlash(err.message)); }
+  function loadMagazine() { apiRequest('/magazine/published').then(setMagazine).catch((err) => onFlash(err.message)); }
+  function loadMySubmissions() { apiRequest('/magazine/mine').then(setMySubmissions).catch((err) => onFlash(err.message)); }
+
+  useEffect(() => {
+    if (section === 'ask') loadQuestions();
+    if (section === 'polls') loadPolls();
+    if (section === 'newsletter') loadNewsletters();
+    if (section === 'magazine') { loadMagazine(); loadMySubmissions(); }
+  }, [section]);
+
+  async function askQuestion(e) {
+    e.preventDefault();
+    try {
+      await apiRequest('/anonymous-questions', { method: 'POST', body: askForm });
+      onFlash('Question sent anonymously.', 'success');
+      setAskForm({ subject: '', question: '' });
+      loadQuestions();
+    } catch (err) { onFlash(err.message); }
+  }
+  async function castVote(pollId, optionIndex) {
+    try {
+      await apiRequest(`/polls/${pollId}/vote`, { method: 'POST', body: { optionIndex } });
+      onFlash('Vote recorded.', 'success');
+      loadPolls();
+    } catch (err) { onFlash(err.message); }
+  }
+  async function submitToMagazine(e) {
+    e.preventDefault();
+    try {
+      await apiRequest('/magazine', { method: 'POST', body: subForm });
+      onFlash('Submitted for review.', 'success');
+      setSubForm({ title: '', type: 'article', content: '' });
+      loadMySubmissions();
+    } catch (err) { onFlash(err.message); }
+  }
+
+  const TABS = [
+    { key: 'ask', label: 'Ask Anonymously', icon: FaCommentDots },
+    { key: 'polls', label: 'Quick Polls', icon: FaClipboardList },
+    { key: 'newsletter', label: 'Newsletter', icon: FaNewspaper },
+    { key: 'magazine', label: 'Magazine', icon: FaBookOpen }
+  ];
+
+  return (
+    <div className="card" style={{ padding: 22 }}>
+      <div className="flex items-center" style={{ gap: 12 }}>
+        <span style={{ width: 40, height: 40, borderRadius: 12, background: 'var(--forest)', color: '#fff', display: 'grid', placeItems: 'center', flexShrink: 0 }}>
+          <FaNewspaper aria-hidden="true" size={16} />
+        </span>
+        <div>
+          <h3 className="font-semibold" style={{ margin: 0 }}>Campus Life</h3>
+          <p className="text-xs" style={{ color: 'var(--ink-soft)', margin: '2px 0 0' }}>Ask questions, vote in polls and catch up on campus news.</p>
+        </div>
+      </div>
+
+      <div className="flex gap-1 flex-wrap" style={{ margin: '18px 0 22px', padding: 5, background: 'var(--sand)', borderRadius: 14, width: 'fit-content' }}>
+        {TABS.map(({ key, label, icon: Icon }) => (
+          <button
+            key={key}
+            type="button"
+            onClick={() => setSection(key)}
+            className="flex items-center"
+            style={{
+              gap: 8, padding: '9px 16px', fontSize: '0.8rem', fontWeight: 600, borderRadius: 10, border: 'none', cursor: 'pointer',
+              background: section === key ? 'var(--forest)' : 'transparent',
+              color: section === key ? '#fff' : 'var(--ink-soft)',
+              transition: 'background .15s, color .15s'
+            }}
+          >
+            <Icon aria-hidden="true" size={13} /> {label}
+          </button>
+        ))}
+      </div>
+
+      {section === 'ask' && (
+        <div>
+          <div className="flex items-start" style={{ gap: 10, marginBottom: 18, padding: 14, borderRadius: 12, background: 'var(--sand)' }}>
+            <FaShieldHalved aria-hidden="true" size={15} style={{ color: 'var(--forest)', marginTop: 2, flexShrink: 0 }} />
+            <p style={{ fontSize: 13, color: 'var(--ink-soft)', margin: 0 }}>Your name is never shown to teachers or your institution — only your question.</p>
+          </div>
+          <form onSubmit={askQuestion} style={{ display: 'grid', gap: 10, maxWidth: 460, marginBottom: 28, padding: 18, border: '1px solid var(--sand-line)', borderRadius: 14 }}>
+            <input className="form-input" placeholder="Subject (optional)" value={askForm.subject} onChange={(e) => setAskForm({ ...askForm, subject: e.target.value })} />
+            <textarea className="form-input" placeholder="Your question" rows={3} value={askForm.question} onChange={(e) => setAskForm({ ...askForm, question: e.target.value })} required />
+            <button type="submit" className="btn btn-primary" style={{ justifySelf: 'start', padding: '9px 20px' }}>Ask Anonymously</button>
+          </form>
+          <h4 className="font-semibold mb-2" style={{ fontSize: '0.85rem' }}>My Questions</h4>
+          <Table
+            loading={myQuestions === null}
+            headers={['Subject', 'Question', 'Status', 'Answer']}
+            rows={(myQuestions || []).map((q) => [q.subject || '—', q.question, <Tag status={q.status === 'answered' ? 'approved' : 'pending'} />, q.answer || '—'])}
+            empty="You haven't asked any questions yet."
+          />
+        </div>
+      )}
+
+      {section === 'polls' && (
+        <div style={{ display: 'grid', gap: 12 }}>
+          {polls === null && <p className="admin-notice">Loading...</p>}
+          {polls?.length === 0 && <p className="admin-notice">No open polls right now.</p>}
+          {(polls || []).map((p) => (
+            <div key={p._id} style={{ padding: 18, border: '1px solid var(--sand-line)', borderRadius: 14 }}>
+              <p className="font-medium" style={{ marginBottom: 12 }}>{p.question}</p>
+              {p.myVote !== null ? (
+                <p className="flex items-center text-sm" style={{ gap: 8, color: 'var(--forest)', fontWeight: 600, margin: 0 }}>
+                  <FaClipboardCheck aria-hidden="true" size={13} /> You voted: {p.options[p.myVote]?.text}
+                </p>
+              ) : (
+                <div className="flex gap-2 flex-wrap">
+                  {p.options.map((o, i) => (
+                    <button key={i} type="button" className="btn" style={{ padding: '7px 16px', fontSize: '0.8rem' }} onClick={() => castVote(p._id, i)}>{o.text}</button>
+                  ))}
+                </div>
+              )}
+            </div>
+          ))}
+        </div>
+      )}
+
+      {section === 'newsletter' && (
+        <div style={{ display: 'grid', gap: 12 }}>
+          {newsletters === null && <p className="admin-notice">Loading...</p>}
+          {newsletters?.length === 0 && <p className="admin-notice">No newsletters published yet.</p>}
+          {(newsletters || []).map((n) => (
+            <div key={n._id} style={{ padding: 18, border: '1px solid var(--sand-line)', borderRadius: 14 }}>
+              <p className="font-medium">{n.title}</p>
+              <p className="text-xs" style={{ color: 'var(--ink-soft)', margin: '4px 0 8px' }}>{new Date(n.publishedAt).toLocaleDateString()}</p>
+              <p className="text-sm" style={{ lineHeight: 1.6, margin: 0 }}>{n.content}</p>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {section === 'magazine' && (
+        <div>
+          <h4 className="font-semibold mb-2" style={{ fontSize: '0.85rem' }}>Submit Your Work</h4>
+          <form onSubmit={submitToMagazine} style={{ display: 'grid', gap: 10, maxWidth: 460, marginBottom: 28, padding: 18, border: '1px solid var(--sand-line)', borderRadius: 14 }}>
+            <input className="form-input" placeholder="Title" value={subForm.title} onChange={(e) => setSubForm({ ...subForm, title: e.target.value })} required />
+            <CustomSelect
+              value={subForm.type} onChange={(v) => setSubForm({ ...subForm, type: v })} ariaLabel="Submission type" minWidth="100%"
+              options={['article', 'poetry', 'artwork', 'story', 'other'].map((t) => ({ value: t, label: t.charAt(0).toUpperCase() + t.slice(1) }))}
+            />
+            <textarea className="form-input" placeholder="Your work" rows={4} value={subForm.content} onChange={(e) => setSubForm({ ...subForm, content: e.target.value })} required />
+            <button type="submit" className="btn btn-primary" style={{ justifySelf: 'start', padding: '9px 20px' }}>Submit</button>
+          </form>
+          <h4 className="font-semibold mb-2" style={{ fontSize: '0.85rem' }}>My Submissions</h4>
+          <Table
+            loading={mySubmissions === null}
+            headers={['Title', 'Type', 'Status']}
+            rows={(mySubmissions || []).map((s) => [s.title, s.type, <Tag status={s.status === 'published' ? 'approved' : s.status === 'rejected' ? 'rejected' : s.status === 'selected' ? 'approved' : 'pending'} label={s.status} />])}
+            empty="You haven't submitted anything yet."
+          />
+          <h4 className="font-semibold mt-6 mb-2" style={{ fontSize: '0.85rem' }}>Latest Issue</h4>
+          {magazine?.length === 0 && <p className="admin-notice">Nothing published yet.</p>}
+          <div style={{ display: 'grid', gap: 12 }}>
+            {(magazine || []).map((m) => (
+              <div key={m._id} style={{ padding: 18, border: '1px solid var(--sand-line)', borderRadius: 14 }}>
+                <p className="font-medium">{m.title}</p>
+                <p className="text-xs" style={{ color: 'var(--ink-soft)', margin: '4px 0 8px' }}>By {m.student?.fullName || 'A student'} · {m.type}</p>
+                <p className="text-sm" style={{ lineHeight: 1.6, margin: 0 }}>{m.content}</p>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
 function StudentAcademicProfilePanel({ onFlash, onChanged }) {
   const [profile, setProfile] = useState(null);
   const [form, setForm] = useState(null);
@@ -768,12 +983,713 @@ function StudentCertificatesPanel({ onFlash }) {
   );
 }
 
+const DOCUMENT_CATEGORIES = [
+  { value: 'degree', label: 'Degree' },
+  { value: 'certificate', label: 'Certificate' },
+  { value: 'national_id', label: 'National ID' },
+  { value: 'passport', label: 'Passport' },
+  { value: 'student_card', label: 'Student Card' },
+  { value: 'experience_letter', label: 'Experience Letter' },
+  { value: 'recommendation_letter', label: 'Recommendation Letter' },
+  { value: 'award', label: 'Award' },
+  { value: 'transcript', label: 'Transcript' },
+  { value: 'research_paper', label: 'Research Paper' },
+  { value: 'project', label: 'Project' },
+  { value: 'other', label: 'Other' }
+];
+const DOCUMENT_CATEGORY_LABEL = Object.fromEntries(DOCUMENT_CATEGORIES.map((c) => [c.value, c.label]));
+
+// Student sidebar — Digital Locker (spec Part 10.5): a lifetime document vault, separate from
+// institution-issued Certificates. No file storage service is wired up — same paste-a-link
+// pattern used everywhere else in the app (User.profilePhoto, Resume.cvFileUrl).
+// No cloud storage (S3/Cloudinary) is connected anywhere in this app, so an uploaded file is
+// stored as a base64 data URI on the document record itself (same as the profile-photo upload
+// above). Images are resized/re-encoded to keep them small; other files (PDFs etc.) are read
+// as-is but capped at 3MB raw so the base64-inflated body still fits the server's request-size
+// limit — past that, the "paste a link" option (for a file already hosted somewhere) still works.
+const LOCKER_MAX_FILE_BYTES = 3 * 1024 * 1024;
+function readLockerFile(file) {
+  if (file.type.startsWith('image/')) return resizeImageToDataUrl(file, 1200, 0.82);
+  if (file.size > LOCKER_MAX_FILE_BYTES) {
+    return Promise.reject(new Error(`That file is ${(file.size / (1024 * 1024)).toFixed(1)}MB — over the 3MB direct-upload limit. Host it somewhere and paste the link instead.`));
+  }
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onerror = () => reject(new Error('Could not read that file.'));
+    reader.onload = () => resolve(reader.result);
+    reader.readAsDataURL(file);
+  });
+}
+
+function StudentDigitalLockerPanel({ onFlash }) {
+  const [documents, setDocuments] = useState(null);
+  const [form, setForm] = useState({ title: '', category: 'other', fileUrl: '' });
+  const [fileName, setFileName] = useState('');
+  const [fileInputKey, setFileInputKey] = useState(0);
+  const [notReady, setNotReady] = useState(false);
+  const [pendingReason, setPendingReason] = useState('');
+  const [adding, setAdding] = useState(false);
+  const [uploadingFor, setUploadingFor] = useState(null);
+
+  function load() { apiRequest('/students/me/documents').then(setDocuments).catch((err) => onFlash(err.message)); }
+  useEffect(load, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  async function handleFile(e) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    try {
+      const dataUrl = await readLockerFile(file);
+      setForm((f) => ({ ...f, fileUrl: dataUrl }));
+      setFileName(file.name);
+    } catch (err) { onFlash(err.message); clearFile(); }
+  }
+  function clearFile() {
+    setForm((f) => ({ ...f, fileUrl: '' }));
+    setFileName('');
+    setFileInputKey((k) => k + 1); // remounts the <input type="file"> so its value truly resets
+  }
+
+  async function addDocument(e) {
+    e.preventDefault();
+    if (!form.title.trim()) return;
+    if (!notReady && !form.fileUrl.trim()) return onFlash('Choose a file, paste a link, or mark it as not-ready-yet.');
+    setAdding(true);
+    try {
+      await apiRequest('/students/me/documents', {
+        method: 'POST',
+        body: notReady ? { title: form.title, category: form.category, status: 'pending', pendingReason } : form
+      });
+      onFlash(notReady ? 'Saved as pending — add it whenever you have it.' : 'Document added to your locker.', 'success');
+      setForm({ title: '', category: 'other', fileUrl: '' });
+      clearFile();
+      setNotReady(false);
+      setPendingReason('');
+      load();
+    } catch (err) { onFlash(err.message); } finally { setAdding(false); }
+  }
+  async function removeDocument(id) {
+    try { await apiRequest(`/students/me/documents/${id}`, { method: 'DELETE' }); onFlash('Document removed.', 'success'); load(); } catch (err) { onFlash(err.message); }
+  }
+  async function uploadForPending(id, e) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    try {
+      const dataUrl = await readLockerFile(file);
+      await apiRequest(`/students/me/documents/${id}`, { method: 'PATCH', body: { fileUrl: dataUrl } });
+      onFlash('File attached.', 'success');
+      setUploadingFor(null);
+      load();
+    } catch (err) { onFlash(err.message); }
+  }
+
+  return (
+    <div>
+      <div className="flex items-center" style={{ gap: 12, marginBottom: 6 }}>
+        <span style={{ width: 38, height: 38, borderRadius: 10, background: 'var(--sand)', color: 'var(--forest)', display: 'grid', placeItems: 'center', flexShrink: 0 }}><FaLock aria-hidden="true" size={16} /></span>
+        <h3 className="font-semibold" style={{ margin: 0 }}>Digital Locker</h3>
+      </div>
+      <p style={{ fontSize: 13, color: 'var(--ink-soft)', marginLeft: 50, marginBottom: 24, lineHeight: 1.6 }}>Your lifetime document vault — degrees, IDs, transcripts, experience letters and more, kept safe across every institution you ever attend.</p>
+
+      <form onSubmit={addDocument} className="card" style={{ padding: 20, marginBottom: 24, display: 'grid', gap: 14 }}>
+        <p style={{ fontSize: 11, fontWeight: 700, letterSpacing: '.04em', textTransform: 'uppercase', color: 'var(--ink-soft)' }}>Add a Document</p>
+        <input className="form-input" placeholder="Document title (e.g. National ID Card)" value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })} />
+        <div style={{ flex: '1 1 200px', minWidth: 0, maxWidth: 260 }}>
+          <CustomSelect value={form.category} onChange={(v) => setForm({ ...form, category: v })} ariaLabel="Document category" minWidth="100%" options={DOCUMENT_CATEGORIES} />
+        </div>
+
+        {!notReady && (
+          <div className="flex flex-wrap items-center" style={{ gap: 14 }}>
+            <label className="btn" style={{ padding: '8px 16px', fontSize: '0.8rem', cursor: 'pointer', flexShrink: 0 }}>
+              Choose File
+              <input key={fileInputKey} type="file" accept="image/*,.pdf,.doc,.docx" onChange={handleFile} style={{ display: 'none' }} />
+            </label>
+            {fileName && (
+              <span className="flex items-center text-xs" style={{ gap: 6, color: 'var(--forest)' }}>
+                ✓ {fileName}
+                <button type="button" aria-label="Remove selected file" onClick={clearFile} style={{ border: 'none', background: 'var(--sand-line)', borderRadius: '50%', width: 18, height: 18, lineHeight: 1, cursor: 'pointer', color: 'var(--ink)' }}>✕</button>
+              </span>
+            )}
+            <span className="text-xs" style={{ color: 'var(--ink-soft)' }}>or</span>
+            <input
+              className="form-input" placeholder="Paste a direct file link (PDF/image URL)"
+              value={fileName ? '' : form.fileUrl} disabled={!!fileName}
+              onChange={(e) => setForm({ ...form, fileUrl: e.target.value })} style={{ flex: '1 1 240px', minWidth: 0 }}
+            />
+          </div>
+        )}
+
+        <label className="flex items-center text-xs" style={{ gap: 8, color: 'var(--ink-soft)' }}>
+          <input type="checkbox" checked={notReady} onChange={(e) => { setNotReady(e.target.checked); if (e.target.checked) clearFile(); }} />
+          I don't have this document right now — save it as pending, I'll add it later
+        </label>
+        {notReady && (
+          <input className="form-input" placeholder="Reason (optional) — e.g. waiting for the institution to issue it" value={pendingReason} onChange={(e) => setPendingReason(e.target.value)} />
+        )}
+
+        <button type="submit" className="btn btn-primary" disabled={adding} style={{ padding: '8px 18px', fontSize: '0.8rem', justifySelf: 'start' }}>{adding ? 'Adding...' : notReady ? 'Save as Pending' : 'Add to Locker'}</button>
+      </form>
+
+      {documents === null ? (
+        <p role="status" className="admin-notice">Loading...</p>
+      ) : documents.length === 0 ? (
+        <div className="student-empty-state" style={{ border: '1px solid var(--sand-line)', borderRadius: 18 }}>
+          <FaLock aria-hidden="true" />
+          <p>Your locker is empty</p>
+          <span>Add your first document above.</span>
+        </div>
+      ) : (
+        <div style={{ display: 'grid', gap: 10 }}>
+          {documents.map((d) => (
+            <div key={d._id} className="hover-card card flex items-center justify-between flex-wrap" style={{ padding: 14, gap: 12 }}>
+              <div className="flex items-center" style={{ gap: 12, minWidth: 0 }}>
+                <span style={{ width: 34, height: 34, borderRadius: 10, background: 'var(--sand)', color: 'var(--forest)', display: 'grid', placeItems: 'center', flexShrink: 0 }}><FaLock aria-hidden="true" size={13} /></span>
+                <div style={{ minWidth: 0 }}>
+                  <strong className="text-sm">{d.title}</strong>
+                  <p className="text-xs" style={{ color: 'var(--ink-soft)', marginTop: 2 }}>
+                    {DOCUMENT_CATEGORY_LABEL[d.category] || 'Other'} · Added {new Date(d.createdAt).toLocaleDateString()}
+                    {d.status === 'pending' && <> · <Tag status="pending" label="Pending" /></>}
+                  </p>
+                  {d.status === 'pending' && d.pendingReason && <p className="text-xs" style={{ color: 'var(--ink-soft)', marginTop: 2, fontStyle: 'italic' }}>"{d.pendingReason}"</p>}
+                </div>
+              </div>
+              <div className="flex items-center gap-2" style={{ flexShrink: 0 }}>
+                {d.status === 'pending' ? (
+                  uploadingFor === d._id ? (
+                    <>
+                      <label className="btn btn-primary" style={{ padding: '5px 12px', fontSize: '0.72rem', cursor: 'pointer' }}>
+                        Choose File
+                        <input type="file" accept="image/*,.pdf,.doc,.docx" onChange={(e) => uploadForPending(d._id, e)} style={{ display: 'none' }} />
+                      </label>
+                      <button type="button" className="btn" style={{ padding: '5px 12px', fontSize: '0.72rem' }} onClick={() => setUploadingFor(null)}>Cancel</button>
+                    </>
+                  ) : (
+                    <button type="button" className="btn btn-primary" style={{ padding: '5px 12px', fontSize: '0.72rem' }} onClick={() => setUploadingFor(d._id)}>Upload Now</button>
+                  )
+                ) : (
+                  <a href={d.fileUrl} target="_blank" rel="noreferrer" className="btn" style={{ padding: '5px 12px', fontSize: '0.72rem' }}>View</a>
+                )}
+                <button type="button" className="btn" style={{ padding: '5px 12px', fontSize: '0.72rem' }} onClick={() => removeDocument(d._id)}>Remove</button>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// Student sidebar — Digital Student ID (spec Part 10.18): a QR-verifiable ID card built from
+// real StudentProfile/enrollment data — anyone can scan the QR and confirm this is a real
+// enrolled student, without seeing anything private.
+function StudentDigitalIdPanel({ onFlash }) {
+  const [id, setId] = useState(null);
+  const [enrolling, setEnrolling] = useState(false);
+  const [faceEnrolled, setFaceEnrolled] = useState(false);
+  useEffect(() => { apiRequest('/students/me/student-id').then(setId).catch((err) => onFlash(err.message)); }, [onFlash]);
+
+  async function enrollFace() {
+    if (!id?.profilePhoto) { onFlash('Add a profile photo first (Personal Information tab), then come back here.'); return; }
+    setEnrolling(true);
+    try {
+      const { computeDescriptorFromImageUrl } = await import('../utils/faceApi');
+      const descriptor = await computeDescriptorFromImageUrl(id.profilePhoto);
+      await apiRequest('/students/me/face-descriptor', { method: 'PUT', body: { descriptor } });
+      setFaceEnrolled(true);
+      onFlash('Face enrolled — your teacher can now mark you present with Face Scan attendance.', 'success');
+    } catch (err) { onFlash(err.message); } finally { setEnrolling(false); }
+  }
+
+  if (id === null) return <p role="status" className="admin-notice">Loading...</p>;
+
+  return (
+    <div>
+      <div className="flex items-center" style={{ gap: 12, marginBottom: 24 }}>
+        <span style={{ width: 38, height: 38, borderRadius: 10, background: 'var(--sand)', color: 'var(--forest)', display: 'grid', placeItems: 'center', flexShrink: 0 }}><FaQrcode aria-hidden="true" size={16} /></span>
+        <h3 className="font-semibold" style={{ margin: 0 }}>Digital Student ID</h3>
+      </div>
+
+      <div className="card" style={{ padding: 0, maxWidth: 420, overflow: 'hidden' }}>
+        <div style={{ background: 'linear-gradient(120deg, var(--forest-deep), var(--forest))', padding: '18px 22px', color: '#fff' }}>
+          <span style={{ fontSize: 11, fontWeight: 700, letterSpacing: '.08em', textTransform: 'uppercase', opacity: 0.85 }}>CareerZ Verified Student</span>
+        </div>
+        <div style={{ padding: 22, display: 'flex', gap: 16, alignItems: 'center' }}>
+          {id.profilePhoto
+            ? <img src={id.profilePhoto} alt="" style={{ width: 64, height: 64, borderRadius: 14, objectFit: 'cover', flexShrink: 0 }} />
+            : <div style={{ width: 64, height: 64, borderRadius: 14, background: 'var(--sand)', color: 'var(--forest)', display: 'grid', placeItems: 'center', fontWeight: 700, fontSize: 22, flexShrink: 0 }}>{(id.fullName || '?')[0]}</div>}
+          <div style={{ minWidth: 0 }}>
+            <strong style={{ fontSize: 17 }}>{id.fullName}</strong>
+            <p className="text-xs" style={{ color: 'var(--ink-soft)', marginTop: 4 }}>Roll No: {id.rollNumber || '—'}</p>
+            <p className="text-xs" style={{ color: 'var(--ink-soft)', marginTop: 2 }}>{id.institution?.name || 'No institution linked'}{id.classSection?.name ? ` · ${id.classSection.name}` : ''}</p>
+            <div style={{ marginTop: 8 }}><Tag status={id.status === 'active' ? 'approved' : 'pending'} label={id.status === 'active' ? 'Active' : id.status} /></div>
+          </div>
+        </div>
+        <div style={{ padding: '0 22px 22px', display: 'flex', alignItems: 'center', gap: 16, borderTop: '1px solid var(--sand-line)', paddingTop: 18 }}>
+          <img src={id.qrDataUrl} alt="Student ID verification QR code" style={{ width: 84, height: 84, borderRadius: 10, border: '1px solid var(--sand-line)' }} />
+          <div style={{ minWidth: 0 }}>
+            <p className="text-xs" style={{ color: 'var(--ink-soft)', lineHeight: 1.6 }}>Anyone can scan this code to verify your enrollment status instantly — no login required.</p>
+            <a href={id.verifyUrl} target="_blank" rel="noreferrer" className="text-xs" style={{ color: 'var(--emerald)', display: 'inline-block', marginTop: 6 }}>Open verification link ↗</a>
+          </div>
+        </div>
+      </div>
+
+      <div className="card" style={{ padding: 20, maxWidth: 420, marginTop: 20 }}>
+        <h4 className="font-semibold mb-2" style={{ fontSize: '0.9rem' }}>Face Scan Attendance</h4>
+        <p className="text-xs mb-3" style={{ color: 'var(--ink-soft)' }}>
+          Optional — enroll your face (computed from your profile photo, entirely in your browser) so your teacher can mark you present with a camera scan instead of a QR code. Only a set of numbers is stored, never the photo itself, and accuracy is moderate (a regular webcam, not dedicated biometric hardware).
+        </p>
+        <button type="button" className="btn btn-primary" onClick={enrollFace} disabled={enrolling}>
+          {enrolling ? 'Enrolling...' : faceEnrolled ? '✓ Face Enrolled' : 'Enroll My Face'}
+        </button>
+      </div>
+    </div>
+  );
+}
+
+// Student sidebar — Learning Analytics (spec Part 10.12): per-subject averages computed from
+// real Result documents, and a weekly attendance trend from real Attendance records.
+function StudentLearningAnalyticsPanel({ onFlash }) {
+  const [data, setData] = useState(null);
+  useEffect(() => { apiRequest('/students/me/learning-analytics').then(setData).catch((err) => onFlash(err.message)); }, [onFlash]);
+
+  if (data === null) return <p role="status" className="admin-notice">Loading...</p>;
+
+  const readinessColor = { Strong: 'emerald', 'Needs Practice': 'gold', 'At Risk': 'rose, #e11d48' }[data.examReadiness] || 'ink-soft';
+  const maxWeek = Math.max(...data.attendanceTrend.map((w) => w.ratePercent), 1);
+
+  return (
+    <div>
+      <div className="flex items-center" style={{ gap: 12, marginBottom: 24 }}>
+        <span style={{ width: 38, height: 38, borderRadius: 10, background: 'var(--sand)', color: 'var(--forest)', display: 'grid', placeItems: 'center', flexShrink: 0 }}><FaChartLine aria-hidden="true" size={16} /></span>
+        <h3 className="font-semibold" style={{ margin: 0 }}>Learning Analytics</h3>
+      </div>
+
+      {data.subjectPerformance.length === 0 ? (
+        <div className="student-empty-state" style={{ border: '1px solid var(--sand-line)', borderRadius: 18 }}>
+          <FaChartLine aria-hidden="true" />
+          <p>No results recorded yet</p>
+          <span>Analytics will appear once your teachers record test results.</span>
+        </div>
+      ) : (
+        <>
+          <div className="grid grid-cols-2 md:grid-cols-3 gap-3" style={{ marginBottom: 24 }}>
+            <div className="card" style={{ padding: 18 }}>
+              <span style={{ fontSize: 11, fontWeight: 700, letterSpacing: '.04em', textTransform: 'uppercase', color: 'var(--ink-soft)' }}>Overall Average</span>
+              <strong style={{ fontSize: 22, fontFamily: 'Fraunces, serif', display: 'block', marginTop: 6 }}>{data.overallAverage ?? '—'}%</strong>
+            </div>
+            <div className="card" style={{ padding: 18 }}>
+              <span style={{ fontSize: 11, fontWeight: 700, letterSpacing: '.04em', textTransform: 'uppercase', color: 'var(--ink-soft)' }}>Exam Readiness</span>
+              <strong style={{ fontSize: 22, fontFamily: 'Fraunces, serif', display: 'block', marginTop: 6, color: `var(--${readinessColor})` }}>{data.examReadiness || '—'}</strong>
+            </div>
+          </div>
+
+          <p style={{ fontSize: 11, fontWeight: 700, letterSpacing: '.04em', textTransform: 'uppercase', color: 'var(--ink-soft)', marginBottom: 12 }}>Subject Performance</p>
+          <div className="card" style={{ padding: 20, marginBottom: 24, display: 'grid', gap: 14 }}>
+            {data.subjectPerformance.map((s) => (
+              <div key={s.subject}>
+                <div className="student-progress-row">
+                  <span className="text-xs">{s.subject}{s.subject === data.weakestSubjects[0]?.subject && <span style={{ color: 'var(--rose, #e11d48)' }}> (weakest)</span>}{s.subject === data.strongestSubjects[0]?.subject && s.subject !== data.weakestSubjects[0]?.subject && <span style={{ color: 'var(--emerald)' }}> (strongest)</span>}</span>
+                  <strong className="text-xs">{s.averagePercent}% · {s.testsCount} test{s.testsCount === 1 ? '' : 's'}</strong>
+                </div>
+                <progress className="student-progress-bar" max="100" value={s.averagePercent} aria-label={`${s.subject} average`} />
+              </div>
+            ))}
+          </div>
+
+          {data.attendanceTrend.length > 0 && (
+            <>
+              <p style={{ fontSize: 11, fontWeight: 700, letterSpacing: '.04em', textTransform: 'uppercase', color: 'var(--ink-soft)', marginBottom: 12 }}>Weekly Attendance Trend</p>
+              <div className="card" style={{ padding: 20 }}>
+                <div className="flex items-end gap-2" style={{ height: 80 }}>
+                  {data.attendanceTrend.map((w) => (
+                    <div key={w.week} title={`${w.week}: ${w.ratePercent}%`} style={{ flex: 1, height: `${Math.max((w.ratePercent / maxWeek) * 100, 3)}%`, background: 'var(--emerald)', borderRadius: '3px 3px 0 0' }} />
+                  ))}
+                </div>
+                <p className="text-xs" style={{ color: 'var(--ink-soft)', marginTop: 10 }}>{data.attendanceTrend.length} week{data.attendanceTrend.length === 1 ? '' : 's'} tracked</p>
+              </div>
+            </>
+          )}
+        </>
+      )}
+    </div>
+  );
+}
+
+const GOAL_CATEGORIES = [
+  { value: 'academic', label: 'Academic' },
+  { value: 'scholarship', label: 'Scholarship' },
+  { value: 'job', label: 'Job' },
+  { value: 'skill', label: 'Skill' },
+  { value: 'other', label: 'Other' }
+];
+const TIMELINE_ICON = {
+  'Course Completed': { icon: FaBookOpen, color: 'forest' },
+  'Certificate Earned': { icon: FaAward, color: 'gold' },
+  'High Score': { icon: FaChartLine, color: 'emerald' },
+  'Scholarship Won': { icon: FaGraduationCap, color: 'gold' },
+  'Job Offer Accepted': { icon: FaBriefcase, color: 'forest' },
+  'Goal Achieved': { icon: FaAward, color: 'emerald' }
+};
+
+// Student sidebar — Goal Tracking (Part 10.22), Achievement Timeline (Part 10.23) and
+// Reputation/Badges (Part 10.19), as three sub-tabs of one panel.
+function StudentGoalsAchievementsPanel({ onFlash }) {
+  const [sub, setSub] = useState('goals');
+  const tabs = [
+    { key: 'goals', label: 'Goals' },
+    { key: 'timeline', label: 'Achievement Timeline' },
+    { key: 'badges', label: 'Badges' }
+  ];
+  return (
+    <div>
+      <nav className="cz-tabbar" style={{ marginBottom: 20 }}>
+        {tabs.map((t) => (
+          <button key={t.key} type="button" aria-pressed={sub === t.key} className={`cz-tab${sub === t.key ? ' active' : ''}`} onClick={() => setSub(t.key)}>{t.label}</button>
+        ))}
+      </nav>
+      {sub === 'goals' && <StudentGoalsSubPanel onFlash={onFlash} />}
+      {sub === 'timeline' && <StudentTimelineSubPanel onFlash={onFlash} />}
+      {sub === 'badges' && <StudentBadgesSubPanel onFlash={onFlash} />}
+    </div>
+  );
+}
+
+function StudentGoalsSubPanel({ onFlash }) {
+  const [goals, setGoals] = useState(null);
+  const [form, setForm] = useState({ title: '', category: 'academic', targetDate: '' });
+  const [adding, setAdding] = useState(false);
+
+  function load() { apiRequest('/students/me/goals').then(setGoals).catch((err) => onFlash(err.message)); }
+  useEffect(load, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  async function addGoal(e) {
+    e.preventDefault();
+    if (!form.title.trim()) return;
+    setAdding(true);
+    try {
+      await apiRequest('/students/me/goals', { method: 'POST', body: { ...form, targetDate: form.targetDate || undefined } });
+      onFlash('Goal added.', 'success');
+      setForm({ title: '', category: 'academic', targetDate: '' });
+      load();
+    } catch (err) { onFlash(err.message); } finally { setAdding(false); }
+  }
+  async function setProgress(goal, progressPercent) {
+    try {
+      await apiRequest(`/students/me/goals/${goal._id}`, { method: 'PATCH', body: { progressPercent, status: progressPercent >= 100 ? 'completed' : 'active' } });
+      load();
+    } catch (err) { onFlash(err.message); }
+  }
+  async function abandonGoal(id) {
+    try { await apiRequest(`/students/me/goals/${id}`, { method: 'PATCH', body: { status: 'abandoned' } }); load(); } catch (err) { onFlash(err.message); }
+  }
+  async function removeGoal(id) {
+    try { await apiRequest(`/students/me/goals/${id}`, { method: 'DELETE' }); onFlash('Goal removed.', 'success'); load(); } catch (err) { onFlash(err.message); }
+  }
+
+  const active = (goals || []).filter((g) => g.status === 'active');
+  const done = (goals || []).filter((g) => g.status !== 'active');
+
+  return (
+    <div>
+      <form onSubmit={addGoal} className="card" style={{ padding: 20, marginBottom: 24, display: 'grid', gap: 14 }}>
+        <p style={{ fontSize: 11, fontWeight: 700, letterSpacing: '.04em', textTransform: 'uppercase', color: 'var(--ink-soft)' }}>Set a New Goal</p>
+        <input className="form-input" placeholder="e.g. Score 90% in Algebra Final" value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })} />
+        <div className="flex flex-wrap" style={{ gap: 14 }}>
+          <div style={{ flex: '1 1 180px', minWidth: 0 }}>
+            <CustomSelect value={form.category} onChange={(v) => setForm({ ...form, category: v })} ariaLabel="Goal category" minWidth="100%" options={GOAL_CATEGORIES} />
+          </div>
+          <input className="form-input" type="date" value={form.targetDate} onChange={(e) => setForm({ ...form, targetDate: e.target.value })} style={{ flex: '1 1 180px', minWidth: 0 }} />
+        </div>
+        <button type="submit" className="btn btn-primary" disabled={adding} style={{ padding: '8px 18px', fontSize: '0.8rem', justifySelf: 'start' }}>{adding ? 'Adding...' : 'Add Goal'}</button>
+      </form>
+
+      {goals === null ? (
+        <p role="status" className="admin-notice">Loading...</p>
+      ) : goals.length === 0 ? (
+        <div className="student-empty-state" style={{ border: '1px solid var(--sand-line)', borderRadius: 18 }}>
+          <FaAward aria-hidden="true" />
+          <p>No goals set yet</p>
+          <span>Set your first goal above.</span>
+        </div>
+      ) : (
+        <>
+          {active.length > 0 && (
+            <div className="card" style={{ padding: 20, marginBottom: 20, display: 'grid', gap: 16 }}>
+              <p style={{ fontSize: 11, fontWeight: 700, letterSpacing: '.04em', textTransform: 'uppercase', color: 'var(--ink-soft)' }}>Active Goals</p>
+              {active.map((g) => (
+                <div key={g._id}>
+                  <div className="student-progress-row">
+                    <span className="text-xs">{g.title} <span style={{ fontSize: 10, fontWeight: 700, letterSpacing: '.03em', textTransform: 'uppercase', color: 'var(--ink-soft)', background: 'var(--sand)', padding: '2px 8px', borderRadius: 999, marginLeft: 4 }}>{GOAL_CATEGORIES.find((c) => c.value === g.category)?.label || 'Other'}</span></span>
+                    <strong className="text-xs">{g.progressPercent}%{g.targetDate ? ` · Due ${new Date(g.targetDate).toLocaleDateString()}` : ''}</strong>
+                  </div>
+                  <progress className="student-progress-bar" max="100" value={g.progressPercent} aria-label={`${g.title} progress`} />
+                  <div className="flex items-center flex-wrap" style={{ gap: 8, marginTop: 8 }}>
+                    {[25, 50, 75, 100].map((p) => (
+                      <button key={p} type="button" className="btn" style={{ padding: '3px 10px', fontSize: '0.7rem' }} onClick={() => setProgress(g, p)}>{p}%</button>
+                    ))}
+                    <button type="button" className="btn" style={{ padding: '3px 10px', fontSize: '0.7rem' }} onClick={() => abandonGoal(g._id)}>Abandon</button>
+                    <button type="button" className="btn" style={{ padding: '3px 10px', fontSize: '0.7rem' }} onClick={() => removeGoal(g._id)}>Delete</button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+          {done.length > 0 && (
+            <div className="card" style={{ padding: 20 }}>
+              <p style={{ fontSize: 11, fontWeight: 700, letterSpacing: '.04em', textTransform: 'uppercase', color: 'var(--ink-soft)', marginBottom: 12 }}>Completed / Abandoned</p>
+              <div style={{ display: 'grid', gap: 8 }}>
+                {done.map((g) => (
+                  <div key={g._id} className="flex items-center justify-between flex-wrap" style={{ gap: 8, padding: '8px 0', borderBottom: '1px solid var(--sand-line)' }}>
+                    <span className="text-xs">{g.title}</span>
+                    <div className="flex items-center gap-2">
+                      <Tag status={g.status === 'completed' ? 'approved' : 'rejected'} label={g.status === 'completed' ? 'Completed' : 'Abandoned'} />
+                      <button type="button" className="btn" style={{ padding: '3px 10px', fontSize: '0.7rem' }} onClick={() => removeGoal(g._id)}>Delete</button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+        </>
+      )}
+    </div>
+  );
+}
+
+function StudentTimelineSubPanel({ onFlash }) {
+  const [timeline, setTimeline] = useState(null);
+  useEffect(() => { apiRequest('/students/me/achievement-timeline').then(setTimeline).catch((err) => onFlash(err.message)); }, [onFlash]);
+
+  if (timeline === null) return <p role="status" className="admin-notice">Loading...</p>;
+  if (timeline.length === 0) {
+    return (
+      <div className="student-empty-state" style={{ border: '1px solid var(--sand-line)', borderRadius: 18 }}>
+        <FaAward aria-hidden="true" />
+        <p>No achievements yet</p>
+        <span>Complete courses, earn certificates, hit goals — they'll show up here.</span>
+      </div>
+    );
+  }
+
+  return (
+    <div className="card" style={{ padding: 0 }}>
+      <div className="dash-list" style={{ gap: 0 }}>
+        {[...timeline].reverse().map((t, idx, arr) => {
+          const meta = TIMELINE_ICON[t.type] || { icon: FaAward, color: 'forest' };
+          const Icon = meta.icon;
+          return (
+            <div key={idx} className="dash-list-item" style={{ borderBottom: idx < arr.length - 1 ? '1px solid var(--sand-line)' : 'none' }}>
+              <span className={`dash-list-icon c-${meta.color}`} aria-hidden><Icon size={14} /></span>
+              <div className="dash-list-body"><div className="title">{t.type}</div><div className="desc">{t.title}{t.desc ? ` · ${t.desc}` : ''}</div></div>
+              <span className="dash-list-time">{new Date(t.date).toLocaleDateString()}</span>
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+function StudentBadgesSubPanel({ onFlash }) {
+  const [data, setData] = useState(null);
+  useEffect(() => { apiRequest('/students/me/badges').then(setData).catch((err) => onFlash(err.message)); }, [onFlash]);
+
+  if (data === null) return <p role="status" className="admin-notice">Loading...</p>;
+
+  return (
+    <div>
+      <div className="card" style={{ padding: 18, marginBottom: 20, display: 'flex', alignItems: 'center', gap: 14 }}>
+        <span style={{ width: 44, height: 44, borderRadius: 12, background: 'var(--sand)', color: 'var(--gold)', display: 'grid', placeItems: 'center', flexShrink: 0 }}><FaAward aria-hidden="true" size={18} /></span>
+        <div>
+          <strong style={{ fontSize: 20, fontFamily: 'Fraunces, serif' }}>{data.earnedCount} / {data.totalCount}</strong>
+          <p className="text-xs" style={{ color: 'var(--ink-soft)', marginTop: 2 }}>Badges earned so far</p>
+        </div>
+      </div>
+      <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+        {data.badges.map((b) => (
+          <div key={b.code} className="card" style={{ padding: 16, opacity: b.earned ? 1 : 0.5, textAlign: 'center' }}>
+            <span style={{ width: 44, height: 44, borderRadius: '50%', background: b.earned ? 'var(--emerald)' : 'var(--sand)', color: b.earned ? '#fff' : 'var(--ink-soft)', display: 'grid', placeItems: 'center', margin: '0 auto 10px' }}>
+              <FaAward aria-hidden="true" size={18} />
+            </span>
+            <strong className="text-sm" style={{ display: 'block' }}>{b.label}</strong>
+            <p className="text-xs" style={{ color: 'var(--ink-soft)', marginTop: 4, lineHeight: 1.5 }}>{b.desc}</p>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+// Student sidebar — Student Community (Part 10.20): Study Groups + Discussion Rooms.
+function StudentCommunityPanel({ onFlash, user }) {
+  const [sub, setSub] = useState('browse');
+  const [groups, setGroups] = useState(null);
+  const [myGroups, setMyGroups] = useState(null);
+  const [activeGroup, setActiveGroup] = useState(null);
+  const [form, setForm] = useState({ name: '', description: '', subject: '' });
+  const [creating, setCreating] = useState(false);
+
+  function load() {
+    apiRequest('/study-groups').then(setGroups).catch((err) => onFlash(err.message));
+    apiRequest('/study-groups/mine').then(setMyGroups).catch(() => setMyGroups([]));
+  }
+  useEffect(load, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const myGroupIds = new Set((myGroups || []).map((g) => g._id));
+
+  async function createGroup(e) {
+    e.preventDefault();
+    if (!form.name.trim()) return;
+    setCreating(true);
+    try {
+      await apiRequest('/study-groups', { method: 'POST', body: form });
+      onFlash('Study group created.', 'success');
+      setForm({ name: '', description: '', subject: '' });
+      load();
+    } catch (err) { onFlash(err.message); } finally { setCreating(false); }
+  }
+  async function joinGroup(id) {
+    try { await apiRequest(`/study-groups/${id}/join`, { method: 'POST' }); onFlash('Joined study group.', 'success'); load(); } catch (err) { onFlash(err.message); }
+  }
+
+  if (activeGroup) return <StudyGroupDetail group={activeGroup} user={user} onFlash={onFlash} onBack={() => { setActiveGroup(null); load(); }} />;
+
+  const tabs = [{ key: 'browse', label: 'Browse Groups' }, { key: 'mine', label: 'My Groups' }, { key: 'create', label: 'Create Group' }];
+
+  return (
+    <div>
+      <div className="flex items-center" style={{ gap: 12, marginBottom: 20 }}>
+        <span style={{ width: 38, height: 38, borderRadius: 10, background: 'var(--sand)', color: 'var(--forest)', display: 'grid', placeItems: 'center', flexShrink: 0 }}><FaUsers aria-hidden="true" size={16} /></span>
+        <h3 className="font-semibold" style={{ margin: 0 }}>Study Groups</h3>
+      </div>
+
+      <nav className="cz-tabbar" style={{ marginBottom: 20 }}>
+        {tabs.map((t) => (
+          <button key={t.key} type="button" aria-pressed={sub === t.key} className={`cz-tab${sub === t.key ? ' active' : ''}`} onClick={() => setSub(t.key)}>{t.label}</button>
+        ))}
+      </nav>
+
+      {sub === 'create' && (
+        <form onSubmit={createGroup} className="card" style={{ padding: 20, display: 'grid', gap: 14, maxWidth: 480 }}>
+          <input className="form-input" placeholder="Group name" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} />
+          <input className="form-input" placeholder="Subject (e.g. Math, Physics)" value={form.subject} onChange={(e) => setForm({ ...form, subject: e.target.value })} />
+          <textarea className="form-input" placeholder="What's this group about?" rows={3} value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} />
+          <button type="submit" className="btn btn-primary" disabled={creating} style={{ padding: '8px 18px', fontSize: '0.8rem', justifySelf: 'start' }}>{creating ? 'Creating...' : 'Create Group'}</button>
+        </form>
+      )}
+
+      {(sub === 'browse' || sub === 'mine') && (() => {
+        const list = sub === 'mine' ? myGroups : groups;
+        if (list === null) return <p role="status" className="admin-notice">Loading...</p>;
+        if (list.length === 0) {
+          return (
+            <div className="student-empty-state" style={{ border: '1px solid var(--sand-line)', borderRadius: 18 }}>
+              <FaUsers aria-hidden="true" />
+              <p>{sub === 'mine' ? "You haven't joined any groups yet" : 'No study groups yet'}</p>
+              <span>{sub === 'mine' ? 'Browse groups or create your own.' : 'Be the first to create one!'}</span>
+            </div>
+          );
+        }
+        return (
+          <div style={{ display: 'grid', gap: 10 }}>
+            {list.map((g) => (
+              <div key={g._id} className="hover-card card flex items-center justify-between flex-wrap" style={{ padding: 16, gap: 14 }}>
+                <div className="flex items-center" style={{ gap: 14, minWidth: 0, cursor: 'pointer' }} onClick={() => setActiveGroup(g)}>
+                  <span style={{ width: 40, height: 40, borderRadius: 12, background: 'var(--sand)', color: 'var(--forest)', display: 'grid', placeItems: 'center', flexShrink: 0, fontWeight: 700 }}>{g.name[0]}</span>
+                  <div style={{ minWidth: 0 }}>
+                    <strong className="text-sm">{g.name}</strong>
+                    <p className="text-xs" style={{ color: 'var(--ink-soft)', marginTop: 2 }}>{g.subject ? `${g.subject} · ` : ''}{g.memberCount} member{g.memberCount === 1 ? '' : 's'} · by {g.createdBy?.fullName || 'a student'}</p>
+                  </div>
+                </div>
+                {myGroupIds.has(g._id)
+                  ? <button type="button" className="btn" style={{ padding: '6px 14px', fontSize: '0.75rem', flexShrink: 0 }} onClick={() => setActiveGroup(g)}>Open</button>
+                  : <button type="button" className="btn btn-primary" style={{ padding: '6px 14px', fontSize: '0.75rem', flexShrink: 0 }} onClick={() => joinGroup(g._id)}>Join</button>}
+              </div>
+            ))}
+          </div>
+        );
+      })()}
+    </div>
+  );
+}
+
+function StudyGroupDetail({ group, user, onFlash, onBack }) {
+  const [posts, setPosts] = useState(null);
+  const [text, setText] = useState('');
+  const [members, setMembers] = useState(group.members || []);
+
+  function load() {
+    apiRequest(`/study-groups/${group._id}/posts`).then(setPosts).catch((err) => onFlash(err.message));
+    apiRequest(`/study-groups/${group._id}`).then((g) => setMembers(g.members || [])).catch(() => {});
+  }
+  useEffect(load, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  async function send(e) {
+    e.preventDefault();
+    if (!text.trim()) return;
+    try {
+      await apiRequest(`/study-groups/${group._id}/posts`, { method: 'POST', body: { text: text.trim() } });
+      setText('');
+      load();
+    } catch (err) { onFlash(err.message); }
+  }
+  async function leave() {
+    try {
+      await apiRequest(`/study-groups/${group._id}/leave`, { method: 'POST' });
+      onFlash('Left the group.', 'success');
+      onBack();
+    } catch (err) { onFlash(err.message); }
+  }
+
+  return (
+    <div>
+      <button type="button" className="btn" style={{ padding: '6px 14px', fontSize: '0.75rem', marginBottom: 16 }} onClick={onBack}>← Back to Study Groups</button>
+
+      <div className="card" style={{ padding: 20, marginBottom: 20, display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 14 }}>
+        <div className="flex items-center" style={{ gap: 14, minWidth: 0 }}>
+          <span style={{ width: 44, height: 44, borderRadius: 12, background: 'var(--sand)', color: 'var(--forest)', display: 'grid', placeItems: 'center', flexShrink: 0, fontWeight: 700, fontSize: 18 }}>{group.name[0]}</span>
+          <div style={{ minWidth: 0 }}>
+            <strong className="text-sm">{group.name}</strong>
+            <p className="text-xs" style={{ color: 'var(--ink-soft)', marginTop: 2 }}>{group.subject ? `${group.subject} · ` : ''}{members.length} member{members.length === 1 ? '' : 's'}</p>
+            {group.description && <p className="text-xs" style={{ color: 'var(--ink-soft)', marginTop: 4 }}>{group.description}</p>}
+          </div>
+        </div>
+        <button type="button" className="btn" style={{ padding: '6px 14px', fontSize: '0.75rem', flexShrink: 0 }} onClick={leave}>Leave Group</button>
+      </div>
+
+      <div className="card" style={{ padding: '10px 14px', marginBottom: 14, maxHeight: 380, overflowY: 'auto' }}>
+        {posts === null && <p role="status" className="admin-notice">Loading...</p>}
+        {posts && posts.length === 0 && (
+          <div className="student-empty-state" style={{ minHeight: 100, padding: '16px 0' }}>
+            <p>No messages yet</p>
+            <span>Start the discussion below.</span>
+          </div>
+        )}
+        {(posts || []).map((p, idx) => (
+          <div key={p._id} style={{ padding: '10px 4px', borderBottom: idx < posts.length - 1 ? '1px solid var(--sand-line)' : 'none' }}>
+            <div className="flex items-center" style={{ gap: 8 }}>
+              <span style={{ width: 22, height: 22, borderRadius: '50%', background: 'var(--forest)', color: '#fff', display: 'grid', placeItems: 'center', fontSize: 10, fontWeight: 700, flexShrink: 0 }}>{(p.author?.fullName || '?')[0]}</span>
+              <strong className="text-xs">{p.author?.fullName}</strong>
+              <span className="text-xs" style={{ color: 'var(--ink-soft)' }}>{new Date(p.createdAt).toLocaleString()}</span>
+            </div>
+            <div style={{ fontSize: 13, marginTop: 4, marginLeft: 30 }}>{p.text}</div>
+          </div>
+        ))}
+      </div>
+      <form onSubmit={send} className="flex items-end" style={{ gap: 12 }}>
+        <input className="form-input" placeholder="Message this group..." value={text} onChange={(e) => setText(e.target.value)} required style={{ flex: '1 1 auto', minWidth: 0 }} />
+        <button type="submit" className="btn btn-primary" style={{ flexShrink: 0 }}>Send</button>
+      </form>
+    </div>
+  );
+}
+
 function StudentJobsPanel({ onFlash, user }) {
   const [sub, setSub] = useState('dashboard');
   const TABS = [
     { key: 'dashboard', label: 'Dashboard' },
     { key: 'profile', label: 'My Profile' },
     { key: 'search', label: 'Search Jobs' },
+    { key: 'internships', label: 'Internships' },
     { key: 'recommended', label: 'Recommended Jobs' },
     { key: 'saved', label: 'Saved Jobs' },
     { key: 'applications', label: 'My Applications' },
@@ -801,6 +1717,7 @@ function StudentJobsPanel({ onFlash, user }) {
       {sub === 'dashboard' && <JobDashboardPanel onFlash={onFlash} onNavigate={navigate} user={user} />}
       {sub === 'profile' && <JobMyProfilePanel onFlash={onFlash} onNavigate={setSub} />}
       {sub === 'search' && <JobSearchPanel onFlash={onFlash} />}
+      {sub === 'internships' && <InternshipsPanel onFlash={onFlash} />}
       {sub === 'recommended' && <RecommendedJobsPanel onFlash={onFlash} />}
       {sub === 'saved' && <SavedJobsPanel onFlash={onFlash} />}
       {sub === 'applications' && <MyApplicationsPanel onFlash={onFlash} />}
@@ -855,7 +1772,7 @@ function JobDetailModal({ job, onClose, isSaved, onToggleSave, onApply }) {
           <div className="flex items-center gap-3">
             <JobLogo job={job} size={44} />
             <div>
-              <h3>{job.title}</h3>
+              <h3>{job.title}{job.featured && new Date(job.featuredUntil) > new Date() && <span style={{ marginLeft: 8 }}><Tag status="approved" label="Featured" /></span>}</h3>
               <p className="text-xs" style={{ color: 'var(--ink-soft)' }}>{job.company}</p>
             </div>
           </div>
@@ -965,7 +1882,7 @@ function JobDashboardPanel({ onFlash, onNavigate, user }) {
                 <div className="flex items-start" style={{ gap: 14 }}>
                   <JobLogo job={j} size={44} />
                   <div>
-                    <strong className="text-sm">{j.title}</strong>
+                    <strong className="text-sm">{j.title}{j.featured && new Date(j.featuredUntil) > new Date() && <span style={{ marginLeft: 6 }}><Tag status="approved" label="Featured" /></span>}</strong>
                     <p className="text-xs" style={{ color: 'var(--ink-soft)', marginTop: 4 }}>{j.company} · {j.city ? `${j.city}, ` : ''}{j.country} · {WORK_MODE_LABEL[j.workMode] || 'Onsite'} · {j.type?.replace('_', ' ')}{j.visaSponsorship ? ' · Visa sponsorship' : ''}</p>
                     <p className="text-xs" style={{ color: 'var(--ink-soft)', marginTop: 4 }}>{formatSalary(j)} · {j.experienceYears || 0}+ yrs exp · Posted {new Date(j.createdAt).toLocaleDateString()}</p>
                   </div>
@@ -1285,6 +2202,123 @@ function JobSearchPanel({ onFlash }) {
           );
         })}
       </div>
+      <JobDetailModal
+        job={viewingJob}
+        onClose={() => setViewingJob(null)}
+        isSaved={viewingJob ? savedIds.includes(viewingJob._id) : false}
+        onToggleSave={toggleSave}
+        onApply={(id) => { apply(id); setViewingJob(null); }}
+      />
+    </div>
+  );
+}
+
+// Student sidebar — Internship Center (Part 10.9): browse + apply reuses the same Job
+// infrastructure (Job.type = 'internship' already exists), with a dedicated "My Internships"
+// application-status view so internships don't get lost inside the general Jobs search.
+function InternshipsPanel({ onFlash }) {
+  const [sub, setSub] = useState('browse');
+  const [internships, setInternships] = useState(null);
+  const [applications, setApplications] = useState(null);
+  const [savedIds, setSavedIds] = useState([]);
+  const [viewingJob, setViewingJob] = useState(null);
+
+  function load() {
+    apiRequest('/jobs?type=internship').then(setInternships).catch((err) => onFlash(err.message));
+    apiRequest('/jobs/mine/saved').then((list) => setSavedIds(list.map((j) => j._id))).catch(() => {});
+    apiRequest('/jobs/mine/applications').then((apps) => setApplications(apps.filter((a) => a.job?.type === 'internship'))).catch(() => setApplications([]));
+  }
+  useEffect(load, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  async function apply(jobId) {
+    try { await apiRequest(`/jobs/${jobId}/apply`, { method: 'POST', body: {} }); onFlash('Application submitted.', 'success'); load(); } catch (err) { onFlash(err.message); }
+  }
+  async function toggleSave(jobId, isSaved) {
+    try {
+      await apiRequest(`/jobs/${jobId}/save`, { method: isSaved ? 'DELETE' : 'POST' });
+      setSavedIds((prev) => (isSaved ? prev.filter((id) => id !== jobId) : [...prev, jobId]));
+    } catch (err) { onFlash(err.message); }
+  }
+
+  const appliedJobIds = new Set((applications || []).map((a) => a.job?._id));
+  const completedCount = (applications || []).filter((a) => a.status === 'hired').length;
+
+  return (
+    <div>
+      <div className="flex items-center" style={{ gap: 12, marginBottom: 20 }}>
+        <span style={{ width: 38, height: 38, borderRadius: 10, background: 'var(--sand)', color: 'var(--gold)', display: 'grid', placeItems: 'center', flexShrink: 0 }}><FaGraduationCap aria-hidden="true" size={16} /></span>
+        <div>
+          <h3 className="font-semibold" style={{ margin: 0 }}>Internships</h3>
+          <p className="text-xs" style={{ color: 'var(--ink-soft)', marginTop: 2 }}>{applications === null ? 'Loading...' : `${applications.length} applied · ${completedCount} completed`}</p>
+        </div>
+      </div>
+
+      <nav className="cz-tabbar" style={{ marginBottom: 20 }}>
+        {[{ key: 'browse', label: 'Browse Internships' }, { key: 'applications', label: 'My Applications' }].map((t) => (
+          <button key={t.key} type="button" aria-pressed={sub === t.key} className={`cz-tab${sub === t.key ? ' active' : ''}`} onClick={() => setSub(t.key)}>{t.label}</button>
+        ))}
+      </nav>
+
+      {sub === 'browse' && (
+        internships === null ? <p role="status" className="admin-notice">Loading...</p>
+        : internships.length === 0 ? (
+          <div className="student-empty-state" style={{ border: '1px solid var(--sand-line)', borderRadius: 18 }}>
+            <FaGraduationCap aria-hidden="true" />
+            <p>No internships posted yet</p>
+            <span>Check back soon, or set a Job Alert for "internship" to get notified.</span>
+          </div>
+        ) : (
+          <div style={{ display: 'grid', gap: 10 }}>
+            {internships.map((j) => {
+              const isSaved = savedIds.includes(j._id);
+              const applied = appliedJobIds.has(j._id);
+              return (
+                <div key={j._id} className="hover-card card" style={{ padding: 16 }}>
+                  <div className="flex items-start justify-between flex-wrap" style={{ gap: 12 }}>
+                    <div className="flex items-start" style={{ gap: 12, minWidth: 0 }}>
+                      <JobLogo job={j} />
+                      <div style={{ minWidth: 0 }}>
+                        <strong className="text-sm">{j.title}</strong>
+                        <p className="text-xs" style={{ color: 'var(--ink-soft)', marginTop: 2 }}>{j.company} · {j.city ? `${j.city}, ` : ''}{j.country} · {WORK_MODE_LABEL[j.workMode] || 'Onsite'}{j.visaSponsorship ? ' · Visa sponsorship' : ''}</p>
+                      </div>
+                    </div>
+                    <span className="text-xs" style={{ color: 'var(--ink-soft)', flexShrink: 0 }}>{formatSalary(j)}</span>
+                  </div>
+                  <div className="flex gap-2 items-center flex-wrap" style={{ marginTop: 12 }}>
+                    <button type="button" className="btn" style={{ padding: '6px 14px', fontSize: '0.75rem' }} onClick={() => recordJobView(j, setViewingJob)}>View Details</button>
+                    {applied
+                      ? <Tag status="pending" label="Applied" />
+                      : <button type="button" className="btn btn-primary" style={{ padding: '6px 14px', fontSize: '0.75rem' }} onClick={() => apply(j._id)}>Apply</button>}
+                    <button type="button" className="btn" style={{ padding: '6px 14px', fontSize: '0.75rem' }} onClick={() => toggleSave(j._id, isSaved)}>{isSaved ? '★ Saved' : '☆ Save'}</button>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )
+      )}
+
+      {sub === 'applications' && (
+        applications === null ? <p role="status" className="admin-notice">Loading...</p>
+        : applications.length === 0 ? (
+          <div className="student-empty-state" style={{ border: '1px solid var(--sand-line)', borderRadius: 18 }}>
+            <FaGraduationCap aria-hidden="true" />
+            <p>No internship applications yet</p>
+            <span>Browse internships and apply to see them here.</span>
+          </div>
+        ) : (
+          <Table
+            headers={['Internship', 'Company', 'Status', 'Applied']}
+            rows={applications.map((a) => [
+              a.job?.title, a.job?.company,
+              <Tag status={JOB_APP_STATUS[a.status]?.tag} label={a.status === 'hired' ? 'Completed / Hired' : (JOB_APP_STATUS[a.status]?.label || a.status)} />,
+              new Date(a.createdAt).toLocaleDateString()
+            ])}
+            empty="No internship applications yet."
+          />
+        )
+      )}
+
       <JobDetailModal
         job={viewingJob}
         onClose={() => setViewingJob(null)}
@@ -1699,13 +2733,472 @@ function JobAlertsPanel({ onFlash }) {
   );
 }
 
+const AI_PROVIDERS = [
+  { value: 'openai', label: 'OpenAI (ChatGPT)' },
+  { value: 'claude', label: 'Anthropic (Claude)' },
+  { value: 'gemini', label: 'Google (Gemini)' },
+  { value: 'deepseek', label: 'DeepSeek' }
+];
+
+const AI_PURPOSES = [
+  { key: 'text', label: 'Text (notes, quiz, career advice...)', providers: AI_PROVIDERS },
+  { key: 'image', label: 'Images / Graphics', providers: [{ value: 'openai', label: 'OpenAI (DALL-E)' }, { value: 'stability', label: 'Stability AI' }] },
+  { key: 'threed', label: '3D Models', providers: [{ value: 'meshy', label: 'Meshy AI' }] },
+  { key: 'voice', label: 'Voice (narration)', providers: [{ value: 'elevenlabs', label: 'ElevenLabs' }] },
+  { key: 'avatar', label: 'Avatar Video', providers: [{ value: 'heygen', label: 'HeyGen' }] },
+  { key: 'animation', label: 'Animation', providers: [{ value: 'runway', label: 'Runway ML' }] }
+];
+
+// Real BYOK AI settings (spec Part 14/17E, "AI Creative Teacher" Part 15B.6-15B.7) — CareerZ
+// never supplies or bills AI itself. Each row below is a different AI category (text, image, 3D,
+// voice, avatar-video) — connect only the ones you actually want to use, independently.
+function AiSettingsPanel({ onFlash, onChanged, purposes = AI_PURPOSES }) {
+  const [status, setStatus] = useState(null);
+  const [forms, setForms] = useState({});
+  const [saving, setSaving] = useState(null);
+
+  function load() { apiRequest('/ai/config').then(setStatus).catch((err) => onFlash(err.message)); }
+  useEffect(load, []);
+
+  function formFor(purposeKey) {
+    return forms[purposeKey] || { provider: purposes.find((p) => p.key === purposeKey)?.providers[0]?.value, apiKey: '' };
+  }
+
+  async function save(purposeKey, e) {
+    e.preventDefault();
+    const f = formFor(purposeKey);
+    setSaving(purposeKey);
+    try {
+      await apiRequest('/ai/config', { method: 'PUT', body: { purpose: purposeKey, provider: f.provider, apiKey: f.apiKey } });
+      onFlash('AI provider connected.', 'success');
+      setForms((prev) => ({ ...prev, [purposeKey]: { ...f, apiKey: '' } }));
+      load();
+      onChanged?.();
+    } catch (err) { onFlash(err.message); } finally { setSaving(null); }
+  }
+
+  async function remove(purposeKey) {
+    try {
+      await apiRequest(`/ai/config/${purposeKey}`, { method: 'DELETE' });
+      onFlash('AI provider disconnected.', 'success');
+      load();
+      onChanged?.();
+    } catch (err) { onFlash(err.message); }
+  }
+
+  if (!status) return <p role="status" className="admin-notice">Loading...</p>;
+
+  return (
+    <div className="card" style={{ padding: 20, marginBottom: 24 }}>
+      <h4 className="font-semibold mb-2" style={{ fontSize: '0.9rem' }}>AI Provider Settings</h4>
+      <p className="text-xs mb-3" style={{ color: 'var(--ink-soft)' }}>
+        Bring your own API key per category below — CareerZ only connects to it, it never pays for or supplies AI itself. You're billed directly by whichever provider you choose. Connect only what you'll actually use.
+      </p>
+      <div className="space-y-3">
+        {purposes.map((p) => {
+          const s = status[p.key] || { configured: false };
+          const f = formFor(p.key);
+          return (
+            <div key={p.key} style={{ paddingBottom: 10, borderBottom: '1px solid var(--sand-line)' }}>
+              <p className="text-xs font-semibold mb-2">{p.label}</p>
+              {s.configured ? (
+                <div className="flex items-center gap-3 flex-wrap">
+                  <Tag status="approved" label={`Connected: ${p.providers.find((x) => x.value === s.provider)?.label || s.provider}`} />
+                  <button type="button" className="btn" style={{ padding: '4px 12px', fontSize: '0.75rem' }} onClick={() => remove(p.key)}>Disconnect</button>
+                </div>
+              ) : (
+                <form onSubmit={(e) => save(p.key, e)} className="flex gap-2 flex-wrap items-end">
+                  <CustomSelect value={f.provider} onChange={(v) => setForms((prev) => ({ ...prev, [p.key]: { ...f, provider: v } }))} ariaLabel={`${p.label} provider`} minWidth={170} options={p.providers} />
+                  <input type="password" className="form-input" placeholder="Your API key" value={f.apiKey} onChange={(e) => setForms((prev) => ({ ...prev, [p.key]: { ...f, apiKey: e.target.value } }))} required style={{ minWidth: 200, fontSize: '0.8rem' }} />
+                  <button type="submit" className="btn btn-primary" style={{ padding: '5px 12px', fontSize: '0.75rem' }} disabled={saving === p.key}>{saving === p.key ? 'Saving...' : 'Connect'}</button>
+                </form>
+              )}
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+// One AI-powered tool, real end to end — calls the user's own connected provider via
+// POST /ai/generate. Disabled until AiSettingsPanel reports a provider connected.
+function AiFeatureCard({ feature, title, description, placeholder, aiEnabled }) {
+  const [open, setOpen] = useState(false);
+  const [prompt, setPrompt] = useState('');
+  const [result, setResult] = useState('');
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
+
+  async function generate(e) {
+    e.preventDefault();
+    setLoading(true); setError(''); setResult('');
+    try {
+      const { result: text } = await apiRequest('/ai/generate', { method: 'POST', body: { feature, prompt } });
+      setResult(text);
+    } catch (err) { setError(err.message); } finally { setLoading(false); }
+  }
+
+  return (
+    <div className="card" style={{ padding: 18 }}>
+      <strong className="text-sm">{title}</strong>
+      <p className="text-xs" style={{ color: 'var(--ink-soft)', marginTop: 6 }}>{description}</p>
+      {!open ? (
+        <button type="button" className="btn" style={{ padding: '6px 14px', fontSize: '0.78rem', marginTop: 12 }} onClick={() => setOpen(true)} disabled={!aiEnabled}>
+          {aiEnabled ? 'Open' : 'Connect an AI provider above first'}
+        </button>
+      ) : (
+        <form onSubmit={generate} style={{ marginTop: 12 }}>
+          <textarea className="form-input" rows={3} placeholder={placeholder} value={prompt} onChange={(e) => setPrompt(e.target.value)} required />
+          <div className="flex gap-2" style={{ marginTop: 8 }}>
+            <button type="submit" className="btn btn-primary" style={{ padding: '6px 14px', fontSize: '0.78rem' }} disabled={loading}>{loading ? 'Generating...' : 'Generate'}</button>
+            <button type="button" className="btn" style={{ padding: '6px 14px', fontSize: '0.78rem' }} onClick={() => setOpen(false)}>Close</button>
+          </div>
+          {error && <p className="text-xs" style={{ color: 'var(--rose)', marginTop: 8 }}>{error}</p>}
+          {result && <div className="text-sm" style={{ marginTop: 12, padding: 12, background: 'var(--sand)', borderRadius: 10, whiteSpace: 'pre-wrap' }}>{result}</div>}
+        </form>
+      )}
+    </div>
+  );
+}
+
+// Parses the AI's delimited slide format (see ai.controller.js's teacher_slides prompt) into
+// real slide objects — deliberately not JSON, since that isn't uniformly reliable across all 4
+// BYOK providers, while this plain-text delimiter format parses the same regardless of provider.
+function parseSlides(raw) {
+  return raw.split('---SLIDE---').map((part) => part.trim()).filter(Boolean).map((part) => {
+    const lines = part.split('\n').map((l) => l.trim()).filter(Boolean);
+    const titleLine = lines.find((l) => /^title:/i.test(l));
+    const title = titleLine ? titleLine.replace(/^title:\s*/i, '') : 'Untitled Slide';
+    const bullets = lines.filter((l) => l.startsWith('-')).map((l) => l.replace(/^-\s*/, ''));
+    return { title, bullets };
+  }).filter((s) => s.title !== 'Untitled Slide' || s.bullets.length > 0);
+}
+
+// Real AI Slides Generator (spec 15B.6 "خودکار پریزنٹیشن سلائیڈز") — the one sub-feature of "AI
+// Creative Teacher" buildable with the existing text-AI system (no image/video/3D AI provider
+// needed). Produces an actual presentable, fullscreen-able slide deck, not just a text blob.
+function SlideDeckGenerator({ aiEnabled }) {
+  const [topic, setTopic] = useState('');
+  const [slides, setSlides] = useState(null);
+  const [current, setCurrent] = useState(0);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
+  const viewerRef = useRef(null);
+
+  async function generate(e) {
+    e.preventDefault();
+    setLoading(true); setError(''); setSlides(null);
+    try {
+      const { result } = await apiRequest('/ai/generate', { method: 'POST', body: { feature: 'teacher_slides', prompt: topic } });
+      const parsed = parseSlides(result);
+      if (parsed.length === 0) throw new Error("Couldn't parse slides from the response — try again.");
+      setSlides(parsed);
+      setCurrent(0);
+    } catch (err) { setError(err.message); } finally { setLoading(false); }
+  }
+
+  useEffect(() => {
+    if (!slides) return;
+    function onKey(e) {
+      if (e.key === 'ArrowRight') setCurrent((c) => Math.min(slides.length - 1, c + 1));
+      if (e.key === 'ArrowLeft') setCurrent((c) => Math.max(0, c - 1));
+    }
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [slides]);
+
+  return (
+    <div className="card" style={{ padding: 18 }}>
+      <strong className="text-sm">AI Slides Generator</strong>
+      <p className="text-xs" style={{ color: 'var(--ink-soft)', marginTop: 6 }}>Give a topic — get a real slide deck you can present fullscreen in class (use arrow keys to navigate).</p>
+      {!aiEnabled ? (
+        <p className="text-xs" style={{ color: 'var(--ink-soft)', marginTop: 12 }}>Connect an AI provider above first.</p>
+      ) : (
+        <form onSubmit={generate} style={{ marginTop: 12 }}>
+          <input className="form-input" placeholder="e.g. The Water Cycle, Grade 5" value={topic} onChange={(e) => setTopic(e.target.value)} required />
+          <button type="submit" className="btn btn-primary" style={{ padding: '6px 14px', fontSize: '0.78rem', marginTop: 8 }} disabled={loading}>{loading ? 'Generating...' : 'Generate Slides'}</button>
+          {error && <p className="text-xs" style={{ color: 'var(--rose)', marginTop: 8 }}>{error}</p>}
+        </form>
+      )}
+
+      {slides && (
+        <div style={{ marginTop: 16 }}>
+          <div ref={viewerRef} style={{ position: 'relative', background: '#1a2332', color: '#fff', borderRadius: 14, padding: '48px 56px', minHeight: 260, display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
+            <h2 style={{ fontSize: 28, marginBottom: 20, fontFamily: 'Fraunces, serif' }}>{slides[current].title}</h2>
+            <ul style={{ fontSize: 18, lineHeight: 1.9, paddingLeft: 24 }}>
+              {slides[current].bullets.map((b, i) => <li key={i}>{b}</li>)}
+            </ul>
+            <span style={{ position: 'absolute', bottom: 16, right: 24, fontSize: 12, opacity: 0.6 }}>{current + 1} / {slides.length}</span>
+          </div>
+          <div className="flex items-center gap-2" style={{ marginTop: 10 }}>
+            <button type="button" className="btn" style={{ padding: '6px 14px', fontSize: '0.78rem' }} onClick={() => setCurrent((c) => Math.max(0, c - 1))} disabled={current === 0}>← Previous</button>
+            <button type="button" className="btn" style={{ padding: '6px 14px', fontSize: '0.78rem' }} onClick={() => setCurrent((c) => Math.min(slides.length - 1, c + 1))} disabled={current === slides.length - 1}>Next →</button>
+            <button type="button" className="btn btn-primary" style={{ padding: '6px 14px', fontSize: '0.78rem' }} onClick={() => viewerRef.current?.requestFullscreen?.()}>⛶ Present Fullscreen</button>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// AI Creative Teacher — Graphics/Images (spec 15B.6). Real DALL-E/Stability call, shows the
+// actual generated image (returned as a data URI, nothing faked or placeholder).
+function ImageGenerator({ aiEnabled, onFlash }) {
+  const [prompt, setPrompt] = useState('');
+  const [image, setImage] = useState(null);
+  const [loading, setLoading] = useState(false);
+
+  async function generate(e) {
+    e.preventDefault();
+    setLoading(true); setImage(null);
+    try {
+      const { imageDataUrl } = await apiRequest('/ai/image', { method: 'POST', body: { prompt } });
+      setImage(imageDataUrl);
+    } catch (err) { onFlash(err.message); } finally { setLoading(false); }
+  }
+
+  return (
+    <div className="card" style={{ padding: 18 }}>
+      <strong className="text-sm">AI Graphics / Image Generator</strong>
+      <p className="text-xs" style={{ color: 'var(--ink-soft)', marginTop: 6 }}>Describe a diagram, chart or illustration for class.</p>
+      {!aiEnabled ? (
+        <p className="text-xs" style={{ color: 'var(--ink-soft)', marginTop: 12 }}>Connect an Image AI provider above first.</p>
+      ) : (
+        <form onSubmit={generate} style={{ marginTop: 12 }}>
+          <input className="form-input" placeholder="e.g. Diagram of the human heart with labeled chambers" value={prompt} onChange={(e) => setPrompt(e.target.value)} required />
+          <button type="submit" className="btn btn-primary" style={{ padding: '6px 14px', fontSize: '0.78rem', marginTop: 8 }} disabled={loading}>{loading ? 'Generating (can take ~20s)...' : 'Generate Image'}</button>
+          {image && <img src={image} alt={prompt} style={{ marginTop: 12, borderRadius: 10, maxWidth: '100%' }} />}
+        </form>
+      )}
+    </div>
+  );
+}
+
+// AI Creative Teacher — 3D Models (spec 15B.6, Meshy AI). Async job: create then poll. Renders
+// the real returned GLB model with Three.js — not just a download link.
+function ThreeDModelGenerator({ aiEnabled, onFlash }) {
+  const [prompt, setPrompt] = useState('');
+  const [taskId, setTaskId] = useState(null);
+  const [status, setStatus] = useState(null);
+  const [modelUrl, setModelUrl] = useState(null);
+  const viewerRef = useRef(null);
+
+  async function start(e) {
+    e.preventDefault();
+    setStatus('PENDING'); setModelUrl(null);
+    try {
+      const { taskId: id } = await apiRequest('/ai/3d-model', { method: 'POST', body: { prompt } });
+      setTaskId(id);
+    } catch (err) { onFlash(err.message); setStatus(null); }
+  }
+
+  useEffect(() => {
+    if (!taskId || !status || ['SUCCEEDED', 'FAILED'].includes(status)) return;
+    const timer = setTimeout(async () => {
+      try {
+        const s = await apiRequest(`/ai/3d-model/${taskId}`);
+        setStatus(s.status);
+        if (s.status === 'SUCCEEDED') setModelUrl(s.modelUrl);
+        if (s.status === 'FAILED') onFlash('3D model generation failed.');
+      } catch (err) { onFlash(err.message); setStatus('FAILED'); }
+    }, 4000);
+    return () => clearTimeout(timer);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [taskId, status]);
+
+  useEffect(() => {
+    if (!modelUrl || !viewerRef.current) return;
+    let renderer, frameId;
+    (async () => {
+      const THREE = await import('three');
+      const { GLTFLoader } = await import('three/examples/jsm/loaders/GLTFLoader.js');
+      const { OrbitControls } = await import('three/examples/jsm/controls/OrbitControls.js');
+      const mount = viewerRef.current;
+      const scene = new THREE.Scene();
+      scene.background = new THREE.Color(0xf3f0ea);
+      const camera = new THREE.PerspectiveCamera(45, mount.clientWidth / 320, 0.1, 1000);
+      camera.position.set(2, 2, 2);
+      renderer = new THREE.WebGLRenderer({ antialias: true });
+      renderer.setSize(mount.clientWidth, 320);
+      mount.innerHTML = '';
+      mount.appendChild(renderer.domElement);
+      const controls = new OrbitControls(camera, renderer.domElement);
+      scene.add(new THREE.AmbientLight(0xffffff, 0.8));
+      const light = new THREE.DirectionalLight(0xffffff, 0.8); light.position.set(3, 5, 2); scene.add(light);
+      new GLTFLoader().load(modelUrl, (gltf) => scene.add(gltf.scene));
+      function animate() { frameId = requestAnimationFrame(animate); controls.update(); renderer.render(scene, camera); }
+      animate();
+    })();
+    return () => { cancelAnimationFrame(frameId); renderer?.dispose(); };
+  }, [modelUrl]);
+
+  return (
+    <div className="card" style={{ padding: 18 }}>
+      <strong className="text-sm">AI 3D Model Generator</strong>
+      <p className="text-xs" style={{ color: 'var(--ink-soft)', marginTop: 6 }}>Describe an object for a 3D science/geography lesson — takes 1-3 minutes.</p>
+      {!aiEnabled ? (
+        <p className="text-xs" style={{ color: 'var(--ink-soft)', marginTop: 12 }}>Connect a 3D AI provider above first.</p>
+      ) : (
+        <form onSubmit={start} style={{ marginTop: 12 }}>
+          <input className="form-input" placeholder="e.g. A human heart, anatomically accurate" value={prompt} onChange={(e) => setPrompt(e.target.value)} required />
+          <button type="submit" className="btn btn-primary" style={{ padding: '6px 14px', fontSize: '0.78rem', marginTop: 8 }} disabled={status && !['SUCCEEDED', 'FAILED'].includes(status)}>
+            {status && !['SUCCEEDED', 'FAILED'].includes(status) ? `Generating (${status})...` : 'Generate 3D Model'}
+          </button>
+          {modelUrl && <div ref={viewerRef} style={{ marginTop: 12, borderRadius: 10, overflow: 'hidden', border: '1px solid var(--sand-line)' }} />}
+        </form>
+      )}
+    </div>
+  );
+}
+
+// AI Creative Teacher — Voice narration (ElevenLabs) and Avatar Video (HeyGen). Two separate,
+// self-contained pipelines — HeyGen synthesizes its own voice internally, it doesn't need a
+// separate ElevenLabs call chained in.
+// AI Creative Teacher — Animation (spec 15B.6, Runway ML). Async job: create then poll. Runway's
+// output URLs expire in 24-48h, so the video is offered as a real download, not just a link.
+function AnimationGenerator({ aiEnabled, onFlash }) {
+  const [promptText, setPromptText] = useState('');
+  const [promptImage, setPromptImage] = useState('');
+  const [taskId, setTaskId] = useState(null);
+  const [status, setStatus] = useState(null);
+  const [videoUrl, setVideoUrl] = useState(null);
+
+  async function start(e) {
+    e.preventDefault();
+    setStatus('PENDING'); setVideoUrl(null);
+    try {
+      const { taskId: id } = await apiRequest('/ai/animation', { method: 'POST', body: { promptText, promptImage: promptImage || undefined } });
+      setTaskId(id);
+    } catch (err) { onFlash(err.message); setStatus(null); }
+  }
+
+  useEffect(() => {
+    if (!taskId || !status || ['SUCCEEDED', 'FAILED'].includes(status)) return;
+    const timer = setTimeout(async () => {
+      try {
+        const s = await apiRequest(`/ai/animation/${taskId}`);
+        setStatus(s.status);
+        if (s.status === 'SUCCEEDED') setVideoUrl(s.videoUrl);
+        if (s.status === 'FAILED') onFlash('Animation generation failed.');
+      } catch (err) { onFlash(err.message); setStatus('FAILED'); }
+    }, 5000);
+    return () => clearTimeout(timer);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [taskId, status]);
+
+  return (
+    <div className="card" style={{ padding: 18 }}>
+      <strong className="text-sm">AI Animation Generator</strong>
+      <p className="text-xs" style={{ color: 'var(--ink-soft)', marginTop: 6 }}>Describe a moving animation (e.g. a chemical reaction, a physics principle). Takes 1-2 minutes. Download the result — the link expires in 24-48h.</p>
+      {!aiEnabled ? (
+        <p className="text-xs" style={{ color: 'var(--ink-soft)', marginTop: 12 }}>Connect an Animation AI provider above first.</p>
+      ) : (
+        <form onSubmit={start} style={{ marginTop: 12 }}>
+          <input className="form-input" placeholder="e.g. A water molecule forming from hydrogen and oxygen atoms" value={promptText} onChange={(e) => setPromptText(e.target.value)} required />
+          <input className="form-input" placeholder="Optional: public image URL to animate from" value={promptImage} onChange={(e) => setPromptImage(e.target.value)} style={{ marginTop: 8 }} />
+          <button type="submit" className="btn btn-primary" style={{ padding: '6px 14px', fontSize: '0.78rem', marginTop: 8 }} disabled={status && !['SUCCEEDED', 'FAILED'].includes(status)}>
+            {status && !['SUCCEEDED', 'FAILED'].includes(status) ? `Generating (${status})...` : 'Generate Animation'}
+          </button>
+          {videoUrl && (
+            <div style={{ marginTop: 12 }}>
+              <video controls src={videoUrl} style={{ width: '100%', borderRadius: 10 }} />
+              <a href={videoUrl} download className="btn" style={{ padding: '5px 12px', fontSize: '0.75rem', marginTop: 8, display: 'inline-block' }}>Download before it expires</a>
+            </div>
+          )}
+        </form>
+      )}
+    </div>
+  );
+}
+
+function VoiceAndAvatarGenerator({ aiEnabled, onFlash }) {
+  const [narrationText, setNarrationText] = useState('');
+  const [audio, setAudio] = useState(null);
+  const [narrating, setNarrating] = useState(false);
+
+  const [script, setScript] = useState('');
+  const [videoId, setVideoId] = useState(null);
+  const [videoStatus, setVideoStatus] = useState(null);
+  const [videoUrl, setVideoUrl] = useState(null);
+
+  async function generateNarration(e) {
+    e.preventDefault();
+    setNarrating(true); setAudio(null);
+    try {
+      const { audioDataUrl } = await apiRequest('/ai/voice', { method: 'POST', body: { text: narrationText } });
+      setAudio(audioDataUrl);
+    } catch (err) { onFlash(err.message); } finally { setNarrating(false); }
+  }
+
+  async function startAvatarVideo(e) {
+    e.preventDefault();
+    setVideoStatus('processing'); setVideoUrl(null);
+    try {
+      const { videoId: id } = await apiRequest('/ai/avatar-video', { method: 'POST', body: { script } });
+      setVideoId(id);
+    } catch (err) { onFlash(err.message); setVideoStatus(null); }
+  }
+
+  useEffect(() => {
+    if (!videoId || !videoStatus || ['completed', 'failed'].includes(videoStatus)) return;
+    const timer = setTimeout(async () => {
+      try {
+        const s = await apiRequest(`/ai/avatar-video/${videoId}`);
+        setVideoStatus(s.status);
+        if (s.status === 'completed') setVideoUrl(s.videoUrl);
+      } catch (err) { onFlash(err.message); setVideoStatus('failed'); }
+    }, 5000);
+    return () => clearTimeout(timer);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [videoId, videoStatus]);
+
+  return (
+    <>
+      <div className="card" style={{ padding: 18 }}>
+        <strong className="text-sm">AI Voice Narration</strong>
+        <p className="text-xs" style={{ color: 'var(--ink-soft)', marginTop: 6 }}>Type narration text — get real speech audio to play over slides.</p>
+        {!aiEnabled?.voice ? (
+          <p className="text-xs" style={{ color: 'var(--ink-soft)', marginTop: 12 }}>Connect a Voice AI provider above first.</p>
+        ) : (
+          <form onSubmit={generateNarration} style={{ marginTop: 12 }}>
+            <textarea className="form-input" rows={2} placeholder="Text to narrate..." value={narrationText} onChange={(e) => setNarrationText(e.target.value)} required />
+            <button type="submit" className="btn btn-primary" style={{ padding: '6px 14px', fontSize: '0.78rem', marginTop: 8 }} disabled={narrating}>{narrating ? 'Generating...' : 'Generate Narration'}</button>
+            {audio && <audio controls src={audio} style={{ display: 'block', marginTop: 12, width: '100%' }} />}
+          </form>
+        )}
+      </div>
+
+      <div className="card" style={{ padding: 18 }}>
+        <strong className="text-sm">AI Avatar Video</strong>
+        <p className="text-xs" style={{ color: 'var(--ink-soft)', marginTop: 6 }}>Type a script — get a full talking-avatar educational video (takes a few minutes).</p>
+        {!aiEnabled?.avatar ? (
+          <p className="text-xs" style={{ color: 'var(--ink-soft)', marginTop: 12 }}>Connect an Avatar Video AI provider above first.</p>
+        ) : (
+          <form onSubmit={startAvatarVideo} style={{ marginTop: 12 }}>
+            <textarea className="form-input" rows={2} placeholder="What should the avatar say?" value={script} onChange={(e) => setScript(e.target.value)} required />
+            <button type="submit" className="btn btn-primary" style={{ padding: '6px 14px', fontSize: '0.78rem', marginTop: 8 }} disabled={videoStatus && !['completed', 'failed'].includes(videoStatus)}>
+              {videoStatus && !['completed', 'failed'].includes(videoStatus) ? `Generating (${videoStatus})...` : 'Generate Avatar Video'}
+            </button>
+            {videoUrl && <video controls src={videoUrl} style={{ display: 'block', marginTop: 12, width: '100%', borderRadius: 10 }} />}
+          </form>
+        )}
+      </div>
+    </>
+  );
+}
+
 function CareerToolsPanel({ onFlash, onNavigate }) {
   const [missingSkills, setMissingSkills] = useState(null);
+  const [aiEnabled, setAiEnabled] = useState(false);
   useEffect(() => { apiRequest('/jobs/mine/dashboard').then((d) => setMissingSkills(d.profile.missingSkills || [])).catch(() => setMissingSkills([])); }, []);
+  function refreshAi() { apiRequest('/ai/config').then((s) => setAiEnabled(s.text.configured)).catch(() => {}); }
+  useEffect(refreshAi, []);
 
   return (
     <div>
       <h3 className="font-semibold mb-3">Career Tools</h3>
+      <AiSettingsPanel onFlash={onFlash} onChanged={refreshAi} purposes={[AI_PURPOSES[0]]} />
       <div className="grid grid-cols-1 md:grid-cols-2" style={{ gap: 14 }}>
         <div className="card" style={{ padding: 18 }}>
           <strong className="text-sm">Portfolio Builder</strong>
@@ -1724,15 +3217,11 @@ function CareerToolsPanel({ onFlash, onNavigate }) {
           )}
           <button type="button" className="btn" style={{ padding: '6px 14px', fontSize: '0.78rem', marginTop: 12 }} onClick={() => onNavigate?.('resume')}>Add Skills to CV</button>
         </div>
-        {['AI CV Builder', 'Cover Letter Generator', 'LinkedIn Optimizer', 'AI Interview Coach', 'Career Coach'].map((tool) => (
-          <div key={tool} style={{ padding: 18, borderRadius: 'var(--r-lg)', border: '1px dashed var(--sand-line)', background: 'transparent' }}>
-            <div className="flex items-center" style={{ gap: 8 }}>
-              <strong className="text-sm" style={{ color: 'var(--ink-soft)' }}>{tool}</strong>
-              <span className="text-xs" style={{ padding: '2px 8px', borderRadius: 999, background: 'var(--sand)', color: 'var(--ink-soft)', fontWeight: 600 }}>Coming soon</span>
-            </div>
-            <p className="text-xs" style={{ color: 'var(--ink-soft)', marginTop: 8 }}>Optional AI feature — not built yet (needs a paid AI API), and never required to use the platform.</p>
-          </div>
-        ))}
+        <AiFeatureCard feature="cv_feedback" title="AI CV Feedback" description="Paste your CV text and get specific improvement feedback." placeholder="Paste your CV text here..." aiEnabled={aiEnabled} />
+        <AiFeatureCard feature="cover_letter" title="Cover Letter Generator" description="Describe the job and your background — get a draft cover letter." placeholder="Job title, company, and a bit about your background..." aiEnabled={aiEnabled} />
+        <AiFeatureCard feature="linkedin_optimize" title="LinkedIn Optimizer" description="Paste your current headline/summary — get a stronger rewrite." placeholder="Paste your LinkedIn headline or summary..." aiEnabled={aiEnabled} />
+        <AiFeatureCard feature="interview_coach" title="AI Interview Coach" description="Get likely interview questions and tips for a specific role." placeholder="What role are you interviewing for?" aiEnabled={aiEnabled} />
+        <AiFeatureCard feature="career_advice" title="Career Coach" description="Describe your interests/situation for practical career guidance." placeholder="Tell it about your interests, skills, and goals..." aiEnabled={aiEnabled} />
       </div>
     </div>
   );
@@ -1766,8 +3255,24 @@ function ResumeEditorPanel({ onFlash }) {
 
   const sectionLabel = { fontSize: 11, fontWeight: 700, letterSpacing: '.05em', textTransform: 'uppercase', color: 'var(--ink-soft)' };
 
+  const publicUrl = `${window.location.origin}/portfolio/${resume.user}`;
+
   return (
     <form onSubmit={save} style={{ display: 'grid', gap: 18 }}>
+      <div className="card" style={{ padding: 20 }}>
+        <div className="flex items-center justify-between flex-wrap" style={{ gap: 14 }}>
+          <div>
+            <p style={sectionLabel}>Career Portfolio Visibility</p>
+            <p className="text-xs" style={{ color: 'var(--ink-soft)', marginTop: 6, lineHeight: 1.6 }}>{resume.isPublic ? 'Anyone with the link can view your public portfolio.' : 'Your portfolio is private — only you can see it.'}</p>
+            {resume.isPublic && <a href={publicUrl} target="_blank" rel="noreferrer" className="text-xs" style={{ color: 'var(--emerald)', display: 'inline-block', marginTop: 6, overflowWrap: 'anywhere' }}>{publicUrl} ↗</a>}
+          </div>
+          <label className="flex items-center" style={{ gap: 10, flexShrink: 0, cursor: 'pointer' }}>
+            <span className="text-xs" style={{ fontWeight: 600 }}>{resume.isPublic ? 'Public' : 'Private'}</span>
+            <input type="checkbox" checked={!!resume.isPublic} onChange={(e) => setResume({ ...resume, isPublic: e.target.checked })} />
+          </label>
+        </div>
+      </div>
+
       <div className="card" style={{ padding: 20 }}>
         <p style={sectionLabel}>Uploaded CV file</p>
         <input className="form-input" placeholder="Paste a direct link to your CV file (PDF, Google Drive, etc.)" value={resume.cvFileUrl || ''} onChange={(e) => setResume({ ...resume, cvFileUrl: e.target.value })} style={{ marginTop: 10 }} />
@@ -2402,9 +3907,9 @@ function SellerWalletPanel({ onFlash }) {
   }
   useEffect(load, [onFlash]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  async function withdraw() {
+  async function withdraw({ payoutMethod, payoutDetails }) {
     try {
-      await apiRequest('/marketplace/sellers/mine/withdraw', { method: 'POST', body: { currency: selectedCurrency } });
+      await apiRequest('/marketplace/sellers/mine/withdraw', { method: 'POST', body: { currency: selectedCurrency, payoutMethod, payoutDetails } });
       onFlash('Withdrawal requested.', 'success');
       load();
     } catch (err) { onFlash(err.message); }
@@ -2460,7 +3965,7 @@ function SellerWalletPanel({ onFlash }) {
                   <strong style={{ fontSize: 20, fontFamily: 'Fraunces, serif', display: 'block', marginTop: 4 }}>{selectedCurrency} {w.totalEarnings}</strong>
                 </div>
               </div>
-              <button type="button" className="btn btn-primary" style={{ padding: '8px 16px', fontSize: '0.8rem' }} disabled={w.availableBalance <= 0} onClick={withdraw}>Withdraw Funds ({selectedCurrency} {w.availableBalance})</button>
+              <PayoutRequestForm onSubmit={withdraw} disabled={w.availableBalance <= 0} label={`Withdraw Funds (${selectedCurrency} ${w.availableBalance})`} />
             </div>
           )}
         </>
@@ -3115,9 +4620,9 @@ function WithdrawalsPanel({ onFlash }) {
   }
   useEffect(load, [onFlash]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  async function withdraw() {
+  async function withdraw({ payoutMethod, payoutDetails }) {
     try {
-      await apiRequest('/marketplace/sellers/mine/withdraw', { method: 'POST', body: { currency: selectedCurrency } });
+      await apiRequest('/marketplace/sellers/mine/withdraw', { method: 'POST', body: { currency: selectedCurrency, payoutMethod, payoutDetails } });
       onFlash('Withdrawal requested.', 'success');
       load();
     } catch (err) { onFlash(err.message); }
@@ -3148,7 +4653,7 @@ function WithdrawalsPanel({ onFlash }) {
             <div style={{ flex: '0 1 160px', minWidth: 120 }}>
               <CustomSelect value={selectedCurrency || ''} onChange={setSelectedCurrency} ariaLabel="Currency" minWidth="100%" options={currencies.map((c) => ({ value: c, label: c }))} />
             </div>
-            <button type="button" className="btn btn-primary" style={{ padding: '8px 16px', fontSize: '0.8rem', height: 46 }} disabled={available <= 0} onClick={withdraw}>Withdraw Funds ({selectedCurrency} {available})</button>
+            <PayoutRequestForm onSubmit={withdraw} disabled={available <= 0} label={`Withdraw Funds (${selectedCurrency} ${available})`} />
           </div>
         </div>
       )}
@@ -3179,6 +4684,12 @@ function classStatusNow(entry) {
   if (nowMin >= sh * 60 + sm && nowMin <= eh * 60 + em) return 'live';
   return nowMin < sh * 60 + sm ? 'today' : 'past';
 }
+
+// classStatusNow returns 4 real states, but the table only ever showed "Live" vs a blanket
+// "pending" — which read as "awaiting approval" when it actually just meant "not right now",
+// even for a class that already finished hours ago. These give each state its own honest label.
+const CLASS_STATUS_TAG = { live: 'approved', today: 'pending', upcoming: 'pending', past: 'completed' };
+const CLASS_STATUS_LABEL = { live: 'Live Now', today: 'Upcoming', upcoming: 'Upcoming', past: 'Completed' };
 
 // PDF Section 4 — "My Classes: Central Learning Entry": Current / Upcoming / In-Progress,
 // with a clear Live indicator and a Join Class action (structure is real; the actual video
@@ -3223,7 +4734,7 @@ function TimetableView({ onFlash, url }) {
         rows={sorted.map((t) => [
           t.__nextDate ? t.__nextDate.toLocaleDateString(undefined, { month: 'short', day: 'numeric' }) : '—',
           DOW_LABEL[t.dayOfWeek], `${t.startTime}–${t.endTime}`, t.subject, t.teacher?.fullName || '—', t.room || '—',
-          <Tag status={t.__status === 'live' ? 'approved' : 'pending'} />,
+          <Tag status={CLASS_STATUS_TAG[t.__status] || 'pending'} label={CLASS_STATUS_LABEL[t.__status] || 'Upcoming'} />,
           t.__status === 'live' ? <button className="btn btn-primary" style={{ padding: '4px 12px', fontSize: '0.78rem' }} onClick={() => joinClass(t)}>Join</button> : '—'
         ])}
         empty="No timetable set up yet."
@@ -3232,17 +4743,240 @@ function TimetableView({ onFlash, url }) {
   );
 }
 
+const PAYMENT_METHODS = [
+  { value: 'card', label: 'Card' },
+  { value: 'bank_transfer', label: 'Bank Transfer' },
+  { value: 'mobile_wallet', label: 'Mobile Wallet' },
+  { value: 'cash', label: 'Cash' },
+  { value: 'other', label: 'Other' }
+];
+
+// Self-service "Pay Now" for a Fee record — no real payment gateway is connected yet, so the
+// payer picks a method and self-confirms, same honesty pattern as FundingRequest's Donate flow.
+// Works for both the student paying their own fee and a parent paying a linked child's fee.
+// Real Stripe Checkout redirect (spec 4.6/3A.3) — separate from the self-report methods below.
+// Renders nothing if Stripe isn't configured (GET /payments/stripe/config), so no dead button
+// shows up before a real key is added.
+let paddleLoadPromise = null;
+// Only one Paddle.Checkout can be open at a time, so a single module-level slot for "what to do
+// when it completes/closes" is enough — set right before opening, read by the one shared
+// eventCallback registered at Initialize time.
+let paddleActiveHandlers = null;
+
+// Loads Paddle.js once (cached across every button on the page) and initializes it with the
+// client-side token + sandbox/production environment the backend reports.
+function loadPaddle(clientToken, environment) {
+  if (window.Paddle) return Promise.resolve(window.Paddle);
+  if (paddleLoadPromise) return paddleLoadPromise;
+  paddleLoadPromise = new Promise((resolve, reject) => {
+    const script = document.createElement('script');
+    script.src = 'https://cdn.paddle.com/paddle/v2/paddle.js';
+    script.onload = () => {
+      if (environment === 'sandbox') window.Paddle.Environment.set('sandbox');
+      window.Paddle.Initialize({
+        token: clientToken,
+        eventCallback(data) {
+          if (data.name === 'checkout.completed') paddleActiveHandlers?.onCompleted?.();
+          if (data.name === 'checkout.closed') paddleActiveHandlers?.onClosed?.();
+        }
+      });
+      resolve(window.Paddle);
+    };
+    script.onerror = () => reject(new Error('Failed to load Paddle.js'));
+    document.head.appendChild(script);
+  });
+  return paddleLoadPromise;
+}
+
+function PaddleCheckoutButton({ feeId, onFlash, onPaid }) {
+  const [config, setConfig] = useState(null);
+  const [loading, setLoading] = useState(false);
+  useEffect(() => { apiRequest('/payments/paddle/config').then(setConfig).catch(() => setConfig({ enabled: false })); }, []);
+
+  // Best-effort local/dev fallback: production relies on the real Paddle webhook (real-time,
+  // signature-verified); this GET just asks Paddle's API directly "is it done yet?" so testing
+  // works even when the backend runs on localhost, which Paddle's webhook can never reach.
+  async function sync() {
+    try {
+      const fee = await apiRequest(`/payments/paddle/fees/${feeId}/sync`);
+      if (fee.status === 'paid') onFlash('Payment confirmed!', 'success');
+      onPaid?.();
+    } catch (err) { onPaid?.(); }
+  }
+
+  async function startCheckout() {
+    setLoading(true);
+    try {
+      const { transactionId } = await apiRequest(`/payments/paddle/fees/${feeId}/checkout`, { method: 'POST' });
+      const Paddle = await loadPaddle(config.clientToken, config.environment);
+      paddleActiveHandlers = { onCompleted: sync, onClosed: sync };
+      Paddle.Checkout.open({
+        transactionId,
+        settings: { displayMode: 'overlay' }
+      });
+    } catch (err) { onFlash(err.message); } finally { setLoading(false); }
+  }
+
+  if (!config?.enabled) return null;
+  return (
+    <button type="button" className="btn" style={{ padding: '5px 12px', fontSize: '0.75rem', borderColor: '#1e2f4f', color: '#1e2f4f' }} onClick={startCheckout} disabled={loading}>
+      {loading ? 'Loading...' : '🌍 Pay Online (Card / Apple Pay / Google Pay)'}
+    </button>
+  );
+}
+
+function StripeCheckoutButton({ feeId, onFlash }) {
+  const [config, setConfig] = useState(null);
+  const [loading, setLoading] = useState(false);
+  useEffect(() => { apiRequest('/payments/stripe/config').then(setConfig).catch(() => setConfig({ enabled: false })); }, []);
+
+  async function startCheckout() {
+    setLoading(true);
+    try {
+      const { url } = await apiRequest(`/payments/stripe/fees/${feeId}/checkout`, { method: 'POST' });
+      window.location.href = url;
+    } catch (err) { onFlash(err.message); setLoading(false); }
+  }
+
+  if (!config?.enabled) return null;
+  return (
+    <button type="button" className="btn" style={{ padding: '5px 12px', fontSize: '0.75rem', borderColor: '#635bff', color: '#635bff' }} onClick={startCheckout} disabled={loading}>
+      {loading ? 'Redirecting...' : '💳 Pay Online (Stripe)'}
+    </button>
+  );
+}
+
+function PayFeeButton({ fee, payUrl, onFlash, onPaid }) {
+  const [open, setOpen] = useState(false);
+  const [method, setMethod] = useState('card');
+  const [paying, setPaying] = useState(false);
+
+  async function confirmPay(e) {
+    e.preventDefault();
+    setPaying(true);
+    try {
+      const updated = await apiRequest(payUrl, { method: 'PATCH', body: { paymentMethod: method } });
+      onFlash(`Payment confirmed. Receipt ${updated.transactionId}`, 'success');
+      setOpen(false);
+      onPaid?.(updated);
+    } catch (err) { onFlash(err.message); } finally { setPaying(false); }
+  }
+
+  if (fee.status === 'paid') {
+    return fee.transactionId
+      ? <span className="text-xs" style={{ color: 'var(--ink-soft)' }} title={fee.paidVia}>Receipt {fee.transactionId}</span>
+      : <span className="text-xs" style={{ color: 'var(--ink-soft)' }}>—</span>;
+  }
+
+  if (fee.status === 'processing') {
+    return <span className="text-xs" style={{ color: 'var(--gold)' }}>Awaiting payment confirmation...</span>;
+  }
+
+  if (!open) {
+    return (
+      <div className="flex items-center flex-wrap" style={{ gap: 6 }}>
+        <PaddleCheckoutButton feeId={fee._id} onFlash={onFlash} onPaid={onPaid} />
+        <StripeCheckoutButton feeId={fee._id} onFlash={onFlash} />
+        <button type="button" className="btn" style={{ padding: '5px 12px', fontSize: '0.75rem' }} onClick={() => setOpen(true)} title="Only use this if you already paid outside CareerZ (cash, bank transfer) and need to record it">
+          I already paid another way
+        </button>
+      </div>
+    );
+  }
+
+  return (
+    <form onSubmit={confirmPay} className="flex items-center flex-wrap" style={{ gap: 6 }}>
+      <CustomSelect value={method} onChange={setMethod} ariaLabel="Payment method" minWidth={130} options={PAYMENT_METHODS} />
+      <button type="submit" className="btn btn-primary" style={{ padding: '5px 12px', fontSize: '0.75rem' }} disabled={paying}>{paying ? '...' : 'Confirm'}</button>
+      <button type="button" className="btn" style={{ padding: '5px 10px', fontSize: '0.75rem' }} onClick={() => setOpen(false)} disabled={paying}>Cancel</button>
+    </form>
+  );
+}
+
+const PAYOUT_METHODS = [
+  { value: 'bank_transfer', label: 'Bank Transfer' },
+  { value: 'mobile_wallet', label: 'Mobile Wallet' },
+  { value: 'other', label: 'Other' }
+];
+
+// Shared "Withdraw Funds" flow for anyone cashing out a balance (Education Agent commissions,
+// Marketplace Seller earnings) — the payee picks how they want to receive it and provides an
+// account reference, same honesty pattern as PayFeeButton (no real payment processor here).
+function PayoutRequestForm({ onSubmit, disabled, label }) {
+  const [open, setOpen] = useState(false);
+  const [method, setMethod] = useState('bank_transfer');
+  const [details, setDetails] = useState('');
+  const [submitting, setSubmitting] = useState(false);
+
+  async function submit(e) {
+    e.preventDefault();
+    if (!details.trim()) return;
+    setSubmitting(true);
+    try {
+      await onSubmit({ payoutMethod: method, payoutDetails: details.trim() });
+      setOpen(false);
+      setDetails('');
+    } finally { setSubmitting(false); }
+  }
+
+  if (!open) {
+    return <button type="button" className="btn btn-primary" style={{ padding: '8px 16px', fontSize: '0.8rem' }} disabled={disabled} onClick={() => setOpen(true)}>{label}</button>;
+  }
+
+  return (
+    <form onSubmit={submit} style={{ display: 'grid', gap: 8, maxWidth: 320, marginTop: 10 }}>
+      <CustomSelect value={method} onChange={setMethod} ariaLabel="Payout method" minWidth="100%" options={PAYOUT_METHODS} />
+      <input className="form-input" placeholder="Account number / wallet ID / details" value={details} onChange={(e) => setDetails(e.target.value)} required />
+      <div className="flex gap-2">
+        <button type="submit" className="btn btn-primary" style={{ padding: '7px 14px', fontSize: '0.78rem' }} disabled={submitting}>{submitting ? 'Requesting...' : 'Confirm Request'}</button>
+        <button type="button" className="btn" style={{ padding: '7px 14px', fontSize: '0.78rem' }} onClick={() => setOpen(false)} disabled={submitting}>Cancel</button>
+      </div>
+    </form>
+  );
+}
+
+// Shared one-shot "pay for this now" trigger — Feature Job purchase, Payslip mark-paid, etc.
+// Renders a plain button; expands into a payment-method picker on click.
+function PayMethodModalButton({ onSubmit, disabled, label, methods = PAYMENT_METHODS, confirmLabel = 'Confirm' }) {
+  const [open, setOpen] = useState(false);
+  const [method, setMethod] = useState(methods[0]?.value || 'other');
+  const [submitting, setSubmitting] = useState(false);
+
+  async function submit(e) {
+    e.preventDefault();
+    setSubmitting(true);
+    try { await onSubmit(method); setOpen(false); } finally { setSubmitting(false); }
+  }
+
+  if (!open) {
+    return <button type="button" className="btn btn-primary" style={{ padding: '7px 14px', fontSize: '0.78rem' }} disabled={disabled} onClick={() => setOpen(true)}>{label}</button>;
+  }
+
+  return (
+    <form onSubmit={submit} className="flex items-center flex-wrap" style={{ gap: 6 }}>
+      <CustomSelect value={method} onChange={setMethod} ariaLabel="Payment method" minWidth={130} options={methods} />
+      <button type="submit" className="btn btn-primary" style={{ padding: '5px 12px', fontSize: '0.75rem' }} disabled={submitting}>{submitting ? '...' : confirmLabel}</button>
+      <button type="button" className="btn" style={{ padding: '5px 10px', fontSize: '0.75rem' }} onClick={() => setOpen(false)} disabled={submitting}>Cancel</button>
+    </form>
+  );
+}
+
 function StudentFeesPanel({ onFlash }) {
   const [fees, setFees] = useState(null);
-  useEffect(() => { apiRequest('/students/me/fees').then(setFees).catch((err) => onFlash(err.message)); }, [onFlash]);
+  function load() { apiRequest('/students/me/fees').then(setFees).catch((err) => onFlash(err.message)); }
+  useEffect(load, [onFlash]);
 
   return (
     <div>
       <h3 className="font-semibold mb-2">My Fees</h3>
       <Table
         loading={fees === null}
-        headers={['Title', 'Amount', 'Due', 'Status']}
-        rows={(fees || []).map((f) => [f.title, `${f.currency} ${f.amount}`, f.dueDate ? new Date(f.dueDate).toLocaleDateString() : '—', <Tag status={f.status === 'paid' ? 'approved' : f.status === 'overdue' ? 'rejected' : 'pending'} />])}
+        headers={['Title', 'Amount', 'Due', 'Status', 'Payment']}
+        rows={(fees || []).map((f) => [
+          f.title, `${f.currency} ${f.amount}`, f.dueDate ? new Date(f.dueDate).toLocaleDateString() : '—',
+          <Tag status={f.status === 'paid' ? 'approved' : f.status === 'overdue' ? 'rejected' : 'pending'} />,
+          <PayFeeButton fee={f} payUrl={`/students/me/fees/${f._id}/pay`} onFlash={onFlash} onPaid={load} />
+        ])}
         empty="No fee records yet."
       />
       <WalletCard onFlash={onFlash} />
@@ -3323,8 +5057,35 @@ function StudentExamsSection({ onFlash }) {
     } catch (err) { onFlash(err.message); }
   }
 
+  const scheduledExams = (exams || []).filter((ex) => ex.scheduledDate);
+
   return (
     <div>
+      {scheduledExams.length > 0 && (
+        <>
+          <h3 className="font-semibold mb-2">Admit Cards</h3>
+          <div style={{ display: 'grid', gap: 10, marginBottom: 24 }}>
+            {scheduledExams.map((ex) => (
+              <div key={ex._id} className="card" style={{ padding: 18 }}>
+                <div className="flex items-center justify-between flex-wrap" style={{ gap: 12 }}>
+                  <div style={{ minWidth: 0 }}>
+                    <strong className="text-sm">{ex.title}</strong>
+                    <p className="text-xs" style={{ color: 'var(--ink-soft)', marginTop: 2 }}>{ex.courseTitle} · {ex.type[0].toUpperCase() + ex.type.slice(1)}{ex.durationMinutes ? ` · ${ex.durationMinutes} min` : ''}</p>
+                  </div>
+                  <strong style={{ fontSize: 15, fontFamily: 'Fraunces, serif', whiteSpace: 'nowrap' }}>{new Date(ex.scheduledDate).toLocaleString(undefined, { dateStyle: 'medium', timeStyle: 'short' })}</strong>
+                </div>
+                {(ex.venue || ex.instructions) && (
+                  <div style={{ marginTop: 12, paddingTop: 12, borderTop: '1px solid var(--sand-line)', display: 'grid', gap: 6 }}>
+                    {ex.venue && <p className="text-xs"><strong style={{ color: 'var(--ink-soft)' }}>Venue: </strong>{ex.venue}</p>}
+                    {ex.instructions && <p className="text-xs" style={{ lineHeight: 1.6 }}><strong style={{ color: 'var(--ink-soft)' }}>Instructions: </strong>{ex.instructions}</p>}
+                  </div>
+                )}
+              </div>
+            ))}
+          </div>
+        </>
+      )}
+
       <h3 className="font-semibold mb-2">My Exams</h3>
       <Table
         loading={exams === null}
@@ -3773,7 +5534,7 @@ function TeacherWorkspace({ tab, user, onFlash, onChanged, onNavigate }) {
   if (tab === 'summary') return <TeacherSummary onNavigate={onNavigate} user={user} />;
   if (tab === 'students') return <TeacherStudentsPanel onFlash={onFlash} />;
   if (tab === 'attendance') return <TeacherAttendancePanel onFlash={onFlash} />;
-  if (tab === 'myAttendance') return <ComingSoon label="My Attendance" note="No institution in this system marks teacher/staff attendance yet — there's no data source to show here honestly. This needs a real HR attendance model before it can be built." />;
+  if (tab === 'myAttendance') return <TeacherSelfAttendancePanel onFlash={onFlash} />;
   if (tab === 'homework') return <TeacherHomeworkPanel onFlash={onFlash} />;
   if (tab === 'results') return <TeacherResultsPanel onFlash={onFlash} />;
   if (tab === 'timetable') return <TimetableView onFlash={onFlash} url="/teachers/me/timetable" />;
@@ -3784,11 +5545,46 @@ function TeacherWorkspace({ tab, user, onFlash, onChanged, onNavigate }) {
   if (tab === 'earnings') return <TeacherEarningsPanel onFlash={onFlash} />;
   if (tab === 'performance') return <TeacherPerformancePanel onFlash={onFlash} />;
   if (tab === 'resourceLibrary') return <TeacherResourceLibraryPanel onFlash={onFlash} />;
-  if (tab === 'aiAssistant') return <ComingSoon label="AI Teacher Assistant" note="Optional AI feature — not built yet, and never forced on you. Skipped for now (paid AI API dependency)." />;
+  if (tab === 'aiAssistant') return <TeacherAiAssistantPanel onFlash={onFlash} />;
   if (tab === 'aiCreative') return <ComingSoon label="AI Creative Teacher" note="Optional AI feature — not built yet, and never forced on you. Skipped for now (paid AI API dependency)." />;
   if (tab === 'advancedControl') return <ComingSoon label="Advanced Class Control" note="Optional voice/gesture/eye-tracking controls — not built yet, and never forced on you. Skipped for now (hardware dependency)." />;
-  const labels = { ptm: 'Parent-Teacher Meeting' };
+  if (tab === 'engagement') return <TeacherEngagementPanel onFlash={onFlash} />;
+  if (tab === 'ptm') return <TeacherPtmPanel onFlash={onFlash} />;
+  const labels = {};
   return <ComingSoon label={labels[tab] || tab} />;
+}
+
+// Real BYOK AI Teacher Assistant (spec 14.7/15B.5-15B.6) — Notes, Quiz and Lesson Plan
+// generation, routed through the teacher's own connected AI provider.
+function TeacherAiAssistantPanel({ onFlash }) {
+  const [status, setStatus] = useState(null);
+  function refresh() { apiRequest('/ai/config').then(setStatus).catch(() => {}); }
+  useEffect(refresh, []);
+
+  const textEnabled = status?.text.configured || false;
+
+  return (
+    <div>
+      <h3 className="font-semibold mb-3">AI Teacher Assistant</h3>
+      <AiSettingsPanel onFlash={onFlash} onChanged={refresh} />
+      <h4 className="font-semibold mb-2" style={{ fontSize: '0.9rem' }}>Text Tools</h4>
+      <div className="grid grid-cols-1 md:grid-cols-2" style={{ gap: 14, marginBottom: 14 }}>
+        <AiFeatureCard feature="teacher_notes" title="AI Notes Generator" description="Give a topic — get clear, structured class notes." placeholder="e.g. Photosynthesis for Grade 8 Biology" aiEnabled={textEnabled} />
+        <AiFeatureCard feature="teacher_quiz" title="AI Quiz Generator" description="Give a topic — get 5 multiple-choice questions with answers." placeholder="e.g. Newton's Laws of Motion" aiEnabled={textEnabled} />
+        <AiFeatureCard feature="teacher_lesson_plan" title="AI Lesson Plan Builder" description="Give a topic and grade level — get a structured lesson plan." placeholder="e.g. Introduction to Fractions, Grade 4" aiEnabled={textEnabled} />
+      </div>
+      <SlideDeckGenerator aiEnabled={textEnabled} />
+
+      <h4 className="font-semibold mb-2 mt-6" style={{ fontSize: '0.9rem' }}>AI Creative Teacher</h4>
+      <p className="text-xs mb-3" style={{ color: 'var(--ink-soft)' }}>Graphics, 3D models, narration and avatar videos — each connects to a different specialized AI provider above.</p>
+      <div className="grid grid-cols-1 md:grid-cols-2" style={{ gap: 14 }}>
+        <ImageGenerator aiEnabled={status?.image.configured} onFlash={onFlash} />
+        <ThreeDModelGenerator aiEnabled={status?.threed.configured} onFlash={onFlash} />
+        <AnimationGenerator aiEnabled={status?.animation.configured} onFlash={onFlash} />
+        <VoiceAndAvatarGenerator aiEnabled={status} onFlash={onFlash} />
+      </div>
+    </div>
+  );
 }
 
 // subjects, experienceYears, bio, qualifications were already accepted by PATCH /teachers/me
@@ -3900,6 +5696,151 @@ function TeacherEarningsPanel({ onFlash }) {
         ])}
         empty="No payslips issued to you yet."
       />
+    </div>
+  );
+}
+
+function TeacherEngagementPanel({ onFlash }) {
+  const [institution, setInstitution] = useState(null);
+  const [section, setSection] = useState('questions');
+  const [questions, setQuestions] = useState(null);
+  const [polls, setPolls] = useState(null);
+  const [pollForm, setPollForm] = useState({ question: '', options: ['', ''] });
+  const [submissions, setSubmissions] = useState(null);
+  const [answerDrafts, setAnswerDrafts] = useState({});
+
+  useEffect(() => {
+    apiRequest('/teachers/me').then((p) => setInstitution(p.institutions?.[0] || null)).catch((err) => onFlash(err.message));
+  }, [onFlash]);
+
+  function loadQuestions(instId) {
+    apiRequest(`/anonymous-questions/institution?institutionId=${instId}`).then(setQuestions).catch((err) => onFlash(err.message));
+  }
+  function loadPolls() {
+    apiRequest('/polls/mine').then(setPolls).catch((err) => onFlash(err.message));
+  }
+  function loadSubmissions(instId) {
+    apiRequest(`/magazine/institution?institutionId=${instId}`).then(setSubmissions).catch((err) => onFlash(err.message));
+  }
+  useEffect(() => {
+    if (!institution) return;
+    if (section === 'questions') loadQuestions(institution._id);
+    if (section === 'polls') loadPolls();
+    if (section === 'magazine') loadSubmissions(institution._id);
+  }, [institution, section]);
+
+  async function submitAnswer(id) {
+    const answer = (answerDrafts[id] || '').trim();
+    if (!answer) return onFlash('Write an answer first.');
+    try {
+      await apiRequest(`/anonymous-questions/${id}/answer`, { method: 'PATCH', body: { answer } });
+      onFlash('Answer submitted.', 'success');
+      setAnswerDrafts((d) => ({ ...d, [id]: '' }));
+      loadQuestions(institution._id);
+    } catch (err) { onFlash(err.message); }
+  }
+
+  function updateOption(i, value) {
+    setPollForm((f) => ({ ...f, options: f.options.map((o, idx) => (idx === i ? value : o)) }));
+  }
+  async function createPoll(e) {
+    e.preventDefault();
+    const options = pollForm.options.map((o) => o.trim()).filter(Boolean);
+    if (options.length < 2) return onFlash('Add at least 2 options.');
+    try {
+      await apiRequest('/polls', { method: 'POST', body: { institution: institution._id, question: pollForm.question, options } });
+      onFlash('Poll created.', 'success');
+      setPollForm({ question: '', options: ['', ''] });
+      loadPolls();
+    } catch (err) { onFlash(err.message); }
+  }
+  async function closePoll(id) {
+    try {
+      await apiRequest(`/polls/${id}/close`, { method: 'PATCH' });
+      onFlash('Poll closed.', 'success');
+      loadPolls();
+    } catch (err) { onFlash(err.message); }
+  }
+  async function reviewSubmission(id, status) {
+    try {
+      await apiRequest(`/magazine/${id}/review`, { method: 'PATCH', body: { status } });
+      onFlash(`Submission ${status}.`, 'success');
+      loadSubmissions(institution._id);
+    } catch (err) { onFlash(err.message); }
+  }
+
+  if (!institution) return <p className="admin-notice">You're not linked to an institution yet.</p>;
+
+  return (
+    <div>
+      <h3 className="font-semibold mb-2">Class Engagement</h3>
+      <div className="flex gap-2 mb-4 flex-wrap">
+        <button type="button" className={`btn ${section === 'questions' ? 'btn-primary' : ''}`} onClick={() => setSection('questions')}>Anonymous Questions</button>
+        <button type="button" className={`btn ${section === 'polls' ? 'btn-primary' : ''}`} onClick={() => setSection('polls')}>Quick Polls</button>
+        <button type="button" className={`btn ${section === 'magazine' ? 'btn-primary' : ''}`} onClick={() => setSection('magazine')}>Magazine Submissions</button>
+      </div>
+
+      {section === 'questions' && (
+        <div className="space-y-3">
+          {questions === null && <p className="admin-notice">Loading...</p>}
+          {questions?.length === 0 && <p className="admin-notice">No questions yet.</p>}
+          {(questions || []).map((q) => (
+            <div key={q._id} className="border border-[var(--sand-line)] rounded-xl p-3">
+              <p className="text-xs" style={{ color: 'var(--ink-soft)' }}>{q.subject || 'General'} · {new Date(q.createdAt).toLocaleDateString()}</p>
+              <p className="font-medium" style={{ margin: '4px 0' }}>{q.question}</p>
+              {q.status === 'answered' ? (
+                <p className="text-sm" style={{ color: 'var(--forest)' }}>Your answer: {q.answer}</p>
+              ) : (
+                <div className="flex gap-2 mt-2">
+                  <input className="form-input" placeholder="Write an answer..." value={answerDrafts[q._id] || ''} onChange={(e) => setAnswerDrafts((d) => ({ ...d, [q._id]: e.target.value }))} />
+                  <button className="btn btn-primary" style={{ flexShrink: 0 }} onClick={() => submitAnswer(q._id)}>Answer</button>
+                </div>
+              )}
+            </div>
+          ))}
+        </div>
+      )}
+
+      {section === 'polls' && (
+        <div>
+          <form onSubmit={createPoll} className="space-y-2 max-w-md mb-6 border border-[var(--sand-line)] rounded-xl p-3">
+            <input className="form-input" placeholder="Poll question" value={pollForm.question} onChange={(e) => setPollForm({ ...pollForm, question: e.target.value })} required />
+            {pollForm.options.map((o, i) => (
+              <input key={i} className="form-input" placeholder={`Option ${i + 1}`} value={o} onChange={(e) => updateOption(i, e.target.value)} />
+            ))}
+            <div className="flex gap-2">
+              <button type="button" className="btn" style={{ fontSize: '0.75rem' }} onClick={() => setPollForm((f) => ({ ...f, options: [...f.options, ''] }))}>+ Add option</button>
+              <button type="submit" className="btn btn-primary">Create Poll</button>
+            </div>
+          </form>
+          <Table
+            loading={polls === null}
+            headers={['Question', 'Votes', 'Status', 'Action']}
+            rows={(polls || []).map((p) => [
+              p.question, p.options.map((o) => `${o.text}: ${o.votes}`).join(' · '), <Tag status={p.status === 'closed' ? 'rejected' : 'approved'} label={p.status} />,
+              p.status === 'open' ? <button className="btn" style={{ padding: '4px 10px', fontSize: '0.75rem' }} onClick={() => closePoll(p._id)}>Close</button> : '—'
+            ])}
+            empty="You haven't created any polls yet."
+          />
+        </div>
+      )}
+
+      {section === 'magazine' && (
+        <Table
+          loading={submissions === null}
+          headers={['Student', 'Title', 'Type', 'Status', 'Action']}
+          rows={(submissions || []).map((s) => [
+            s.student?.fullName || '—', s.title, s.type, <Tag status={s.status === 'published' ? 'approved' : s.status === 'rejected' ? 'rejected' : s.status === 'selected' ? 'approved' : 'pending'} label={s.status} />,
+            s.status === 'submitted' ? (
+              <div className="flex gap-1">
+                <button className="btn btn-primary" style={{ padding: '4px 10px', fontSize: '0.75rem' }} onClick={() => reviewSubmission(s._id, 'selected')}>Select</button>
+                <button className="btn" style={{ padding: '4px 10px', fontSize: '0.75rem', background: 'var(--sand-line)' }} onClick={() => reviewSubmission(s._id, 'rejected')}>Reject</button>
+              </div>
+            ) : '—'
+          ])}
+          empty="No submissions yet."
+        />
+      )}
     </div>
   );
 }
@@ -4171,6 +6112,191 @@ function TeacherStudentsPanel({ onFlash }) {
   );
 }
 
+// Real self-check-in (spec 9.9/15D.9) — one per calendar day, "late" computed against this
+// teacher's own first scheduled class today. Not biometric/GPS (no device access from a web
+// app) — an honest, DB-backed timestamp instead.
+function TeacherSelfAttendancePanel({ onFlash }) {
+  const [history, setHistory] = useState(null);
+  const [checkingIn, setCheckingIn] = useState(false);
+
+  function load() {
+    apiRequest('/teachers/me/self-attendance').then(setHistory).catch((err) => onFlash(err.message));
+  }
+  useEffect(load, []);
+
+  const todayKey = new Date().toISOString().slice(0, 10);
+  const checkedInToday = (history || []).some((h) => new Date(h.date).toISOString().slice(0, 10) === todayKey);
+
+  async function checkIn() {
+    setCheckingIn(true);
+    try {
+      const record = await apiRequest('/teachers/me/self-attendance/check-in', { method: 'POST' });
+      onFlash(record.status === 'late' ? 'Checked in — marked late.' : 'Checked in.', record.status === 'late' ? 'error' : 'success');
+      load();
+    } catch (err) { onFlash(err.message); } finally { setCheckingIn(false); }
+  }
+
+  if (history === null) return <p role="status" className="admin-notice">Loading...</p>;
+
+  return (
+    <div>
+      <div className="card" style={{ padding: 20, marginBottom: 20 }}>
+        {checkedInToday ? (
+          <p className="text-sm" style={{ color: 'var(--emerald)' }}>✓ You've checked in today.</p>
+        ) : (
+          <button type="button" className="btn btn-primary" onClick={checkIn} disabled={checkingIn}>
+            {checkingIn ? 'Checking in...' : 'Check In for Today'}
+          </button>
+        )}
+      </div>
+      <h3 className="font-semibold" style={{ marginBottom: 14 }}>My Attendance History</h3>
+      <Table
+        headers={['Date', 'Checked In At', 'Status']}
+        rows={history.map((h) => [
+          new Date(h.date).toLocaleDateString(),
+          new Date(h.checkInAt).toLocaleTimeString(),
+          <Tag status={h.status === 'present' ? 'approved' : 'pending'} label={h.status === 'present' ? 'Present' : 'Late'} />
+        ])}
+        empty="No check-ins yet."
+      />
+    </div>
+  );
+}
+
+// Real camera-based QR attendance (spec 15B.9/9.9) — scans a student's existing Digital Student
+// ID QR code (student.controller.js's idCardCode) and marks them present via a real backend call.
+function TeacherQrAttendancePanel({ courseId, date, onFlash }) {
+  const [scans, setScans] = useState([]);
+  const [busy, setBusy] = useState(false);
+
+  async function onScan(text) {
+    if (busy) return;
+    const match = text.match(/verify-student-id\/([a-f0-9]+)/i);
+    const code = match ? match[1] : text.trim();
+    setBusy(true);
+    try {
+      const result = await apiRequest('/teachers/me/attendance/qr-scan', { method: 'POST', body: { code, course: courseId, date } });
+      setScans((prev) => [{ ...result, at: new Date() }, ...prev]);
+      onFlash(result.alreadyMarked ? `${result.studentName} was already marked.` : `${result.studentName} marked present.`, result.alreadyMarked ? undefined : 'success');
+    } catch (err) { onFlash(err.message); } finally { setBusy(false); }
+  }
+
+  return (
+    <div className="card" style={{ padding: 20, marginBottom: 28 }}>
+      <QrScanner onScan={onScan} />
+      <h4 className="font-semibold mt-4 mb-2" style={{ fontSize: '0.85rem' }}>Scanned this session</h4>
+      {scans.length === 0 ? (
+        <p className="text-xs" style={{ color: 'var(--ink-soft)' }}>No students scanned yet.</p>
+      ) : (
+        <ul className="text-sm space-y-1">
+          {scans.map((s, i) => (
+            <li key={i}>{s.alreadyMarked ? '↺' : '✓'} {s.studentName} — {s.at.toLocaleTimeString()}{s.alreadyMarked ? ' (already marked)' : ''}</li>
+          ))}
+        </ul>
+      )}
+    </div>
+  );
+}
+
+// Real client-side face-recognition attendance (spec 15B.9/9.9) — matches live camera frames
+// against descriptors students enrolled themselves (StudentDigitalIdPanel). All matching runs in
+// this browser tab; the server only ever receives the final "this studentId matched" result.
+function TeacherFaceAttendancePanel({ courseId, date, onFlash }) {
+  const videoRef = useRef(null);
+  const [enrolled, setEnrolled] = useState(null);
+  const [ready, setReady] = useState(false);
+  const [scans, setScans] = useState([]);
+  const cancelledRef = useRef(false);
+  const rafRef = useRef(null);
+  const lastMatchRef = useRef({});
+
+  useEffect(() => {
+    apiRequest(`/courses/${courseId}/face-descriptors`).then(setEnrolled).catch((err) => onFlash(err.message));
+  }, [courseId, onFlash]);
+
+  async function markPresent(studentId, fullName) {
+    try {
+      const result = await apiRequest('/teachers/me/attendance/face-scan', { method: 'POST', body: { studentId, course: courseId, date } });
+      setScans((prev) => [{ ...result, at: new Date() }, ...prev]);
+    } catch (err) { onFlash(err.message || `Could not mark ${fullName}.`); }
+  }
+
+  useEffect(() => {
+    if (!enrolled || enrolled.length === 0) return;
+    cancelledRef.current = false;
+    let stream = null;
+
+    async function start() {
+      const { loadFaceModels, faceapi } = await import('../utils/faceApi');
+      await loadFaceModels();
+      if (cancelledRef.current) return;
+
+      stream = await navigator.mediaDevices.getUserMedia({ video: {} });
+      if (cancelledRef.current) { stream.getTracks().forEach((t) => t.stop()); return; }
+      videoRef.current.srcObject = stream;
+      await videoRef.current.play();
+      setReady(true);
+
+      const byId = Object.fromEntries(enrolled.map((e) => [e.studentId, e.fullName]));
+      const labeled = enrolled.map((e) => new faceapi.LabeledFaceDescriptors(e.studentId, [new Float32Array(e.descriptor)]));
+      const matcher = new faceapi.FaceMatcher(labeled, 0.55);
+
+      async function loop() {
+        if (cancelledRef.current) return;
+        try {
+          const detections = await faceapi.detectAllFaces(videoRef.current, new faceapi.TinyFaceDetectorOptions()).withFaceLandmarks().withFaceDescriptors();
+          detections.forEach((d) => {
+            const match = matcher.findBestMatch(d.descriptor);
+            if (match.label !== 'unknown') {
+              const now = Date.now();
+              if (now - (lastMatchRef.current[match.label] || 0) > 4000) {
+                lastMatchRef.current[match.label] = now;
+                markPresent(match.label, byId[match.label]);
+              }
+            }
+          });
+        } catch { /* transient detection hiccup — just try again next frame */ }
+        if (!cancelledRef.current) rafRef.current = requestAnimationFrame(loop);
+      }
+      loop();
+    }
+
+    start().catch((err) => onFlash(err.message));
+    return () => {
+      cancelledRef.current = true;
+      cancelAnimationFrame(rafRef.current);
+      stream?.getTracks().forEach((t) => t.stop());
+      setReady(false);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [enrolled]);
+
+  if (enrolled === null) return <p role="status" className="admin-notice">Loading...</p>;
+  if (enrolled.length === 0) {
+    return <p className="admin-notice">No students in this course have enrolled their face yet — they can do this from their Digital Student ID page.</p>;
+  }
+
+  return (
+    <div className="card" style={{ padding: 20, marginBottom: 28 }}>
+      <div style={{ position: 'relative', maxWidth: 420 }}>
+        <video ref={videoRef} playsInline muted style={{ width: '100%', borderRadius: 14, background: '#000' }} />
+        {!ready && <p className="text-xs" style={{ color: 'var(--ink-soft)', marginTop: 6 }}>Loading face models and starting camera...</p>}
+      </div>
+      <p className="text-xs" style={{ color: 'var(--ink-soft)', margin: '8px 0' }}>{enrolled.length} student{enrolled.length > 1 ? 's' : ''} enrolled for face attendance in this course.</p>
+      <h4 className="font-semibold mt-2 mb-2" style={{ fontSize: '0.85rem' }}>Scanned this session</h4>
+      {scans.length === 0 ? (
+        <p className="text-xs" style={{ color: 'var(--ink-soft)' }}>No students matched yet.</p>
+      ) : (
+        <ul className="text-sm space-y-1">
+          {scans.map((s, i) => (
+            <li key={i}>{s.alreadyMarked ? '↺' : '✓'} {s.studentName} — {s.at.toLocaleTimeString()}{s.alreadyMarked ? ' (already marked)' : ''}</li>
+          ))}
+        </ul>
+      )}
+    </div>
+  );
+}
+
 function TeacherAttendancePanel({ onFlash }) {
   const { courses, courseId, setCourseId } = useTeacherCourses(onFlash);
   const [enrollments, setEnrollments] = useState([]);
@@ -4178,6 +6304,7 @@ function TeacherAttendancePanel({ onFlash }) {
   const [statuses, setStatuses] = useState({});
   const [reasons, setReasons] = useState({});
   const [history, setHistory] = useState([]);
+  const [mode, setMode] = useState('manual');
 
   useEffect(() => {
     if (!courseId) return;
@@ -4210,7 +6337,21 @@ function TeacherAttendancePanel({ onFlash }) {
   return (
     <div>
       <CourseSelect courses={courses} value={courseId} onChange={setCourseId} />
-      {courseId && enrollments.length > 0 && (
+      {courseId && (
+        <div className="flex gap-2 mb-4">
+          <button type="button" className={mode === 'manual' ? 'btn btn-primary' : 'btn'} style={{ padding: '6px 16px', fontSize: '0.8rem' }} onClick={() => setMode('manual')}>Manual</button>
+          <button type="button" className={mode === 'qr' ? 'btn btn-primary' : 'btn'} style={{ padding: '6px 16px', fontSize: '0.8rem' }} onClick={() => setMode('qr')}>📷 QR Scan</button>
+          <button type="button" className={mode === 'face' ? 'btn btn-primary' : 'btn'} style={{ padding: '6px 16px', fontSize: '0.8rem' }} onClick={() => setMode('face')}>🙂 Face Scan</button>
+        </div>
+      )}
+      {courseId && (mode === 'qr' || mode === 'face') && (
+        <label className="text-xs" style={{ color: 'var(--ink-soft)', fontWeight: 600, display: 'block', marginBottom: 10 }}>Date
+          <input type="date" className="form-input" value={date} onChange={(e) => setDate(e.target.value)} style={{ marginTop: 6, maxWidth: 200 }} />
+        </label>
+      )}
+      {courseId && mode === 'qr' && <TeacherQrAttendancePanel courseId={courseId} date={date} onFlash={onFlash} />}
+      {courseId && mode === 'face' && <TeacherFaceAttendancePanel courseId={courseId} date={date} onFlash={onFlash} />}
+      {courseId && mode === 'manual' && enrollments.length > 0 && (
         <form onSubmit={submit} className="card" style={{ padding: 20, marginBottom: 28 }}>
           <div className="flex items-end flex-wrap" style={{ gap: 14, marginBottom: 18 }}>
             <label className="text-xs" style={{ color: 'var(--ink-soft)', fontWeight: 600 }}>Date
@@ -4660,8 +6801,10 @@ function ParentWorkspace({ tab, user, onFlash, onChanged, onNavigate }) {
   if (tab === 'institutionInfo') return <ParentInstitutionInfoPanel onFlash={onFlash} />;
   if (tab === 'teacherMessages') return <ParentTeacherMessagesPanel onFlash={onFlash} onNavigate={onNavigate} />;
   if (tab === 'wallet') return <ParentPaymentRecordsPanel onFlash={onFlash} />;
-  const labels = { ptm: 'Parent-Teacher Meeting' };
-  return <ComingSoon label={labels[tab] || tab} />;
+  if (tab === 'health') return <ParentHealthPanel onFlash={onFlash} />;
+  if (tab === 'permissions') return <ParentPermissionsPanel onFlash={onFlash} />;
+  if (tab === 'ptm') return <ParentPtmPanel onFlash={onFlash} />;
+  return <ComingSoon label={tab} />;
 }
 
 function ParentChildDataPanel({ onFlash, kind }) {
@@ -4677,11 +6820,11 @@ function ParentChildDataPanel({ onFlash, kind }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  useEffect(() => {
+  function reload() {
     if (!studentId) return;
-    setRows(null);
     apiRequest(`/parents/children/${studentId}/${kind}`).then(setRows).catch((err) => onFlash(err.message));
-  }, [studentId, kind, onFlash]);
+  }
+  useEffect(() => { setRows(null); reload(); }, [studentId, kind]); // eslint-disable-line react-hooks/exhaustive-deps
 
   if (children.length === 0) {
     return (
@@ -4732,8 +6875,12 @@ function ParentChildDataPanel({ onFlash, kind }) {
       )}
       {rows && kind === 'fees' && (
         <Table
-          headers={['Title', 'Amount', 'Due', 'Status']}
-          rows={rows.map((f) => [f.title, `${f.currency} ${f.amount}`, f.dueDate ? new Date(f.dueDate).toLocaleDateString() : '—', <Tag status={f.status === 'paid' ? 'approved' : f.status === 'overdue' ? 'rejected' : 'pending'} />])}
+          headers={['Title', 'Amount', 'Due', 'Status', 'Payment']}
+          rows={rows.map((f) => [
+            f.title, `${f.currency} ${f.amount}`, f.dueDate ? new Date(f.dueDate).toLocaleDateString() : '—',
+            <Tag status={f.status === 'paid' ? 'approved' : f.status === 'overdue' ? 'rejected' : 'pending'} />,
+            <PayFeeButton fee={f} payUrl={`/parents/children/${studentId}/fees/${f._id}/pay`} onFlash={onFlash} onPaid={reload} />
+          ])}
           empty="No fee records yet."
         />
       )}
@@ -4823,6 +6970,9 @@ function ParentPerformancePanel({ onFlash }) {
 function ParentInstitutionInfoPanel({ onFlash }) {
   const [children, setChildren] = useState(null);
   const [institution, setInstitution] = useState(undefined);
+  const [newsletters, setNewsletters] = useState(null);
+  const [magazine, setMagazine] = useState(null);
+  const [campusBuildings, setCampusBuildings] = useState(null);
 
   useEffect(() => {
     apiRequest('/parents/me/dashboard').then((d) => setChildren(d.children)).catch((err) => onFlash(err.message));
@@ -4835,17 +6985,59 @@ function ParentInstitutionInfoPanel({ onFlash }) {
     apiRequest(`/institutions/${instId}`).then(setInstitution).catch(() => setInstitution(null));
   }, [children]);
 
+  useEffect(() => {
+    if (!institution?._id) return;
+    apiRequest(`/newsletters/published?institution=${institution._id}`).then(setNewsletters).catch(() => {});
+    apiRequest(`/magazine/published?institution=${institution._id}`).then(setMagazine).catch(() => {});
+    apiRequest(`/institutions/${institution._id}/campus-buildings`).then(setCampusBuildings).catch(() => {});
+  }, [institution]);
+
   if (children === null) return <p role="status" className="admin-notice">Loading...</p>;
   if (children.length === 0) return <p className="admin-notice">No linked children yet — link one from the "My Children" tab first.</p>;
   if (institution === undefined) return <p role="status" className="admin-notice">Loading...</p>;
   if (!institution) return <p className="admin-notice">Your linked child isn't connected to an institution yet.</p>;
 
   return (
-    <div className="card" style={{ padding: 20 }}>
-      <h3 className="font-semibold mb-2">{institution.name}</h3>
-      <p className="text-sm" style={{ color: 'var(--ink-soft)' }}>{institution.type || '—'} · {institution.country || '—'}{institution.city ? `, ${institution.city}` : ''}</p>
-      {institution.description && <p className="text-sm mt-2">{institution.description}</p>}
-      {institution.website && <p className="text-sm mt-2"><a href={institution.website} target="_blank" rel="noreferrer">{institution.website}</a></p>}
+    <div>
+      <div className="card" style={{ padding: 20, marginBottom: 20 }}>
+        <h3 className="font-semibold mb-2">{institution.name}</h3>
+        <p className="text-sm" style={{ color: 'var(--ink-soft)' }}>{institution.type || '—'} · {institution.country || '—'}{institution.city ? `, ${institution.city}` : ''}</p>
+        {institution.description && <p className="text-sm mt-2">{institution.description}</p>}
+        {institution.website && <p className="text-sm mt-2"><a href={institution.website} target="_blank" rel="noreferrer">{institution.website}</a></p>}
+      </div>
+
+      {campusBuildings && campusBuildings.length > 0 && (
+        <>
+          <h4 className="font-semibold mb-2" style={{ fontSize: '0.9rem' }}>Virtual Campus Tour</h4>
+          <div style={{ marginBottom: 20 }}>
+            <CampusTourViewer buildings={campusBuildings} />
+          </div>
+        </>
+      )}
+
+      <h4 className="font-semibold mb-2" style={{ fontSize: '0.9rem' }}>Newsletter</h4>
+      {newsletters?.length === 0 && <p className="admin-notice">No newsletters published yet.</p>}
+      <div className="space-y-3" style={{ marginBottom: 20 }}>
+        {(newsletters || []).map((n) => (
+          <div key={n._id} className="border border-[var(--sand-line)] rounded-xl p-3">
+            <p className="font-medium">{n.title}</p>
+            <p className="text-xs" style={{ color: 'var(--ink-soft)', margin: '4px 0' }}>{new Date(n.publishedAt).toLocaleDateString()}</p>
+            <p className="text-sm">{n.content}</p>
+          </div>
+        ))}
+      </div>
+
+      <h4 className="font-semibold mb-2" style={{ fontSize: '0.9rem' }}>Student Magazine</h4>
+      {magazine?.length === 0 && <p className="admin-notice">Nothing published yet.</p>}
+      <div className="space-y-3">
+        {(magazine || []).map((m) => (
+          <div key={m._id} className="border border-[var(--sand-line)] rounded-xl p-3">
+            <p className="font-medium">{m.title}</p>
+            <p className="text-xs" style={{ color: 'var(--ink-soft)', margin: '4px 0' }}>By {m.student?.fullName || 'A student'} · {m.type}</p>
+            <p className="text-sm">{m.content}</p>
+          </div>
+        ))}
+      </div>
     </div>
   );
 }
@@ -4892,6 +7084,176 @@ function ParentTeacherMessagesPanel({ onFlash, onNavigate }) {
                 <p className="text-xs" style={{ color: 'var(--ink-soft)' }}>No messages with the class teacher yet.</p>
               )}
             </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+const PTM_STATUS_TAG = { pending: 'pending', confirmed: 'approved', declined: 'rejected', cancelled: 'rejected' };
+
+function ParentPtmPanel({ onFlash }) {
+  const [children, setChildren] = useState(null);
+  const [childId, setChildId] = useState('');
+  const [teachers, setTeachers] = useState(null);
+  const [form, setForm] = useState({ teacherId: '', requestedDate: '', mode: 'video', notes: '' });
+  const [meetings, setMeetings] = useState(null);
+
+  useEffect(() => {
+    apiRequest('/parents/me/dashboard').then((d) => {
+      setChildren(d.children);
+      if (d.children.length > 0) setChildId(d.children[0].id);
+    }).catch((err) => onFlash(err.message));
+  }, [onFlash]);
+
+  useEffect(() => {
+    if (!childId) return;
+    apiRequest(`/parents/children/${childId}/teachers`).then(setTeachers).catch((err) => onFlash(err.message));
+  }, [childId, onFlash]);
+
+  function loadMeetings() { apiRequest('/ptm/mine').then(setMeetings).catch((err) => onFlash(err.message)); }
+  useEffect(loadMeetings, []);
+
+  async function submitRequest(e) {
+    e.preventDefault();
+    if (!form.teacherId || !form.requestedDate) return onFlash('Pick a teacher and a date/time.');
+    try {
+      await apiRequest('/ptm', { method: 'POST', body: { studentId: childId, ...form } });
+      onFlash('Meeting request sent. Waiting for the teacher to confirm.', 'success');
+      setForm({ teacherId: '', requestedDate: '', mode: 'video', notes: '' });
+      loadMeetings();
+    } catch (err) { onFlash(err.message); }
+  }
+  async function cancelMeeting(id) {
+    try {
+      await apiRequest(`/ptm/${id}/cancel`, { method: 'PATCH' });
+      onFlash('Meeting cancelled.', 'success');
+      loadMeetings();
+    } catch (err) { onFlash(err.message); }
+  }
+
+  if (children === null) return <p role="status" className="admin-notice">Loading...</p>;
+  if (children.length === 0) return <p className="admin-notice">No linked children yet — link one from the "My Children" tab first.</p>;
+
+  return (
+    <div>
+      <h3 className="font-semibold mb-2">Parent-Teacher Meeting</h3>
+
+      {children.length > 1 && (
+        <label className="text-xs" style={{ display: 'block', marginBottom: 14, maxWidth: 260 }}>Child
+          <select className="form-select" value={childId} onChange={(e) => setChildId(e.target.value)} style={{ marginTop: 6 }}>
+            {children.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
+          </select>
+        </label>
+      )}
+
+      <form onSubmit={submitRequest} className="space-y-2 max-w-md mb-6 border border-[var(--sand-line)] rounded-xl p-3">
+        <strong className="text-sm">Request a Meeting</strong>
+        {teachers === null && <p className="admin-notice">Loading teachers...</p>}
+        {teachers?.length === 0 && <p className="admin-notice">No teachers found yet — this child's class timetable isn't set up.</p>}
+        {teachers?.length > 0 && (
+          <CustomSelect
+            value={form.teacherId} onChange={(v) => setForm({ ...form, teacherId: v })} ariaLabel="Teacher" minWidth="100%"
+            options={teachers.map((t) => ({ value: t.teacher._id, label: `${t.teacher.fullName}${t.subjects.length > 0 ? ` — ${t.subjects.join(', ')}` : ''}` }))}
+          />
+        )}
+        <input className="form-input" type="datetime-local" value={form.requestedDate} onChange={(e) => setForm({ ...form, requestedDate: e.target.value })} required />
+        <CustomSelect
+          value={form.mode} onChange={(v) => setForm({ ...form, mode: v })} ariaLabel="Meeting mode" minWidth="100%"
+          options={[{ value: 'video', label: 'Video Call' }, { value: 'physical', label: 'In Person' }]}
+        />
+        <textarea className="form-input" placeholder="What would you like to discuss? (optional)" rows={2} value={form.notes} onChange={(e) => setForm({ ...form, notes: e.target.value })} />
+        <button type="submit" className="btn btn-primary" disabled={teachers?.length === 0}>Send Request</button>
+      </form>
+
+      <Table
+        loading={meetings === null}
+        headers={['Child', 'Teacher', 'Subject', 'Date', 'Mode', 'Status', 'Details', 'Action']}
+        rows={(meetings || []).map((m) => [
+          m.student?.fullName || '—', m.teacher?.fullName || '—', m.subject || '—',
+          new Date(m.confirmedDate || m.requestedDate).toLocaleString(),
+          m.mode === 'video' ? 'Video' : 'In Person',
+          <Tag status={PTM_STATUS_TAG[m.status] || 'pending'} label={m.status} />,
+          m.status === 'confirmed' ? (m.mode === 'video' ? (m.meetingLink ? <a href={m.meetingLink} target="_blank" rel="noreferrer">Join Link</a> : 'Link pending') : (m.location || 'Location pending')) : '—',
+          ['pending', 'confirmed'].includes(m.status) ? <button className="btn" style={{ padding: '4px 10px', fontSize: '0.75rem', background: 'var(--sand-line)' }} onClick={() => cancelMeeting(m._id)}>Cancel</button> : '—'
+        ])}
+        empty="No meeting requests yet."
+      />
+    </div>
+  );
+}
+
+function TeacherPtmPanel({ onFlash }) {
+  const [meetings, setMeetings] = useState(null);
+  const [respondFormFor, setRespondFormFor] = useState(null);
+  const [respondForm, setRespondForm] = useState({ confirmedDate: '', meetingLink: '', location: '' });
+
+  function load() { apiRequest('/ptm/mine').then(setMeetings).catch((err) => onFlash(err.message)); }
+  useEffect(load, []);
+
+  function startRespond(m) {
+    setRespondFormFor(m._id);
+    setRespondForm({ confirmedDate: m.requestedDate ? m.requestedDate.slice(0, 16) : '', meetingLink: '', location: '' });
+  }
+
+  async function respond(m, decision) {
+    try {
+      await apiRequest(`/ptm/${m._id}/respond`, { method: 'PATCH', body: { decision, ...respondForm } });
+      onFlash(`Meeting ${decision}.`, 'success');
+      setRespondFormFor(null);
+      load();
+    } catch (err) { onFlash(err.message); }
+  }
+  async function cancelMeeting(id) {
+    try {
+      await apiRequest(`/ptm/${id}/cancel`, { method: 'PATCH' });
+      onFlash('Meeting cancelled.', 'success');
+      load();
+    } catch (err) { onFlash(err.message); }
+  }
+
+  return (
+    <div>
+      <h3 className="font-semibold mb-2">Parent-Teacher Meeting Requests</h3>
+      {meetings === null && <p role="status" className="admin-notice">Loading...</p>}
+      {meetings?.length === 0 && <p className="admin-notice">No meeting requests yet.</p>}
+      <div className="space-y-3">
+        {(meetings || []).map((m) => (
+          <div key={m._id} className="border border-[var(--sand-line)] rounded-xl p-3">
+            <div className="flex items-center justify-between flex-wrap" style={{ gap: 10 }}>
+              <div>
+                <strong className="text-sm">{m.student?.fullName || '—'}'s parent ({m.parent?.fullName || '—'})</strong>
+                <p className="text-xs" style={{ color: 'var(--ink-soft)', marginTop: 2 }}>
+                  {m.subject || 'General'} · Requested for {new Date(m.requestedDate).toLocaleString()} · {m.mode === 'video' ? 'Video Call' : 'In Person'}
+                </p>
+                {m.notes && <p className="text-xs mt-1">"{m.notes}"</p>}
+              </div>
+              <Tag status={PTM_STATUS_TAG[m.status] || 'pending'} label={m.status} />
+            </div>
+
+            {m.status === 'pending' && respondFormFor !== m._id && (
+              <button className="btn btn-primary" style={{ padding: '5px 14px', fontSize: '0.78rem', marginTop: 10 }} onClick={() => startRespond(m)}>Respond</button>
+            )}
+            {respondFormFor === m._id && (
+              <div className="flex items-end flex-wrap" style={{ gap: 10, marginTop: 12, paddingTop: 12, borderTop: '1px solid var(--sand-line)' }}>
+                <label className="text-xs" style={{ color: 'var(--ink-soft)', fontWeight: 600 }}>Confirmed date/time
+                  <input type="datetime-local" className="form-input" value={respondForm.confirmedDate} onChange={(e) => setRespondForm({ ...respondForm, confirmedDate: e.target.value })} style={{ marginTop: 6 }} />
+                </label>
+                {m.mode === 'video'
+                  ? <input className="form-input" placeholder="Meeting link" value={respondForm.meetingLink} onChange={(e) => setRespondForm({ ...respondForm, meetingLink: e.target.value })} style={{ flex: '1 1 200px', minWidth: 0 }} />
+                  : <input className="form-input" placeholder="Location" value={respondForm.location} onChange={(e) => setRespondForm({ ...respondForm, location: e.target.value })} style={{ flex: '1 1 200px', minWidth: 0 }} />}
+                <button type="button" className="btn btn-primary" style={{ padding: '7px 14px', fontSize: '0.78rem' }} onClick={() => respond(m, 'confirmed')}>Confirm</button>
+                <button type="button" className="btn" style={{ padding: '7px 14px', fontSize: '0.78rem', background: 'var(--sand-line)' }} onClick={() => respond(m, 'declined')}>Decline</button>
+                <button type="button" className="btn" style={{ padding: '7px 14px', fontSize: '0.78rem' }} onClick={() => setRespondFormFor(null)}>Close</button>
+              </div>
+            )}
+            {m.status === 'confirmed' && (
+              <div className="flex items-center justify-between flex-wrap" style={{ marginTop: 10, gap: 10 }}>
+                <p className="text-xs">{new Date(m.confirmedDate).toLocaleString()} · {m.mode === 'video' ? (m.meetingLink || 'No link set') : (m.location || 'No location set')}</p>
+                <button className="btn" style={{ padding: '5px 12px', fontSize: '0.75rem', background: 'var(--sand-line)' }} onClick={() => cancelMeeting(m._id)}>Cancel</button>
+              </div>
+            )}
           </div>
         ))}
       </div>
@@ -4948,9 +7310,224 @@ function ParentPaymentRecordsPanel({ onFlash }) {
       )}
       <h3 className="font-semibold mb-2">Payment Records</h3>
       <Table
-        headers={['Title', 'Amount', 'Paid Via', 'Paid On']}
-        rows={paid.map((f) => [f.title, `${f.currency} ${f.amount}`, f.paidVia || '—', f.paidAt ? new Date(f.paidAt).toLocaleDateString() : '—'])}
+        headers={['Title', 'Gross Amount', 'Platform Commission', 'Net Amount', 'Paid Via', 'Paid On', 'Escrow', 'Receipt']}
+        rows={paid.map((f) => [
+          f.title, `${f.currency} ${f.grossAmount ?? f.amount}`,
+          `${f.currency} ${f.platformCommission ?? 0}`,
+          `${f.currency} ${f.netAmount ?? f.amount}`,
+          f.paidVia || '—', f.paidAt ? new Date(f.paidAt).toLocaleDateString() : '—',
+          <Tag status={f.escrowStatus === 'released' ? 'approved' : 'pending'} label={f.escrowStatus === 'released' ? 'Released' : 'Held'} />,
+          f.transactionId || '—'
+        ])}
         empty="No completed payments yet — outstanding fees are on the Fee Management page."
+      />
+    </div>
+  );
+}
+
+function ParentChildPicker({ children, studentId, setStudentId }) {
+  if (children.length === 0) return null;
+  const selected = children.find((c) => c.student._id === studentId);
+  return children.length > 1 ? (
+    <label style={{ display: 'inline-block', marginBottom: 18 }}>
+      <span className="text-xs" style={{ display: 'block', color: 'var(--ink-soft)', fontWeight: 600, marginBottom: 6 }}>Viewing child</span>
+      <select className="form-select" value={studentId} onChange={(e) => setStudentId(e.target.value)} style={{ minWidth: 240 }} aria-label="Select child">
+        {children.map((c) => <option key={c.student._id} value={c.student._id}>{c.student.fullName}</option>)}
+      </select>
+    </label>
+  ) : selected ? (
+    <div className="flex items-center" style={{ gap: 10, marginBottom: 18 }}>
+      <span style={{ width: 32, height: 32, borderRadius: '50%', background: 'var(--emerald)', color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 700, fontSize: 13, flexShrink: 0 }}>{selected.student.fullName[0]}</span>
+      <strong className="text-sm">{selected.student.fullName}</strong>
+    </div>
+  ) : null;
+}
+
+// Health Record (spec Part 11.13) — optional, parent-managed. Only the linked parent and
+// authorized institution staff can see this; it's never public.
+function ParentHealthPanel({ onFlash }) {
+  const [children, setChildren] = useState([]);
+  const [studentId, setStudentId] = useState('');
+  const [form, setForm] = useState(null);
+  const [saving, setSaving] = useState(false);
+
+  useEffect(() => {
+    apiRequest('/parents/children').then((list) => {
+      setChildren(list);
+      if (list[0]) setStudentId(list[0].student._id);
+    }).catch((err) => onFlash(err.message));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  const selected = children.find((c) => c.student._id === studentId);
+  const isSponsor = selected?.relationship === 'sponsor';
+
+  useEffect(() => {
+    if (!studentId || isSponsor) return;
+    setForm(null);
+    apiRequest(`/parents/children/${studentId}/health`).then((h) => setForm({
+      bloodGroup: h.bloodGroup || '',
+      allergies: (h.allergies || []).join(', '),
+      medicalNotes: h.medicalNotes || '',
+      emergencyName: h.emergencyContact?.name || '',
+      emergencyPhone: h.emergencyContact?.phone || '',
+      emergencyRelation: h.emergencyContact?.relation || ''
+    })).catch((err) => onFlash(err.message));
+  }, [studentId, isSponsor, onFlash]);
+
+  async function save(e) {
+    e.preventDefault();
+    setSaving(true);
+    try {
+      await apiRequest(`/parents/children/${studentId}/health`, {
+        method: 'PATCH',
+        body: {
+          bloodGroup: form.bloodGroup,
+          allergies: form.allergies.split(',').map((a) => a.trim()).filter(Boolean),
+          medicalNotes: form.medicalNotes,
+          emergencyContact: { name: form.emergencyName, phone: form.emergencyPhone, relation: form.emergencyRelation }
+        }
+      });
+      onFlash('Health record updated.', 'success');
+    } catch (err) { onFlash(err.message); } finally { setSaving(false); }
+  }
+
+  if (children.length === 0) {
+    return (
+      <div className="student-empty-state" style={{ border: '1px solid var(--sand-line)', borderRadius: 18, minHeight: 180 }}>
+        <FaUsers aria-hidden="true" />
+        <p>No linked children yet</p>
+        <span>Link one from the "My Children" tab first.</span>
+      </div>
+    );
+  }
+
+  return (
+    <div>
+      <ParentChildPicker children={children} studentId={studentId} setStudentId={setStudentId} />
+      {isSponsor ? (
+        <div className="admin-notice">Sponsor links cannot view or edit health records — this is limited to a father, mother or guardian link.</div>
+      ) : (
+      <>
+      <p className="text-xs" style={{ color: 'var(--ink-soft)', marginBottom: 16 }}>Only you and your child's authorized institution staff can see this — it is never shown publicly.</p>
+      {!form ? <p role="status" className="admin-notice">Loading...</p> : (
+        <form onSubmit={save} style={{ display: 'grid', gap: 12, maxWidth: 440, padding: 18, border: '1px solid var(--sand-line)', borderRadius: 14 }}>
+          <label className="text-xs" style={{ color: 'var(--ink-soft)', fontWeight: 600 }}>Blood Group
+            <input className="form-input" value={form.bloodGroup} onChange={(e) => setForm({ ...form, bloodGroup: e.target.value })} style={{ marginTop: 6 }} placeholder="e.g. O+" />
+          </label>
+          <label className="text-xs" style={{ color: 'var(--ink-soft)', fontWeight: 600 }}>Allergies (comma-separated)
+            <input className="form-input" value={form.allergies} onChange={(e) => setForm({ ...form, allergies: e.target.value })} style={{ marginTop: 6 }} placeholder="e.g. Peanuts, Penicillin" />
+          </label>
+          <label className="text-xs" style={{ color: 'var(--ink-soft)', fontWeight: 600 }}>Medical Notes
+            <textarea className="form-input" rows={3} value={form.medicalNotes} onChange={(e) => setForm({ ...form, medicalNotes: e.target.value })} style={{ marginTop: 6 }} />
+          </label>
+          <div className="flex gap-2 flex-wrap">
+            <label className="text-xs" style={{ color: 'var(--ink-soft)', fontWeight: 600, flex: '1 1 140px' }}>Emergency Contact Name
+              <input className="form-input" value={form.emergencyName} onChange={(e) => setForm({ ...form, emergencyName: e.target.value })} style={{ marginTop: 6 }} />
+            </label>
+            <label className="text-xs" style={{ color: 'var(--ink-soft)', fontWeight: 600, flex: '1 1 140px' }}>Phone
+              <input className="form-input" value={form.emergencyPhone} onChange={(e) => setForm({ ...form, emergencyPhone: e.target.value })} style={{ marginTop: 6 }} />
+            </label>
+            <label className="text-xs" style={{ color: 'var(--ink-soft)', fontWeight: 600, flex: '1 1 140px' }}>Relation
+              <input className="form-input" value={form.emergencyRelation} onChange={(e) => setForm({ ...form, emergencyRelation: e.target.value })} style={{ marginTop: 6 }} />
+            </label>
+          </div>
+          <button type="submit" className="btn btn-primary" style={{ padding: '9px 20px', justifySelf: 'start' }} disabled={saving}>{saving ? 'Saving...' : 'Save Health Record'}</button>
+        </form>
+      )}
+      </>
+      )}
+    </div>
+  );
+}
+
+const PERMISSION_TYPES = [
+  { value: 'trip', label: 'School Trip' },
+  { value: 'event', label: 'Event' },
+  { value: 'competition', label: 'Competition' },
+  { value: 'photo', label: 'Photo / Media Use' },
+  { value: 'medical', label: 'Medical Treatment' },
+  { value: 'other', label: 'Other' }
+];
+
+// Digital permission slip (spec Part 11.14) — replaces the paper permission-slip workflow with
+// a typed e-signature (full name) + timestamp.
+function ParentPermissionsPanel({ onFlash }) {
+  const [children, setChildren] = useState([]);
+  const [studentId, setStudentId] = useState('');
+  const [list, setList] = useState(null);
+  const [form, setForm] = useState({ type: 'trip', title: '', details: '', decision: 'granted', signedName: '' });
+  const [submitting, setSubmitting] = useState(false);
+
+  useEffect(() => {
+    apiRequest('/parents/children').then((l) => {
+      setChildren(l);
+      if (l[0]) setStudentId(l[0].student._id);
+    }).catch((err) => onFlash(err.message));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  function reload() {
+    if (!studentId) return;
+    apiRequest(`/parents/children/${studentId}/permissions`).then(setList).catch((err) => onFlash(err.message));
+  }
+  useEffect(() => { setList(null); reload(); }, [studentId]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  async function submit(e) {
+    e.preventDefault();
+    if (!form.title.trim() || !form.signedName.trim()) return onFlash('Title and your typed signature are required.');
+    setSubmitting(true);
+    try {
+      await apiRequest(`/parents/children/${studentId}/permissions`, { method: 'POST', body: form });
+      onFlash('Permission recorded.', 'success');
+      setForm({ type: 'trip', title: '', details: '', decision: 'granted', signedName: '' });
+      reload();
+    } catch (err) { onFlash(err.message); } finally { setSubmitting(false); }
+  }
+
+  if (children.length === 0) {
+    return (
+      <div className="student-empty-state" style={{ border: '1px solid var(--sand-line)', borderRadius: 18, minHeight: 180 }}>
+        <FaUsers aria-hidden="true" />
+        <p>No linked children yet</p>
+        <span>Link one from the "My Children" tab first.</span>
+      </div>
+    );
+  }
+
+  const selected = children.find((c) => c.student._id === studentId);
+  const isSponsor = selected?.relationship === 'sponsor';
+
+  return (
+    <div>
+      <ParentChildPicker children={children} studentId={studentId} setStudentId={setStudentId} />
+      {isSponsor ? (
+        <div className="admin-notice" style={{ marginBottom: 20 }}>Sponsor links cannot sign consent for trips, events or medical treatment — this is limited to a father, mother or guardian link. You can still view the permission history below.</div>
+      ) : (
+      <form onSubmit={submit} style={{ display: 'grid', gap: 10, maxWidth: 460, marginBottom: 28, padding: 18, border: '1px solid var(--sand-line)', borderRadius: 14 }}>
+        <CustomSelect value={form.type} onChange={(v) => setForm({ ...form, type: v })} ariaLabel="Permission type" minWidth="100%" options={PERMISSION_TYPES} />
+        <input className="form-input" placeholder="Title (e.g. Grade 8 Museum Trip — 20 Oct)" value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })} required />
+        <textarea className="form-input" placeholder="Details (optional)" rows={2} value={form.details} onChange={(e) => setForm({ ...form, details: e.target.value })} />
+        <div className="flex gap-2">
+          <button type="button" className={`btn ${form.decision === 'granted' ? 'btn-primary' : ''}`} onClick={() => setForm({ ...form, decision: 'granted' })}>Grant Permission</button>
+          <button type="button" className={`btn ${form.decision === 'denied' ? 'btn-primary' : ''}`} onClick={() => setForm({ ...form, decision: 'denied' })}>Deny Permission</button>
+        </div>
+        <label className="text-xs" style={{ color: 'var(--ink-soft)', fontWeight: 600 }}>Type your full name to sign
+          <input className="form-input" value={form.signedName} onChange={(e) => setForm({ ...form, signedName: e.target.value })} style={{ marginTop: 6 }} placeholder="Your full legal name" required />
+        </label>
+        <button type="submit" className="btn btn-primary" style={{ padding: '9px 20px', justifySelf: 'start' }} disabled={submitting}>{submitting ? 'Recording...' : 'Sign & Submit'}</button>
+      </form>
+      )}
+      <h4 className="font-semibold mb-2" style={{ fontSize: '0.85rem' }}>Permission History</h4>
+      <Table
+        loading={list === null}
+        headers={['Type', 'Title', 'Decision', 'Signed By', 'Date']}
+        rows={(list || []).map((p) => [
+          PERMISSION_TYPES.find((t) => t.value === p.type)?.label || p.type, p.title,
+          <Tag status={p.decision === 'granted' ? 'approved' : 'rejected'} />,
+          p.signedName, new Date(p.signedAt).toLocaleDateString()
+        ])}
+        empty="No permission slips recorded yet."
       />
     </div>
   );
@@ -5133,6 +7710,7 @@ function InstitutionWorkspace({ tab, user, onFlash, onChanged }) {
   if (tab === 'classes') return <InstitutionClassesPanel onFlash={onFlash} />;
   if (tab === 'fees') return <InstitutionFeesPanel onFlash={onFlash} />;
   if (tab === 'communication') return <InstitutionBroadcastPanel onFlash={onFlash} />;
+  if (tab === 'campusLife') return <InstitutionCampusLifePanel onFlash={onFlash} />;
   if (tab === 'certificates') return <InstitutionCertificatesPanel onFlash={onFlash} />;
   if (tab === 'teachers') return <InstitutionTeachersPanel onFlash={onFlash} />;
   if (tab === 'students') return <InstitutionStudentsPanel onFlash={onFlash} />;
@@ -5140,6 +7718,16 @@ function InstitutionWorkspace({ tab, user, onFlash, onChanged }) {
   if (tab === 'payroll') return <InstitutionPayrollPanel onFlash={onFlash} />;
   if (tab === 'reports') return <InstitutionReportsPanel onFlash={onFlash} />;
   if (tab === 'examination') return <InstitutionExaminationPanel onFlash={onFlash} />;
+  if (tab === 'campusTour') return <InstitutionCampusTourPanel onFlash={onFlash} />;
+  if (tab === 'admissions') return <InstitutionAdmissionsPanel onFlash={onFlash} />;
+  if (tab === 'library') return <InstitutionLibraryPanel onFlash={onFlash} />;
+  if (tab === 'hostel') return <InstitutionHostelPanel onFlash={onFlash} />;
+  if (tab === 'transport') return <InstitutionTransportPanel onFlash={onFlash} />;
+  if (tab === 'inventory') return <InstitutionInventoryPanel onFlash={onFlash} />;
+  if (tab === 'health') return <InstitutionHealthPanel onFlash={onFlash} />;
+  if (tab === 'events') return <InstitutionEventsPanel onFlash={onFlash} />;
+  if (tab === 'helpdesk') return <InstitutionHelpDeskPanel onFlash={onFlash} />;
+  if (tab === 'aiAssistant') return <InstitutionAiAssistantPanel onFlash={onFlash} />;
   return <ComingSoon label={tab} />;
 }
 
@@ -6049,13 +8637,19 @@ function InstitutionPayrollPanel({ onFlash }) {
     } catch (err) { onFlash(err.message); }
   }
 
-  async function markPaid(id) {
+  async function markPaid(id, paymentMethod) {
     try {
-      await apiRequest(`/institutions/payroll/${id}/pay`, { method: 'PATCH' });
+      await apiRequest(`/institutions/payroll/${id}/pay`, { method: 'PATCH', body: { paymentMethod } });
       onFlash('Payslip marked as paid.', 'success');
       load();
     } catch (err) { onFlash(err.message); }
   }
+  const PAYSLIP_METHODS = [
+    { value: 'bank_transfer', label: 'Bank Transfer' },
+    { value: 'mobile_wallet', label: 'Mobile Wallet' },
+    { value: 'cash', label: 'Cash' },
+    { value: 'other', label: 'Other' }
+  ];
 
   if (institution === undefined) return <p role="status" className="admin-notice">Loading...</p>;
   if (!institution) return <p className="admin-notice">Register an institution first (My Institution tab).</p>;
@@ -6078,7 +8672,9 @@ function InstitutionPayrollPanel({ onFlash }) {
         rows={(payslips || []).map((p) => [
           p.staff?.fullName, `${p.month}/${p.year}`, `${p.currency} ${p.netAmount}`,
           <Tag status={p.status === 'paid' ? 'approved' : 'pending'} />,
-          p.status === 'pending' ? <button className="btn" style={{ padding: '4px 12px', fontSize: '0.78rem' }} onClick={() => markPaid(p._id)}>Mark Paid</button> : '—'
+          p.status === 'pending'
+            ? <PayMethodModalButton onSubmit={(method) => markPaid(p._id, method)} label="Mark Paid" methods={PAYSLIP_METHODS} confirmLabel="Confirm" />
+            : (p.transactionId ? <span className="text-xs" style={{ color: 'var(--ink-soft)' }}>Receipt {p.transactionId}</span> : '—')
         ])}
         empty="No payslips generated yet."
       />
@@ -6184,9 +8780,12 @@ function InstitutionStudentsPanel({ onFlash }) {
 function InstitutionAttendancePanel({ onFlash }) {
   const institution = useMyInstitution(onFlash);
   const [data, setData] = useState(null);
+  const [staffAttendance, setStaffAttendance] = useState(null);
 
   useEffect(() => {
-    if (institution) apiRequest(`/institutions/${institution._id}/attendance`).then(setData).catch((err) => onFlash(err.message));
+    if (!institution) return;
+    apiRequest(`/institutions/${institution._id}/attendance`).then(setData).catch((err) => onFlash(err.message));
+    apiRequest(`/institutions/${institution._id}/staff-attendance`).then(setStaffAttendance).catch((err) => onFlash(err.message));
   }, [institution, onFlash]);
 
   if (institution === undefined || (institution && data === null)) return <p role="status" className="admin-notice">Loading...</p>;
@@ -6195,7 +8794,7 @@ function InstitutionAttendancePanel({ onFlash }) {
   const s = data.summary;
   return (
     <div>
-      <h3 className="font-semibold mb-2">Attendance Management</h3>
+      <h3 className="font-semibold mb-2">Student Attendance</h3>
       <div className="flex gap-4 mb-4 flex-wrap">
         <span className="text-sm">Present: <strong>{s.present}</strong></span>
         <span className="text-sm">Absent: <strong>{s.absent}</strong></span>
@@ -6206,6 +8805,19 @@ function InstitutionAttendancePanel({ onFlash }) {
         headers={['Date', 'Class', 'Marked By', 'Students']}
         rows={data.records.map((r) => [new Date(r.date).toLocaleDateString(), r.classSection?.name || '—', r.markedBy?.fullName || '—', r.records.length])}
         empty="No attendance records yet."
+      />
+
+      <h3 className="font-semibold mb-2" style={{ marginTop: 32 }}>Staff Attendance</h3>
+      <p className="text-xs mb-3" style={{ color: 'var(--ink-soft)' }}>Real self-check-ins from teachers/staff (each checks in themselves, once per day) — not biometric/GPS, which this app has no device access to.</p>
+      <Table
+        headers={['Staff', 'Date', 'Checked In At', 'Status']}
+        rows={(staffAttendance || []).map((r) => [
+          r.staff?.fullName || '—',
+          new Date(r.date).toLocaleDateString(),
+          new Date(r.checkInAt).toLocaleTimeString(),
+          <Tag status={r.status === 'present' ? 'approved' : 'pending'} label={r.status === 'present' ? 'Present' : 'Late'} />
+        ])}
+        empty="No staff check-ins yet."
       />
     </div>
   );
@@ -6253,10 +8865,12 @@ function InstitutionCertificatesPanel({ onFlash }) {
   );
 }
 
+const FEE_TYPES = ['tuition', 'admission', 'exam', 'hostel', 'transport', 'library', 'activity', 'other'];
+
 function InstitutionFeesPanel({ onFlash }) {
   const [institution, setInstitution] = useState(null);
   const [fees, setFees] = useState([]);
-  const [form, setForm] = useState({ studentId: '', title: '', amount: '', dueDate: '' });
+  const [form, setForm] = useState({ studentId: '', title: '', feeType: 'tuition', amount: '', dueDate: '', installments: 1 });
 
   function load() {
     apiRequest('/institutions/mine/list').then((list) => {
@@ -6272,10 +8886,10 @@ function InstitutionFeesPanel({ onFlash }) {
     try {
       await apiRequest(`/institutions/${institution._id}/fees`, {
         method: 'POST',
-        body: { student: form.studentId.trim(), title: form.title, amount: Number(form.amount), dueDate: form.dueDate || null }
+        body: { student: form.studentId.trim(), title: form.title, feeType: form.feeType, amount: Number(form.amount), dueDate: form.dueDate || null, installments: Number(form.installments) || 1 }
       });
       onFlash('Fee recorded.', 'success');
-      setForm({ studentId: '', title: '', amount: '', dueDate: '' });
+      setForm({ studentId: '', title: '', feeType: 'tuition', amount: '', dueDate: '', installments: 1 });
       load();
     } catch (err) { onFlash(err.message); }
   }
@@ -6290,6 +8904,30 @@ function InstitutionFeesPanel({ onFlash }) {
     } catch (err) { onFlash(err.message); }
   }
 
+  async function releaseEscrow(feeId) {
+    try {
+      await apiRequest(`/institutions/fees/${feeId}/release`, { method: 'PATCH' });
+      onFlash('Escrow released.', 'success');
+      load();
+    } catch (err) { onFlash(err.message); }
+  }
+
+  async function remind(feeId) {
+    try {
+      await apiRequest(`/institutions/fees/${feeId}/remind`, { method: 'POST' });
+      onFlash('Reminder sent.', 'success');
+      load();
+    } catch (err) { onFlash(err.message); }
+  }
+
+  async function decideRefund(feeId, decision) {
+    try {
+      await apiRequest(`/institutions/fees/${feeId}/refund/decide`, { method: 'PATCH', body: { decision } });
+      onFlash(`Refund ${decision}.`, 'success');
+      load();
+    } catch (err) { onFlash(err.message); }
+  }
+
   if (!institution) return <p className="admin-notice">Register an institution first (My Institution tab).</p>;
 
   return (
@@ -6297,25 +8935,45 @@ function InstitutionFeesPanel({ onFlash }) {
       <form onSubmit={createFee} className="flex gap-3 items-end mb-3 flex-wrap">
         <input className="form-input" placeholder="Student's User ID" value={form.studentId} onChange={(e) => setForm({ ...form, studentId: e.target.value })} required />
         <input className="form-input" placeholder="Title (e.g. Tuition Fee - Term 1)" value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })} required />
+        <select className="form-select" value={form.feeType} onChange={(e) => setForm({ ...form, feeType: e.target.value })}>
+          {FEE_TYPES.map((t) => <option key={t} value={t}>{t.charAt(0).toUpperCase() + t.slice(1)}</option>)}
+        </select>
         <input className="form-input" type="number" placeholder="Amount" value={form.amount} onChange={(e) => setForm({ ...form, amount: e.target.value })} required style={{ maxWidth: 120 }} />
         <input className="form-input" type="date" value={form.dueDate} onChange={(e) => setForm({ ...form, dueDate: e.target.value })} />
+        <input className="form-input" type="number" min="1" max="12" placeholder="Instalments" value={form.installments} onChange={(e) => setForm({ ...form, installments: e.target.value })} style={{ maxWidth: 100 }} title="Split into N monthly instalments" />
         <button type="submit" className="btn btn-primary">Add Fee</button>
       </form>
       <p style={{ fontSize: 12, color: 'var(--ink-soft)', marginBottom: 16 }}>
-        Ask the student for their account's User ID from their Profile tab. Online payment isn't wired up yet — mark a fee "Paid" once you've received payment through any other method (bank transfer, cash, external link).
+        Ask the student for their account's User ID from their Profile tab. Online payment isn't wired up yet — mark a fee "Paid" once you've received payment through any other method (bank transfer, cash, external link). Leave Instalments at 1 for a single payment.
       </p>
       <Table
-        headers={['Student', 'Title', 'Amount', 'Due', 'Status', 'Action']}
+        headers={['Student', 'Title', 'Amount', 'Receipt', 'Due', 'Status', 'Escrow', 'Refund', 'Action']}
         rows={fees.map((f) => [
-          f.student?.fullName, f.title, `${f.currency} ${f.amount}`, f.dueDate ? new Date(f.dueDate).toLocaleDateString() : '—',
-          <Tag status={f.status === 'paid' ? 'approved' : 'pending'} />,
+          f.student?.fullName, f.installment?.totalInstallments ? `${f.title} (${f.installment.number}/${f.installment.totalInstallments})` : f.title, `${f.currency} ${f.amount}`,
+          f.receiptNumber || '—',
+          f.dueDate ? new Date(f.dueDate).toLocaleDateString() : '—',
+          <Tag status={f.status === 'paid' ? 'approved' : f.status === 'refunded' ? 'rejected' : 'pending'} label={f.status} />,
+          f.status === 'paid' ? <Tag status={f.escrowStatus === 'released' ? 'approved' : 'pending'} label={f.escrowStatus === 'released' ? 'Released' : 'Held'} /> : '—',
+          f.refund?.status && f.refund.status !== 'none' ? (
+            f.refund.status === 'requested' ? (
+              <div className="flex gap-1">
+                <button className="btn btn-primary" style={{ padding: '4px 8px', fontSize: '0.72rem' }} onClick={() => decideRefund(f._id, 'approved')}>Approve</button>
+                <button className="btn" style={{ padding: '4px 8px', fontSize: '0.72rem' }} onClick={() => decideRefund(f._id, 'rejected')}>Reject</button>
+              </div>
+            ) : f.refund.status === 'approved' ? (
+              <button className="btn btn-primary" style={{ padding: '4px 8px', fontSize: '0.72rem' }} onClick={() => decideRefund(f._id, 'refunded')}>Mark Refunded</button>
+            ) : <Tag status={f.refund.status === 'refunded' ? 'approved' : 'rejected'} label={f.refund.status} />
+          ) : '—',
           f.status !== 'paid' ? (
             <div className="flex gap-2 items-center">
               <select className="form-select" style={{ padding: '4px 8px', fontSize: '0.75rem' }} value={payVia[f._id] || 'Cash'} onChange={(e) => setPayVia({ ...payVia, [f._id]: e.target.value })}>
                 {['Cash', 'Bank Transfer', 'External Link'].map((v) => <option key={v} value={v}>{v}</option>)}
               </select>
               <button className="btn btn-primary" style={{ padding: '5px 12px', fontSize: '0.78rem' }} onClick={() => markPaid(f._id)}>Mark Paid</button>
+              <button className="btn" style={{ padding: '5px 12px', fontSize: '0.78rem' }} onClick={() => remind(f._id)}>Remind</button>
             </div>
+          ) : f.escrowStatus === 'held' ? (
+            <button className="btn btn-primary" style={{ padding: '5px 12px', fontSize: '0.78rem' }} onClick={() => releaseEscrow(f._id)}>Release Funds</button>
           ) : (f.paidVia || '—')
         ])}
         empty="No fee records yet."
@@ -6326,18 +8984,47 @@ function InstitutionFeesPanel({ onFlash }) {
 
 function InstitutionBroadcastPanel({ onFlash }) {
   const [institution, setInstitution] = useState(null);
-  const [form, setForm] = useState({ audience: 'all', title: '', body: '' });
+  const [form, setForm] = useState({ audience: 'all', title: '', body: '', channels: [] });
+  const [commsStatus, setCommsStatus] = useState(null);
+  const [twilioForm, setTwilioForm] = useState({ accountSid: '', authToken: '', smsFromNumber: '', whatsappFromNumber: '' });
 
-  useEffect(() => {
-    apiRequest('/institutions/mine/list').then((list) => setInstitution(list[0] || null)).catch((err) => onFlash(err.message));
-  }, [onFlash]);
+  function load() {
+    apiRequest('/institutions/mine/list').then((list) => {
+      const inst = list[0] || null;
+      setInstitution(inst);
+      if (inst) apiRequest(`/institutions/${inst._id}/comms-credential`).then(setCommsStatus).catch(() => {});
+    }).catch((err) => onFlash(err.message));
+  }
+  useEffect(load, []);
 
   async function send(e) {
     e.preventDefault();
     try {
       const res = await apiRequest(`/institutions/${institution._id}/notifications/broadcast`, { method: 'POST', body: form });
       onFlash(`Notification sent to ${res.sentTo} recipient(s).`, 'success');
-      setForm({ audience: 'all', title: '', body: '' });
+      setForm({ audience: 'all', title: '', body: '', channels: [] });
+    } catch (err) { onFlash(err.message); }
+  }
+
+  function toggleChannel(ch) {
+    setForm((f) => ({ ...f, channels: f.channels.includes(ch) ? f.channels.filter((c) => c !== ch) : [...f.channels, ch] }));
+  }
+
+  async function connectTwilio(e) {
+    e.preventDefault();
+    try {
+      await apiRequest(`/institutions/${institution._id}/comms-credential`, { method: 'POST', body: twilioForm });
+      onFlash('Twilio connected — SMS/WhatsApp are now live.', 'success');
+      setTwilioForm({ accountSid: '', authToken: '', smsFromNumber: '', whatsappFromNumber: '' });
+      load();
+    } catch (err) { onFlash(err.message); }
+  }
+
+  async function disconnectTwilio() {
+    try {
+      await apiRequest(`/institutions/${institution._id}/comms-credential`, { method: 'DELETE' });
+      onFlash('Twilio disconnected.', 'success');
+      load();
     } catch (err) { onFlash(err.message); }
   }
 
@@ -6359,8 +9046,864 @@ function InstitutionBroadcastPanel({ onFlash }) {
         </select>
         <input className="form-input" placeholder="Title" value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })} required />
         <textarea className="form-input" placeholder="Message" rows={4} value={form.body} onChange={(e) => setForm({ ...form, body: e.target.value })} />
+        <div className="flex gap-4 items-center" style={{ fontSize: 13 }}>
+          <label className="flex items-center gap-1"><input type="checkbox" checked={form.channels.includes('sms')} onChange={() => toggleChannel('sms')} disabled={!commsStatus?.configured || !commsStatus?.smsFromNumber} /> SMS</label>
+          <label className="flex items-center gap-1"><input type="checkbox" checked={form.channels.includes('whatsapp')} onChange={() => toggleChannel('whatsapp')} disabled={!commsStatus?.configured || !commsStatus?.whatsappFromNumber} /> WhatsApp</label>
+          {!commsStatus?.configured && <span style={{ color: 'var(--ink-soft)' }}>Connect Twilio below to enable SMS/WhatsApp.</span>}
+        </div>
         <button type="submit" className="btn btn-primary">Send Notification</button>
       </form>
+
+      <div className="admin-section" style={{ marginTop: 24 }}>
+        <div className="admin-section-heading"><div><h2>SMS / WhatsApp (Twilio)</h2><p>Bring your own Twilio account — CareerZ never resells messaging.</p></div></div>
+        {commsStatus?.configured ? (
+          <div>
+            <p className="text-sm">Connected. SMS from: <strong>{commsStatus.smsFromNumber || '—'}</strong> · WhatsApp from: <strong>{commsStatus.whatsappFromNumber || '—'}</strong></p>
+            <button className="btn" style={{ marginTop: 8 }} onClick={disconnectTwilio}>Disconnect</button>
+          </div>
+        ) : (
+          <form onSubmit={connectTwilio} className="space-y-3 max-w-md">
+            <input className="form-input" placeholder="Twilio Account SID" value={twilioForm.accountSid} onChange={(e) => setTwilioForm({ ...twilioForm, accountSid: e.target.value })} required />
+            <input className="form-input" type="password" placeholder="Twilio Auth Token" value={twilioForm.authToken} onChange={(e) => setTwilioForm({ ...twilioForm, authToken: e.target.value })} required />
+            <input className="form-input" placeholder="SMS From Number (e.g. +15551234567)" value={twilioForm.smsFromNumber} onChange={(e) => setTwilioForm({ ...twilioForm, smsFromNumber: e.target.value })} />
+            <input className="form-input" placeholder="WhatsApp From Number (e.g. whatsapp:+14155238886)" value={twilioForm.whatsappFromNumber} onChange={(e) => setTwilioForm({ ...twilioForm, whatsappFromNumber: e.target.value })} />
+            <button type="submit" className="btn btn-primary">Connect Twilio</button>
+          </form>
+        )}
+      </div>
+    </div>
+  );
+}
+
+const BUILDING_TYPES = ['academic', 'library', 'lab', 'hostel', 'sports', 'admin', 'cafeteria', 'auditorium', 'other'];
+const EMPTY_BUILDING_FORM = { name: '', type: 'academic', color: '#4b7bec', positionX: 0, positionZ: 0, width: 4, depth: 4, floors: 1, description: '', photo: null };
+
+function InstitutionCampusTourPanel({ onFlash }) {
+  const institution = useMyInstitution(onFlash);
+  const [buildings, setBuildings] = useState(null);
+  const [form, setForm] = useState(EMPTY_BUILDING_FORM);
+  const [editingId, setEditingId] = useState(null);
+  const [saving, setSaving] = useState(false);
+
+  function load(instId) {
+    apiRequest(`/institutions/${instId}/campus-buildings`).then(setBuildings).catch((err) => onFlash(err.message));
+  }
+  useEffect(() => { if (institution) load(institution._id); }, [institution]);
+
+  async function onPhoto(e) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    try {
+      const dataUrl = await resizeImageToDataUrl(file, 800, 0.78);
+      setForm((f) => ({ ...f, photo: dataUrl }));
+    } catch (err) { onFlash(err.message); }
+  }
+
+  async function submit(e) {
+    e.preventDefault();
+    setSaving(true);
+    try {
+      if (editingId) {
+        await apiRequest(`/institutions/${institution._id}/campus-buildings/${editingId}`, { method: 'PATCH', body: form });
+        onFlash('Building updated.', 'success');
+      } else {
+        await apiRequest(`/institutions/${institution._id}/campus-buildings`, { method: 'POST', body: form });
+        onFlash('Building added.', 'success');
+      }
+      setForm(EMPTY_BUILDING_FORM);
+      setEditingId(null);
+      load(institution._id);
+    } catch (err) { onFlash(err.message); } finally { setSaving(false); }
+  }
+
+  function editBuilding(b) {
+    setEditingId(b._id);
+    setForm({ name: b.name, type: b.type, color: b.color, positionX: b.positionX, positionZ: b.positionZ, width: b.width, depth: b.depth, floors: b.floors, description: b.description, photo: b.photo });
+  }
+
+  async function removeBuilding(id) {
+    try {
+      await apiRequest(`/institutions/${institution._id}/campus-buildings/${id}`, { method: 'DELETE' });
+      onFlash('Building removed.', 'success');
+      load(institution._id);
+    } catch (err) { onFlash(err.message); }
+  }
+
+  if (institution === undefined) return <p role="status" className="admin-notice">Loading...</p>;
+  if (!institution) return <p className="admin-notice">Register an institution first (My Institution tab).</p>;
+
+  return (
+    <div>
+      <h3 className="font-semibold mb-2">Virtual Campus Tour</h3>
+      <p className="text-xs mb-4" style={{ color: 'var(--ink-soft)' }}>
+        A real, interactive 3D map built from your own buildings — no photography or 3D modeling skill needed.
+        Place each building on the grid below; students and parents can then rotate, zoom and click through it from home.
+      </p>
+
+      {buildings && buildings.length > 0 && (
+        <div style={{ marginBottom: 24 }}>
+          <CampusTourViewer buildings={buildings} />
+        </div>
+      )}
+
+      <form onSubmit={submit} className="card" style={{ padding: 20, marginBottom: 24 }}>
+        <h4 className="font-semibold mb-3" style={{ fontSize: '0.9rem' }}>{editingId ? 'Edit Building' : 'Add a Building'}</h4>
+        <div className="flex gap-3 flex-wrap mb-3">
+          <input className="form-input" placeholder="Building name (e.g. Main Library)" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} required style={{ minWidth: 220 }} />
+          <CustomSelect value={form.type} onChange={(v) => setForm({ ...form, type: v })} ariaLabel="Building type" minWidth={150} options={BUILDING_TYPES.map((t) => ({ value: t, label: t[0].toUpperCase() + t.slice(1) }))} />
+          <label className="text-xs" style={{ color: 'var(--ink-soft)', display: 'flex', alignItems: 'center', gap: 6 }}>
+            Color <input type="color" value={form.color} onChange={(e) => setForm({ ...form, color: e.target.value })} style={{ width: 40, height: 34, border: 'none', background: 'none' }} />
+          </label>
+        </div>
+        <div className="flex gap-3 flex-wrap mb-3">
+          <label className="text-xs" style={{ color: 'var(--ink-soft)' }}>Position X
+            <input type="number" className="form-input" value={form.positionX} onChange={(e) => setForm({ ...form, positionX: Number(e.target.value) })} style={{ marginTop: 4, width: 90 }} />
+          </label>
+          <label className="text-xs" style={{ color: 'var(--ink-soft)' }}>Position Z
+            <input type="number" className="form-input" value={form.positionZ} onChange={(e) => setForm({ ...form, positionZ: Number(e.target.value) })} style={{ marginTop: 4, width: 90 }} />
+          </label>
+          <label className="text-xs" style={{ color: 'var(--ink-soft)' }}>Width
+            <input type="number" min="1" className="form-input" value={form.width} onChange={(e) => setForm({ ...form, width: Number(e.target.value) })} style={{ marginTop: 4, width: 80 }} />
+          </label>
+          <label className="text-xs" style={{ color: 'var(--ink-soft)' }}>Depth
+            <input type="number" min="1" className="form-input" value={form.depth} onChange={(e) => setForm({ ...form, depth: Number(e.target.value) })} style={{ marginTop: 4, width: 80 }} />
+          </label>
+          <label className="text-xs" style={{ color: 'var(--ink-soft)' }}>Floors
+            <input type="number" min="1" className="form-input" value={form.floors} onChange={(e) => setForm({ ...form, floors: Number(e.target.value) })} style={{ marginTop: 4, width: 80 }} />
+          </label>
+        </div>
+        <textarea className="form-input" placeholder="Description (what's inside this building)" rows={2} value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} style={{ marginBottom: 12 }} />
+        <div className="flex items-center gap-3 flex-wrap mb-3">
+          <input type="file" accept="image/*" onChange={onPhoto} />
+          {form.photo && <img src={form.photo} alt="" style={{ height: 44, borderRadius: 6 }} />}
+        </div>
+        <div className="flex gap-3">
+          <button type="submit" className="btn btn-primary" disabled={saving}>{saving ? 'Saving...' : editingId ? 'Save Changes' : 'Add Building'}</button>
+          {editingId && <button type="button" className="btn" onClick={() => { setEditingId(null); setForm(EMPTY_BUILDING_FORM); }}>Cancel</button>}
+        </div>
+      </form>
+
+      <h4 className="font-semibold mb-2" style={{ fontSize: '0.9rem' }}>Buildings ({buildings?.length || 0})</h4>
+      <Table
+        headers={['Name', 'Type', 'Floors', 'Position', 'Action']}
+        rows={(buildings || []).map((b) => [
+          b.name, b.type, b.floors, `${b.positionX}, ${b.positionZ}`,
+          <div className="flex gap-2">
+            <button type="button" className="btn" style={{ padding: '4px 10px', fontSize: '0.75rem' }} onClick={() => editBuilding(b)}>Edit</button>
+            <button type="button" className="btn" style={{ padding: '4px 10px', fontSize: '0.75rem', color: 'var(--rose)' }} onClick={() => removeBuilding(b._id)}>Remove</button>
+          </div>
+        ])}
+        empty="No buildings added yet — add your first one above."
+      />
+    </div>
+  );
+}
+
+// ==================== Admission Management (spec 15D.3) ====================
+
+function InstitutionAdmissionsPanel({ onFlash }) {
+  const institution = useMyInstitution(onFlash);
+  const [apps, setApps] = useState(null);
+  const [form, setForm] = useState({ applicantName: '', applicantEmail: '', program: '' });
+
+  function load(instId) {
+    apiRequest(`/institution-applications/institution/${instId}`).then(setApps).catch((err) => onFlash(err.message));
+  }
+  useEffect(() => { if (institution) load(institution._id); }, [institution]);
+
+  async function addOffline(e) {
+    e.preventDefault();
+    try {
+      await apiRequest('/institution-applications/offline', { method: 'POST', body: { institution: institution._id, ...form } });
+      onFlash('Offline admission entry added.', 'success');
+      setForm({ applicantName: '', applicantEmail: '', program: '' });
+      load(institution._id);
+    } catch (err) { onFlash(err.message); }
+  }
+
+  async function setStatus(id, status) {
+    try {
+      await apiRequest(`/institution-applications/${id}`, { method: 'PATCH', body: { status } });
+      onFlash(`Application marked ${status.replace('_', ' ')}.`, 'success');
+      load(institution._id);
+    } catch (err) { onFlash(err.message); }
+  }
+
+  async function accept(id) {
+    try {
+      await apiRequest(`/institution-applications/${id}/accept`, { method: 'POST' });
+      onFlash('Applicant accepted — admission letter and Student ID generated.', 'success');
+      load(institution._id);
+    } catch (err) { onFlash(err.message); }
+  }
+
+  async function scheduleTest(id, scheduledAt, subject) {
+    try {
+      await apiRequest(`/institution-applications/${id}/test`, { method: 'PATCH', body: { scheduledAt, subject } });
+      onFlash('Admission test scheduled.', 'success');
+      load(institution._id);
+    } catch (err) { onFlash(err.message); }
+  }
+
+  async function scheduleInterview(id, scheduledAt, mode) {
+    try {
+      await apiRequest(`/institution-applications/${id}/interview`, { method: 'PATCH', body: { scheduledAt, mode } });
+      onFlash('Interview scheduled.', 'success');
+      load(institution._id);
+    } catch (err) { onFlash(err.message); }
+  }
+
+  if (institution === undefined) return <p role="status" className="admin-notice">Loading...</p>;
+  if (!institution) return <p className="admin-notice">Register an institution first (My Institution tab).</p>;
+
+  return (
+    <div>
+      <div className="admin-section">
+        <div className="admin-section-heading"><div><h2>Offline Admission Entry</h2><p>Register a walk-in applicant who doesn't have an account yet.</p></div></div>
+        <form onSubmit={addOffline} className="flex gap-3 items-end mb-3 flex-wrap">
+          <input className="form-input" placeholder="Applicant name" value={form.applicantName} onChange={(e) => setForm({ ...form, applicantName: e.target.value })} required />
+          <input className="form-input" type="email" placeholder="Applicant email" value={form.applicantEmail} onChange={(e) => setForm({ ...form, applicantEmail: e.target.value })} required />
+          <input className="form-input" placeholder="Program / Grade applying for" value={form.program} onChange={(e) => setForm({ ...form, program: e.target.value })} required />
+          <button type="submit" className="btn btn-primary">Add Entry</button>
+        </form>
+      </div>
+
+      <Table
+        headers={['Applicant', 'Program', 'Source', 'Test', 'Interview', 'Status', 'Actions']}
+        rows={(apps || []).map((a) => [
+          a.applicant?.fullName, a.program, a.source === 'front_desk' ? 'Offline' : 'Online',
+          a.admissionTest?.scheduledAt ? new Date(a.admissionTest.scheduledAt).toLocaleDateString() + (a.admissionTest.score != null ? ` (${a.admissionTest.score}/${a.admissionTest.maxScore})` : '') : (
+            <button className="btn" style={{ padding: '4px 8px', fontSize: '0.72rem' }} onClick={() => { const d = prompt('Test date/time (YYYY-MM-DD HH:MM)'); if (d) scheduleTest(a._id, new Date(d).toISOString(), prompt('Subject') || ''); }}>Schedule Test</button>
+          ),
+          a.interview?.scheduledAt ? new Date(a.interview.scheduledAt).toLocaleDateString() : (
+            <button className="btn" style={{ padding: '4px 8px', fontSize: '0.72rem' }} onClick={() => { const d = prompt('Interview date/time (YYYY-MM-DD HH:MM)'); if (d) scheduleInterview(a._id, new Date(d).toISOString(), 'video'); }}>Schedule Interview</button>
+          ),
+          <Tag status={a.status === 'accepted' ? 'approved' : a.status === 'rejected' ? 'rejected' : 'pending'} label={a.status.replace('_', ' ')} />,
+          ['accepted', 'rejected'].includes(a.status) ? '—' : (
+            <div className="flex gap-1 flex-wrap">
+              <button className="btn" style={{ padding: '4px 8px', fontSize: '0.72rem' }} onClick={() => setStatus(a._id, 'under_review')}>Review</button>
+              <button className="btn" style={{ padding: '4px 8px', fontSize: '0.72rem' }} onClick={() => setStatus(a._id, 'waitlisted')}>Waitlist</button>
+              <button className="btn btn-primary" style={{ padding: '4px 8px', fontSize: '0.72rem' }} onClick={() => accept(a._id)}>Accept</button>
+              <button className="btn" style={{ padding: '4px 8px', fontSize: '0.72rem', color: 'var(--rose)' }} onClick={() => setStatus(a._id, 'rejected')}>Reject</button>
+            </div>
+          )
+        ])}
+        empty="No admission applications yet."
+      />
+    </div>
+  );
+}
+
+// ==================== Library Management (spec 15D.10) ====================
+
+function InstitutionLibraryPanel({ onFlash }) {
+  const institution = useMyInstitution(onFlash);
+  const [books, setBooks] = useState(null);
+  const [loans, setLoans] = useState(null);
+  const [tab, setTab] = useState('books');
+  const [form, setForm] = useState({ title: '', author: '', category: 'book', copies: 1 });
+  const [borrowForm, setBorrowForm] = useState({});
+
+  function load(instId) {
+    apiRequest(`/institution-ops/${instId}/books`).then(setBooks).catch((err) => onFlash(err.message));
+    apiRequest(`/institution-ops/${instId}/loans`).then(setLoans).catch((err) => onFlash(err.message));
+  }
+  useEffect(() => { if (institution) load(institution._id); }, [institution]);
+
+  async function addBook(e) {
+    e.preventDefault();
+    try {
+      await apiRequest(`/institution-ops/${institution._id}/books`, { method: 'POST', body: { ...form, copies: Number(form.copies) } });
+      onFlash('Book added.', 'success');
+      setForm({ title: '', author: '', category: 'book', copies: 1 });
+      load(institution._id);
+    } catch (err) { onFlash(err.message); }
+  }
+
+  async function removeBook(id) {
+    try { await apiRequest(`/institution-ops/books/${id}`, { method: 'DELETE' }); onFlash('Book removed.', 'success'); load(institution._id); } catch (err) { onFlash(err.message); }
+  }
+
+  async function borrow(bookId) {
+    const f = borrowForm[bookId] || {};
+    if (!f.borrower || !f.dueDate) return onFlash('Enter borrower User ID and due date first.');
+    try {
+      await apiRequest(`/institution-ops/books/${bookId}/borrow`, { method: 'POST', body: { borrower: f.borrower, dueDate: f.dueDate } });
+      onFlash('Book issued.', 'success');
+      load(institution._id);
+    } catch (err) { onFlash(err.message); }
+  }
+
+  async function returnLoan(loanId) {
+    try { await apiRequest(`/institution-ops/loans/${loanId}/return`, { method: 'PATCH' }); onFlash('Book returned.', 'success'); load(institution._id); } catch (err) { onFlash(err.message); }
+  }
+
+  if (institution === undefined) return <p role="status" className="admin-notice">Loading...</p>;
+  if (!institution) return <p className="admin-notice">Register an institution first (My Institution tab).</p>;
+
+  return (
+    <div>
+      <div className="flex gap-2 mb-3">
+        <button className={`btn ${tab === 'books' ? 'btn-primary' : ''}`} onClick={() => setTab('books')}>Books</button>
+        <button className={`btn ${tab === 'loans' ? 'btn-primary' : ''}`} onClick={() => setTab('loans')}>Borrowed / Loans</button>
+      </div>
+      {tab === 'books' ? (
+        <>
+          <form onSubmit={addBook} className="flex gap-3 items-end mb-3 flex-wrap">
+            <input className="form-input" placeholder="Title" value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })} required />
+            <input className="form-input" placeholder="Author" value={form.author} onChange={(e) => setForm({ ...form, author: e.target.value })} />
+            <select className="form-select" value={form.category} onChange={(e) => setForm({ ...form, category: e.target.value })}>
+              {['book', 'ebook', 'journal', 'research_paper'].map((c) => <option key={c} value={c}>{c}</option>)}
+            </select>
+            <input className="form-input" type="number" min="0" placeholder="Copies" value={form.copies} onChange={(e) => setForm({ ...form, copies: e.target.value })} style={{ maxWidth: 100 }} />
+            <button type="submit" className="btn btn-primary">Add Book</button>
+          </form>
+          <Table
+            headers={['Title', 'Author', 'Category', 'Available', 'QR Code', 'Borrow', 'Action']}
+            rows={(books || []).map((b) => [
+              b.title, b.author || '—', b.category, `${b.availableCopies}/${b.copies}`, b.qrCode,
+              <div className="flex gap-1 items-center">
+                <input className="form-input" placeholder="Borrower User ID" style={{ width: 110, padding: '4px 6px', fontSize: '0.72rem' }} onChange={(e) => setBorrowForm({ ...borrowForm, [b._id]: { ...borrowForm[b._id], borrower: e.target.value } })} />
+                <input className="form-input" type="date" style={{ width: 120, padding: '4px 6px', fontSize: '0.72rem' }} onChange={(e) => setBorrowForm({ ...borrowForm, [b._id]: { ...borrowForm[b._id], dueDate: e.target.value } })} />
+                <button className="btn" style={{ padding: '4px 8px', fontSize: '0.72rem' }} onClick={() => borrow(b._id)}>Issue</button>
+              </div>,
+              <button className="btn" style={{ padding: '4px 8px', fontSize: '0.72rem', color: 'var(--rose)' }} onClick={() => removeBook(b._id)}>Remove</button>
+            ])}
+            empty="No books added yet."
+          />
+        </>
+      ) : (
+        <Table
+          headers={['Book', 'Borrower', 'Borrowed', 'Due', 'Status', 'Fine', 'Action']}
+          rows={(loans || []).map((l) => [
+            l.book?.title, l.borrower?.fullName, new Date(l.borrowedAt).toLocaleDateString(), new Date(l.dueDate).toLocaleDateString(),
+            <Tag status={l.status === 'returned' ? 'approved' : 'pending'} label={l.status} />,
+            l.fineAmount > 0 ? `${l.fineAmount}` : '—',
+            l.status !== 'returned' ? <button className="btn" style={{ padding: '4px 8px', fontSize: '0.72rem' }} onClick={() => returnLoan(l._id)}>Mark Returned</button> : '—'
+          ])}
+          empty="No loans yet."
+        />
+      )}
+    </div>
+  );
+}
+
+// ==================== Hostel Management (spec 15D.11) ====================
+
+function InstitutionHostelPanel({ onFlash }) {
+  const institution = useMyInstitution(onFlash);
+  const [rooms, setRooms] = useState(null);
+  const [requests, setRequests] = useState(null);
+  const [tab, setTab] = useState('rooms');
+  const [form, setForm] = useState({ building: '', roomNumber: '', floor: '', capacity: 2, monthlyFee: '' });
+  const [allocForm, setAllocForm] = useState({});
+
+  function load(instId) {
+    apiRequest(`/institution-ops/${instId}/hostel-rooms`).then(setRooms).catch((err) => onFlash(err.message));
+    apiRequest(`/institution-ops/${instId}/hostel-requests`).then(setRequests).catch((err) => onFlash(err.message));
+  }
+  useEffect(() => { if (institution) load(institution._id); }, [institution]);
+
+  async function addRoom(e) {
+    e.preventDefault();
+    try {
+      await apiRequest(`/institution-ops/${institution._id}/hostel-rooms`, { method: 'POST', body: { ...form, capacity: Number(form.capacity), monthlyFee: Number(form.monthlyFee) || 0 } });
+      onFlash('Room added.', 'success');
+      setForm({ building: '', roomNumber: '', floor: '', capacity: 2, monthlyFee: '' });
+      load(institution._id);
+    } catch (err) { onFlash(err.message); }
+  }
+
+  async function allocate(roomId) {
+    const student = allocForm[roomId];
+    if (!student) return onFlash('Enter student User ID first.');
+    try {
+      await apiRequest(`/institution-ops/hostel-rooms/${roomId}/allocate`, { method: 'POST', body: { student } });
+      onFlash('Student allocated.', 'success');
+      load(institution._id);
+    } catch (err) { onFlash(err.message); }
+  }
+
+  async function decide(id, decision) {
+    try { await apiRequest(`/institution-ops/hostel-requests/${id}`, { method: 'PATCH', body: { decision } }); onFlash(`Request ${decision}.`, 'success'); load(institution._id); } catch (err) { onFlash(err.message); }
+  }
+
+  if (institution === undefined) return <p role="status" className="admin-notice">Loading...</p>;
+  if (!institution) return <p className="admin-notice">Register an institution first (My Institution tab).</p>;
+
+  return (
+    <div>
+      <div className="flex gap-2 mb-3">
+        <button className={`btn ${tab === 'rooms' ? 'btn-primary' : ''}`} onClick={() => setTab('rooms')}>Rooms</button>
+        <button className={`btn ${tab === 'requests' ? 'btn-primary' : ''}`} onClick={() => setTab('requests')}>Visitor / Leave Requests</button>
+      </div>
+      {tab === 'rooms' ? (
+        <>
+          <form onSubmit={addRoom} className="flex gap-3 items-end mb-3 flex-wrap">
+            <input className="form-input" placeholder="Building" value={form.building} onChange={(e) => setForm({ ...form, building: e.target.value })} />
+            <input className="form-input" placeholder="Room number" value={form.roomNumber} onChange={(e) => setForm({ ...form, roomNumber: e.target.value })} required />
+            <input className="form-input" placeholder="Floor" value={form.floor} onChange={(e) => setForm({ ...form, floor: e.target.value })} />
+            <input className="form-input" type="number" min="1" placeholder="Capacity" value={form.capacity} onChange={(e) => setForm({ ...form, capacity: e.target.value })} style={{ maxWidth: 100 }} required />
+            <input className="form-input" type="number" placeholder="Monthly fee" value={form.monthlyFee} onChange={(e) => setForm({ ...form, monthlyFee: e.target.value })} style={{ maxWidth: 120 }} />
+            <button type="submit" className="btn btn-primary">Add Room</button>
+          </form>
+          <Table
+            headers={['Room', 'Building', 'Capacity', 'Occupants', 'Status', 'Allocate']}
+            rows={(rooms || []).map((r) => [
+              r.roomNumber, r.building || '—', r.capacity, (r.occupants || []).map((o) => o.fullName).join(', ') || '—',
+              <Tag status={r.status === 'full' ? 'pending' : 'approved'} label={r.status} />,
+              r.status !== 'full' ? (
+                <div className="flex gap-1">
+                  <input className="form-input" placeholder="Student User ID" style={{ width: 120, padding: '4px 6px', fontSize: '0.72rem' }} onChange={(e) => setAllocForm({ ...allocForm, [r._id]: e.target.value })} />
+                  <button className="btn" style={{ padding: '4px 8px', fontSize: '0.72rem' }} onClick={() => allocate(r._id)}>Allocate</button>
+                </div>
+              ) : '—'
+            ])}
+            empty="No hostel rooms added yet."
+          />
+        </>
+      ) : (
+        <Table
+          headers={['Student', 'Room', 'Type', 'Details', 'Status', 'Action']}
+          rows={(requests || []).map((r) => [
+            r.student?.fullName, r.room?.roomNumber, r.type,
+            r.type === 'visitor' ? `${r.visitorName} (${r.visitorRelation})` : `${new Date(r.fromDate).toLocaleDateString()} – ${new Date(r.toDate).toLocaleDateString()}: ${r.reason}`,
+            <Tag status={r.status === 'approved' ? 'approved' : r.status === 'rejected' ? 'rejected' : 'pending'} label={r.status} />,
+            r.status === 'pending' ? (
+              <div className="flex gap-1">
+                <button className="btn btn-primary" style={{ padding: '4px 8px', fontSize: '0.72rem' }} onClick={() => decide(r._id, 'approved')}>Approve</button>
+                <button className="btn" style={{ padding: '4px 8px', fontSize: '0.72rem' }} onClick={() => decide(r._id, 'rejected')}>Reject</button>
+              </div>
+            ) : '—'
+          ])}
+          empty="No visitor/leave requests yet."
+        />
+      )}
+    </div>
+  );
+}
+
+// ==================== Transport Management (spec 15D.12) ====================
+
+function InstitutionTransportPanel({ onFlash }) {
+  const institution = useMyInstitution(onFlash);
+  const [vehicles, setVehicles] = useState(null);
+  const [form, setForm] = useState({ vehicleNumber: '', type: 'bus', capacity: '', driverName: '', driverPhone: '', routeName: '', monthlyFee: '' });
+  const [assignForm, setAssignForm] = useState({});
+
+  function load(instId) {
+    apiRequest(`/institution-ops/${instId}/vehicles`).then(setVehicles).catch((err) => onFlash(err.message));
+  }
+  useEffect(() => { if (institution) load(institution._id); }, [institution]);
+
+  async function addVehicle(e) {
+    e.preventDefault();
+    try {
+      await apiRequest(`/institution-ops/${institution._id}/vehicles`, { method: 'POST', body: { ...form, capacity: Number(form.capacity) || 0, monthlyFee: Number(form.monthlyFee) || 0 } });
+      onFlash('Vehicle added.', 'success');
+      setForm({ vehicleNumber: '', type: 'bus', capacity: '', driverName: '', driverPhone: '', routeName: '', monthlyFee: '' });
+      load(institution._id);
+    } catch (err) { onFlash(err.message); }
+  }
+
+  async function removeVehicle(id) {
+    try { await apiRequest(`/institution-ops/vehicles/${id}`, { method: 'DELETE' }); onFlash('Vehicle removed.', 'success'); load(institution._id); } catch (err) { onFlash(err.message); }
+  }
+
+  async function assign(vehicleId) {
+    const student = assignForm[vehicleId];
+    if (!student) return onFlash('Enter student User ID first.');
+    try {
+      await apiRequest(`/institution-ops/vehicles/${vehicleId}/assign`, { method: 'POST', body: { student } });
+      onFlash('Student assigned.', 'success');
+      load(institution._id);
+    } catch (err) { onFlash(err.message); }
+  }
+
+  if (institution === undefined) return <p role="status" className="admin-notice">Loading...</p>;
+  if (!institution) return <p className="admin-notice">Register an institution first (My Institution tab).</p>;
+
+  return (
+    <div>
+      <form onSubmit={addVehicle} className="flex gap-3 items-end mb-3 flex-wrap">
+        <input className="form-input" placeholder="Vehicle number" value={form.vehicleNumber} onChange={(e) => setForm({ ...form, vehicleNumber: e.target.value })} required />
+        <select className="form-select" value={form.type} onChange={(e) => setForm({ ...form, type: e.target.value })}>
+          {['bus', 'van', 'car'].map((t) => <option key={t} value={t}>{t}</option>)}
+        </select>
+        <input className="form-input" type="number" placeholder="Capacity" value={form.capacity} onChange={(e) => setForm({ ...form, capacity: e.target.value })} style={{ maxWidth: 100 }} />
+        <input className="form-input" placeholder="Driver name" value={form.driverName} onChange={(e) => setForm({ ...form, driverName: e.target.value })} />
+        <input className="form-input" placeholder="Driver phone" value={form.driverPhone} onChange={(e) => setForm({ ...form, driverPhone: e.target.value })} />
+        <input className="form-input" placeholder="Route name" value={form.routeName} onChange={(e) => setForm({ ...form, routeName: e.target.value })} />
+        <input className="form-input" type="number" placeholder="Monthly fee" value={form.monthlyFee} onChange={(e) => setForm({ ...form, monthlyFee: e.target.value })} style={{ maxWidth: 120 }} />
+        <button type="submit" className="btn btn-primary">Add Vehicle</button>
+      </form>
+      <Table
+        headers={['Vehicle', 'Type', 'Route', 'Driver', 'Students', 'Assign', 'Action']}
+        rows={(vehicles || []).map((v) => [
+          v.vehicleNumber, v.type, v.routeName || '—', v.driverName ? `${v.driverName} (${v.driverPhone})` : '—',
+          (v.assignedStudents || []).map((s) => s.fullName).join(', ') || '—',
+          <div className="flex gap-1">
+            <input className="form-input" placeholder="Student User ID" style={{ width: 120, padding: '4px 6px', fontSize: '0.72rem' }} onChange={(e) => setAssignForm({ ...assignForm, [v._id]: e.target.value })} />
+            <button className="btn" style={{ padding: '4px 8px', fontSize: '0.72rem' }} onClick={() => assign(v._id)}>Assign</button>
+          </div>,
+          <button className="btn" style={{ padding: '4px 8px', fontSize: '0.72rem', color: 'var(--rose)' }} onClick={() => removeVehicle(v._id)}>Remove</button>
+        ])}
+        empty="No vehicles added yet."
+      />
+      <p style={{ fontSize: 12, color: 'var(--ink-soft)', marginTop: 12 }}>Live GPS tracking needs a physical GPS unit per vehicle (spec: optional) — not included here.</p>
+    </div>
+  );
+}
+
+// ==================== Inventory Management (spec 15D.13) ====================
+
+function InstitutionInventoryPanel({ onFlash }) {
+  const institution = useMyInstitution(onFlash);
+  const [items, setItems] = useState(null);
+  const [form, setForm] = useState({ name: '', category: 'other', quantity: 1, location: '', condition: 'good' });
+
+  function load(instId) {
+    apiRequest(`/institution-ops/${instId}/inventory`).then(setItems).catch((err) => onFlash(err.message));
+  }
+  useEffect(() => { if (institution) load(institution._id); }, [institution]);
+
+  async function addItem(e) {
+    e.preventDefault();
+    try {
+      await apiRequest(`/institution-ops/${institution._id}/inventory`, { method: 'POST', body: { ...form, quantity: Number(form.quantity) } });
+      onFlash('Item added.', 'success');
+      setForm({ name: '', category: 'other', quantity: 1, location: '', condition: 'good' });
+      load(institution._id);
+    } catch (err) { onFlash(err.message); }
+  }
+
+  async function removeItem(id) {
+    try { await apiRequest(`/institution-ops/inventory/${id}`, { method: 'DELETE' }); onFlash('Item removed.', 'success'); load(institution._id); } catch (err) { onFlash(err.message); }
+  }
+
+  if (institution === undefined) return <p role="status" className="admin-notice">Loading...</p>;
+  if (!institution) return <p className="admin-notice">Register an institution first (My Institution tab).</p>;
+
+  return (
+    <div>
+      <form onSubmit={addItem} className="flex gap-3 items-end mb-3 flex-wrap">
+        <input className="form-input" placeholder="Item name" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} required />
+        <select className="form-select" value={form.category} onChange={(e) => setForm({ ...form, category: e.target.value })}>
+          {['computer', 'projector', 'furniture', 'lab_equipment', 'sports_equipment', 'other'].map((c) => <option key={c} value={c}>{c.replace('_', ' ')}</option>)}
+        </select>
+        <input className="form-input" type="number" min="0" placeholder="Quantity" value={form.quantity} onChange={(e) => setForm({ ...form, quantity: e.target.value })} style={{ maxWidth: 100 }} />
+        <input className="form-input" placeholder="Location (e.g. Lab 2)" value={form.location} onChange={(e) => setForm({ ...form, location: e.target.value })} />
+        <select className="form-select" value={form.condition} onChange={(e) => setForm({ ...form, condition: e.target.value })}>
+          {['new', 'good', 'needs_repair', 'damaged'].map((c) => <option key={c} value={c}>{c.replace('_', ' ')}</option>)}
+        </select>
+        <button type="submit" className="btn btn-primary">Add Item</button>
+      </form>
+      <Table
+        headers={['Name', 'Category', 'Qty', 'Location', 'Condition', 'Action']}
+        rows={(items || []).map((i) => [
+          i.name, i.category.replace('_', ' '), i.quantity, i.location || '—',
+          <Tag status={i.condition === 'damaged' ? 'rejected' : i.condition === 'needs_repair' ? 'pending' : 'approved'} label={i.condition.replace('_', ' ')} />,
+          <button className="btn" style={{ padding: '4px 8px', fontSize: '0.72rem', color: 'var(--rose)' }} onClick={() => removeItem(i._id)}>Remove</button>
+        ])}
+        empty="No inventory items added yet."
+      />
+    </div>
+  );
+}
+
+// ==================== Medical & Health (spec 15D.14) ====================
+
+function InstitutionHealthPanel({ onFlash }) {
+  const institution = useMyInstitution(onFlash);
+  const [incidents, setIncidents] = useState(null);
+  const [form, setForm] = useState({ student: '', description: '', actionTaken: '', severity: 'minor' });
+
+  function load(instId) {
+    apiRequest(`/institution-ops/${instId}/health-incidents`).then(setIncidents).catch((err) => onFlash(err.message));
+  }
+  useEffect(() => { if (institution) load(institution._id); }, [institution]);
+
+  async function addIncident(e) {
+    e.preventDefault();
+    try {
+      await apiRequest(`/institution-ops/${institution._id}/health-incidents`, { method: 'POST', body: form });
+      onFlash('Health incident recorded — parent notified.', 'success');
+      setForm({ student: '', description: '', actionTaken: '', severity: 'minor' });
+      load(institution._id);
+    } catch (err) { onFlash(err.message); }
+  }
+
+  if (institution === undefined) return <p role="status" className="admin-notice">Loading...</p>;
+  if (!institution) return <p className="admin-notice">Register an institution first (My Institution tab).</p>;
+
+  return (
+    <div>
+      <div className="admin-section">
+        <div className="admin-section-heading"><div><h2>Report a Health Incident</h2><p>Parent is automatically notified when you record an incident.</p></div></div>
+        <form onSubmit={addIncident} className="flex gap-3 items-end mb-3 flex-wrap">
+          <input className="form-input" placeholder="Student's User ID" value={form.student} onChange={(e) => setForm({ ...form, student: e.target.value })} required />
+          <select className="form-select" value={form.severity} onChange={(e) => setForm({ ...form, severity: e.target.value })}>
+            {['minor', 'moderate', 'severe'].map((s) => <option key={s} value={s}>{s}</option>)}
+          </select>
+          <input className="form-input" placeholder="What happened" value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} required style={{ minWidth: 220 }} />
+          <input className="form-input" placeholder="Action taken" value={form.actionTaken} onChange={(e) => setForm({ ...form, actionTaken: e.target.value })} />
+          <button type="submit" className="btn btn-primary">Record Incident</button>
+        </form>
+      </div>
+      <Table
+        headers={['Student', 'Date', 'Severity', 'Description', 'Action Taken', 'Parent Notified']}
+        rows={(incidents || []).map((i) => [
+          i.student?.fullName, new Date(i.occurredAt).toLocaleDateString(),
+          <Tag status={i.severity === 'severe' ? 'rejected' : i.severity === 'moderate' ? 'pending' : 'approved'} label={i.severity} />,
+          i.description, i.actionTaken || '—', i.parentNotified ? 'Yes' : 'No'
+        ])}
+        empty="No health incidents recorded."
+      />
+      <p style={{ fontSize: 12, color: 'var(--ink-soft)', marginTop: 12 }}>Blood group, allergies and vaccination records are managed per-student in Student Management → Health Record.</p>
+    </div>
+  );
+}
+
+// ==================== Events & Activities (spec 15D.17) ====================
+
+const EVENT_TYPES = ['sports_day', 'annual_function', 'seminar', 'workshop', 'competition', 'parent_meeting', 'convocation', 'other'];
+
+function InstitutionEventsPanel({ onFlash }) {
+  const institution = useMyInstitution(onFlash);
+  const [events, setEvents] = useState(null);
+  const [form, setForm] = useState({ title: '', type: 'other', startDate: '', venue: '', description: '' });
+
+  function load(instId) {
+    apiRequest(`/institution-ops/${instId}/events`).then(setEvents).catch((err) => onFlash(err.message));
+  }
+  useEffect(() => { if (institution) load(institution._id); }, [institution]);
+
+  async function addEvent(e) {
+    e.preventDefault();
+    try {
+      await apiRequest(`/institution-ops/${institution._id}/events`, { method: 'POST', body: { ...form, startDate: new Date(form.startDate).toISOString() } });
+      onFlash('Event created.', 'success');
+      setForm({ title: '', type: 'other', startDate: '', venue: '', description: '' });
+      load(institution._id);
+    } catch (err) { onFlash(err.message); }
+  }
+
+  async function cancelEvent(id) {
+    try { await apiRequest(`/institution-ops/events/${id}`, { method: 'PATCH', body: { status: 'cancelled' } }); onFlash('Event cancelled.', 'success'); load(institution._id); } catch (err) { onFlash(err.message); }
+  }
+
+  if (institution === undefined) return <p role="status" className="admin-notice">Loading...</p>;
+  if (!institution) return <p className="admin-notice">Register an institution first (My Institution tab).</p>;
+
+  return (
+    <div>
+      <form onSubmit={addEvent} className="flex gap-3 items-end mb-3 flex-wrap">
+        <input className="form-input" placeholder="Event title" value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })} required />
+        <select className="form-select" value={form.type} onChange={(e) => setForm({ ...form, type: e.target.value })}>
+          {EVENT_TYPES.map((t) => <option key={t} value={t}>{t.replace('_', ' ')}</option>)}
+        </select>
+        <input className="form-input" type="datetime-local" value={form.startDate} onChange={(e) => setForm({ ...form, startDate: e.target.value })} required />
+        <input className="form-input" placeholder="Venue" value={form.venue} onChange={(e) => setForm({ ...form, venue: e.target.value })} />
+        <button type="submit" className="btn btn-primary">Create Event</button>
+      </form>
+      <Table
+        headers={['Title', 'Type', 'Date', 'Venue', 'RSVPs', 'Status', 'Action']}
+        rows={(events || []).map((ev) => [
+          ev.title, ev.type.replace('_', ' '), new Date(ev.startDate).toLocaleString(), ev.venue || '—', (ev.rsvps || []).length,
+          <Tag status={ev.status === 'cancelled' ? 'rejected' : 'approved'} label={ev.status} />,
+          ev.status !== 'cancelled' ? <button className="btn" style={{ padding: '4px 8px', fontSize: '0.72rem', color: 'var(--rose)' }} onClick={() => cancelEvent(ev._id)}>Cancel</button> : '—'
+        ])}
+        empty="No events created yet."
+      />
+    </div>
+  );
+}
+
+// ==================== Complaint & Help Desk (spec 15D.16) ====================
+
+const HELPDESK_CATEGORIES = ['academic', 'fee', 'teacher', 'student', 'staff', 'technical', 'harassment', 'discipline'];
+
+function InstitutionHelpDeskPanel({ onFlash }) {
+  const institution = useMyInstitution(onFlash);
+  const [tickets, setTickets] = useState(null);
+
+  function load(instId) {
+    apiRequest(`/institution-ops/${instId}/tickets`).then(setTickets).catch((err) => onFlash(err.message));
+  }
+  useEffect(() => { if (institution) load(institution._id); }, [institution]);
+
+  async function update(id, status) {
+    try { await apiRequest(`/institution-ops/tickets/${id}`, { method: 'PATCH', body: { status } }); onFlash(`Ticket marked ${status.replace('_', ' ')}.`, 'success'); load(institution._id); } catch (err) { onFlash(err.message); }
+  }
+
+  if (institution === undefined) return <p role="status" className="admin-notice">Loading...</p>;
+  if (!institution) return <p className="admin-notice">Register an institution first (My Institution tab).</p>;
+
+  return (
+    <div>
+      <Table
+        headers={['Ticket #', 'Raised By', 'Category', 'Subject', 'Priority', 'Status', 'Action']}
+        rows={(tickets || []).map((t) => [
+          t.ticketNumber, t.raisedBy?.fullName, t.category, t.subject,
+          <Tag status={t.priority === 'urgent' ? 'rejected' : t.priority === 'high' ? 'pending' : 'approved'} label={t.priority} />,
+          <Tag status={t.status === 'resolved' || t.status === 'closed' ? 'approved' : 'pending'} label={t.status.replace('_', ' ')} />,
+          !['resolved', 'closed'].includes(t.status) ? (
+            <div className="flex gap-1">
+              <button className="btn" style={{ padding: '4px 8px', fontSize: '0.72rem' }} onClick={() => update(t._id, 'in_progress')}>In Progress</button>
+              <button className="btn btn-primary" style={{ padding: '4px 8px', fontSize: '0.72rem' }} onClick={() => update(t._id, 'resolved')}>Resolve</button>
+            </div>
+          ) : '—'
+        ])}
+        empty="No help desk tickets yet."
+      />
+    </div>
+  );
+}
+
+// ==================== AI Operations Assistant (spec 15D.19) ====================
+
+function InstitutionAiAssistantPanel({ onFlash }) {
+  const institution = useMyInstitution(onFlash);
+  const [insights, setInsights] = useState(null);
+  const [dataSummary, setDataSummary] = useState(null);
+  const [loading, setLoading] = useState(false);
+
+  async function generate() {
+    setLoading(true);
+    try {
+      const res = await apiRequest(`/institutions/${institution._id}/ai-insights`, { method: 'POST' });
+      setInsights(res.insights);
+      setDataSummary(res.dataSummary);
+    } catch (err) { onFlash(err.message); } finally { setLoading(false); }
+  }
+
+  if (institution === undefined) return <p role="status" className="admin-notice">Loading...</p>;
+  if (!institution) return <p className="admin-notice">Register an institution first (My Institution tab).</p>;
+
+  return (
+    <div>
+      <div className="admin-section">
+        <div className="admin-section-heading"><div><h2>AI Operations Assistant</h2><p>Uses your own connected AI provider (Profile → AI Settings) to analyze your institution's real fee, payroll and support data. All decisions remain yours — this only summarizes.</p></div></div>
+        <button className="btn btn-primary" onClick={generate} disabled={loading}>{loading ? 'Analyzing...' : 'Generate Insights'}</button>
+      </div>
+      {insights && (
+        <div className="admin-section" style={{ marginTop: 16 }}>
+          <div className="admin-section-heading"><div><h2>Insights</h2></div></div>
+          <p style={{ whiteSpace: 'pre-line', fontSize: 14, lineHeight: 1.6 }}>{insights}</p>
+          <details style={{ marginTop: 12 }}>
+            <summary style={{ fontSize: 12, color: 'var(--ink-soft)', cursor: 'pointer' }}>Raw data used</summary>
+            <pre style={{ fontSize: 12, whiteSpace: 'pre-wrap' }}>{dataSummary}</pre>
+          </details>
+        </div>
+      )}
+      <p style={{ fontSize: 12, color: 'var(--ink-soft)', marginTop: 12 }}>Requires an AI provider connected under Profile → AI Settings (BYOK — your own API key, e.g. OpenAI/Claude/Gemini).</p>
+    </div>
+  );
+}
+
+function InstitutionCampusLifePanel({ onFlash }) {
+  const [institution, setInstitution] = useState(null);
+  const [section, setSection] = useState('newsletter');
+  const [newsletters, setNewsletters] = useState(null);
+  const [nlForm, setNlForm] = useState({ title: '', content: '' });
+  const [submissions, setSubmissions] = useState(null);
+
+  useEffect(() => {
+    apiRequest('/institutions/mine/list').then((list) => setInstitution(list[0] || null)).catch((err) => onFlash(err.message));
+  }, [onFlash]);
+
+  function loadNewsletters(instId) {
+    apiRequest(`/newsletters/mine?institution=${instId}`).then(setNewsletters).catch((err) => onFlash(err.message));
+  }
+  function loadSubmissions(instId) {
+    apiRequest(`/magazine/institution?institutionId=${instId}`).then(setSubmissions).catch((err) => onFlash(err.message));
+  }
+  useEffect(() => {
+    if (!institution) return;
+    if (section === 'newsletter') loadNewsletters(institution._id);
+    if (section === 'magazine') loadSubmissions(institution._id);
+  }, [institution, section]);
+
+  async function createNewsletter(e) {
+    e.preventDefault();
+    try {
+      await apiRequest('/newsletters', { method: 'POST', body: { institution: institution._id, ...nlForm } });
+      onFlash('Newsletter saved as draft.', 'success');
+      setNlForm({ title: '', content: '' });
+      loadNewsletters(institution._id);
+    } catch (err) { onFlash(err.message); }
+  }
+  async function publishNewsletter(id) {
+    try {
+      await apiRequest(`/newsletters/${id}/publish`, { method: 'PATCH' });
+      onFlash('Newsletter published.', 'success');
+      loadNewsletters(institution._id);
+    } catch (err) { onFlash(err.message); }
+  }
+  async function reviewSubmission(id, status) {
+    try {
+      await apiRequest(`/magazine/${id}/review`, { method: 'PATCH', body: { status } });
+      onFlash(`Submission ${status}.`, 'success');
+      loadSubmissions(institution._id);
+    } catch (err) { onFlash(err.message); }
+  }
+  async function publishSubmission(id) {
+    try {
+      await apiRequest(`/magazine/${id}/publish`, { method: 'PATCH' });
+      onFlash('Published to the magazine.', 'success');
+      loadSubmissions(institution._id);
+    } catch (err) { onFlash(err.message); }
+  }
+
+  if (!institution) return <p className="admin-notice">Register an institution first (My Institution tab).</p>;
+
+  return (
+    <div>
+      <h3 className="font-semibold mb-2">Newsletter & Magazine</h3>
+      <div className="flex gap-2 mb-4">
+        <button type="button" className={`btn ${section === 'newsletter' ? 'btn-primary' : ''}`} onClick={() => setSection('newsletter')}>Newsletter</button>
+        <button type="button" className={`btn ${section === 'magazine' ? 'btn-primary' : ''}`} onClick={() => setSection('magazine')}>Student Magazine</button>
+      </div>
+
+      {section === 'newsletter' && (
+        <div>
+          <form onSubmit={createNewsletter} className="space-y-3 max-w-md mb-6">
+            <input className="form-input" placeholder="Title" value={nlForm.title} onChange={(e) => setNlForm({ ...nlForm, title: e.target.value })} required />
+            <textarea className="form-input" placeholder="Content" rows={5} value={nlForm.content} onChange={(e) => setNlForm({ ...nlForm, content: e.target.value })} required />
+            <button type="submit" className="btn btn-primary">Save Draft</button>
+          </form>
+          <Table
+            loading={newsletters === null}
+            headers={['Title', 'Status', 'Filed', 'Action']}
+            rows={(newsletters || []).map((n) => [
+              n.title, <Tag status={n.status === 'published' ? 'approved' : 'pending'} />, new Date(n.createdAt).toLocaleDateString(),
+              n.status === 'draft' ? <button className="btn btn-primary" style={{ padding: '4px 10px', fontSize: '0.75rem' }} onClick={() => publishNewsletter(n._id)}>Publish</button> : '—'
+            ])}
+            empty="No newsletters yet."
+          />
+        </div>
+      )}
+
+      {section === 'magazine' && (
+        <Table
+          loading={submissions === null}
+          headers={['Student', 'Title', 'Type', 'Status', 'Action']}
+          rows={(submissions || []).map((s) => [
+            s.student?.fullName || '—', s.title, s.type, <Tag status={s.status === 'published' ? 'approved' : s.status === 'rejected' ? 'rejected' : s.status === 'selected' ? 'approved' : 'pending'} label={s.status} />,
+            <div className="flex gap-1">
+              {s.status === 'submitted' && (
+                <>
+                  <button className="btn btn-primary" style={{ padding: '4px 10px', fontSize: '0.75rem' }} onClick={() => reviewSubmission(s._id, 'selected')}>Select</button>
+                  <button className="btn" style={{ padding: '4px 10px', fontSize: '0.75rem', background: 'var(--sand-line)' }} onClick={() => reviewSubmission(s._id, 'rejected')}>Reject</button>
+                </>
+              )}
+              {s.status === 'selected' && <button className="btn btn-primary" style={{ padding: '4px 10px', fontSize: '0.75rem' }} onClick={() => publishSubmission(s._id)}>Publish</button>}
+              {(s.status === 'published' || s.status === 'rejected') && '—'}
+            </div>
+          ])}
+          empty="No submissions yet."
+        />
+      )}
     </div>
   );
 }
@@ -6627,7 +10170,16 @@ function InstitutionSummary() {
       { label: 'My Institutions', value: list?.length, icon: FaSchool, detail: 'Registered by you' },
       { label: 'Verification', value: primary ? primary.verificationStatus : '—', icon: FaClipboardCheck, detail: primary ? primary.name : 'Register an institution' },
       { label: 'Students', value: report?.studentsCount ?? null, icon: FaUsers, detail: report ? 'Enrolled' : 'Register an institution' },
-      { label: 'Teachers', value: report?.teachersCount ?? null, icon: FaChalkboardUser, detail: report ? 'Active' : 'Register an institution' }
+      { label: 'Teachers', value: report?.teachersCount ?? null, icon: FaChalkboardUser, detail: report ? 'Active' : 'Register an institution' },
+      { label: 'Staff', value: report?.staffCount ?? null, icon: FaUserGear, detail: 'Total staff' },
+      { label: "Today's Attendance", value: report?.todayAttendanceRate != null ? `${report.todayAttendanceRate}%` : '—', icon: FaCalendarCheck, detail: 'Present today' },
+      { label: 'Active Classes', value: report?.classSectionsCount ?? null, icon: FaClipboardList, detail: 'Class sections' },
+      { label: 'Fees Collected', value: report ? `${report.fees.collected}` : null, icon: FaSackDollar, detail: 'Total collected' },
+      { label: 'Pending Fees', value: report ? `${report.fees.pending}` : null, icon: FaMoneyBillWave, detail: 'Awaiting payment' },
+      { label: 'Salary Status', value: report?.pendingPayroll ?? null, icon: FaWallet, detail: 'Unpaid payslips' },
+      { label: 'New Admissions', value: report?.newAdmissions ?? null, icon: FaUserGraduate, detail: 'Last 30 days' },
+      { label: 'Complaints', value: report?.openComplaints ?? null, icon: FaHeadset, detail: 'Open tickets' },
+      { label: 'Events', value: report?.upcomingEvents ?? null, icon: FaCalendarDays, detail: 'Upcoming' }
     ]} />
   );
 }
@@ -6833,13 +10385,24 @@ function EmployerJobsPanel({ onFlash }) {
     } catch (err) { onFlash(err.message); }
   }
 
+  const [featuredFee, setFeaturedFee] = useState(null);
+  useEffect(() => { apiRequest('/jobs/featured-fee').then(setFeaturedFee).catch(() => {}); }, []);
+  async function feature(jobId, paymentMethod) {
+    try {
+      const res = await apiRequest(`/jobs/${jobId}/feature`, { method: 'POST', body: { paymentMethod } });
+      onFlash(`Job featured until ${new Date(res.featuredUntil).toLocaleDateString()}.`, 'success');
+      load();
+    } catch (err) { onFlash(err.message); }
+  }
+
   return (
     <div>
       <h3 className="font-semibold" style={{ marginBottom: 14 }}>My Jobs</h3>
       <Table
         headers={['Title', 'Company', 'Location', 'Type', 'Posted', 'Deadline', 'Applicants', 'Status', 'Action']}
         rows={jobs.map((j) => [
-          j.title, j.company, [j.city, j.country].filter(Boolean).join(', '), j.type.replace('_', ' '),
+          <span>{j.title}{j.featured && new Date(j.featuredUntil) > new Date() && <span style={{ marginLeft: 6 }}><Tag status="approved" label="Featured" /></span>}</span>,
+          j.company, [j.city, j.country].filter(Boolean).join(', '), j.type.replace('_', ' '),
           new Date(j.createdAt).toLocaleDateString(),
           j.applicationDeadline ? new Date(j.applicationDeadline).toLocaleDateString() : '—',
           j.applicantCount ?? 0,
@@ -6847,6 +10410,12 @@ function EmployerJobsPanel({ onFlash }) {
           <div className="flex" style={{ gap: 8, flexWrap: 'wrap' }}>
             <button className="btn" style={{ padding: '6px 12px', fontSize: '0.78rem' }} onClick={() => setViewingJob(j)}>View</button>
             <button className="btn" style={{ padding: '6px 12px', fontSize: '0.78rem' }} onClick={() => startEdit(j)}>Edit</button>
+            {!(j.featured && new Date(j.featuredUntil) > new Date()) && (
+              <PayMethodModalButton
+                onSubmit={(method) => feature(j._id, method)}
+                label={`Feature${featuredFee ? ` ($${featuredFee.fee}/${featuredFee.days}d)` : ''}`}
+              />
+            )}
             {(j.status === 'active' || j.status === 'paused') && (
               <button className="btn" style={{ padding: '6px 12px', fontSize: '0.78rem' }} onClick={() => setJobStatus(j, j.status === 'active' ? 'paused' : 'active')}>{j.status === 'active' ? 'Pause' : 'Resume'}</button>
             )}
@@ -7786,6 +11355,7 @@ function DonorWalletPanel({ onFlash }) {
   const [sponsorships, setSponsorships] = useState(null);
   const [addFundsFor, setAddFundsFor] = useState(null);
   const [addFundsAmount, setAddFundsAmount] = useState('');
+  const [addFundsMethod, setAddFundsMethod] = useState('bank_transfer');
   const [newCurrency, setNewCurrency] = useState('USD');
 
   function load() {
@@ -7820,7 +11390,7 @@ function DonorWalletPanel({ onFlash }) {
     const amt = Number(addFundsAmount);
     if (!amt || amt <= 0) return onFlash('Enter a valid amount.');
     try {
-      await apiRequest('/scholarships/donor/deposit', { method: 'POST', body: { amount: amt, currency: addFundsFor || newCurrency } });
+      await apiRequest('/scholarships/donor/deposit', { method: 'POST', body: { amount: amt, currency: addFundsFor || newCurrency, paymentMethod: addFundsMethod } });
       onFlash('Deposit requested — pending admin confirmation.', 'success');
       setAddFundsFor(null); setAddFundsAmount('');
       load();
@@ -7883,7 +11453,8 @@ function DonorWalletPanel({ onFlash }) {
               {addFundsFor === '' && (
                 <input className="form-input mb-2" placeholder="Currency (e.g. USD, EUR, PKR)" value={newCurrency} onChange={(e) => setNewCurrency(e.target.value.toUpperCase())} />
               )}
-              <input className="form-input" type="number" min="0" placeholder={`Amount (${addFundsFor || newCurrency})`} value={addFundsAmount} onChange={(e) => setAddFundsAmount(e.target.value)} />
+              <input className="form-input mb-2" type="number" min="0" placeholder={`Amount (${addFundsFor || newCurrency})`} value={addFundsAmount} onChange={(e) => setAddFundsAmount(e.target.value)} />
+              <CustomSelect value={addFundsMethod} onChange={setAddFundsMethod} ariaLabel="Payment method" minWidth="100%" options={PAYMENT_METHODS} />
             </div>
             <div className="u-modal-foot">
               <button type="button" className="btn btn-primary" onClick={submitAddFunds}>Request Deposit</button>
@@ -9655,9 +13226,9 @@ function AgentWalletPanel({ onFlash }) {
   }
   useEffect(load, []); // eslint-disable-line react-hooks/exhaustive-deps
 
-  async function withdraw(currency) {
+  async function withdraw(currency, { payoutMethod, payoutDetails }) {
     try {
-      await apiRequest('/commissions/withdraw', { method: 'POST', body: { currency } });
+      await apiRequest('/commissions/withdraw', { method: 'POST', body: { currency, payoutMethod, payoutDetails } });
       onFlash('Withdrawal requested.', 'success');
       load();
     } catch (err) { onFlash(err.message); }
@@ -9707,7 +13278,7 @@ function AgentWalletPanel({ onFlash }) {
                   <strong style={{ fontSize: 22, fontFamily: 'Fraunces, serif', display: 'block', marginTop: 4 }}>{currency} {t.earned}</strong>
                 </div>
               </div>
-              <button type="button" className="btn btn-primary" style={{ padding: '8px 18px', fontSize: '0.78rem', marginTop: 16 }} disabled={t.available <= 0} onClick={() => withdraw(currency)}>Withdraw Funds ({currency} {t.available})</button>
+              <PayoutRequestForm onSubmit={(payload) => withdraw(currency, payload)} disabled={t.available <= 0} label={`Withdraw Funds (${currency} ${t.available})`} />
             </div>
           );
         })}
@@ -10025,22 +13596,402 @@ function AdminWorkspace({ tab, user, roles, onFlash, onChanged }) {
   if (tab === 'settings') return <AdminSettingsPanel onFlash={onFlash} />;
   if (tab === 'finance') return <AdminFinancePanel onFlash={onFlash} />;
   if (tab === 'analytics') return <AdminReportsPanel onFlash={onFlash} />;
+  if (tab === 'worldmap') return <AdminWorldMapPanel onFlash={onFlash} />;
+  if (tab === 'staff') return <AdminStaffPanel onFlash={onFlash} />;
+  if (tab === 'cms') return <AdminCmsPanel onFlash={onFlash} />;
+  if (tab === 'backups') return <AdminBackupsPanel onFlash={onFlash} />;
+  if (tab === 'aiInsights') return <ComingSoon label="AI Insights & Predictions" note="Real platform-wide predictions (growth forecasts, fraud pattern detection, revenue trends) need a paid AI provider — never faked with made-up numbers. Skipped for now until an AI API key is connected." />;
   return <ComingSoon label={tab} />;
+}
+
+// Super Admin — World Map (spec Part 16A.3). Real per-country user + institution counts, plotted
+// as bubbles over a plain lat/long graticule. Positions come from approximate geographic
+// centroids (see backend utils/countryCentroids.js), not traced coastlines — an honest
+// proportional-distribution view rather than a claim of cartographic precision.
+function AdminWorldMapPanel({ onFlash }) {
+  const [data, setData] = useState(null);
+  useEffect(() => { apiRequest('/admin/world-map').then(setData).catch((err) => onFlash(err.message)); }, [onFlash]);
+
+  if (!data) return <p role="status" className="admin-notice">Loading...</p>;
+
+  const maxCount = Math.max(...data.points.map((p) => p.userCount + p.institutionCount), 1);
+  const project = (lat, lng) => ({ x: ((lng + 180) / 360) * 100, y: ((90 - lat) / 180) * 100 });
+
+  return (
+    <div>
+      <h3 className="font-semibold mb-2">Global World Map</h3>
+      <p className="text-xs" style={{ color: 'var(--ink-soft)', marginBottom: 16 }}>Bubble size = combined users + institutions in that country. Real counts, approximate positions.</p>
+
+      <div className="card" style={{ padding: 0, position: 'relative', aspectRatio: '2 / 1', overflow: 'hidden', background: 'linear-gradient(180deg, var(--sand) 0%, var(--paper) 100%)' }}>
+        {/* Graticule background — lat/long reference lines, not a traced coastline. */}
+        <svg viewBox="0 0 100 50" style={{ position: 'absolute', inset: 0, width: '100%', height: '100%' }} aria-hidden="true">
+          {[10, 20, 30, 40, 50, 60, 70, 80, 90].map((x) => <line key={`v${x}`} x1={x} y1="0" x2={x} y2="50" stroke="var(--sand-line)" strokeWidth="0.15" />)}
+          {[5, 10, 15, 20, 25, 30, 35, 40, 45].map((y) => <line key={`h${y}`} x1="0" y1={y} x2="100" y2={y} stroke="var(--sand-line)" strokeWidth="0.15" />)}
+          <line x1="0" y1="25" x2="100" y2="25" stroke="var(--sand-line)" strokeWidth="0.4" />
+        </svg>
+        {data.points.map((p) => {
+          const { x, y } = project(p.lat, p.lng);
+          const total = p.userCount + p.institutionCount;
+          const size = 14 + (total / maxCount) * 46;
+          return (
+            <div key={p.code} title={`${p.name}: ${p.userCount} users, ${p.institutionCount} institutions`}
+              style={{
+                position: 'absolute', left: `${x}%`, top: `${y}%`, width: size, height: size,
+                transform: 'translate(-50%, -50%)', borderRadius: '50%',
+                background: 'color-mix(in srgb, var(--forest) 55%, transparent)',
+                border: '1.5px solid var(--forest)', display: 'grid', placeItems: 'center', cursor: 'default'
+              }}>
+              <span style={{ fontSize: 9, fontWeight: 700, color: '#fff', textShadow: '0 1px 2px rgba(0,0,0,.4)' }}>{p.code}</span>
+            </div>
+          );
+        })}
+      </div>
+
+      {data.unplottedCodes.length > 0 && (
+        <p className="text-xs" style={{ color: 'var(--ink-soft)', marginTop: 10 }}>Also active (no map position yet): {data.unplottedCodes.join(', ')}</p>
+      )}
+
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-3" style={{ marginTop: 20 }}>
+        {data.points.map((p) => (
+          <div key={p.code} className="card" style={{ padding: 14 }}>
+            <strong className="text-sm">{p.name}</strong>
+            <p className="text-xs" style={{ color: 'var(--ink-soft)', marginTop: 4 }}>{p.userCount} users · {p.institutionCount} institutions</p>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+const STAFF_DEPARTMENTS = [
+  { value: 'finance', label: 'Finance' },
+  { value: 'support', label: 'Support' },
+  { value: 'verification', label: 'Verification' },
+  { value: 'security', label: 'Security' },
+  { value: 'content', label: 'Content' },
+  { value: 'moderation', label: 'Moderation' }
+];
+
+// Super Admin — Internal Staff Management (spec Part 16A.14 / 16G.10-11). Each platform_staff
+// member only gets the departments Super Admin explicitly assigns — enforced server-side by
+// requireDepartment on the real Finance/Security/Verification/Support routes, not just hidden in
+// this UI. admin/super_admin always have full access regardless of this list.
+function AdminStaffPanel({ onFlash }) {
+  const [staff, setStaff] = useState(null);
+  const [form, setForm] = useState({ email: '', title: '', departments: [] });
+  const [adding, setAdding] = useState(false);
+
+  function load() { apiRequest('/admin/staff').then(setStaff).catch((err) => onFlash(err.message)); }
+  useEffect(load, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  function toggleDept(dept, checked) {
+    setForm((f) => ({ ...f, departments: checked ? [...f.departments, dept] : f.departments.filter((d) => d !== dept) }));
+  }
+
+  async function addStaff(e) {
+    e.preventDefault();
+    if (!form.email.trim() || form.departments.length === 0) { onFlash('Email and at least one department are required.'); return; }
+    setAdding(true);
+    try {
+      await apiRequest('/admin/staff', { method: 'POST', body: form });
+      onFlash('Staff member added.', 'success');
+      setForm({ email: '', title: '', departments: [] });
+      load();
+    } catch (err) { onFlash(err.message); } finally { setAdding(false); }
+  }
+
+  async function toggleStaffDept(member, dept, checked) {
+    const departments = checked ? [...member.departments, dept] : member.departments.filter((d) => d !== dept);
+    try { await apiRequest(`/admin/staff/${member._id}`, { method: 'PATCH', body: { departments } }); load(); } catch (err) { onFlash(err.message); }
+  }
+
+  async function removeStaff(id) {
+    try { await apiRequest(`/admin/staff/${id}`, { method: 'DELETE' }); onFlash('Staff member removed.', 'success'); load(); } catch (err) { onFlash(err.message); }
+  }
+
+  return (
+    <div>
+      <h3 className="font-semibold mb-2">Staff Management</h3>
+      <p className="text-xs" style={{ color: 'var(--ink-soft)', marginBottom: 16 }}>Give your team department-wise access — Finance, Support, Verification, Security, Content, Moderation — instead of blanket admin rights.</p>
+
+      <form onSubmit={addStaff} className="card" style={{ padding: 20, marginBottom: 24, display: 'grid', gap: 14 }}>
+        <p style={{ fontSize: 11, fontWeight: 700, letterSpacing: '.04em', textTransform: 'uppercase', color: 'var(--ink-soft)' }}>Add Staff Member</p>
+        <div className="flex flex-wrap" style={{ gap: 12 }}>
+          <input className="form-input" placeholder="User's email (must already have a CareerZ account)" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} style={{ flex: '2 1 260px', minWidth: 0 }} />
+          <input className="form-input" placeholder="Title (e.g. Finance Manager)" value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })} style={{ flex: '1 1 200px', minWidth: 0 }} />
+        </div>
+        <div className="flex flex-wrap" style={{ gap: 14 }}>
+          {STAFF_DEPARTMENTS.map((d) => (
+            <label key={d.value} className="flex items-center text-xs" style={{ gap: 6 }}>
+              <input type="checkbox" checked={form.departments.includes(d.value)} onChange={(e) => toggleDept(d.value, e.target.checked)} /> {d.label}
+            </label>
+          ))}
+        </div>
+        <button type="submit" className="btn btn-primary" disabled={adding} style={{ padding: '8px 18px', fontSize: '0.8rem', justifySelf: 'start' }}>{adding ? 'Adding...' : 'Add to Staff'}</button>
+      </form>
+
+      {staff === null ? (
+        <p role="status" className="admin-notice">Loading...</p>
+      ) : staff.length === 0 ? (
+        <p className="text-sm" style={{ color: 'var(--ink-soft)' }}>No internal staff added yet.</p>
+      ) : (
+        <div style={{ display: 'grid', gap: 12 }}>
+          {staff.map((s) => (
+            <div key={s._id} className="card" style={{ padding: 18 }}>
+              <div className="flex items-center justify-between flex-wrap" style={{ gap: 10, marginBottom: 12 }}>
+                <div>
+                  <strong className="text-sm">{s.user?.fullName}</strong>
+                  <p className="text-xs" style={{ color: 'var(--ink-soft)', marginTop: 2 }}>{s.user?.email} {s.title ? `· ${s.title}` : ''}</p>
+                </div>
+                <button type="button" className="btn" style={{ padding: '5px 12px', fontSize: '0.72rem' }} onClick={() => removeStaff(s._id)}>Remove from Staff</button>
+              </div>
+              <div className="flex flex-wrap" style={{ gap: 14 }}>
+                {STAFF_DEPARTMENTS.map((d) => (
+                  <label key={d.value} className="flex items-center text-xs" style={{ gap: 6 }}>
+                    <input type="checkbox" checked={s.departments.includes(d.value)} onChange={(e) => toggleStaffDept(s, d.value, e.target.checked)} /> {d.label}
+                  </label>
+                ))}
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// Super Admin — CMS (spec Part 16F.8/16F.9 "Website Content Management System" + Blog).
+function AdminCmsPanel({ onFlash }) {
+  const [sub, setSub] = useState('pages');
+  return (
+    <div>
+      <h3 className="font-semibold mb-2">Content Management</h3>
+      <nav className="cz-tabbar" style={{ marginBottom: 20 }}>
+        {[{ key: 'pages', label: 'Pages' }, { key: 'blog', label: 'Blog' }].map((t) => (
+          <button key={t.key} type="button" aria-pressed={sub === t.key} className={`cz-tab${sub === t.key ? ' active' : ''}`} onClick={() => setSub(t.key)}>{t.label}</button>
+        ))}
+      </nav>
+      {sub === 'pages' && <AdminCmsCollection onFlash={onFlash} kind="pages" />}
+      {sub === 'blog' && <AdminCmsCollection onFlash={onFlash} kind="blog" />}
+    </div>
+  );
+}
+
+function AdminCmsCollection({ onFlash, kind }) {
+  const isBlog = kind === 'blog';
+  const [items, setItems] = useState(null);
+  const [form, setForm] = useState({ title: '', content: '', excerpt: '', category: '' });
+  const [creating, setCreating] = useState(false);
+
+  function load() { apiRequest(`/${kind}/admin/all`).then(setItems).catch((err) => onFlash(err.message)); }
+  useEffect(load, [kind]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  async function create(e) {
+    e.preventDefault();
+    if (!form.title.trim()) return;
+    setCreating(true);
+    try {
+      const body = isBlog ? { title: form.title, content: form.content, excerpt: form.excerpt, category: form.category, status: 'draft' } : { title: form.title, content: form.content, status: 'draft' };
+      await apiRequest(`/${kind}`, { method: 'POST', body });
+      onFlash(`${isBlog ? 'Post' : 'Page'} created as draft.`, 'success');
+      setForm({ title: '', content: '', excerpt: '', category: '' });
+      load();
+    } catch (err) { onFlash(err.message); } finally { setCreating(false); }
+  }
+
+  async function toggleStatus(item) {
+    try {
+      await apiRequest(`/${kind}/${item._id}`, { method: 'PATCH', body: { status: item.status === 'published' ? 'draft' : 'published' } });
+      load();
+    } catch (err) { onFlash(err.message); }
+  }
+
+  async function remove(id) {
+    try { await apiRequest(`/${kind}/${id}`, { method: 'DELETE' }); onFlash('Deleted.', 'success'); load(); } catch (err) { onFlash(err.message); }
+  }
+
+  return (
+    <div>
+      <form onSubmit={create} className="card" style={{ padding: 20, marginBottom: 24, display: 'grid', gap: 12 }}>
+        <p style={{ fontSize: 11, fontWeight: 700, letterSpacing: '.04em', textTransform: 'uppercase', color: 'var(--ink-soft)' }}>New {isBlog ? 'Post' : 'Page'}</p>
+        <input className="form-input" placeholder="Title" value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })} />
+        {isBlog && (
+          <div className="flex flex-wrap" style={{ gap: 12 }}>
+            <input className="form-input" placeholder="Excerpt (short summary)" value={form.excerpt} onChange={(e) => setForm({ ...form, excerpt: e.target.value })} style={{ flex: '1 1 260px', minWidth: 0 }} />
+            <input className="form-input" placeholder="Category" value={form.category} onChange={(e) => setForm({ ...form, category: e.target.value })} style={{ flex: '1 1 160px', minWidth: 0 }} />
+          </div>
+        )}
+        <textarea className="form-input" placeholder="Content (HTML allowed)" rows={5} value={form.content} onChange={(e) => setForm({ ...form, content: e.target.value })} />
+        <button type="submit" className="btn btn-primary" disabled={creating} style={{ padding: '8px 18px', fontSize: '0.8rem', justifySelf: 'start' }}>{creating ? 'Creating...' : 'Save as Draft'}</button>
+      </form>
+
+      {items === null ? (
+        <p role="status" className="admin-notice">Loading...</p>
+      ) : items.length === 0 ? (
+        <p className="text-sm" style={{ color: 'var(--ink-soft)' }}>Nothing here yet.</p>
+      ) : (
+        <Table
+          headers={['Title', 'Slug', 'Status', 'Updated', 'Action']}
+          rows={items.map((item) => [
+            item.title, item.slug, <Tag status={item.status === 'published' ? 'approved' : 'pending'} label={item.status} />,
+            new Date(item.updatedAt).toLocaleDateString(),
+            <div className="flex gap-2">
+              <button type="button" className="btn" style={{ padding: '5px 12px', fontSize: '0.72rem' }} onClick={() => toggleStatus(item)}>{item.status === 'published' ? 'Unpublish' : 'Publish'}</button>
+              <button type="button" className="btn" style={{ padding: '5px 12px', fontSize: '0.72rem' }} onClick={() => remove(item._id)}>Delete</button>
+            </div>
+          ])}
+          empty="Nothing here yet."
+        />
+      )}
+    </div>
+  );
+}
+
+// Super Admin — Backups (spec Part 4.32 / 16D.12) + Maintenance Mode (spec Part 16A.16 /
+// 16F.13). Backup creation dumps every real collection to disk on the server — genuinely
+// functional, not a stub. Restore is intentionally NOT a one-click button here: overwriting
+// live production data is exactly the kind of destructive action that needs a human doing it
+// deliberately on the server itself, not a button in this dashboard.
+function AdminBackupsPanel({ onFlash }) {
+  const [backups, setBackups] = useState(null);
+  const [creating, setCreating] = useState(false);
+  const [maintenance, setMaintenance] = useState(null);
+  const [savingMaintenance, setSavingMaintenance] = useState(false);
+
+  function load() {
+    apiRequest('/admin/backups').then(setBackups).catch((err) => onFlash(err.message));
+    apiRequest('/config/feature-flags').then((flags) => {
+      const flag = flags.find((f) => f.key === 'maintenance_mode');
+      setMaintenance(flag ? flag.enabled : false);
+    }).catch(() => setMaintenance(false));
+  }
+  useEffect(load, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  async function createBackup() {
+    setCreating(true);
+    try {
+      const result = await apiRequest('/admin/backups', { method: 'POST' });
+      onFlash(`Backup complete — ${result.collections.length} collections, ${(result.totalSizeBytes / 1024).toFixed(1)} KB.`, 'success');
+      load();
+    } catch (err) { onFlash(err.message); } finally { setCreating(false); }
+  }
+
+  async function toggleMaintenance(next) {
+    setSavingMaintenance(true);
+    try {
+      await apiRequest('/config/feature-flags', { method: 'POST', body: { key: 'maintenance_mode', label: 'CareerZ is currently undergoing scheduled maintenance. Please check back shortly.', enabled: next, scope: 'global' } });
+      setMaintenance(next);
+      onFlash(next ? 'Maintenance mode ON — only Super Admin can use the platform now.' : 'Maintenance mode OFF — platform is live for everyone again.', 'success');
+    } catch (err) { onFlash(err.message); } finally { setSavingMaintenance(false); }
+  }
+
+  return (
+    <div>
+      <h3 className="font-semibold mb-2">Backups & Maintenance</h3>
+
+      <div className="card" style={{ padding: 20, marginBottom: 24 }}>
+        <div className="flex items-center justify-between flex-wrap" style={{ gap: 14 }}>
+          <div>
+            <strong className="text-sm">{maintenance ? 'Maintenance Mode: ON' : 'Maintenance Mode: OFF'}</strong>
+            <p className="text-xs" style={{ color: 'var(--ink-soft)', marginTop: 4, lineHeight: 1.6, maxWidth: 480 }}>
+              {maintenance ? 'Every request except login and Super Admin access is blocked platform-wide (503).' : 'Turn this on to lock the platform to everyone except Super Admin — for emergencies or scheduled upgrades.'}
+            </p>
+          </div>
+          <label className="flex items-center" style={{ gap: 10, flexShrink: 0, cursor: savingMaintenance ? 'wait' : 'pointer' }}>
+            <input type="checkbox" checked={!!maintenance} disabled={maintenance === null || savingMaintenance} onChange={(e) => toggleMaintenance(e.target.checked)} />
+          </label>
+        </div>
+      </div>
+
+      <div className="flex items-center justify-between flex-wrap" style={{ gap: 12, marginBottom: 16 }}>
+        <p className="text-xs" style={{ color: 'var(--ink-soft)' }}>Each backup exports every real collection in the database to JSON files on the server.</p>
+        <button type="button" className="btn btn-primary" disabled={creating} style={{ padding: '8px 18px', fontSize: '0.8rem', flexShrink: 0 }} onClick={createBackup}>{creating ? 'Backing up...' : 'Create Backup Now'}</button>
+      </div>
+
+      {backups === null ? (
+        <p role="status" className="admin-notice">Loading...</p>
+      ) : backups.length === 0 ? (
+        <p className="text-sm" style={{ color: 'var(--ink-soft)' }}>No backups yet.</p>
+      ) : (
+        <Table
+          headers={['Created', 'Collections', 'Size', 'Status', 'By']}
+          rows={backups.map((b) => [
+            new Date(b.createdAt).toLocaleString(), b.collections?.length ?? '—',
+            b.totalSizeBytes ? `${(b.totalSizeBytes / 1024).toFixed(1)} KB` : '—',
+            <Tag status={b.status === 'completed' ? 'approved' : 'rejected'} label={b.status} />,
+            b.createdBy?.fullName || '—'
+          ])}
+          empty="No backups yet."
+        />
+      )}
+    </div>
+  );
 }
 
 function AdminFinancePanel({ onFlash }) {
   const [data, setData] = useState(null);
-  useEffect(() => { apiRequest('/admin/finance').then(setData).catch((err) => onFlash(err.message)); }, [onFlash]);
+  const [feeRateInput, setFeeRateInput] = useState('');
+  const [featuredFeeInput, setFeaturedFeeInput] = useState('');
+  const [featuredFee, setFeaturedFee] = useState(null);
+
+  function load() {
+    apiRequest('/admin/finance').then((d) => { setData(d); setFeeRateInput(String(d.platformRevenue.institutionFeeCommission.rate)); }).catch((err) => onFlash(err.message));
+    apiRequest('/jobs/featured-fee').then((d) => { setFeaturedFee(d); setFeaturedFeeInput(String(d.fee)); }).catch(() => {});
+  }
+  useEffect(load, [onFlash]);
+
+  async function saveFeeRate(e) {
+    e.preventDefault();
+    try {
+      await apiRequest('/admin/institution-fee-commission-rate', { method: 'PATCH', body: { rate: Number(feeRateInput) } });
+      onFlash('Institution fee commission rate updated.', 'success');
+      load();
+    } catch (err) { onFlash(err.message); }
+  }
+  async function saveFeaturedFee(e) {
+    e.preventDefault();
+    try {
+      await apiRequest('/jobs/featured-fee', { method: 'PATCH', body: { fee: Number(featuredFeeInput) } });
+      onFlash('Featured job fee updated.', 'success');
+      load();
+    } catch (err) { onFlash(err.message); }
+  }
 
   if (!data) return <p role="status" className="admin-notice">Loading...</p>;
 
   const feeRow = (key, label) => <p className="text-sm">{label}: <strong>{data.fees[key]?.total || 0}</strong> ({data.fees[key]?.count || 0} records)</p>;
   const orderRow = (key, label) => <p className="text-sm">{label}: <strong>{data.marketplaceOrders[key]?.total || 0}</strong> ({data.marketplaceOrders[key]?.count || 0} orders)</p>;
   const payrollRow = (key, label) => <p className="text-sm">{label}: <strong>{data.payroll[key]?.total || 0}</strong> ({data.payroll[key]?.count || 0} payslips)</p>;
+  const rev = data.platformRevenue;
 
   return (
     <div>
       <h3 className="font-semibold mb-2">Financial Management</h3>
+
+      <div className="card" style={{ padding: 20, marginBottom: 16, border: '1px solid var(--gold)' }}>
+        <h4 className="font-semibold mb-1">Platform Revenue (real, computed)</h4>
+        <p className="text-xs" style={{ color: 'var(--ink-soft)', marginBottom: 12 }}>{rev.note}</p>
+        <p className="text-2xl font-semibold" style={{ marginBottom: 10 }}>${rev.total}</p>
+        <p className="text-sm">Institution fee commission: <strong>${rev.institutionFeeCommission.amount}</strong> ({rev.institutionFeeCommission.rate}% of ${rev.institutionFeeCommission.basedOn} collected)</p>
+        <p className="text-sm">Marketplace commission: <strong>${rev.marketplaceCommission.amount}</strong> ({rev.marketplaceCommission.rate}% of ${rev.marketplaceCommission.basedOn} in delivered orders)</p>
+        <p className="text-sm">Featured job listings: <strong>${rev.featuredJobRevenue.amount}</strong> ({rev.featuredJobRevenue.count} purchased)</p>
+
+        <div className="flex gap-6 flex-wrap" style={{ marginTop: 16, paddingTop: 16, borderTop: '1px solid var(--sand-line)' }}>
+          <form onSubmit={saveFeeRate} className="flex items-end gap-2">
+            <label className="text-xs" style={{ display: 'block' }}>Institution fee commission %
+              <input className="form-input" type="number" min="0" max="100" step="0.5" value={feeRateInput} onChange={(e) => setFeeRateInput(e.target.value)} style={{ width: 90, marginTop: 4 }} />
+            </label>
+            <button type="submit" className="btn btn-primary" style={{ padding: '7px 14px', fontSize: '0.8rem' }}>Save</button>
+          </form>
+          <form onSubmit={saveFeaturedFee} className="flex items-end gap-2">
+            <label className="text-xs" style={{ display: 'block' }}>Featured job fee (USD / {featuredFee?.days || 30} days)
+              <input className="form-input" type="number" min="0" step="1" value={featuredFeeInput} onChange={(e) => setFeaturedFeeInput(e.target.value)} style={{ width: 90, marginTop: 4 }} />
+            </label>
+            <button type="submit" className="btn btn-primary" style={{ padding: '7px 14px', fontSize: '0.8rem' }}>Save</button>
+          </form>
+        </div>
+      </div>
+
       <div className="grid g2" style={{ gap: 16 }}>
         <div className="card" style={{ padding: 20 }}>
           <h4 className="font-semibold mb-3">Institution Fees (platform-wide)</h4>
@@ -10195,9 +14146,11 @@ function AdminComplaintsPanel({ onFlash }) {
       </select>
       <Table
         loading={complaints === null}
-        headers={['Subject', 'By', 'Category', 'Status', 'Action']}
+        headers={['Subject', 'By', 'Against', 'Category', 'Status', 'Action']}
         rows={(complaints || []).map((c) => [
-          c.subject, c.submittedBy?.fullName, c.category, <Tag status={c.status === 'resolved' ? 'approved' : c.status === 'dismissed' ? 'rejected' : 'pending'} />,
+          c.subject, c.submittedBy?.fullName,
+          c.target ? <span>{c.target.fullName}<br /><span style={{ fontSize: '0.75rem', color: 'var(--ink-soft)' }}>{c.target.email}{c.target.phone ? ` · ${c.target.phone}` : ''}</span></span> : '—',
+          c.category, <Tag status={c.status === 'resolved' ? 'approved' : c.status === 'dismissed' ? 'rejected' : 'pending'} />,
           c.status === 'open' || c.status === 'in_review' ? (
             <div className="flex gap-1">
               <button className="btn" style={{ padding: '4px 10px', fontSize: '0.75rem' }} onClick={() => decide(c._id, 'in_review')}>Mark In Review</button>
@@ -10372,9 +14325,43 @@ function FeatureFlagsPanel({ onFlash }) {
   );
 }
 
+// No cloud storage (S3/Cloudinary) is connected anywhere in this app yet, so a photo can't be
+// uploaded to external storage. Instead: resize it in the browser (a phone photo can be several
+// MB — far past the 2mb JSON body limit) and store it as a base64 data URI directly on the User
+// document, the same way profilePhoto/coverImage were already stored (just never had a real
+// upload form). Small enough after resize to comfortably fit the request body.
+function resizeImageToDataUrl(file, maxDimension = 320, quality = 0.72) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onerror = () => reject(new Error('Could not read that file.'));
+    reader.onload = () => {
+      const img = new Image();
+      img.onerror = () => reject(new Error('That file is not a readable image.'));
+      img.onload = () => {
+        const scale = Math.min(1, maxDimension / Math.max(img.width, img.height));
+        const canvas = document.createElement('canvas');
+        canvas.width = Math.round(img.width * scale);
+        canvas.height = Math.round(img.height * scale);
+        const ctx = canvas.getContext('2d');
+        ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+        resolve(canvas.toDataURL('image/jpeg', quality));
+      };
+      img.src = reader.result;
+    };
+    reader.readAsDataURL(file);
+  });
+}
+
 function ProfilePanel({ user, onFlash, onChanged }) {
+  const { logout } = useAuth();
   const [code, setCode] = useState('');
   const [sent, setSent] = useState(false);
+  const [editing, setEditing] = useState(false);
+  const [form, setForm] = useState(null);
+  const [saving, setSaving] = useState(false);
+  const [deleting, setDeleting] = useState(false);
+  const [confirmingDelete, setConfirmingDelete] = useState(false);
+  const [deletePassword, setDeletePassword] = useState('');
 
   async function resend() {
     try { await resendVerification(); setSent(true); onFlash('Verification code sent. Check the backend console (SMTP is not configured yet).', 'success'); } catch (err) { onFlash(err.message); }
@@ -10384,16 +14371,91 @@ function ProfilePanel({ user, onFlash, onChanged }) {
     try { await verifyEmail(code); onFlash('Email verified!', 'success'); setCode(''); onChanged?.(); } catch (err) { onFlash(err.message); }
   }
 
+  function startEdit() {
+    setForm({ fullName: user.fullName || '', phone: user.phone || '', profilePhoto: user.profilePhoto || '' });
+    setEditing(true);
+  }
+
+  async function handlePhoto(e) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (!file.type.startsWith('image/')) return onFlash('Please choose an image file.');
+    try {
+      const dataUrl = await resizeImageToDataUrl(file);
+      setForm((f) => ({ ...f, profilePhoto: dataUrl }));
+    } catch (err) { onFlash(err.message); }
+  }
+
+  async function saveProfile(e) {
+    e.preventDefault();
+    setSaving(true);
+    try {
+      await apiRequest('/users/me', { method: 'PATCH', body: form });
+      onFlash('Profile updated.', 'success');
+      setEditing(false);
+      onChanged?.();
+    } catch (err) { onFlash(err.message); } finally { setSaving(false); }
+  }
+
+  async function deleteAccount(e) {
+    e.preventDefault();
+    if (!deletePassword) return onFlash('Enter your password to confirm.');
+    setDeleting(true);
+    try {
+      await apiRequest('/users/me', { method: 'DELETE', body: { currentPassword: deletePassword } });
+      await logout();
+    } catch (err) { onFlash(err.message); setDeleting(false); }
+  }
+
   if (!user) return null;
   return (
     <div className="card" style={{ padding: 22, marginBottom: 20 }}>
-      <h3 className="font-semibold" style={{ marginBottom: 12 }}>Personal Information</h3>
-      <div className="account-profile-details">
-        <p><strong>Name:</strong> {user.fullName}</p>
-        <p><strong>Email:</strong> {user.email} {user.emailVerified ? <Tag status="approved" /> : <Tag status="pending" />}</p>
-        <p><strong>Roles:</strong> {user.roles.join(', ')}</p>
-        <p><strong>Status:</strong> {user.status}</p>
+      <div className="flex items-center justify-between" style={{ marginBottom: 12 }}>
+        <h3 className="font-semibold">Personal Information</h3>
+        {!editing && <button type="button" className="btn" style={{ padding: '6px 14px', fontSize: '0.78rem' }} onClick={startEdit}>Edit Profile</button>}
       </div>
+
+      {!editing ? (
+        <div className="flex items-center" style={{ gap: 16 }}>
+          {user.profilePhoto
+            ? <img src={user.profilePhoto} alt="" style={{ width: 64, height: 64, borderRadius: '50%', objectFit: 'cover', flexShrink: 0 }} />
+            : <div style={{ width: 64, height: 64, borderRadius: '50%', background: 'var(--forest)', color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 700, fontSize: '1.3rem', flexShrink: 0 }}>{(user.fullName || '?')[0]}</div>}
+          <div className="account-profile-details">
+            <p><strong>Name:</strong> {user.fullName}</p>
+            <p><strong>Email:</strong> {user.email} {user.emailVerified ? <Tag status="approved" /> : <Tag status="pending" />}</p>
+            <p><strong>Phone:</strong> {user.phone || '—'}</p>
+            <p><strong>Roles:</strong> {user.roles.join(', ')}</p>
+            <p><strong>Status:</strong> {user.status}</p>
+          </div>
+        </div>
+      ) : (
+        <form onSubmit={saveProfile} style={{ display: 'grid', gap: 14, maxWidth: 420 }}>
+          <div className="flex items-center" style={{ gap: 16 }}>
+            {form.profilePhoto
+              ? <img src={form.profilePhoto} alt="" style={{ width: 64, height: 64, borderRadius: '50%', objectFit: 'cover', flexShrink: 0 }} />
+              : <div style={{ width: 64, height: 64, borderRadius: '50%', background: 'var(--forest)', color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 700, fontSize: '1.3rem', flexShrink: 0 }}>{(form.fullName || '?')[0]}</div>}
+            <label className="btn" style={{ padding: '7px 14px', fontSize: '0.78rem', cursor: 'pointer' }}>
+              Choose Photo
+              <input type="file" accept="image/*" onChange={handlePhoto} style={{ display: 'none' }} />
+            </label>
+            {form.profilePhoto && (
+              <button type="button" className="btn" title="Remove selected photo" style={{ padding: '7px 10px', fontSize: '0.78rem', color: '#b42318', borderColor: '#e5b4b4' }} onClick={() => setForm((f) => ({ ...f, profilePhoto: '' }))}>
+                ✕
+              </button>
+            )}
+          </div>
+          <label className="text-xs" style={{ color: 'var(--ink-soft)', fontWeight: 600 }}>Full Name
+            <input className="form-input" value={form.fullName} onChange={(e) => setForm({ ...form, fullName: e.target.value })} style={{ marginTop: 6 }} required />
+          </label>
+          <label className="text-xs" style={{ color: 'var(--ink-soft)', fontWeight: 600 }}>Phone
+            <input className="form-input" value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} style={{ marginTop: 6 }} />
+          </label>
+          <div className="flex" style={{ gap: 10 }}>
+            <button type="submit" className="btn btn-primary" style={{ padding: '8px 18px', fontSize: '0.8rem' }} disabled={saving}>{saving ? 'Saving...' : 'Save Changes'}</button>
+            <button type="button" className="btn" style={{ padding: '8px 18px', fontSize: '0.8rem' }} onClick={() => setEditing(false)}>Cancel</button>
+          </div>
+        </form>
+      )}
 
       {!user.emailVerified && (
         <div style={{ marginTop: 18, padding: 20, borderRadius: 16, background: 'var(--sand)' }}>
@@ -10417,6 +14479,33 @@ function ProfilePanel({ user, onFlash, onChanged }) {
           </form>
         </div>
       )}
+
+      <div style={{ marginTop: 18, padding: 20, borderRadius: 16, background: 'var(--paper-raised)', border: '1px solid #e5b4b4' }}>
+        <strong className="text-sm" style={{ color: '#b42318' }}>Delete Account</strong>
+        <p className="text-xs" style={{ color: 'var(--ink-soft)', marginTop: 4 }}>
+          This permanently deactivates your CareerZ account and signs you out everywhere. This cannot be undone from the app.
+        </p>
+
+        {!confirmingDelete ? (
+          <button type="button" className="btn" style={{ padding: '8px 18px', fontSize: '0.8rem', marginTop: 12, color: '#b42318', borderColor: '#e5b4b4' }} onClick={() => setConfirmingDelete(true)}>
+            Delete My Account
+          </button>
+        ) : (
+          <form onSubmit={deleteAccount} style={{ display: 'grid', gap: 10, marginTop: 12, maxWidth: 320 }}>
+            <label className="text-xs" style={{ color: 'var(--ink-soft)', fontWeight: 600 }}>Confirm your password
+              <input type="password" className="form-input" value={deletePassword} onChange={(e) => setDeletePassword(e.target.value)} style={{ marginTop: 6 }} required autoFocus />
+            </label>
+            <div className="flex" style={{ gap: 10 }}>
+              <button type="submit" className="btn" style={{ padding: '8px 18px', fontSize: '0.8rem', background: '#b42318', color: '#fff', borderColor: '#b42318' }} disabled={deleting}>
+                {deleting ? 'Deleting...' : 'Confirm Delete'}
+              </button>
+              <button type="button" className="btn" style={{ padding: '8px 18px', fontSize: '0.8rem' }} onClick={() => { setConfirmingDelete(false); setDeletePassword(''); }} disabled={deleting}>
+                Cancel
+              </button>
+            </div>
+          </form>
+        )}
+      </div>
     </div>
   );
 }
@@ -10464,9 +14553,59 @@ function RolesPanel({ onFlash, onChanged }) {
   );
 }
 
+function ComplaintTargetPicker({ target, onPick, onClear }) {
+  const [query, setQuery] = useState('');
+  const [results, setResults] = useState([]);
+  const [open, setOpen] = useState(false);
+
+  useEffect(() => {
+    if (query.trim().length < 2) { setResults([]); return; }
+    const t = setTimeout(() => {
+      apiRequest(`/users/search?q=${encodeURIComponent(query.trim())}`).then((r) => { setResults(r); setOpen(true); }).catch(() => {});
+    }, 300);
+    return () => clearTimeout(t);
+  }, [query]);
+
+  if (target) {
+    return (
+      <div className="form-input" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
+        <span>Against: <strong>{target.fullName}</strong> ({target.email})</span>
+        <button type="button" className="btn" style={{ padding: '3px 10px', fontSize: '0.75rem' }} onClick={onClear}>Remove</button>
+      </div>
+    );
+  }
+
+  return (
+    <div style={{ position: 'relative' }}>
+      <input
+        className="form-input" placeholder="Search person by name or email (optional — who is this against?)"
+        value={query}
+        onChange={(e) => setQuery(e.target.value)}
+        onFocus={() => results.length > 0 && setOpen(true)}
+        onBlur={() => setTimeout(() => setOpen(false), 150)}
+      />
+      {open && results.length > 0 && (
+        <div style={{ position: 'absolute', top: '100%', left: 0, right: 0, zIndex: 5, maxHeight: 220, overflowY: 'auto', background: 'var(--paper, #fff)', border: '1px solid var(--sand-line, #ddd)', borderRadius: 8, boxShadow: '0 4px 16px rgba(0,0,0,0.12)', marginTop: 4 }}>
+          {results.map((u) => (
+            <button
+              type="button" key={u._id}
+              style={{ display: 'block', width: '100%', textAlign: 'left', padding: '8px 12px', border: 'none', background: 'transparent', cursor: 'pointer' }}
+              onMouseDown={() => { onPick(u); setQuery(''); setResults([]); setOpen(false); }}
+            >
+              <div>{u.fullName}</div>
+              <div style={{ fontSize: '0.75rem', color: 'var(--ink-soft)' }}>{u.email} · {(u.roles || []).join(', ')}</div>
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
 function SupportComplaintPanel({ onFlash }) {
   const [complaints, setComplaints] = useState(null);
   const [form, setForm] = useState({ subject: '', category: 'other', description: '' });
+  const [target, setTarget] = useState(null);
 
   function load() { apiRequest('/complaints/mine').then(setComplaints).catch((err) => onFlash(err.message)); }
   useEffect(load, []);
@@ -10474,9 +14613,11 @@ function SupportComplaintPanel({ onFlash }) {
   async function submit(e) {
     e.preventDefault();
     try {
-      await apiRequest('/complaints', { method: 'POST', body: form });
+      const body = { ...form, targetType: target ? 'user' : 'none', targetId: target?._id || null };
+      await apiRequest('/complaints', { method: 'POST', body });
       onFlash('Complaint submitted. Our team will review it.', 'success');
       setForm({ subject: '', category: 'other', description: '' });
+      setTarget(null);
       load();
     } catch (err) { onFlash(err.message); }
   }
@@ -10490,13 +14631,14 @@ function SupportComplaintPanel({ onFlash }) {
           value={form.category} onChange={(v) => setForm({ ...form, category: v })} ariaLabel="Complaint category" minWidth="100%"
           options={['harassment', 'fraud', 'technical', 'billing', 'content', 'other'].map((c) => ({ value: c, label: c.charAt(0).toUpperCase() + c.slice(1) }))}
         />
+        <ComplaintTargetPicker target={target} onPick={setTarget} onClear={() => setTarget(null)} />
         <textarea className="form-input" placeholder="Describe the issue" rows={3} required value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} />
         <button type="submit" className="btn btn-primary" style={{ justifySelf: 'start', padding: '7px 18px' }}>Submit Complaint</button>
       </form>
       <Table
         loading={complaints === null}
-        headers={['Subject', 'Category', 'Status', 'Filed']}
-        rows={(complaints || []).map((c) => [c.subject, c.category, <Tag status={c.status === 'resolved' ? 'approved' : c.status === 'dismissed' ? 'rejected' : 'pending'} />, new Date(c.createdAt).toLocaleDateString()])}
+        headers={['Subject', 'Against', 'Category', 'Status', 'Filed']}
+        rows={(complaints || []).map((c) => [c.subject, c.target ? `${c.target.fullName} (${c.target.email})` : '—', c.category, <Tag status={c.status === 'resolved' ? 'approved' : c.status === 'dismissed' ? 'rejected' : 'pending'} />, new Date(c.createdAt).toLocaleDateString()])}
         empty="You haven't filed any complaints."
       />
     </div>
@@ -10511,31 +14653,61 @@ const ADMIN_SUBTABS = [
 
 function AdminPanel({ onFlash }) {
   const [sub, setSub] = useState('requests');
-  const [userCount, setUserCount] = useState(null);
-  const [pendingCount, setPendingCount] = useState(null);
-  const [institutionCount, setInstitutionCount] = useState(null);
+  const [dash, setDash] = useState(null);
   const [revision, setRevision] = useState(0);
   const [statsError, setStatsError] = useState(false);
 
   useEffect(() => {
     let active = true;
     setStatsError(false);
-    Promise.all([apiRequest('/users?limit=1'), apiRequest('/roles/pending'), apiRequest('/institutions/admin/all')])
-      .then(([users, pending, institutions]) => {
-        if (!active) return;
-        setUserCount(users.total); setPendingCount(pending.length); setInstitutionCount(institutions.length);
-      }).catch(() => { if (active) setStatsError(true); });
+    apiRequest('/admin/dashboard')
+      .then((d) => { if (active) setDash(d); })
+      .catch(() => { if (active) setStatsError(true); });
     return () => { active = false; };
   }, [revision]);
+
+  const roleLabel = (key) => ADMIN_USER_ROLE_OPTIONS.find((o) => o.value === key)?.label || key.replace(/_/g, ' ');
 
   return (
     <div>
       {statsError && <p role="alert" className="admin-notice error">Overview could not be loaded. <button type="button" onClick={() => setRevision(value => value + 1)}>Retry</button></p>}
+
       <div className="admin-stats">
-        {[{ label: 'Total users', value: userCount, icon: FaUsers, detail: 'Registered across CareerZ' }, { label: 'Pending role requests', value: pendingCount, icon: FaClipboardCheck, detail: 'Awaiting your review' }, { label: 'Institutions', value: institutionCount, icon: FaBuildingColumns, detail: 'Platform institution directory' }].map(item => (
+        {[
+          { label: 'Total users', value: dash?.totalUsers, icon: FaUsers, detail: `${dash?.newUsersToday ?? 0} joined today` },
+          { label: 'Pending role requests', value: dash?.pendingWork?.roleRequests, icon: FaClipboardCheck, detail: 'Awaiting your review' },
+          { label: 'Institutions', value: dash?.totalInstitutions, icon: FaBuildingColumns, detail: `${dash?.pendingWork?.institutionVerifications ?? 0} pending verification` },
+          { label: 'Open complaints', value: dash?.pendingWork?.openComplaints, icon: FaShieldHalved, detail: `${dash?.pendingWork?.blockedIps ?? 0} IPs blocked` }
+        ].map(item => (
           <div className="admin-stat" key={item.label}><div className="admin-stat-top"><span>{item.label}</span><span className="admin-stat-icon"><item.icon aria-hidden="true" /></span></div><strong>{item.value ?? '—'}</strong><p>{item.detail}</p></div>
         ))}
       </div>
+
+      {dash && (
+        <div className="grid g2 mt-6" style={{ gap: 16 }}>
+          <div className="card" style={{ padding: 20 }}>
+            <h4 className="font-semibold mb-3">Accounts by Type</h4>
+            <div style={{ display: 'grid', gap: 8 }}>
+              {Object.entries(dash.usersByRole).filter(([, count]) => count > 0).sort((a, b) => b[1] - a[1]).map(([role, count]) => (
+                <div key={role} className="flex items-center justify-between text-sm"><span style={{ color: 'var(--ink-soft)' }}>{roleLabel(role)}</span><strong>{count}</strong></div>
+              ))}
+            </div>
+          </div>
+          <div className="card" style={{ padding: 20 }}>
+            <h4 className="font-semibold mb-3">Revenue Snapshot</h4>
+            <p className="text-xs" style={{ color: 'var(--ink-soft)', marginBottom: 8 }}>Fees collected (institutions)</p>
+            {dash.revenue.feesCollected.length === 0 && <p className="text-sm" style={{ color: 'var(--ink-soft)' }}>None yet.</p>}
+            {dash.revenue.feesCollected.map((r) => <p key={r._id} className="text-sm">{r._id}: <strong>{r.total.toLocaleString()}</strong></p>)}
+            <p className="text-xs" style={{ color: 'var(--ink-soft)', margin: '14px 0 8px' }}>Marketplace delivered</p>
+            {dash.revenue.marketplaceDelivered.length === 0 && <p className="text-sm" style={{ color: 'var(--ink-soft)' }}>None yet.</p>}
+            {dash.revenue.marketplaceDelivered.map((r) => <p key={r._id} className="text-sm">{r._id}: <strong>{r.total.toLocaleString()}</strong></p>)}
+            <div style={{ marginTop: 14, paddingTop: 14, borderTop: '1px solid var(--sand-line)' }}>
+              <p className="text-sm">Courses: <strong>{dash.platform.totalCourses}</strong> · Active jobs: <strong>{dash.platform.activeJobs}</strong>/{dash.platform.totalJobs} · Open scholarships: <strong>{dash.platform.openScholarships}</strong>/{dash.platform.totalScholarships}</p>
+            </div>
+          </div>
+        </div>
+      )}
+
       <div className="admin-section-heading" style={{ marginTop: 28 }}><div><h3>Management center</h3><p>Review requests and manage platform records.</p></div></div>
 
       <nav className="cz-tabbar" style={{ marginBottom: 20 }}>
@@ -10590,42 +14762,117 @@ function AdminRequests({ onFlash, onChanged }) {
   );
 }
 
+// Every real account type the platform supports (mirrors backend config/rbac.js ROLES) — lets
+// Super Admin actually manage each one, not just scroll through the first 50 mixed accounts.
+const ADMIN_USER_ROLE_OPTIONS = [
+  { value: '', label: 'All account types' },
+  { value: 'student', label: 'Student' },
+  { value: 'parent', label: 'Parent' },
+  { value: 'teacher', label: 'Teacher' },
+  { value: 'institution_owner', label: 'Institution Owner' },
+  { value: 'institution_staff', label: 'Institution Staff' },
+  { value: 'employer', label: 'Employer' },
+  { value: 'education_agent', label: 'Education Agent' },
+  { value: 'donor', label: 'Donor' },
+  { value: 'academy_owner', label: 'Academy Owner' },
+  { value: 'marketplace_seller', label: 'Marketplace Seller' },
+  { value: 'platform_staff', label: 'Platform Staff' },
+  { value: 'admin', label: 'Admin' },
+  { value: 'super_admin', label: 'Super Admin' }
+];
+const ADMIN_USER_STATUS_OPTIONS = [
+  { value: '', label: 'All statuses' },
+  { value: 'active', label: 'Active' },
+  { value: 'suspended', label: 'Suspended' },
+  { value: 'disabled', label: 'Disabled' }
+];
+
 function AdminUsers({ onFlash }) {
   const [users, setUsers] = useState([]);
+  const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState('');
+  const [role, setRole] = useState('');
+  const [status, setStatus] = useState('');
+  const [q, setQ] = useState('');
+  const [qInput, setQInput] = useState('');
+  const [page, setPage] = useState(1);
+  const limit = 25;
+
   async function load() {
     setLoading(true); setLoadError('');
-    try { const data = await apiRequest('/users?limit=50'); setUsers(data.users); }
-    catch (err) { setLoadError(err.message); }
+    try {
+      const params = new URLSearchParams({ page: String(page), limit: String(limit) });
+      if (role) params.set('role', role);
+      if (status) params.set('status', status);
+      if (q) params.set('q', q);
+      const data = await apiRequest(`/users?${params.toString()}`);
+      setUsers(data.users);
+      setTotal(data.total);
+    } catch (err) { setLoadError(err.message); }
     finally { setLoading(false); }
   }
-  useEffect(() => { load(); }, []);
+  useEffect(() => { load(); }, [role, status, q, page]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  async function setStatus(id, status) {
+  // Any filter change resets to page 1 — otherwise an admin can land on an out-of-range page.
+  useEffect(() => { setPage(1); }, [role, status, q]);
+
+  function submitSearch(e) {
+    e.preventDefault();
+    setQ(qInput.trim());
+  }
+
+  async function setUserStatus(id, next) {
     try {
-      await apiRequest(`/users/${id}/status`, { method: 'PATCH', body: { status } });
-      onFlash(`User ${status}.`, 'success');
+      await apiRequest(`/users/${id}/status`, { method: 'PATCH', body: { status: next } });
+      onFlash(`User ${next}.`, 'success');
       load();
     } catch (err) { onFlash(err.message); }
   }
 
+  const totalPages = Math.max(1, Math.ceil(total / limit));
+
   return (
-    <Table
-      loading={loading} error={loadError} onRetry={load}
-      headers={['Name', 'Email', 'Roles', 'Status', 'Action']}
-      rows={users.map((u) => [
-        u.fullName, u.email, u.roles.join(', '), <Tag status={u.status === 'active' ? 'approved' : 'rejected'} />,
-        u.roles.includes('super_admin') ? '—' : (
-          <div className="flex gap-2">
-            {u.status === 'active'
-              ? <button className="btn" style={{ padding: '6px 14px', fontSize: '0.8rem', background: 'var(--sand-line)', color: 'var(--ink)' }} onClick={() => setStatus(u._id, 'suspended')}>Suspend</button>
-              : <button className="btn btn-primary" style={{ padding: '6px 14px', fontSize: '0.8rem' }} onClick={() => setStatus(u._id, 'active')}>Activate</button>}
-          </div>
-        )
-      ])}
-      empty="No users found."
-    />
+    <div>
+      <div className="flex flex-wrap items-end" style={{ gap: 12, marginBottom: 16 }}>
+        <div style={{ flex: '1 1 200px', minWidth: 0 }}>
+          <CustomSelect value={role} onChange={setRole} ariaLabel="Filter by account type" minWidth="100%" options={ADMIN_USER_ROLE_OPTIONS} />
+        </div>
+        <div style={{ flex: '1 1 160px', minWidth: 0 }}>
+          <CustomSelect value={status} onChange={setStatus} ariaLabel="Filter by status" minWidth="100%" options={ADMIN_USER_STATUS_OPTIONS} />
+        </div>
+        <form onSubmit={submitSearch} className="flex" style={{ gap: 8, flex: '2 1 260px', minWidth: 0 }}>
+          <input className="form-input" placeholder="Search by name or email" value={qInput} onChange={(e) => setQInput(e.target.value)} style={{ flex: '1 1 auto', minWidth: 0 }} />
+          <button type="submit" className="btn" style={{ flexShrink: 0 }}>Search</button>
+        </form>
+      </div>
+
+      <p className="text-xs" style={{ color: 'var(--ink-soft)', marginBottom: 10 }}>{total} account{total === 1 ? '' : 's'}{role ? ` · ${ADMIN_USER_ROLE_OPTIONS.find((o) => o.value === role)?.label}` : ''}{status ? ` · ${status}` : ''}{q ? ` · matching "${q}"` : ''}</p>
+
+      <Table
+        loading={loading} error={loadError} onRetry={load}
+        headers={['Name', 'Email', 'Roles', 'Status', 'Action']}
+        rows={users.map((u) => [
+          u.fullName, u.email, u.roles.join(', '), <Tag status={u.status === 'active' ? 'approved' : 'rejected'} label={u.status} />,
+          u.roles.includes('super_admin') ? '—' : (
+            <div className="flex gap-2">
+              {u.status === 'active'
+                ? <button className="btn" style={{ padding: '6px 14px', fontSize: '0.8rem', background: 'var(--sand-line)', color: 'var(--ink)' }} onClick={() => setUserStatus(u._id, 'suspended')}>Suspend</button>
+                : <button className="btn btn-primary" style={{ padding: '6px 14px', fontSize: '0.8rem' }} onClick={() => setUserStatus(u._id, 'active')}>Activate</button>}
+            </div>
+          )
+        ])}
+        empty="No users match these filters."
+      />
+
+      {total > limit && (
+        <div className="flex items-center justify-between" style={{ marginTop: 14 }}>
+          <button type="button" className="btn" disabled={page <= 1} style={{ padding: '6px 14px', fontSize: '0.8rem' }} onClick={() => setPage((p) => Math.max(1, p - 1))}>← Prev</button>
+          <span className="text-xs" style={{ color: 'var(--ink-soft)' }}>Page {page} of {totalPages}</span>
+          <button type="button" className="btn" disabled={page >= totalPages} style={{ padding: '6px 14px', fontSize: '0.8rem' }} onClick={() => setPage((p) => Math.min(totalPages, p + 1))}>Next →</button>
+        </div>
+      )}
+    </div>
   );
 }
 
@@ -10672,8 +14919,22 @@ function InstitutionPanel({ onFlash, onChanged }) {
   const [form, setForm] = useState({ name: '', type: 'school', country: '', city: '' });
   const [editForm, setEditForm] = useState(null);
   const [saving, setSaving] = useState(false);
+  const [docUrl, setDocUrl] = useState('');
+  const [submittingDocs, setSubmittingDocs] = useState(false);
   async function load() { try { setList(await apiRequest('/institutions/mine/list')); } catch (err) { onFlash(err.message); } }
   useEffect(() => { load(); }, []);
+
+  async function submitDocuments(e) {
+    e.preventDefault();
+    if (!docUrl.trim()) return onFlash('Add at least one document link first.');
+    setSubmittingDocs(true);
+    try {
+      await apiRequest(`/institutions/${mine._id}/verification-documents`, { method: 'POST', body: { documents: [docUrl.trim()] } });
+      onFlash('Documents submitted — Super Admin has been notified for review.', 'success');
+      setDocUrl('');
+      load();
+    } catch (err) { onFlash(err.message); } finally { setSubmittingDocs(false); }
+  }
 
   const mine = list[0];
   useEffect(() => {
@@ -11115,7 +15376,20 @@ function ParentPanel({ onFlash }) {
         </div>
       </form>
       <h3 className="font-semibold mb-2">My Children</h3>
-      <Table headers={['Name', 'Email']} rows={children.map((c) => [c.student.fullName, c.student.email])} empty="No approved children yet." />
+      <Table
+        headers={['Name', 'Email', 'Relationship', 'Access']}
+        rows={children.map((c) => [
+          c.student.fullName, c.student.email,
+          <span style={{ textTransform: 'capitalize' }}>{c.relationship}</span>,
+          c.relationship === 'sponsor'
+            ? <span className="text-xs" style={{ color: 'var(--ink-soft)' }}>View progress &amp; pay fees only</span>
+            : <span className="text-xs" style={{ color: 'var(--forest)' }}>Full guardian access</span>
+        ])}
+        empty="No approved children yet."
+      />
+      <p className="text-xs" style={{ color: 'var(--ink-soft)', marginTop: 10 }}>
+        Father / Mother / Guardian links get full access, including Health Record and signing permission slips. A Sponsor link can view academic progress and pay fees, but cannot edit medical information or sign trip/event/medical consent on the child's behalf.
+      </p>
     </div>
   );
 }
@@ -11264,8 +15538,8 @@ function NotificationsPanel({ onFlash }) {
 // has access to (weekly timetable, fee due dates, assignment due dates). Tries
 // each source independently so it degrades gracefully for roles with none of them,
 // rather than hard-coding a role check here.
-const CAL_EVENT_COLOR = { class: 'var(--forest)', assignment: 'var(--gold)', exam: 'var(--rose)', fee: 'var(--emerald)' };
-const CAL_EVENT_LABEL = { class: 'Class', assignment: 'Assignment', exam: 'Exam', fee: 'Fee due' };
+const CAL_EVENT_COLOR = { class: 'var(--forest)', assignment: 'var(--gold)', exam: 'var(--rose)', fee: 'var(--emerald)', goal: 'var(--emerald)' };
+const CAL_EVENT_LABEL = { class: 'Class', assignment: 'Assignment', exam: 'Exam', fee: 'Fee due', goal: 'Goal due' };
 
 function dateKey(d) { return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`; }
 
@@ -11274,6 +15548,7 @@ function CalendarPanel({ onFlash }) {
   const [fees, setFees] = useState(null);
   const [pendingAssignments, setPendingAssignments] = useState(null);
   const [pendingExams, setPendingExams] = useState(null);
+  const [goals, setGoals] = useState([]);
   const [viewDate, setViewDate] = useState(() => new Date());
   const [selectedDate, setSelectedDate] = useState(() => new Date());
 
@@ -11294,6 +15569,8 @@ function CalendarPanel({ onFlash }) {
       ));
       setPendingExams(lists.flat().filter((ex) => ex.scheduledDate));
     }).catch(() => setPendingExams([]));
+    // Goal target dates — only students have this endpoint; other roles silently get none.
+    apiRequest('/students/me/goals').then((list) => setGoals(list.filter((g) => g.status === 'active' && g.targetDate))).catch(() => setGoals([]));
   }, []);
 
   const loading = timetable === null || fees === null || pendingAssignments === null || pendingExams === null;
@@ -11322,6 +15599,7 @@ function CalendarPanel({ onFlash }) {
     (pendingAssignments || []).forEach((a) => { if (a.dueDate) addEvent(new Date(a.dueDate), 'assignment', a.title, 'Due date'); });
     (pendingExams || []).forEach((e) => { if (e.scheduledDate) addEvent(new Date(e.scheduledDate), 'exam', e.title, e.courseTitle || ''); });
     (fees || []).filter((f) => f.status !== 'paid' && f.dueDate).forEach((f) => addEvent(new Date(f.dueDate), 'fee', f.title, `${f.currency} ${f.amount}`));
+    (goals || []).forEach((g) => addEvent(new Date(g.targetDate), 'goal', g.title, `${g.progressPercent}% complete`));
   }
 
   const firstWeekday = new Date(viewDate.getFullYear(), viewDate.getMonth(), 1).getDay();
@@ -11442,6 +15720,8 @@ function CalendarPanel({ onFlash }) {
 
 function SettingsPanel({ user, onFlash, onChanged }) {
   const [form, setForm] = useState({ fullName: user?.fullName || '', phone: user?.phone || '', country: user?.country || '', language: user?.language || 'en', profilePhoto: user?.profilePhoto || '', companyName: user?.companyName || '', donorType: user?.donorType || '' });
+  const [twoFactor, setTwoFactor] = useState(!!user?.twoFactorEnabled);
+  const [savingTwoFactor, setSavingTwoFactor] = useState(false);
   const isDonor = user?.roles?.includes('donor');
   const isSeller = user?.roles?.includes('marketplace_seller');
   const showCompanyName = user?.roles?.includes('employer') || user?.roles?.includes('education_agent') || isSeller || (isDonor && form.donorType === 'organization');
@@ -11454,6 +15734,16 @@ function SettingsPanel({ user, onFlash, onChanged }) {
       onFlash('Settings saved.', 'success');
       onChanged?.();
     } catch (err) { onFlash(err.message); }
+  }
+
+  async function toggleTwoFactor(next) {
+    setSavingTwoFactor(true);
+    try {
+      await apiRequest('/users/me', { method: 'PATCH', body: { twoFactorEnabled: next } });
+      setTwoFactor(next);
+      onFlash(next ? 'Two-factor authentication enabled — you\'ll get an email code at every login.' : 'Two-factor authentication disabled.', 'success');
+      onChanged?.();
+    } catch (err) { onFlash(err.message); } finally { setSavingTwoFactor(false); }
   }
 
   async function changePassword(e) {
@@ -11498,12 +15788,25 @@ function SettingsPanel({ user, onFlash, onChanged }) {
       </form>
 
       <h3 className="font-semibold mb-3">Change Password</h3>
-      <form onSubmit={changePassword} className="card" style={{ padding: 22, display: 'grid', gap: 14, maxWidth: 480 }}>
+      <form onSubmit={changePassword} className="card" style={{ padding: 22, display: 'grid', gap: 14, maxWidth: 480, marginBottom: 24 }}>
         <input className="form-input" type="password" placeholder="Current password" value={pwForm.currentPassword} onChange={(e) => setPwForm({ ...pwForm, currentPassword: e.target.value })} required />
         <input className="form-input" type="password" placeholder="New password" value={pwForm.newPassword} onChange={(e) => setPwForm({ ...pwForm, newPassword: e.target.value })} required minLength={8} />
         <input className="form-input" type="password" placeholder="Confirm new password" value={pwForm.confirmPassword} onChange={(e) => setPwForm({ ...pwForm, confirmPassword: e.target.value })} required minLength={8} />
         <button type="submit" className="btn btn-primary" style={{ padding: '7px 18px', justifySelf: 'start' }}>Update Password</button>
       </form>
+
+      <h3 className="font-semibold mb-3">Two-Factor Authentication</h3>
+      <div className="card" style={{ padding: 22, maxWidth: 480 }}>
+        <div className="flex items-center justify-between flex-wrap" style={{ gap: 14 }}>
+          <div style={{ minWidth: 0 }}>
+            <p className="text-sm" style={{ fontWeight: 600 }}>{twoFactor ? 'Enabled' : 'Disabled'}</p>
+            <p className="text-xs" style={{ color: 'var(--ink-soft)', marginTop: 4, lineHeight: 1.6 }}>{twoFactor ? 'A login code is emailed to you every time you sign in — password alone is not enough.' : 'Add an extra step at login: a one-time code emailed to you after your password.'}</p>
+          </div>
+          <label className="flex items-center" style={{ gap: 10, flexShrink: 0, cursor: savingTwoFactor ? 'wait' : 'pointer' }}>
+            <input type="checkbox" checked={twoFactor} disabled={savingTwoFactor} onChange={(e) => toggleTwoFactor(e.target.checked)} />
+          </label>
+        </div>
+      </div>
     </div>
   );
 }

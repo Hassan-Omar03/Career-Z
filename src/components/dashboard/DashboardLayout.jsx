@@ -39,6 +39,7 @@ export default function DashboardLayout({ children, trail = ['Dashboard'], activ
           }}
           onLogout={handleLogout}
           onNavigate={onSelect}
+          navItems={navItems}
         />
 
         <main className="dash-main">

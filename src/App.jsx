@@ -6,6 +6,8 @@ import ForgotPassword from './pages/ForgotPassword';
 import ResetPassword from './pages/ResetPassword';
 import Dashboard from './pages/Dashboard';
 import VerifyCertificate from './pages/VerifyCertificate';
+import VerifyStudentId from './pages/VerifyStudentId';
+import PublicPortfolio from './pages/PublicPortfolio';
 import { useAuth } from './context/AuthContext';
 
 function ProtectedRoute({ children }) {
@@ -24,6 +26,8 @@ export default function App() {
       <Route path="/forgot-password" element={<ForgotPassword />} />
       <Route path="/reset-password" element={<ResetPassword />} />
       <Route path="/verify-certificate/:code" element={<VerifyCertificate />} />
+      <Route path="/verify-student-id/:code" element={<VerifyStudentId />} />
+      <Route path="/portfolio/:userId" element={<PublicPortfolio />} />
       <Route
         path="/dashboard"
         element={

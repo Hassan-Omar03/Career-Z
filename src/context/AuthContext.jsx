@@ -1,6 +1,6 @@
 import { createContext, useContext, useEffect, useState } from 'react';
 import { session } from '../api/client';
-import { getMe, login as loginApi, register as registerApi, logout as logoutApi } from '../api/auth';
+import { getMe, login as loginApi, verifyLogin2FA as verifyLogin2FAApi, register as registerApi, logout as logoutApi } from '../api/auth';
 
 const AuthContext = createContext(null);
 
@@ -27,6 +27,14 @@ export function AuthProvider({ children }) {
 
   async function login(credentials) {
     const data = await loginApi(credentials);
+    // 2FA challenge — no user session yet, caller must collect the code and call verifyLogin2FA.
+    if (data.twoFactorRequired) return data;
+    setUser(data.user);
+    return data;
+  }
+
+  async function verifyLogin2FA(payload) {
+    const data = await verifyLogin2FAApi(payload);
     setUser(data.user);
     return data;
   }
@@ -50,7 +58,7 @@ export function AuthProvider({ children }) {
   }
 
   return (
-    <AuthContext.Provider value={{ user, loading, login, register, logout, refreshProfile }}>
+    <AuthContext.Provider value={{ user, loading, login, verifyLogin2FA, register, logout, refreshProfile }}>
       {children}
     </AuthContext.Provider>
   );

@@ -16,6 +16,18 @@ export async function login({ email, password }) {
     auth: false,
     body: { email, password }
   });
+  // Accounts with 2FA on get a challenge instead of tokens — nothing to store yet.
+  if (data.twoFactorRequired) return data;
+  session.set(data);
+  return data;
+}
+
+export async function verifyLogin2FA({ email, code }) {
+  const data = await apiRequest('/auth/login/verify-2fa', {
+    method: 'POST',
+    auth: false,
+    body: { email, code }
+  });
   session.set(data);
   return data;
 }
