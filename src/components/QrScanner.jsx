@@ -4,7 +4,7 @@ import jsQR from 'jsqr';
 // Real camera-based QR scanning (spec 15B.9/9.9 "QR Code" attendance) — no dedicated hardware,
 // just the camera already in any phone/laptop. Decodes locally in the browser via jsQR; only the
 // decoded text is ever sent to the backend.
-export default function QrScanner({ onScan, active = true }) {
+export default function QrScanner({ onScan, active = true, hint = "Point the camera at a student's Digital ID QR code." }) {
   const videoRef = useRef(null);
   const canvasRef = useRef(null);
   const streamRef = useRef(null);
@@ -74,7 +74,7 @@ export default function QrScanner({ onScan, active = true }) {
       <video ref={videoRef} playsInline muted style={{ width: '100%', borderRadius: 14, background: '#000' }} />
       <canvas ref={canvasRef} style={{ display: 'none' }} />
       {!ready && <p className="text-xs" style={{ color: 'var(--ink-soft)', marginTop: 6 }}>Starting camera...</p>}
-      {ready && <p className="text-xs" style={{ color: 'var(--ink-soft)', marginTop: 6 }}>Point the camera at a student's Digital ID QR code.</p>}
+      {ready && <p className="text-xs" style={{ color: 'var(--ink-soft)', marginTop: 6 }}>{hint}</p>}
     </div>
   );
 }

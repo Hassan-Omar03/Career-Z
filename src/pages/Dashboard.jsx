@@ -11,9 +11,11 @@ import { Children, useEffect, useRef, useState } from 'react';
 import { useLocation } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { apiRequest } from '../api/client';
+import { startRegistration, startAuthentication } from '@simplewebauthn/browser';
 import { verifyEmail, resendVerification } from '../api/auth';
 import DashboardLayout from '../components/dashboard/DashboardLayout';
 import CampusTourViewer from '../components/CampusTourViewer';
+import QrScanner from '../components/QrScanner';
 import {
   OverviewStats, WalletCard, QuickActions,
   ProfileCompletion, MiniCalendar, RecommendedGrid, RecentActivity
@@ -25,7 +27,8 @@ const STUDENT_PAGES = {
   courses: ['My Courses', 'Explore courses, continue learning and access your resources.', FaBookOpen],
   institutions: ['My Institutions', 'Connect with institutions and manage your academic journey.', FaBuilding],
   classes: ['My Classes', 'Your timetable, upcoming sessions and live classes in one place.', FaChalkboardUser],
-  assignments: ['Assignments & Tests', 'Keep track of submissions, exams, attendance and results.', FaClipboardList],
+  assignments: ['Assignments & Tests', 'Keep track of submissions, exams and results.', FaClipboardList],
+  attendance: ['Attendance', 'Mark your attendance and review your history.', FaCalendarCheck],
   certificates: ['Certificates', 'Your achievements and verified learning credentials.', FaAward],
   applications: ['Applications', 'Follow your job, scholarship and admission applications.', FaFileLines],
   scholarships: ['Scholarships', 'Discover funding opportunities and track your applications.', FaGraduationCap],
@@ -56,6 +59,7 @@ const WORKSPACES = {
       { key: 'classes', label: 'My Classes', icon: FaChalkboardUser },
       { key: 'courses', label: 'My Courses', icon: FaBookOpen },
       { key: 'assignments', label: 'Assignments & Tests', icon: FaClipboardList },
+      { key: 'attendance', label: 'Attendance', icon: FaCalendarCheck },
       { key: 'learningAnalytics', label: 'Learning Analytics', icon: FaChartLine },
       { key: 'certificates', label: 'Certificates', icon: FaAward },
       { key: 'digitalLocker', label: 'Digital Locker', icon: FaLock },
@@ -481,6 +485,7 @@ function StudentWorkspace({ tab, user, onFlash, onChanged, onNavigate }) {
   if (tab === 'wallet') return <StudentFeesPanel onFlash={onFlash} />;
   if (tab === 'summary') return <StudentSummary onNavigate={onNavigate} user={user} />;
   if (tab === 'assignments') return <StudentAssignmentsPanel onFlash={onFlash} />;
+  if (tab === 'attendance') return <StudentAttendancePanel onFlash={onFlash} />;
   if (tab === 'classes') return <TimetableView onFlash={onFlash} url="/students/me/timetable" />;
   if (tab === 'jobs') return <StudentJobsPanel onFlash={onFlash} user={user} />;
   if (tab === 'certificates') return <StudentCertificatesPanel onFlash={onFlash} />;
@@ -2744,7 +2749,7 @@ const AI_PURPOSES = [
   { key: 'text', label: 'Text (notes, quiz, career advice...)', providers: AI_PROVIDERS },
   { key: 'image', label: 'Images / Graphics', providers: [{ value: 'openai', label: 'OpenAI (DALL-E)' }, { value: 'stability', label: 'Stability AI' }] },
   { key: 'threed', label: '3D Models', providers: [{ value: 'meshy', label: 'Meshy AI' }] },
-  { key: 'voice', label: 'Voice (narration)', providers: [{ value: 'elevenlabs', label: 'ElevenLabs' }] },
+  { key: 'voice', label: 'Voice (narration)', providers: [{ value: 'elevenlabs', label: 'ElevenLabs' }, { value: 'google', label: 'Google Cloud TTS (free tier)' }] },
   { key: 'avatar', label: 'Avatar Video', providers: [{ value: 'heygen', label: 'HeyGen' }] },
   { key: 'animation', label: 'Animation', providers: [{ value: 'runway', label: 'Runway ML' }] }
 ];
@@ -4987,12 +4992,10 @@ function StudentFeesPanel({ onFlash }) {
 function StudentAssignmentsPanel({ onFlash }) {
   const [submissions, setSubmissions] = useState(null);
   const [results, setResults] = useState(null);
-  const [attendance, setAttendance] = useState(null);
 
   useEffect(() => {
     apiRequest('/students/me/submissions').then(setSubmissions).catch((err) => onFlash(err.message));
     apiRequest('/students/me/results').then(setResults).catch((err) => onFlash(err.message));
-    apiRequest('/students/me/attendance').then(setAttendance).catch((err) => onFlash(err.message));
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -5013,13 +5016,158 @@ function StudentAssignmentsPanel({ onFlash }) {
         rows={(results || []).map((r) => [r.term || '—', r.subject || '—', `${r.marksObtained}/${r.totalMarks}`, r.grade || '—'])}
         empty="No results recorded yet."
       />
-      <h3 className="font-semibold mb-2 mt-6">My Attendance</h3>
+    </div>
+  );
+}
+
+// Dedicated Attendance tab — self check-in (QR/GPS/Biometric) plus full history, no longer
+// buried inside Assignments & Tests.
+function StudentAttendancePanel({ onFlash }) {
+  const [attendance, setAttendance] = useState(null);
+
+  function loadAttendance() {
+    apiRequest('/students/me/attendance').then(setAttendance).catch((err) => onFlash(err.message));
+  }
+  useEffect(loadAttendance, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  return (
+    <div>
+      <h3 className="font-semibold mb-2">Mark My Attendance</h3>
+      <StudentAttendanceCheckInPanel onFlash={onFlash} onMarked={loadAttendance} />
+      <h3 className="font-semibold mb-2 mt-6">My Attendance History</h3>
       <Table
         loading={attendance === null}
-        headers={['Date', 'Status']}
-        rows={(attendance || []).map((a) => [new Date(a.date).toLocaleDateString(), <Tag status={a.records?.[0]?.status === 'present' ? 'approved' : a.records?.[0]?.status === 'absent' ? 'rejected' : 'pending'} />])}
+        headers={['Date', 'Status', 'Method']}
+        rows={(attendance || []).map((a) => [
+          new Date(a.date).toLocaleDateString(),
+          <Tag status={a.records?.[0]?.status === 'present' ? 'approved' : a.records?.[0]?.status === 'absent' ? 'rejected' : 'pending'} />,
+          a.records?.[0]?.method || 'manual'
+        ])}
         empty="No attendance recorded yet."
       />
+    </div>
+  );
+}
+
+// Student self-check-in — QR (scan the teacher's session QR), GPS (optional, needs location
+// permission) and WebAuthn/Passkey (device biometric — fingerprint, Face ID, Windows Hello).
+// No RFID/NFC, no physical fingerprint machine, no retina hardware — everything here works from
+// a normal phone/tablet/laptop browser, matching CareerZ's remote-study-first attendance scope.
+function StudentAttendanceCheckInPanel({ onFlash, onMarked }) {
+  const [courses, setCourses] = useState([]);
+  const [courseId, setCourseId] = useState('');
+  const [mode, setMode] = useState('qr');
+  const [scanBusy, setScanBusy] = useState(false);
+  const [gpsBusy, setGpsBusy] = useState(false);
+  const [bioCreds, setBioCreds] = useState(null);
+  const [bioBusy, setBioBusy] = useState(false);
+  const today = new Date().toISOString().slice(0, 10);
+
+  useEffect(() => {
+    apiRequest('/students/me/enrollments').then((list) => {
+      const active = list.filter((e) => e.course);
+      setCourses(active.map((e) => e.course));
+      if (active[0]) setCourseId(active[0].course._id);
+    }).catch(() => {});
+    apiRequest('/webauthn/credentials/mine').then(setBioCreds).catch(() => setBioCreds([]));
+  }, []);
+
+  async function onQrScan(text) {
+    if (scanBusy) return;
+    let token;
+    try { token = JSON.parse(text).t; } catch { token = text.trim(); }
+    setScanBusy(true);
+    try {
+      const res = await apiRequest('/students/me/attendance/qr-checkin', { method: 'POST', body: { token, date: today } });
+      onFlash(res.alreadyMarked ? 'Already checked in for this session.' : 'Attendance marked!', res.alreadyMarked ? undefined : 'success');
+      onMarked?.();
+    } catch (err) { onFlash(err.message); } finally { setTimeout(() => setScanBusy(false), 2000); }
+  }
+
+  function checkInGps() {
+    if (!courseId) return onFlash('Select a course first.');
+    if (!navigator.geolocation) return onFlash('Geolocation is not supported on this device/browser.');
+    setGpsBusy(true);
+    navigator.geolocation.getCurrentPosition(async (pos) => {
+      try {
+        const res = await apiRequest('/students/me/attendance/gps-checkin', {
+          method: 'POST',
+          body: { course: courseId, date: today, lat: pos.coords.latitude, lng: pos.coords.longitude }
+        });
+        onFlash(res.alreadyMarked ? 'Already checked in today.' : `Attendance marked! (${res.distanceMeters}m from class location)`, res.alreadyMarked ? undefined : 'success');
+        onMarked?.();
+      } catch (err) { onFlash(err.message); } finally { setGpsBusy(false); }
+    }, () => { onFlash("Couldn't get your location — check your browser's location permission."); setGpsBusy(false); });
+  }
+
+  async function registerBiometric() {
+    setBioBusy(true);
+    try {
+      const options = await apiRequest('/webauthn/register/options');
+      const attResp = await startRegistration({ optionsJSON: options });
+      await apiRequest('/webauthn/register/verify', { method: 'POST', body: attResp });
+      onFlash('Biometric/passkey registered on this device.', 'success');
+      apiRequest('/webauthn/credentials/mine').then(setBioCreds).catch(() => {});
+    } catch (err) {
+      onFlash(err.name === 'NotAllowedError' ? 'Registration cancelled or not supported on this device.' : err.message);
+    } finally { setBioBusy(false); }
+  }
+
+  async function checkInBiometric() {
+    if (!courseId) return onFlash('Select a course first.');
+    setBioBusy(true);
+    try {
+      const options = await apiRequest('/webauthn/attendance/options');
+      const authResp = await startAuthentication({ optionsJSON: options });
+      const res = await apiRequest('/webauthn/attendance/verify', { method: 'POST', body: { course: courseId, date: today, response: authResp } });
+      onFlash(res.alreadyMarked ? 'Already checked in today.' : 'Attendance marked via biometric verification!', res.alreadyMarked ? undefined : 'success');
+      onMarked?.();
+    } catch (err) {
+      onFlash(err.name === 'NotAllowedError' ? 'Verification cancelled or not supported on this device.' : err.message);
+    } finally { setBioBusy(false); }
+  }
+
+  if (courses.length === 0) return null;
+
+  return (
+    <div className="card" style={{ padding: 20, marginBottom: 20 }}>
+      <label style={{ display: 'inline-block', marginBottom: 14 }}>
+        <span className="text-xs" style={{ display: 'block', color: 'var(--ink-soft)', fontWeight: 600, marginBottom: 6 }}>Course</span>
+        <CustomSelect value={courseId} onChange={setCourseId} ariaLabel="Select course" options={courses.map((c) => ({ value: c._id, label: c.title }))} />
+      </label>
+      <div className="flex gap-2 mb-4">
+        <button type="button" className={mode === 'qr' ? 'btn btn-primary' : 'btn'} style={{ padding: '6px 16px', fontSize: '0.8rem' }} onClick={() => setMode('qr')}>📷 Scan QR</button>
+        <button type="button" className={mode === 'gps' ? 'btn btn-primary' : 'btn'} style={{ padding: '6px 16px', fontSize: '0.8rem' }} onClick={() => setMode('gps')}>📍 GPS</button>
+        <button type="button" className={mode === 'bio' ? 'btn btn-primary' : 'btn'} style={{ padding: '6px 16px', fontSize: '0.8rem' }} onClick={() => setMode('bio')}>🔒 Biometric</button>
+      </div>
+
+      {mode === 'qr' && <QrScanner onScan={onQrScan} hint="Point your camera at your teacher's attendance QR code (shown on their screen)." />}
+
+      {mode === 'gps' && (
+        <div>
+          <p className="text-xs mb-3" style={{ color: 'var(--ink-soft)' }}>Only works if your teacher has enabled GPS attendance for this course and you're within range.</p>
+          <button type="button" className="btn btn-primary" onClick={checkInGps} disabled={gpsBusy}>{gpsBusy ? 'Checking location...' : 'Check In via Location'}</button>
+        </div>
+      )}
+
+      {mode === 'bio' && (
+        <div>
+          {bioCreds === null ? (
+            <p className="text-xs" style={{ color: 'var(--ink-soft)' }}>Loading...</p>
+          ) : bioCreds.length === 0 ? (
+            <>
+              <p className="text-xs mb-3" style={{ color: 'var(--ink-soft)' }}>Register your device's fingerprint/Face ID/Windows Hello once (requires a secure browser context — works on localhost or HTTPS). No biometric data is ever sent to or stored by CareerZ — only a secure cryptographic key.</p>
+              <button type="button" className="btn btn-primary" onClick={registerBiometric} disabled={bioBusy}>{bioBusy ? 'Registering...' : 'Register Biometric / Passkey'}</button>
+            </>
+          ) : (
+            <>
+              <p className="text-xs mb-3" style={{ color: 'var(--ink-soft)' }}>{bioCreds.length} device{bioCreds.length > 1 ? 's' : ''} registered.</p>
+              <button type="button" className="btn btn-primary" onClick={checkInBiometric} disabled={bioBusy}>{bioBusy ? 'Verifying...' : 'Check In via Biometric'}</button>
+              <button type="button" className="btn ml-2" onClick={registerBiometric} disabled={bioBusy}>+ Register Another Device</button>
+            </>
+          )}
+        </div>
+      )}
     </div>
   );
 }
@@ -5583,8 +5731,218 @@ function TeacherAiAssistantPanel({ onFlash }) {
         <AnimationGenerator aiEnabled={status?.animation.configured} onFlash={onFlash} />
         <VoiceAndAvatarGenerator aiEnabled={status} onFlash={onFlash} />
       </div>
+
+      <h4 className="font-semibold mb-2 mt-6" style={{ fontSize: '0.9rem' }}>AI Video Lesson Creator</h4>
+      <p className="text-xs mb-3" style={{ color: 'var(--ink-soft)' }}>Text → AI script → voice narration → slide scenes → real MP4, rendered free in your browser (ffmpeg.wasm), saved to a lesson. Needs Text + Voice AI connected above, and a free video storage account connected below.</p>
+      <AiVideoLessonCreator aiEnabled={textEnabled && status?.voice.configured} onFlash={onFlash} />
     </div>
   );
+}
+
+const CLOUD_STORAGE_CDN = 'https://cdn.jsdelivr.net/npm/@ffmpeg/core@0.12.10/dist/esm';
+
+// Free/open-source AI Video Lesson pipeline (no locked-in paid video-generation provider):
+// AI script (BYOK text) -> AI narration (BYOK voice, ElevenLabs or free-tier Google TTS) ->
+// Canvas-rendered slide "scenes" -> ffmpeg.wasm (open-source, runs entirely in this browser tab)
+// combines image+audio per scene and concatenates them into one real MP4 -> uploaded straight to
+// the teacher's own Cloudinary account (BYOK, free tier) -> saved as a real Lesson.videoUrl.
+function AiVideoLessonCreator({ aiEnabled, onFlash }) {
+  const { courses, courseId, setCourseId } = useTeacherCourses(onFlash);
+  const [topic, setTopic] = useState('');
+  const [lessonTitle, setLessonTitle] = useState('');
+  const [scenes, setScenes] = useState(null);
+  const [stage, setStage] = useState('idle'); // idle | script | narration | rendering | uploading | done
+  const [progress, setProgress] = useState('');
+  const [videoUrl, setVideoUrl] = useState(null);
+  const [storageStatus, setStorageStatus] = useState(null);
+  const [cloudForm, setCloudForm] = useState({ cloudName: '', apiKey: '', apiSecret: '' });
+  const ffmpegRef = useRef(null);
+
+  useEffect(() => { apiRequest('/media/cloudinary/config').then(setStorageStatus).catch(() => setStorageStatus({ configured: false })); }, []);
+
+  async function connectStorage(e) {
+    e.preventDefault();
+    try {
+      await apiRequest('/media/cloudinary/config', { method: 'PUT', body: cloudForm });
+      onFlash('Video storage connected.', 'success');
+      setStorageStatus({ configured: true, cloudName: cloudForm.cloudName });
+    } catch (err) { onFlash(err.message); }
+  }
+
+  async function getFfmpeg() {
+    if (ffmpegRef.current) return ffmpegRef.current;
+    const { FFmpeg } = await import('@ffmpeg/ffmpeg');
+    const { toBlobURL } = await import('@ffmpeg/util');
+    const ffmpeg = new FFmpeg();
+    await ffmpeg.load({
+      coreURL: await toBlobURL(`${CLOUD_STORAGE_CDN}/ffmpeg-core.js`, 'text/javascript'),
+      wasmURL: await toBlobURL(`${CLOUD_STORAGE_CDN}/ffmpeg-core.wasm`, 'application/wasm')
+    });
+    ffmpegRef.current = ffmpeg;
+    return ffmpeg;
+  }
+
+  // Renders one scene (title + on-screen bullets) to a real PNG, same visual language as the
+  // Slides Generator — free, no image-generation API call needed for the default path.
+  function renderSlideImage(title, bullets) {
+    const canvas = document.createElement('canvas');
+    canvas.width = 1280; canvas.height = 720;
+    const ctx = canvas.getContext('2d');
+    ctx.fillStyle = '#1a2332'; ctx.fillRect(0, 0, 1280, 720);
+    ctx.fillStyle = '#fff'; ctx.font = '700 52px Georgia, serif';
+    wrapText(ctx, title, 80, 140, 1120, 62);
+    ctx.font = '32px Georgia, serif';
+    let y = 280;
+    bullets.forEach((b) => {
+      ctx.fillText('•', 80, y);
+      wrapText(ctx, b, 120, y, 1060, 44);
+      y += 44 * Math.max(1, Math.ceil(b.length / 70)) + 22;
+    });
+    return new Promise((resolve) => canvas.toBlob(resolve, 'image/png'));
+  }
+
+  function wrapText(ctx, text, x, y, maxWidth, lineHeight) {
+    const words = text.split(' ');
+    let line = ''; let cy = y;
+    words.forEach((w) => {
+      const test = line + w + ' ';
+      if (ctx.measureText(test).width > maxWidth && line) {
+        ctx.fillText(line, x, cy); line = w + ' '; cy += lineHeight;
+      } else line = test;
+    });
+    ctx.fillText(line, x, cy);
+  }
+
+  async function run() {
+    if (!courseId) return onFlash('Select a course first.');
+    if (!storageStatus?.configured) return onFlash('Connect video storage (Cloudinary) first — see below.');
+    try {
+      // 1. Script
+      setStage('script'); setProgress('Writing lesson script...');
+      const { result } = await apiRequest('/ai/generate', { method: 'POST', body: { feature: 'video_lesson_script', prompt: topic } });
+      const parsedScenes = parseVideoScenes(result);
+      if (parsedScenes.length === 0) throw new Error("Couldn't parse a script from the AI response — try a different topic.");
+      setScenes(parsedScenes);
+
+      // 2. Narration per scene
+      setStage('narration');
+      const withAudio = [];
+      for (let i = 0; i < parsedScenes.length; i++) {
+        setProgress(`Generating narration ${i + 1}/${parsedScenes.length}...`);
+        const { audioDataUrl } = await apiRequest('/ai/voice', { method: 'POST', body: { text: parsedScenes[i].narration } });
+        withAudio.push({ ...parsedScenes[i], audioDataUrl });
+      }
+
+      // 3. Render scenes + assemble with ffmpeg.wasm
+      setStage('rendering'); setProgress('Loading video renderer...');
+      const ffmpeg = await getFfmpeg();
+      const { fetchFile } = await import('@ffmpeg/util');
+      const clipNames = [];
+      for (let i = 0; i < withAudio.length; i++) {
+        setProgress(`Rendering scene ${i + 1}/${withAudio.length}...`);
+        const imgBlob = await renderSlideImage(withAudio[i].title, withAudio[i].bullets);
+        await ffmpeg.writeFile(`img${i}.png`, await fetchFile(imgBlob));
+        await ffmpeg.writeFile(`aud${i}.mp3`, await fetchFile(withAudio[i].audioDataUrl));
+        await ffmpeg.exec([
+          '-loop', '1', '-i', `img${i}.png`, '-i', `aud${i}.mp3`,
+          '-c:v', 'libx264', '-tune', 'stillimage', '-c:a', 'aac', '-b:a', '160k',
+          '-pix_fmt', 'yuv420p', '-shortest', `clip${i}.mp4`
+        ]);
+        clipNames.push(`clip${i}.mp4`);
+      }
+      setProgress('Combining scenes into final video...');
+      const listContent = clipNames.map((n) => `file '${n}'`).join('\n');
+      await ffmpeg.writeFile('list.txt', new TextEncoder().encode(listContent));
+      await ffmpeg.exec(['-f', 'concat', '-safe', '0', '-i', 'list.txt', '-c', 'copy', 'output.mp4']);
+      const data = await ffmpeg.readFile('output.mp4');
+      const videoBlob = new Blob([data.buffer], { type: 'video/mp4' });
+
+      // 4. Upload to Cloudinary (signed, direct from browser)
+      setStage('uploading'); setProgress('Uploading video...');
+      const sig = await apiRequest('/media/cloudinary/signature', { method: 'POST' });
+      const form = new FormData();
+      form.append('file', videoBlob, 'lesson.mp4');
+      form.append('api_key', sig.apiKey);
+      form.append('timestamp', sig.timestamp);
+      form.append('signature', sig.signature);
+      form.append('folder', sig.folder);
+      const uploadRes = await fetch(`https://api.cloudinary.com/v1_1/${sig.cloudName}/video/upload`, { method: 'POST', body: form });
+      const uploadJson = await uploadRes.json();
+      if (!uploadRes.ok) throw new Error(uploadJson.error?.message || 'Video upload failed.');
+
+      // 5. Save as a real Lesson
+      setProgress('Saving lesson...');
+      await apiRequest(`/courses/${courseId}/lessons`, {
+        method: 'POST',
+        body: { title: lessonTitle || topic, content: withAudio.map((s) => `${s.title}\n${s.narration}`).join('\n\n'), videoUrl: uploadJson.secure_url }
+      });
+
+      setVideoUrl(uploadJson.secure_url);
+      setStage('done');
+      onFlash('Video lesson created and saved!', 'success');
+    } catch (err) {
+      onFlash(err.message);
+      setStage('idle');
+    }
+  }
+
+  if (!storageStatus) return null;
+
+  return (
+    <div className="card" style={{ padding: 18 }}>
+      {!storageStatus.configured && (
+        <div style={{ marginBottom: 16, paddingBottom: 16, borderBottom: '1px solid var(--sand-line)' }}>
+          <strong className="text-sm">Connect Video Storage (Cloudinary, free)</strong>
+          <p className="text-xs mt-1 mb-2" style={{ color: 'var(--ink-soft)' }}>Free account at cloudinary.com (25GB free) — Dashboard shows your Cloud Name, API Key and API Secret.</p>
+          <form onSubmit={connectStorage} className="flex gap-2 flex-wrap">
+            <input className="form-input" placeholder="Cloud name" value={cloudForm.cloudName} onChange={(e) => setCloudForm({ ...cloudForm, cloudName: e.target.value })} required style={{ maxWidth: 160 }} />
+            <input className="form-input" placeholder="API key" value={cloudForm.apiKey} onChange={(e) => setCloudForm({ ...cloudForm, apiKey: e.target.value })} required style={{ maxWidth: 160 }} />
+            <input className="form-input" type="password" placeholder="API secret" value={cloudForm.apiSecret} onChange={(e) => setCloudForm({ ...cloudForm, apiSecret: e.target.value })} required style={{ maxWidth: 160 }} />
+            <button type="submit" className="btn btn-primary" style={{ padding: '6px 14px', fontSize: '0.78rem' }}>Connect</button>
+          </form>
+        </div>
+      )}
+
+      {!aiEnabled ? (
+        <p className="text-xs" style={{ color: 'var(--ink-soft)' }}>Connect a Text AI provider and a Voice AI provider above first.</p>
+      ) : (
+        <>
+          <CourseSelect courses={courses} value={courseId} onChange={setCourseId} />
+          <input className="form-input mb-2" placeholder="Lesson title (optional — defaults to topic)" value={lessonTitle} onChange={(e) => setLessonTitle(e.target.value)} />
+          <input className="form-input mb-2" placeholder="Lesson topic, e.g. The Water Cycle" value={topic} onChange={(e) => setTopic(e.target.value)} />
+          <button type="button" className="btn btn-primary" style={{ padding: '6px 14px', fontSize: '0.78rem' }} onClick={run} disabled={stage !== 'idle' && stage !== 'done' || !topic.trim()}>
+            {stage === 'idle' || stage === 'done' ? 'Generate Video Lesson' : progress || 'Working...'}
+          </button>
+
+          {scenes && stage !== 'idle' && (
+            <p className="text-xs mt-2" style={{ color: 'var(--ink-soft)' }}>{scenes.length} scenes planned.</p>
+          )}
+
+          {videoUrl && stage === 'done' && (
+            <div className="mt-3">
+              <video src={videoUrl} controls style={{ width: '100%', maxWidth: 480, borderRadius: 12 }} />
+              <p className="text-xs mt-1" style={{ color: 'var(--emerald)' }}>Saved to the course — students can watch it from My Courses.</p>
+            </div>
+          )}
+        </>
+      )}
+    </div>
+  );
+}
+
+// Parses the AI's ---SCENE--- delimited output into {title, narration, bullets[]}.
+function parseVideoScenes(text) {
+  return text.split('---SCENE---').map((block) => block.trim()).filter(Boolean).map((block) => {
+    const lines = block.split('\n').map((l) => l.trim()).filter(Boolean);
+    const titleLine = lines.find((l) => l.startsWith('TITLE:'));
+    const narrationLine = lines.find((l) => l.startsWith('NARRATION:'));
+    const bullets = lines.filter((l) => l.startsWith('-')).map((l) => l.replace(/^-\s*/, ''));
+    return {
+      title: titleLine ? titleLine.replace('TITLE:', '').trim() : 'Untitled Scene',
+      narration: narrationLine ? narrationLine.replace('NARRATION:', '').trim() : '',
+      bullets
+    };
+  }).filter((s) => s.narration);
 }
 
 // subjects, experienceYears, bio, qualifications were already accepted by PATCH /teachers/me
@@ -6165,34 +6523,110 @@ function TeacherSelfAttendancePanel({ onFlash }) {
 
 // Real camera-based QR attendance (spec 15B.9/9.9) — scans a student's existing Digital Student
 // ID QR code (student.controller.js's idCardCode) and marks them present via a real backend call.
+// Session-based QR attendance (spec: "session/time-based QR mechanism" — prevents an old QR
+// being reused). The teacher generates ONE short-lived QR for the whole class, shown on screen;
+// each student scans it with their own device to check themselves in. The QR encodes only a
+// random one-time token — never a student's permanent Digital ID — and expires in a few minutes.
 function TeacherQrAttendancePanel({ courseId, date, onFlash }) {
-  const [scans, setScans] = useState([]);
-  const [busy, setBusy] = useState(false);
+  const [session, setSession] = useState(null);
+  const [minutesValid, setMinutesValid] = useState(10);
+  const [live, setLive] = useState(null);
 
-  async function onScan(text) {
-    if (busy) return;
-    const match = text.match(/verify-student-id\/([a-f0-9]+)/i);
-    const code = match ? match[1] : text.trim();
-    setBusy(true);
+  async function startSession() {
     try {
-      const result = await apiRequest('/teachers/me/attendance/qr-scan', { method: 'POST', body: { code, course: courseId, date } });
-      setScans((prev) => [{ ...result, at: new Date() }, ...prev]);
-      onFlash(result.alreadyMarked ? `${result.studentName} was already marked.` : `${result.studentName} marked present.`, result.alreadyMarked ? undefined : 'success');
-    } catch (err) { onFlash(err.message); } finally { setBusy(false); }
+      const res = await apiRequest('/teachers/me/attendance/qr-session', { method: 'POST', body: { course: courseId, date, minutesValid: Number(minutesValid) } });
+      setSession(res);
+      onFlash('QR session started — display this on screen for students to scan.', 'success');
+    } catch (err) { onFlash(err.message); }
+  }
+
+  useEffect(() => {
+    if (!session?.sessionId) return;
+    const poll = setInterval(() => {
+      apiRequest(`/teachers/me/attendance/qr-session/${session.sessionId}`).then(setLive).catch(() => {});
+    }, 3000);
+    return () => clearInterval(poll);
+  }, [session]);
+
+  const expired = session && new Date(session.expiresAt) < new Date();
+
+  return (
+    <div className="card" style={{ padding: 20, marginBottom: 28 }}>
+      {!session ? (
+        <div className="flex items-end gap-3 flex-wrap">
+          <label className="text-xs" style={{ color: 'var(--ink-soft)', fontWeight: 600 }}>Valid for (minutes)
+            <input type="number" min="1" max="60" className="form-input" value={minutesValid} onChange={(e) => setMinutesValid(e.target.value)} style={{ marginTop: 6, maxWidth: 100 }} />
+          </label>
+          <button type="button" className="btn btn-primary" onClick={startSession}>Start QR Session</button>
+        </div>
+      ) : (
+        <div style={{ textAlign: 'center' }}>
+          {expired ? (
+            <p className="admin-notice">This session has expired.</p>
+          ) : (
+            <img src={session.qrDataUrl} alt="Attendance session QR code" style={{ width: 260, height: 260, margin: '0 auto', borderRadius: 12, border: '1px solid var(--sand-line)' }} />
+          )}
+          <p className="text-xs mt-2" style={{ color: 'var(--ink-soft)' }}>Expires {new Date(session.expiresAt).toLocaleTimeString()} — students scan this with their own device camera.</p>
+          <button type="button" className="btn mt-3" onClick={() => { setSession(null); setLive(null); }}>{expired ? 'New Session' : 'End / Start New'}</button>
+          <h4 className="font-semibold mt-5 mb-2" style={{ fontSize: '0.85rem' }}>Checked in ({live?.checkedIn?.length || 0})</h4>
+          {!live || live.checkedIn.length === 0 ? (
+            <p className="text-xs" style={{ color: 'var(--ink-soft)' }}>No students checked in yet.</p>
+          ) : (
+            <ul className="text-sm space-y-1" style={{ textAlign: 'left' }}>
+              {live.checkedIn.map((name, i) => <li key={i}>✓ {name}</li>)}
+            </ul>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// GPS attendance is optional (needs the student's browser location permission) and configured
+// once per course — the teacher's own current location becomes the "allowed" center point.
+function TeacherGpsAttendancePanel({ courseId, onFlash }) {
+  const [config, setConfig] = useState(null);
+  const [radius, setRadius] = useState(150);
+  const [locating, setLocating] = useState(false);
+
+  function enable() {
+    if (!navigator.geolocation) return onFlash('Geolocation is not supported on this device/browser.');
+    setLocating(true);
+    navigator.geolocation.getCurrentPosition(async (pos) => {
+      try {
+        const res = await apiRequest(`/teachers/me/courses/${courseId}/attendance-location`, {
+          method: 'PATCH',
+          body: { enabled: true, lat: pos.coords.latitude, lng: pos.coords.longitude, radiusMeters: Number(radius) }
+        });
+        setConfig(res);
+        onFlash('GPS attendance enabled — students must be within range to check in.', 'success');
+      } catch (err) { onFlash(err.message); } finally { setLocating(false); }
+    }, () => { onFlash("Couldn't get your location — check your browser's location permission."); setLocating(false); });
+  }
+
+  async function disable() {
+    try {
+      const res = await apiRequest(`/teachers/me/courses/${courseId}/attendance-location`, { method: 'PATCH', body: { enabled: false } });
+      setConfig(res);
+      onFlash('GPS attendance disabled.', 'success');
+    } catch (err) { onFlash(err.message); }
   }
 
   return (
     <div className="card" style={{ padding: 20, marginBottom: 28 }}>
-      <QrScanner onScan={onScan} />
-      <h4 className="font-semibold mt-4 mb-2" style={{ fontSize: '0.85rem' }}>Scanned this session</h4>
-      {scans.length === 0 ? (
-        <p className="text-xs" style={{ color: 'var(--ink-soft)' }}>No students scanned yet.</p>
+      <p className="text-xs mb-3" style={{ color: 'var(--ink-soft)' }}>Optional — sets your current location as the allowed check-in area. Students must grant location permission and be within range to mark themselves present.</p>
+      {config?.enabled ? (
+        <div>
+          <p className="text-sm">✅ Enabled — radius {config.radiusMeters}m from where you enabled this.</p>
+          <button type="button" className="btn mt-2" onClick={disable}>Disable GPS Attendance</button>
+        </div>
       ) : (
-        <ul className="text-sm space-y-1">
-          {scans.map((s, i) => (
-            <li key={i}>{s.alreadyMarked ? '↺' : '✓'} {s.studentName} — {s.at.toLocaleTimeString()}{s.alreadyMarked ? ' (already marked)' : ''}</li>
-          ))}
-        </ul>
+        <div className="flex items-end gap-3 flex-wrap">
+          <label className="text-xs" style={{ color: 'var(--ink-soft)', fontWeight: 600 }}>Radius (meters)
+            <input type="number" min="10" className="form-input" value={radius} onChange={(e) => setRadius(e.target.value)} style={{ marginTop: 6, maxWidth: 120 }} />
+          </label>
+          <button type="button" className="btn btn-primary" onClick={enable} disabled={locating}>{locating ? 'Getting location...' : 'Enable at My Current Location'}</button>
+        </div>
       )}
     </div>
   );
@@ -6340,8 +6774,9 @@ function TeacherAttendancePanel({ onFlash }) {
       {courseId && (
         <div className="flex gap-2 mb-4">
           <button type="button" className={mode === 'manual' ? 'btn btn-primary' : 'btn'} style={{ padding: '6px 16px', fontSize: '0.8rem' }} onClick={() => setMode('manual')}>Manual</button>
-          <button type="button" className={mode === 'qr' ? 'btn btn-primary' : 'btn'} style={{ padding: '6px 16px', fontSize: '0.8rem' }} onClick={() => setMode('qr')}>📷 QR Scan</button>
+          <button type="button" className={mode === 'qr' ? 'btn btn-primary' : 'btn'} style={{ padding: '6px 16px', fontSize: '0.8rem' }} onClick={() => setMode('qr')}>📷 QR Session</button>
           <button type="button" className={mode === 'face' ? 'btn btn-primary' : 'btn'} style={{ padding: '6px 16px', fontSize: '0.8rem' }} onClick={() => setMode('face')}>🙂 Face Scan</button>
+          <button type="button" className={mode === 'gps' ? 'btn btn-primary' : 'btn'} style={{ padding: '6px 16px', fontSize: '0.8rem' }} onClick={() => setMode('gps')}>📍 GPS</button>
         </div>
       )}
       {courseId && (mode === 'qr' || mode === 'face') && (
@@ -6351,6 +6786,7 @@ function TeacherAttendancePanel({ onFlash }) {
       )}
       {courseId && mode === 'qr' && <TeacherQrAttendancePanel courseId={courseId} date={date} onFlash={onFlash} />}
       {courseId && mode === 'face' && <TeacherFaceAttendancePanel courseId={courseId} date={date} onFlash={onFlash} />}
+      {courseId && mode === 'gps' && <TeacherGpsAttendancePanel courseId={courseId} onFlash={onFlash} />}
       {courseId && mode === 'manual' && enrollments.length > 0 && (
         <form onSubmit={submit} className="card" style={{ padding: 20, marginBottom: 28 }}>
           <div className="flex items-end flex-wrap" style={{ gap: 14, marginBottom: 18 }}>
