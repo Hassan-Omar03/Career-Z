@@ -66,6 +66,7 @@ const WORKSPACES = {
       { key: 'digitalLocker', label: 'Digital Locker', icon: FaLock },
       { key: 'studentId', label: 'Digital Student ID', icon: FaQrcode },
       { key: 'applications', label: 'Applications', icon: FaFileLines },
+      { key: 'parentConnections', label: 'Parent Connections', icon: FaUsers },
       { key: 'scholarships', label: 'Scholarships', icon: FaGraduationCap },
       { key: 'jobs', label: 'Jobs', icon: FaBriefcase },
       { key: 'marketplace', label: 'Marketplace', icon: FaStore },
@@ -508,7 +509,81 @@ function StudentWorkspace({ tab, user, onFlash, onChanged, onNavigate }) {
   if (tab === 'institutions') return <StudentInstitutionsPanel onFlash={onFlash} />;
   if (tab === 'applications') return <StudentApplicationsPanel onFlash={onFlash} />;
   if (tab === 'campusLife') return <StudentCampusLifePanel onFlash={onFlash} />;
+  if (tab === 'parentConnections') return <StudentParentConnectionsPanel onFlash={onFlash} />;
   return <ComingSoon label={tab} />;
+}
+
+// Student-side management of parent/guardian links (spec: Student<->Parent "dedicated Parent
+// Connection management, unlink/revoke flow") — approve/reject incoming requests from a parent,
+// see who's currently linked, and revoke any link at any time (their own consent to withdraw).
+function StudentParentConnectionsPanel({ onFlash }) {
+  const [incoming, setIncoming] = useState(null);
+  const [linked, setLinked] = useState(null);
+  const [busyId, setBusyId] = useState(null);
+
+  function load() {
+    apiRequest('/parents/incoming-requests').then(setIncoming).catch((err) => onFlash(err.message));
+    apiRequest('/parents/link-requests').then((list) => setLinked(list.filter((l) => l.status === 'approved'))).catch((err) => onFlash(err.message));
+  }
+  useEffect(load, []);
+
+  async function respond(id, decision) {
+    setBusyId(id);
+    try {
+      await apiRequest(`/parents/link-requests/${id}/respond`, { method: 'PATCH', body: { decision } });
+      onFlash(`Request ${decision}.`, 'success');
+      load();
+    } catch (err) { onFlash(err.message); } finally { setBusyId(null); }
+  }
+
+  async function unlink(id) {
+    setBusyId(id);
+    try {
+      await apiRequest(`/parents/link-requests/${id}`, { method: 'DELETE' });
+      onFlash('Connection removed.', 'success');
+      load();
+    } catch (err) { onFlash(err.message); } finally { setBusyId(null); }
+  }
+
+  const RELATIONSHIP_LABEL = { father: 'Father', mother: 'Mother', guardian: 'Guardian', sponsor: 'Sponsor' };
+
+  return (
+    <div>
+      <h3 className="font-semibold mb-2">Parent Connections</h3>
+      <div className="admin-section">
+        <div className="admin-section-heading"><div><h2>Incoming Requests</h2><p>A parent/guardian asked to link to your account. Only approve someone you actually know.</p></div></div>
+        {incoming === null && <p role="status" className="admin-notice">Loading...</p>}
+        {incoming?.length === 0 && <p className="text-sm" style={{ color: 'var(--ink-soft)' }}>No pending requests.</p>}
+        {(incoming || []).map((r) => (
+          <div key={r._id} className="flex items-center justify-between flex-wrap" style={{ gap: 8, padding: '10px 0', borderBottom: '1px solid var(--sand-line)' }}>
+            <div>
+              <strong className="text-sm">{r.parent?.fullName}</strong>
+              <p className="text-xs" style={{ color: 'var(--ink-soft)' }}>{r.parent?.email} · {RELATIONSHIP_LABEL[r.relationship] || r.relationship}</p>
+            </div>
+            <div className="flex gap-2">
+              <button type="button" className="btn btn-primary" style={{ padding: '5px 12px', fontSize: '0.78rem' }} disabled={busyId === r._id} onClick={() => respond(r._id, 'approved')}>Approve</button>
+              <button type="button" className="btn" style={{ padding: '5px 12px', fontSize: '0.78rem' }} disabled={busyId === r._id} onClick={() => respond(r._id, 'rejected')}>Reject</button>
+            </div>
+          </div>
+        ))}
+      </div>
+
+      <div className="admin-section" style={{ marginTop: 16 }}>
+        <div className="admin-section-heading"><div><h2>Connected Guardians</h2></div></div>
+        {linked === null && <p role="status" className="admin-notice">Loading...</p>}
+        {linked?.length === 0 && <p className="text-sm" style={{ color: 'var(--ink-soft)' }}>No parent/guardian connected yet.</p>}
+        {(linked || []).map((r) => (
+          <div key={r._id} className="flex items-center justify-between flex-wrap" style={{ gap: 8, padding: '10px 0', borderBottom: '1px solid var(--sand-line)' }}>
+            <div>
+              <strong className="text-sm">{r.parent?.fullName}</strong>
+              <p className="text-xs" style={{ color: 'var(--ink-soft)' }}>{r.parent?.email} · {RELATIONSHIP_LABEL[r.relationship] || r.relationship} · Since {new Date(r.approvedAt || r.createdAt).toLocaleDateString()}</p>
+            </div>
+            <button type="button" className="btn" style={{ padding: '5px 12px', fontSize: '0.78rem', background: 'var(--sand-line)' }} disabled={busyId === r._id} onClick={() => unlink(r._id)}>Unlink</button>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
 }
 
 // Every field here (dateOfBirth, program, currentTerm, guardianContact, careerGoal, skills,
@@ -16329,6 +16404,10 @@ function ParentPanel({ onFlash }) {
     try { await apiRequest('/parents/link-requests', { method: 'POST', body: { studentEmail: email, relationship } }); onFlash('Link request sent. The student must approve it.', 'success'); setEmail(''); } catch (err) { onFlash(err.message); }
   }
 
+  async function unlink(id) {
+    try { await apiRequest(`/parents/link-requests/${id}`, { method: 'DELETE' }); onFlash('Connection removed.', 'success'); load(); } catch (err) { onFlash(err.message); }
+  }
+
   return (
     <div>
       <h3 className="font-semibold" style={{ marginBottom: 4 }}>Link a Child</h3>
@@ -16350,13 +16429,14 @@ function ParentPanel({ onFlash }) {
       </form>
       <h3 className="font-semibold mb-2">My Children</h3>
       <Table
-        headers={['Name', 'Email', 'Relationship', 'Access']}
+        headers={['Name', 'Email', 'Relationship', 'Access', 'Action']}
         rows={children.map((c) => [
           c.student.fullName, c.student.email,
           <span style={{ textTransform: 'capitalize' }}>{c.relationship}</span>,
           c.relationship === 'sponsor'
             ? <span className="text-xs" style={{ color: 'var(--ink-soft)' }}>View progress &amp; pay fees only</span>
-            : <span className="text-xs" style={{ color: 'var(--forest)' }}>Full guardian access</span>
+            : <span className="text-xs" style={{ color: 'var(--forest)' }}>Full guardian access</span>,
+          <button type="button" className="btn" style={{ padding: '4px 12px', fontSize: '0.78rem', background: 'var(--sand-line)' }} onClick={() => unlink(c._id)}>Unlink</button>
         ])}
         empty="No approved children yet."
       />
