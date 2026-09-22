@@ -116,6 +116,7 @@ const WORKSPACES = {
       { key: 'fees', label: 'Fee Management', icon: FaMoneyBillWave },
       { key: 'teacherMessages', label: 'Teacher Communication', icon: FaChalkboardUser },
       { key: 'ptm', label: 'Parent-Teacher Meeting', icon: FaHandshake },
+      { key: 'aiAssistant', label: 'AI Parent Assistant', icon: FaRobot },
       { key: 'timetable', label: "Child's Timetable", icon: FaClipboardList },
       { key: 'performance', label: 'Performance Overview', icon: FaChartLine },
       { key: 'institutionInfo', label: 'School/Institution Info', icon: FaBuilding },
@@ -7217,7 +7218,82 @@ function ParentWorkspace({ tab, user, onFlash, onChanged, onNavigate }) {
   if (tab === 'health') return <ParentHealthPanel onFlash={onFlash} />;
   if (tab === 'permissions') return <ParentPermissionsPanel onFlash={onFlash} />;
   if (tab === 'ptm') return <ParentPtmPanel onFlash={onFlash} />;
+  if (tab === 'aiAssistant') return <ParentAiAssistantPanel onFlash={onFlash} />;
   return <ComingSoon label={tab} />;
+}
+
+// Master spec Part 11.10 "AI Parent Assistant" — BYOK (parent's own connected AI provider), asks
+// a question about one linked child, backend summarizes that child's real attendance/results/
+// fees/exam data and answers from it (never invents numbers). Same "summarize, don't decide"
+// pattern as the Institution/Teacher AI assistants.
+function ParentAiAssistantPanel({ onFlash }) {
+  const [children, setChildren] = useState([]);
+  const [studentId, setStudentId] = useState('');
+  const [question, setQuestion] = useState('');
+  const [answer, setAnswer] = useState('');
+  const [dataSummary, setDataSummary] = useState('');
+  const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    apiRequest('/parents/children').then((list) => {
+      setChildren(list);
+      if (list[0]) setStudentId(list[0].student._id);
+    }).catch((err) => onFlash(err.message));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  async function ask(e) {
+    e.preventDefault();
+    if (!question.trim()) return onFlash('Enter a question first.');
+    setLoading(true); setAnswer(''); setDataSummary('');
+    try {
+      const res = await apiRequest(`/parents/children/${studentId}/ai-assistant`, { method: 'POST', body: { question: question.trim() } });
+      setAnswer(res.answer);
+      setDataSummary(res.dataSummary);
+    } catch (err) { onFlash(err.message); } finally { setLoading(false); }
+  }
+
+  if (children.length === 0) {
+    return (
+      <div className="student-empty-state" style={{ border: '1px solid var(--sand-line)', borderRadius: 18, minHeight: 180 }}>
+        <FaUsers aria-hidden="true" />
+        <p>No linked children yet</p>
+        <span>Link one from the "My Children" tab first.</span>
+      </div>
+    );
+  }
+
+  return (
+    <div>
+      <AiSettingsPanel onFlash={onFlash} purposes={[AI_PURPOSES[0]]} />
+      <div className="admin-section">
+        <div className="admin-section-heading"><div><h2>AI Parent Assistant</h2><p>Uses your own connected AI provider (above) to answer questions about your child's real attendance, results, fees and upcoming exams. It only summarizes what's already recorded — it never decides anything for you.</p></div></div>
+        <form onSubmit={ask} className="flex gap-3 items-end flex-wrap">
+          {children.length > 1 && (
+            <label style={{ display: 'inline-block' }}>
+              <span className="text-xs" style={{ display: 'block', color: 'var(--ink-soft)', fontWeight: 600, marginBottom: 6 }}>Child</span>
+              <select className="form-select" value={studentId} onChange={(e) => setStudentId(e.target.value)} style={{ minWidth: 200 }} aria-label="Select child">
+                {children.map((c) => <option key={c.student._id} value={c.student._id}>{c.student.fullName}</option>)}
+              </select>
+            </label>
+          )}
+          <input className="form-input" placeholder="e.g. How is their attendance this month?" value={question} onChange={(e) => setQuestion(e.target.value)} style={{ minWidth: 280, flex: 1 }} required />
+          <button type="submit" className="btn btn-primary" disabled={loading}>{loading ? 'Thinking...' : 'Ask'}</button>
+        </form>
+      </div>
+      {answer && (
+        <div className="admin-section" style={{ marginTop: 16 }}>
+          <div className="admin-section-heading"><div><h2>Answer</h2></div></div>
+          <p style={{ whiteSpace: 'pre-line', fontSize: 14, lineHeight: 1.6 }}>{answer}</p>
+          <details style={{ marginTop: 12 }}>
+            <summary style={{ fontSize: 12, color: 'var(--ink-soft)', cursor: 'pointer' }}>Raw data used</summary>
+            <pre style={{ fontSize: 12, whiteSpace: 'pre-wrap' }}>{dataSummary}</pre>
+          </details>
+        </div>
+      )}
+      <p style={{ fontSize: 12, color: 'var(--ink-soft)', marginTop: 12 }}>Requires an AI provider connected above (BYOK — your own API key, e.g. OpenAI/Claude/Gemini).</p>
+    </div>
+  );
 }
 
 function ParentChildDataPanel({ onFlash, kind }) {
@@ -9108,6 +9184,7 @@ function useMyInstitution(onFlash) {
 function InstitutionTeachersPanel({ onFlash }) {
   const institution = useMyInstitution(onFlash);
   const [teachers, setTeachers] = useState(null);
+  const [ratingFor, setRatingFor] = useState(null);
 
   useEffect(() => {
     if (institution) apiRequest(`/institutions/${institution._id}/teachers`).then(setTeachers).catch((err) => onFlash(err.message));
@@ -9120,10 +9197,15 @@ function InstitutionTeachersPanel({ onFlash }) {
     <div>
       <h3 className="font-semibold mb-2">Teacher Management</h3>
       <Table
-        headers={['Name', 'Email', 'Subjects', 'Experience', 'Status']}
-        rows={(teachers || []).map((t) => [t.user?.fullName, t.user?.email, (t.subjects || []).join(', ') || '—', `${t.experienceYears || 0} yrs`, <Tag status={t.status === 'active' ? 'approved' : 'rejected'} />])}
+        headers={['Name', 'Email', 'Subjects', 'Experience', 'Status', 'Action']}
+        rows={(teachers || []).map((t) => [
+          t.user?.fullName, t.user?.email, (t.subjects || []).join(', ') || '—', `${t.experienceYears || 0} yrs`,
+          <Tag status={t.status === 'active' ? 'approved' : 'rejected'} />,
+          t.user?._id && <button type="button" className="btn" style={{ padding: '4px 12px', fontSize: '0.78rem' }} onClick={() => setRatingFor(ratingFor === t.user._id ? null : t.user._id)}>{ratingFor === t.user._id ? 'Close' : 'Rate'}</button>
+        ])}
         empty="No teachers linked to this institution yet."
       />
+      {ratingFor && <TeacherReputationWidget teacherId={ratingFor} onFlash={onFlash} />}
     </div>
   );
 }
@@ -15817,6 +15899,7 @@ function CourseResourcesPanel({ courseId, onFlash, onClose }) {
             {data.course.teacher?.fullName ? `Teacher: ${data.course.teacher.fullName}` : ''}
             {data.course.institution?.name ? ` · Institution: ${data.course.institution.name}` : ''}
           </p>
+          {data.course.teacher?._id && <TeacherReputationWidget teacherId={data.course.teacher._id} onFlash={onFlash} />}
           {totalLessons > 0 && <p className="text-xs mb-4" style={{ color: 'var(--ink-soft)' }}>Progress: {completedIds.length}/{totalLessons} lessons ({progressPercent}%)</p>}
           {data.lessons.length === 0 && <p style={{ fontSize: 13, color: 'var(--ink-soft)' }}>No lessons published for this course yet.</p>}
           {data.lessons.map((l) => {
@@ -15841,6 +15924,48 @@ function CourseResourcesPanel({ courseId, onFlash, onClose }) {
           })}
         </>
       )}
+    </div>
+  );
+}
+
+// Real, relationship-verified teacher rating (spec: Student/Parent/Institution → Teacher
+// feedback/reputation) — the backend only accepts a rating from someone with an actual
+// class/child/institution link to the teacher, so this same widget is safe to drop into any
+// screen that already shows a specific teacher (course view, staff list, ...).
+function TeacherReputationWidget({ teacherId, onFlash }) {
+  const [reputation, setReputation] = useState(null);
+  const [rating, setRating] = useState(5);
+  const [comment, setComment] = useState('');
+  const [busy, setBusy] = useState(false);
+
+  function load() { apiRequest(`/teacher-feedback/${teacherId}`).then(setReputation).catch(() => {}); }
+  useEffect(load, [teacherId]);
+
+  async function submit(e) {
+    e.preventDefault();
+    setBusy(true);
+    try {
+      await apiRequest(`/teacher-feedback/${teacherId}`, { method: 'POST', body: { rating, comment } });
+      onFlash?.('Rating submitted.', 'success');
+      setComment('');
+      load();
+    } catch (err) { onFlash?.(err.message); } finally { setBusy(false); }
+  }
+
+  if (!teacherId) return null;
+  return (
+    <div className="card" style={{ padding: 14, marginTop: 12 }}>
+      <strong className="text-xs">Teacher Rating</strong>
+      {reputation && reputation.totalCount > 0
+        ? <p className="text-sm" style={{ margin: '4px 0' }}>★ {reputation.overallAverage} ({reputation.totalCount} rating{reputation.totalCount === 1 ? '' : 's'})</p>
+        : <p className="text-xs" style={{ color: 'var(--ink-soft)', margin: '4px 0' }}>No ratings yet.</p>}
+      <form onSubmit={submit} className="flex gap-2 items-end flex-wrap" style={{ marginTop: 8 }}>
+        <select className="form-select" value={rating} onChange={(e) => setRating(Number(e.target.value))} style={{ maxWidth: 90 }}>
+          {[5, 4, 3, 2, 1].map((n) => <option key={n} value={n}>{n} ★</option>)}
+        </select>
+        <input className="form-input" placeholder="Optional comment" value={comment} onChange={(e) => setComment(e.target.value)} style={{ minWidth: 180 }} />
+        <button type="submit" className="btn" style={{ padding: '5px 12px', fontSize: '0.78rem' }} disabled={busy}>{busy ? 'Saving...' : 'Rate teacher'}</button>
+      </form>
     </div>
   );
 }
