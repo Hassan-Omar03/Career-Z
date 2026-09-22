@@ -16,6 +16,7 @@ import { verifyEmail, resendVerification } from '../api/auth';
 import DashboardLayout from '../components/dashboard/DashboardLayout';
 import CampusTourViewer from '../components/CampusTourViewer';
 import QrScanner from '../components/QrScanner';
+import { loadPaddle, setActiveCheckoutHandler } from '../utils/paddleLoader';
 import {
   OverviewStats, WalletCard, QuickActions,
   ProfileCompletion, MiniCalendar, RecommendedGrid, RecentActivity
@@ -149,6 +150,7 @@ const WORKSPACES = {
       { key: 'events', label: 'Events & Activities', icon: FaCalendarDays },
       { key: 'helpdesk', label: 'Complaint & Help Desk', icon: FaHeadset },
       { key: 'aiAssistant', label: 'AI Operations Assistant', icon: FaRobot },
+      { key: 'subscription', label: 'Subscription Plan', icon: FaStar },
       { key: 'reports', label: 'Reports', icon: FaChartLine },
       { key: 'communication', label: 'Communication Center', icon: FaBell },
       { key: 'campusLife', label: 'Newsletter & Magazine', icon: FaNewspaper },
@@ -167,7 +169,7 @@ const WORKSPACES = {
     ]
   },
   admin: {
-    label: 'Admin', roles: ['admin', 'super_admin'], color: 'var(--rose)',
+    label: 'Admin', roles: ['admin', 'super_admin', 'platform_staff'], color: 'var(--rose)',
     greeting: 'Platform overview and moderation.',
     nav: [
       { key: 'summary', label: 'Dashboard', icon: FaGauge },
@@ -384,6 +386,7 @@ export default function Dashboard() {
   const [msg, setMsg] = useState(null);
   const repInfo = useRepresentativeInfo(roles);
   const isRepOnly = !!repInfo && !roles.includes('institution_owner') && !roles.includes('academy_owner');
+  const isPlatformStaffOnly = roles.includes('platform_staff') && !roles.some((role) => ['admin', 'super_admin'].includes(role));
 
   const available = WORKSPACE_PRIORITY.filter((key) => WORKSPACES[key].roles.some((r) => roles.includes(r)));
   // Login's "Log in as" picker can request a specific workspace to open on directly,
@@ -392,7 +395,8 @@ export default function Dashboard() {
   const defaultWorkspace = (requestedWorkspace && available.includes(requestedWorkspace)) ? requestedWorkspace : (available[0] || 'student');
 
   const [activeWorkspace, setActiveWorkspace] = useState(defaultWorkspace);
-  const [activeTab, setActiveTab] = useState(WORKSPACES[defaultWorkspace].nav[0].key);
+  const [activeTab, setActiveTab] = useState(location.search.includes('courseCheckout=success') && defaultWorkspace === 'student'
+    ? 'courses' : WORKSPACES[defaultWorkspace].nav[0].key);
 
   useEffect(() => {
     if (!available.includes(activeWorkspace)) {
@@ -412,7 +416,10 @@ export default function Dashboard() {
     setTimeout(() => setMsg(null), 4000);
   }
 
-  const ws = (isRepOnly && activeWorkspace === 'institution') ? REPRESENTATIVE_WORKSPACE : (WORKSPACES[activeWorkspace] || WORKSPACES.student);
+  const ws = (isRepOnly && activeWorkspace === 'institution') ? REPRESENTATIVE_WORKSPACE
+    : (isPlatformStaffOnly && activeWorkspace === 'admin')
+      ? { ...WORKSPACES.admin, label: 'Platform Staff', nav: WORKSPACES.admin.nav.filter((item) => ['summary', 'profile', 'settings'].includes(item.key)) }
+      : (WORKSPACES[activeWorkspace] || WORKSPACES.student);
   const NAME_TITLES = new Set(['mr', 'mr.', 'mrs', 'mrs.', 'ms', 'ms.', 'miss', 'dr', 'dr.', 'prof', 'prof.', 'sir', 'madam']);
   const nameWords = (user?.fullName || '').split(' ').filter(Boolean);
   const firstName = nameWords.find((w) => !NAME_TITLES.has(w.toLowerCase())) || nameWords[0] || 'there';
@@ -455,9 +462,9 @@ export default function Dashboard() {
         {activeTab === 'messages' && <MessagesPanel onFlash={flash} />}
         {activeTab === 'notifications' && <NotificationsPanel onFlash={flash} />}
         {activeTab === 'calendar' && <CalendarPanel onFlash={flash} />}
-        {activeTab === 'settings' && <SettingsPanel user={user} onFlash={flash} onChanged={refreshProfile} />}
+        {activeTab === 'settings' && (activeWorkspace !== 'admin' || isPlatformStaffOnly) && <SettingsPanel user={user} onFlash={flash} onChanged={refreshProfile} />}
         {activeTab === 'help' && <HelpCenterPanel onFlash={flash} />}
-        {!SHARED_TABS.includes(activeTab) && (
+        {(!SHARED_TABS.includes(activeTab) || (activeWorkspace === 'admin' && activeTab === 'settings' && !isPlatformStaffOnly)) && (
           <>
             {activeWorkspace === 'student' && <StudentWorkspace tab={activeTab} user={user} onFlash={flash} onChanged={refreshProfile} onNavigate={setActiveTab} />}
             {activeWorkspace === 'teacher' && <TeacherWorkspace tab={activeTab} user={user} onFlash={flash} onChanged={refreshProfile} onNavigate={setActiveTab} />}
@@ -2757,12 +2764,13 @@ const AI_PURPOSES = [
 // Real BYOK AI settings (spec Part 14/17E, "AI Creative Teacher" Part 15B.6-15B.7) — CareerZ
 // never supplies or bills AI itself. Each row below is a different AI category (text, image, 3D,
 // voice, avatar-video) — connect only the ones you actually want to use, independently.
-function AiSettingsPanel({ onFlash, onChanged, purposes = AI_PURPOSES }) {
+function AiSettingsPanel({ onFlash, onChanged, purposes = AI_PURPOSES, institutionId }) {
   const [status, setStatus] = useState(null);
   const [forms, setForms] = useState({});
   const [saving, setSaving] = useState(null);
 
-  function load() { apiRequest('/ai/config').then(setStatus).catch((err) => onFlash(err.message)); }
+  const configPath = institutionId ? `/ai/institutions/${institutionId}/config` : '/ai/config';
+  function load() { apiRequest(configPath).then(setStatus).catch((err) => onFlash(err.message)); }
   useEffect(load, []);
 
   function formFor(purposeKey) {
@@ -2774,7 +2782,7 @@ function AiSettingsPanel({ onFlash, onChanged, purposes = AI_PURPOSES }) {
     const f = formFor(purposeKey);
     setSaving(purposeKey);
     try {
-      await apiRequest('/ai/config', { method: 'PUT', body: { purpose: purposeKey, provider: f.provider, apiKey: f.apiKey } });
+      await apiRequest(configPath, { method: 'PUT', body: { purpose: purposeKey, provider: f.provider, apiKey: f.apiKey } });
       onFlash('AI provider connected.', 'success');
       setForms((prev) => ({ ...prev, [purposeKey]: { ...f, apiKey: '' } }));
       load();
@@ -2784,7 +2792,7 @@ function AiSettingsPanel({ onFlash, onChanged, purposes = AI_PURPOSES }) {
 
   async function remove(purposeKey) {
     try {
-      await apiRequest(`/ai/config/${purposeKey}`, { method: 'DELETE' });
+      await apiRequest(`${configPath}/${purposeKey}`, { method: 'DELETE' });
       onFlash('AI provider disconnected.', 'success');
       load();
       onChanged?.();
@@ -2808,7 +2816,7 @@ function AiSettingsPanel({ onFlash, onChanged, purposes = AI_PURPOSES }) {
               <p className="text-xs font-semibold mb-2">{p.label}</p>
               {s.configured ? (
                 <div className="flex items-center gap-3 flex-wrap">
-                  <Tag status="approved" label={`Connected: ${p.providers.find((x) => x.value === s.provider)?.label || s.provider}`} />
+                  <Tag status="approved" label={`Connected: ${p.providers.find((x) => x.value === s.provider)?.label || s.provider}${s.keyHint ? ` (${s.keyHint})` : ''}`} />
                   <button type="button" className="btn" style={{ padding: '4px 12px', fontSize: '0.75rem' }} onClick={() => remove(p.key)}>Disconnect</button>
                 </div>
               ) : (
@@ -4755,44 +4763,13 @@ const PAYMENT_METHODS = [
   { value: 'cash', label: 'Cash' },
   { value: 'other', label: 'Other' }
 ];
+const MANUAL_FEE_METHODS = PAYMENT_METHODS.filter((method) => method.value !== 'card');
 
-// Self-service "Pay Now" for a Fee record — no real payment gateway is connected yet, so the
-// payer picks a method and self-confirms, same honesty pattern as FundingRequest's Donate flow.
+// Manual fee payments remain pending until the institution verifies them.
 // Works for both the student paying their own fee and a parent paying a linked child's fee.
 // Real Stripe Checkout redirect (spec 4.6/3A.3) — separate from the self-report methods below.
 // Renders nothing if Stripe isn't configured (GET /payments/stripe/config), so no dead button
 // shows up before a real key is added.
-let paddleLoadPromise = null;
-// Only one Paddle.Checkout can be open at a time, so a single module-level slot for "what to do
-// when it completes/closes" is enough — set right before opening, read by the one shared
-// eventCallback registered at Initialize time.
-let paddleActiveHandlers = null;
-
-// Loads Paddle.js once (cached across every button on the page) and initializes it with the
-// client-side token + sandbox/production environment the backend reports.
-function loadPaddle(clientToken, environment) {
-  if (window.Paddle) return Promise.resolve(window.Paddle);
-  if (paddleLoadPromise) return paddleLoadPromise;
-  paddleLoadPromise = new Promise((resolve, reject) => {
-    const script = document.createElement('script');
-    script.src = 'https://cdn.paddle.com/paddle/v2/paddle.js';
-    script.onload = () => {
-      if (environment === 'sandbox') window.Paddle.Environment.set('sandbox');
-      window.Paddle.Initialize({
-        token: clientToken,
-        eventCallback(data) {
-          if (data.name === 'checkout.completed') paddleActiveHandlers?.onCompleted?.();
-          if (data.name === 'checkout.closed') paddleActiveHandlers?.onClosed?.();
-        }
-      });
-      resolve(window.Paddle);
-    };
-    script.onerror = () => reject(new Error('Failed to load Paddle.js'));
-    document.head.appendChild(script);
-  });
-  return paddleLoadPromise;
-}
-
 function PaddleCheckoutButton({ feeId, onFlash, onPaid }) {
   const [config, setConfig] = useState(null);
   const [loading, setLoading] = useState(false);
@@ -4814,7 +4791,7 @@ function PaddleCheckoutButton({ feeId, onFlash, onPaid }) {
     try {
       const { transactionId } = await apiRequest(`/payments/paddle/fees/${feeId}/checkout`, { method: 'POST' });
       const Paddle = await loadPaddle(config.clientToken, config.environment);
-      paddleActiveHandlers = { onCompleted: sync, onClosed: sync };
+      setActiveCheckoutHandler(sync);
       Paddle.Checkout.open({
         transactionId,
         settings: { displayMode: 'overlay' }
@@ -4853,7 +4830,7 @@ function StripeCheckoutButton({ feeId, onFlash }) {
 
 function PayFeeButton({ fee, payUrl, onFlash, onPaid }) {
   const [open, setOpen] = useState(false);
-  const [method, setMethod] = useState('card');
+  const [method, setMethod] = useState('bank_transfer');
   const [paying, setPaying] = useState(false);
 
   async function confirmPay(e) {
@@ -4861,20 +4838,20 @@ function PayFeeButton({ fee, payUrl, onFlash, onPaid }) {
     setPaying(true);
     try {
       const updated = await apiRequest(payUrl, { method: 'PATCH', body: { paymentMethod: method } });
-      onFlash(`Payment confirmed. Receipt ${updated.transactionId}`, 'success');
+      onFlash('Payment reported. Awaiting institution confirmation.', 'success');
       setOpen(false);
       onPaid?.(updated);
     } catch (err) { onFlash(err.message); } finally { setPaying(false); }
   }
 
   if (fee.status === 'paid') {
-    return fee.transactionId
-      ? <span className="text-xs" style={{ color: 'var(--ink-soft)' }} title={fee.paidVia}>Receipt {fee.transactionId}</span>
+    return fee.receiptNumber || fee.transactionId
+      ? <span className="text-xs" style={{ color: 'var(--ink-soft)' }} title={fee.paidVia}>Receipt {fee.receiptNumber || fee.transactionId}</span>
       : <span className="text-xs" style={{ color: 'var(--ink-soft)' }}>—</span>;
   }
 
   if (fee.status === 'processing') {
-    return <span className="text-xs" style={{ color: 'var(--gold)' }}>Awaiting payment confirmation...</span>;
+    return <span className="text-xs" style={{ color: 'var(--gold)' }}>Awaiting institution confirmation...</span>;
   }
 
   if (!open) {
@@ -4891,7 +4868,7 @@ function PayFeeButton({ fee, payUrl, onFlash, onPaid }) {
 
   return (
     <form onSubmit={confirmPay} className="flex items-center flex-wrap" style={{ gap: 6 }}>
-      <CustomSelect value={method} onChange={setMethod} ariaLabel="Payment method" minWidth={130} options={PAYMENT_METHODS} />
+      <CustomSelect value={method} onChange={setMethod} ariaLabel="Payment method" minWidth={130} options={MANUAL_FEE_METHODS} />
       <button type="submit" className="btn btn-primary" style={{ padding: '5px 12px', fontSize: '0.75rem' }} disabled={paying}>{paying ? '...' : 'Confirm'}</button>
       <button type="button" className="btn" style={{ padding: '5px 10px', fontSize: '0.75rem' }} onClick={() => setOpen(false)} disabled={paying}>Cancel</button>
     </form>
@@ -8164,6 +8141,7 @@ function InstitutionWorkspace({ tab, user, onFlash, onChanged }) {
   if (tab === 'events') return <InstitutionEventsPanel onFlash={onFlash} />;
   if (tab === 'helpdesk') return <InstitutionHelpDeskPanel onFlash={onFlash} />;
   if (tab === 'aiAssistant') return <InstitutionAiAssistantPanel onFlash={onFlash} />;
+  if (tab === 'subscription') return <InstitutionSubscriptionPanel onFlash={onFlash} />;
   return <ComingSoon label={tab} />;
 }
 
@@ -10218,6 +10196,7 @@ function InstitutionAiAssistantPanel({ onFlash }) {
 
   return (
     <div>
+      <AiSettingsPanel key={institution._id} institutionId={institution._id} onFlash={onFlash} purposes={[AI_PURPOSES[0]]} />
       <div className="admin-section">
         <div className="admin-section-heading"><div><h2>AI Operations Assistant</h2><p>Uses your own connected AI provider (Profile → AI Settings) to analyze your institution's real fee, payroll and support data. All decisions remain yours — this only summarizes.</p></div></div>
         <button className="btn btn-primary" onClick={generate} disabled={loading}>{loading ? 'Analyzing...' : 'Generate Insights'}</button>
@@ -10233,6 +10212,102 @@ function InstitutionAiAssistantPanel({ onFlash }) {
         </div>
       )}
       <p style={{ fontSize: 12, color: 'var(--ink-soft)', marginTop: 12 }}>Requires an AI provider connected under Profile → AI Settings (BYOK — your own API key, e.g. OpenAI/Claude/Gemini).</p>
+    </div>
+  );
+}
+
+// Master spec Part 17E "Subscription System" — Free/Basic/Professional/Enterprise. A paid plan
+// is a real Paddle-paid 30-day period (see subscription.controller.js); nothing here is a fake
+// "trust me" toggle. Only the institution owner can change plans — staff can view.
+function InstitutionSubscriptionPanel({ onFlash }) {
+  const institution = useMyInstitution(onFlash);
+  const [data, setData] = useState(null);
+  const [paddleConfig, setPaddleConfig] = useState(null);
+  const [busyPlan, setBusyPlan] = useState(null);
+
+  function load(id) {
+    apiRequest(`/subscriptions/institutions/${id}`).then(setData).catch((err) => onFlash(err.message));
+  }
+  useEffect(() => { if (institution) load(institution._id); }, [institution]);
+  useEffect(() => { apiRequest('/payments/paddle/config').then(setPaddleConfig).catch(() => setPaddleConfig({ enabled: false })); }, []);
+
+  async function upgrade(planKey) {
+    if (!paddleConfig?.enabled) return onFlash?.('Card payments are not set up yet — ask Admin to connect Paddle.', 'error');
+    setBusyPlan(planKey);
+    try {
+      const { transactionId } = await apiRequest(`/subscriptions/institutions/${institution._id}/checkout`, { method: 'POST', body: { plan: planKey } });
+      const Paddle = await loadPaddle(paddleConfig.clientToken, paddleConfig.environment);
+      setActiveCheckoutHandler(async () => {
+        try {
+          await apiRequest(`/subscriptions/institutions/${institution._id}/checkout/${transactionId}/sync`);
+          load(institution._id);
+          onFlash?.('Subscription activated.', 'success');
+        } catch { /* not confirmed yet — will arrive via webhook, or retry sync */ }
+      });
+      Paddle.Checkout.open({ transactionId, settings: { displayMode: 'overlay' } });
+    } catch (err) { onFlash?.(err.message); } finally { setBusyPlan(null); }
+  }
+
+  if (institution === undefined) return <p role="status" className="admin-notice">Loading...</p>;
+  if (!institution) return <p className="admin-notice">Register an institution first (My Institution tab).</p>;
+  if (!data) return <p role="status" className="admin-notice">Loading subscription...</p>;
+
+  const plans = data.allPlans;
+  const planOrder = ['free', 'basic', 'professional', 'enterprise'];
+
+  return (
+    <div>
+      <div className="admin-section">
+        <div className="admin-section-heading">
+          <div>
+            <h2>Subscription Plan</h2>
+            <p>Current plan: <strong style={{ textTransform: 'capitalize' }}>{data.activePlan}</strong>
+              {data.subscription?.currentPeriodEnd && data.activePlan !== 'free'
+                ? ` — renews/expires ${new Date(data.subscription.currentPeriodEnd).toLocaleDateString()}`
+                : ''}
+            </p>
+          </div>
+          <FaStar aria-hidden="true" />
+        </div>
+        <div className="grid grid-cols-2 gap-3">
+          <div className="card" style={{ padding: 14 }}>
+            <p className="text-xs" style={{ color: 'var(--ink-soft)' }}>Students</p>
+            <p style={{ fontWeight: 700 }}>{data.usage.students} / {data.planDetails.maxStudents ?? 'Unlimited'}</p>
+          </div>
+          <div className="card" style={{ padding: 14 }}>
+            <p className="text-xs" style={{ color: 'var(--ink-soft)' }}>Staff</p>
+            <p style={{ fontWeight: 700 }}>{data.usage.staff} / {data.planDetails.maxStaff ?? 'Unlimited'}</p>
+          </div>
+        </div>
+      </div>
+
+      <div className="admin-section" style={{ marginTop: 16 }}>
+        <div className="admin-section-heading"><div><h2>Plans</h2><p>Paid plans run for 30 days per purchase via Paddle. Institution-level AI keys require Basic or higher.</p></div></div>
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+          {planOrder.map((key) => {
+            const plan = plans[key];
+            const isCurrent = data.activePlan === key;
+            return (
+              <div key={key} className="card" style={{ padding: 16, border: isCurrent ? '2px solid var(--forest-deep)' : undefined }}>
+                <h4 style={{ margin: 0 }}>{plan.label}</h4>
+                <p style={{ fontSize: 22, fontWeight: 700, margin: '6px 0' }}>{plan.monthlyPriceUSD > 0 ? `$${plan.monthlyPriceUSD}` : 'Free'}{plan.monthlyPriceUSD > 0 ? <span style={{ fontSize: 12, fontWeight: 400 }}>/30 days</span> : null}</p>
+                <ul style={{ fontSize: 12, color: 'var(--ink-soft)', paddingLeft: 16, margin: '8px 0' }}>
+                  <li>{plan.maxStudents ?? 'Unlimited'} students</li>
+                  <li>{plan.maxStaff ?? 'Unlimited'} staff</li>
+                  <li>{plan.aiInstitutionKey ? 'Institution AI key' : 'No institution AI key'}</li>
+                </ul>
+                {isCurrent
+                  ? <span className="tag approved">Current plan</span>
+                  : key === 'free'
+                    ? null
+                    : <button className="btn btn-secondary" style={{ width: '100%' }} disabled={busyPlan === key} onClick={() => upgrade(key)}>
+                        {busyPlan === key ? 'Opening checkout...' : 'Upgrade'}
+                      </button>}
+              </div>
+            );
+          })}
+        </div>
+      </div>
     </div>
   );
 }
@@ -10346,7 +10421,7 @@ function InstitutionCampusLifePanel({ onFlash }) {
 
 function InstitutionStaffPanel({ onFlash }) {
   const [institution, setInstitution] = useState(null);
-  const [form, setForm] = useState({ userId: '', role: 'teacher', department: '', designation: '', canApprove: false });
+  const [form, setForm] = useState({ userId: '', role: 'teacher', department: '', designation: '', canApprove: false, canUseAi: false, canManageAi: false });
 
   function load() {
     apiRequest('/institutions/mine/list').then((list) => setInstitution(list[0] || null)).catch((err) => onFlash(err.message));
@@ -10356,9 +10431,14 @@ function InstitutionStaffPanel({ onFlash }) {
   async function addStaffMember(e) {
     e.preventDefault();
     try {
-      await apiRequest(`/institutions/${institution._id}/staff`, { method: 'POST', body: { userId: form.userId.trim(), role: form.role, department: form.department, designation: form.designation, permissions: form.canApprove ? ['application:approve'] : [] } });
+      const permissions = [
+        ...(form.canApprove ? ['application:approve'] : []),
+        ...(form.canUseAi || form.canManageAi ? ['ai:use'] : []),
+        ...(form.canManageAi ? ['ai:manage'] : [])
+      ];
+      await apiRequest(`/institutions/${institution._id}/staff`, { method: 'POST', body: { userId: form.userId.trim(), role: form.role, department: form.department, designation: form.designation, permissions } });
       onFlash('Staff member added.', 'success');
-      setForm({ userId: '', role: 'teacher', department: '', designation: '', canApprove: false });
+      setForm({ userId: '', role: 'teacher', department: '', designation: '', canApprove: false, canUseAi: false, canManageAi: false });
       load();
     } catch (err) { onFlash(err.message); }
   }
@@ -10368,6 +10448,16 @@ function InstitutionStaffPanel({ onFlash }) {
       onFlash('Staff member removed.', 'success');
       load();
     } catch (err) { onFlash(err.message); }
+  }
+  async function updateAiPermission(staff, field) {
+    const canUseAi = field === 'use' ? !staff.permissions?.includes('ai:use') : staff.permissions?.includes('ai:use') || false;
+    const canManageAi = field === 'manage' ? !staff.permissions?.includes('ai:manage') : staff.permissions?.includes('ai:manage') || false;
+    try {
+      await apiRequest(`/institutions/${institution._id}/staff/${staff.user}/ai-permissions`, {
+        method: 'PATCH', body: { canUseAi, canManageAi }
+      });
+      load();
+    } catch (error) { onFlash(error.message); }
   }
 
   if (!institution) return <p className="admin-notice">Register an institution first (My Institution tab).</p>;
@@ -10384,12 +10474,18 @@ function InstitutionStaffPanel({ onFlash }) {
         {form.role === 'representative' && (
           <label className="flex items-center gap-2 text-xs"><input type="checkbox" checked={form.canApprove} onChange={(e) => setForm({ ...form, canApprove: e.target.checked })} /> Can finalize (accept/reject) applications</label>
         )}
+        <label className="flex items-center gap-2 text-xs"><input type="checkbox" checked={form.canUseAi} onChange={(e) => setForm({ ...form, canUseAi: e.target.checked })} /> Can use institution AI</label>
+        <label className="flex items-center gap-2 text-xs"><input type="checkbox" checked={form.canManageAi} onChange={(e) => setForm({ ...form, canManageAi: e.target.checked, canUseAi: e.target.checked || form.canUseAi })} /> Can manage institution AI keys</label>
         <button type="submit" className="btn btn-primary">Add Staff</button>
       </form>
       <p style={{ fontSize: 12, color: 'var(--ink-soft)', marginBottom: 16 }}>Ask the staff member for their account's User ID from their Profile tab — a search-by-email lookup isn't built yet. Representatives can review inquiries/applications, but can only accept/reject applications if you grant that permission here.</p>
       <Table
-        headers={['Role', 'Designation', 'Department', 'Added', 'Action']}
-        rows={(institution.staff || []).map((s) => [s.role, s.designation || '—', s.department || '—', new Date(s.addedAt).toLocaleDateString(), <button className="btn" style={{ padding: '5px 12px', fontSize: '0.78rem', background: 'var(--sand-line)', color: 'var(--ink)' }} onClick={() => removeStaffMember(s.user)}>Remove</button>])}
+        headers={['Role', 'Designation', 'Department', 'AI permissions', 'Added', 'Action']}
+        rows={(institution.staff || []).map((s) => [s.role, s.designation || '—', s.department || '—',
+          <span className="flex gap-2 flex-wrap">
+            <button className="btn" type="button" onClick={() => updateAiPermission(s, 'use')}>AI use: {s.permissions?.includes('ai:use') ? 'On' : 'Off'}</button>
+            <button className="btn" type="button" onClick={() => updateAiPermission(s, 'manage')}>AI keys: {s.permissions?.includes('ai:manage') ? 'On' : 'Off'}</button>
+          </span>, new Date(s.addedAt).toLocaleDateString(), <button className="btn" style={{ padding: '5px 12px', fontSize: '0.78rem', background: 'var(--sand-line)', color: 'var(--ink)' }} onClick={() => removeStaffMember(s.user)}>Remove</button>])}
         empty="No staff added yet."
       />
     </div>
@@ -10757,6 +10853,13 @@ const CANDIDATE_STATUS = {
 };
 
 function EmployerJobsPanel({ onFlash }) {
+  const [featureCheckout, setFeatureCheckout] = useState({ stripe: false, paddle: false });
+  useEffect(() => {
+    Promise.all([
+      apiRequest('/payments/stripe/config').catch(() => ({ enabled: false })),
+      apiRequest('/payments/paddle/config').catch(() => ({ enabled: false }))
+    ]).then(([stripe, paddle]) => setFeatureCheckout({ stripe: stripe.enabled, paddle: paddle.enabled ? paddle : false }));
+  }, []);
   const [jobs, setJobs] = useState([]);
   const [openJob, setOpenJob] = useState(null);
   const [applicants, setApplicants] = useState([]);
@@ -10823,11 +10926,22 @@ function EmployerJobsPanel({ onFlash }) {
 
   const [featuredFee, setFeaturedFee] = useState(null);
   useEffect(() => { apiRequest('/jobs/featured-fee').then(setFeaturedFee).catch(() => {}); }, []);
-  async function feature(jobId, paymentMethod) {
+  async function feature(jobId, provider) {
     try {
-      const res = await apiRequest(`/jobs/${jobId}/feature`, { method: 'POST', body: { paymentMethod } });
-      onFlash(`Job featured until ${new Date(res.featuredUntil).toLocaleDateString()}.`, 'success');
-      load();
+      if (provider === 'stripe') {
+        const { url } = await apiRequest(`/payments/stripe/jobs/${jobId}/feature/checkout`, { method: 'POST' });
+        window.location.assign(url);
+        return;
+      }
+      const { transactionId } = await apiRequest(`/payments/paddle/jobs/${jobId}/feature/checkout`, { method: 'POST' });
+      const Paddle = await loadPaddle(featureCheckout.paddle.clientToken, featureCheckout.paddle.environment);
+      setActiveCheckoutHandler(async () => {
+        try {
+          const result = await apiRequest(`/payments/paddle/jobs/${jobId}/feature/${transactionId}/sync`);
+          if (result.status === 'paid') { onFlash('Featured placement confirmed.', 'success'); load(); }
+        } catch (error) { onFlash(error.message); }
+      });
+      Paddle.Checkout.open({ transactionId, settings: { displayMode: 'overlay' } });
     } catch (err) { onFlash(err.message); }
   }
 
@@ -10846,11 +10960,12 @@ function EmployerJobsPanel({ onFlash }) {
           <div className="flex" style={{ gap: 8, flexWrap: 'wrap' }}>
             <button className="btn" style={{ padding: '6px 12px', fontSize: '0.78rem' }} onClick={() => setViewingJob(j)}>View</button>
             <button className="btn" style={{ padding: '6px 12px', fontSize: '0.78rem' }} onClick={() => startEdit(j)}>Edit</button>
-            {!(j.featured && new Date(j.featuredUntil) > new Date()) && (
-              <PayMethodModalButton
-                onSubmit={(method) => feature(j._id, method)}
-                label={`Feature${featuredFee ? ` ($${featuredFee.fee}/${featuredFee.days}d)` : ''}`}
-              />
+            {featuredFee?.enabled !== false && !(j.featured && new Date(j.featuredUntil) > new Date()) && (
+              <span className="flex gap-2 flex-wrap">
+                {featureCheckout.paddle && <button className="btn" onClick={() => feature(j._id, 'paddle')}>Feature with Paddle{featuredFee ? ` ($${featuredFee.fee})` : ''}</button>}
+                {featureCheckout.stripe && <button className="btn" onClick={() => feature(j._id, 'stripe')}>Feature with Stripe{featuredFee ? ` ($${featuredFee.fee})` : ''}</button>}
+                {!featureCheckout.paddle && !featureCheckout.stripe && <span className="text-xs">Featured checkout unavailable</span>}
+              </span>
             )}
             {(j.status === 'active' || j.status === 'paused') && (
               <button className="btn" style={{ padding: '6px 12px', fontSize: '0.78rem' }} onClick={() => setJobStatus(j, j.status === 'active' ? 'paused' : 'active')}>{j.status === 'active' ? 'Pause' : 'Resume'}</button>
@@ -14029,8 +14144,8 @@ function AdminWorkspace({ tab, user, roles, onFlash, onChanged }) {
   if (tab === 'donors') return <AdminDonorsPanel onFlash={onFlash} />;
   if (tab === 'complaints') return <AdminComplaintsPanel onFlash={onFlash} />;
   if (tab === 'security') return <AdminSecurityPanel onFlash={onFlash} />;
-  if (tab === 'settings') return <AdminSettingsPanel onFlash={onFlash} />;
-  if (tab === 'finance') return <AdminFinancePanel onFlash={onFlash} />;
+  if (tab === 'settings') return <AdminSettingsPanel onFlash={onFlash} isSuperAdmin={roles.includes('super_admin')} />;
+  if (tab === 'finance') return <AdminFinancePanel onFlash={onFlash} isSuperAdmin={roles.includes('super_admin')} />;
   if (tab === 'analytics') return <AdminReportsPanel onFlash={onFlash} />;
   if (tab === 'worldmap') return <AdminWorldMapPanel onFlash={onFlash} />;
   if (tab === 'staff') return <AdminStaffPanel onFlash={onFlash} />;
@@ -14364,17 +14479,43 @@ function AdminBackupsPanel({ onFlash }) {
   );
 }
 
-function AdminFinancePanel({ onFlash }) {
+function AdminFinancePanel({ onFlash, isSuperAdmin }) {
   const [data, setData] = useState(null);
   const [feeRateInput, setFeeRateInput] = useState('');
   const [featuredFeeInput, setFeaturedFeeInput] = useState('');
   const [featuredFee, setFeaturedFee] = useState(null);
+  const [withdrawals, setWithdrawals] = useState(null);
+  const [planConfig, setPlanConfig] = useState(null);
+  const [planPriceInputs, setPlanPriceInputs] = useState({});
 
   function load() {
     apiRequest('/admin/finance').then((d) => { setData(d); setFeeRateInput(String(d.platformRevenue.institutionFeeCommission.rate)); }).catch((err) => onFlash(err.message));
     apiRequest('/jobs/featured-fee').then((d) => { setFeaturedFee(d); setFeaturedFeeInput(String(d.fee)); }).catch(() => {});
+    apiRequest('/wallet/withdrawals/pending').then(setWithdrawals).catch(() => setWithdrawals([]));
+    apiRequest('/admin/subscription-plans').then((d) => {
+      setPlanConfig(d);
+      setPlanPriceInputs(Object.fromEntries(Object.entries(d.effective).map(([k, p]) => [k, String(p.monthlyPriceUSD)])));
+    }).catch(() => {});
   }
   useEffect(load, [onFlash]);
+
+  async function savePlanPrice(planKey) {
+    const price = Number(planPriceInputs[planKey]);
+    if (!Number.isFinite(price) || price < 0) return onFlash('Enter a valid price.');
+    try {
+      await apiRequest('/admin/subscription-plans', { method: 'PATCH', body: { overrides: { [planKey]: { monthlyPriceUSD: price } } } });
+      onFlash('Subscription plan price updated.', 'success');
+      load();
+    } catch (err) { onFlash(err.message); }
+  }
+
+  async function reviewWithdrawal(id, decision) {
+    try {
+      await apiRequest(`/wallet/withdrawals/${id}/review`, { method: 'PATCH', body: { decision } });
+      onFlash(`Withdrawal ${decision}.`, 'success');
+      load();
+    } catch (err) { onFlash(err.message); }
+  }
 
   async function saveFeeRate(e) {
     e.preventDefault();
@@ -14392,6 +14533,13 @@ function AdminFinancePanel({ onFlash }) {
       load();
     } catch (err) { onFlash(err.message); }
   }
+  async function toggleFeatured() {
+    try {
+      await apiRequest('/jobs/featured-enabled', { method: 'PATCH', body: { enabled: !featuredFee.enabled } });
+      onFlash('Featured job availability updated.', 'success');
+      load();
+    } catch (error) { onFlash(error.message); }
+  }
 
   if (!data) return <p role="status" className="admin-notice">Loading...</p>;
 
@@ -14403,6 +14551,27 @@ function AdminFinancePanel({ onFlash }) {
   return (
     <div>
       <h3 className="font-semibold mb-2">Financial Management</h3>
+
+      <div className="card" style={{ padding: 20, marginBottom: 16 }}>
+        <h4 className="font-semibold mb-3">Pending Wallet Withdrawals {withdrawals && withdrawals.length > 0 ? `(${withdrawals.length})` : ''}</h4>
+        <Table
+          loading={withdrawals === null}
+          headers={['User', 'Amount', 'Method', 'Details', 'Requested', 'Action']}
+          rows={(withdrawals || []).map((w) => [
+            `${w.user?.fullName} (${w.user?.email})`,
+            `${w.currency} ${w.amount}`,
+            w.payoutMethod.replace('_', ' '),
+            w.payoutDetails,
+            new Date(w.createdAt).toLocaleDateString(),
+            <div className="flex gap-2">
+              <button className="btn btn-primary" style={{ padding: '5px 12px', fontSize: '0.78rem' }} onClick={() => reviewWithdrawal(w._id, 'approved')}>Approve</button>
+              <button className="btn" style={{ padding: '5px 12px', fontSize: '0.78rem' }} onClick={() => reviewWithdrawal(w._id, 'rejected')}>Reject</button>
+            </div>
+          ])}
+          empty="No pending withdrawal requests."
+        />
+        <p className="text-xs mt-2" style={{ color: 'var(--ink-soft)' }}>Approving means you've paid the user externally (bank transfer/mobile wallet, per their details above) — CareerZ has no payout gateway, so this just confirms it happened. Rejecting returns the funds to their available balance.</p>
+      </div>
 
       <div className="card" style={{ padding: 20, marginBottom: 16, border: '1px solid var(--gold)' }}>
         <h4 className="font-semibold mb-1">Platform Revenue (real, computed)</h4>
@@ -14421,12 +14590,38 @@ function AdminFinancePanel({ onFlash }) {
           </form>
           <form onSubmit={saveFeaturedFee} className="flex items-end gap-2">
             <label className="text-xs" style={{ display: 'block' }}>Featured job fee (USD / {featuredFee?.days || 30} days)
-              <input className="form-input" type="number" min="0" step="1" value={featuredFeeInput} onChange={(e) => setFeaturedFeeInput(e.target.value)} style={{ width: 90, marginTop: 4 }} />
+              <input className="form-input" type="number" min="0.01" step="0.01" value={featuredFeeInput} onChange={(e) => setFeaturedFeeInput(e.target.value)} style={{ width: 90, marginTop: 4 }} />
             </label>
             <button type="submit" className="btn btn-primary" style={{ padding: '7px 14px', fontSize: '0.8rem' }}>Save</button>
           </form>
+          {isSuperAdmin && featuredFee && <button type="button" className="btn" onClick={toggleFeatured}>
+            {featuredFee.enabled ? 'Disable' : 'Enable'} Featured Jobs
+          </button>}
         </div>
       </div>
+
+      {planConfig && (
+        <div className="card" style={{ padding: 20, marginBottom: 16 }}>
+          <h4 className="font-semibold mb-1">Subscription Plan Pricing</h4>
+          <p className="text-xs" style={{ color: 'var(--ink-soft)', marginBottom: 12 }}>30-day plan prices (USD). Institutions pay these via Paddle to unlock higher student/staff limits and institution-level AI keys.</p>
+          <div className="flex gap-6 flex-wrap">
+            {Object.entries(planConfig.effective).filter(([k]) => k !== 'free').map(([planKey, plan]) => (
+              <div key={planKey} className="flex items-end gap-2">
+                <label className="text-xs" style={{ display: 'block' }}>{plan.label}
+                  <input
+                    className="form-input" type="number" min="0" step="1"
+                    value={planPriceInputs[planKey] ?? ''}
+                    disabled={!isSuperAdmin}
+                    onChange={(e) => setPlanPriceInputs((prev) => ({ ...prev, [planKey]: e.target.value }))}
+                    style={{ width: 90, marginTop: 4 }}
+                  />
+                </label>
+                {isSuperAdmin && <button type="button" className="btn btn-primary" style={{ padding: '7px 14px', fontSize: '0.8rem' }} onClick={() => savePlanPrice(planKey)}>Save</button>}
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
 
       <div className="grid g2" style={{ gap: 16 }}>
         <div className="card" style={{ padding: 20 }}>
@@ -14656,13 +14851,13 @@ function AdminSecurityPanel({ onFlash }) {
   );
 }
 
-function AdminSettingsPanel({ onFlash }) {
+function AdminSettingsPanel({ onFlash, isSuperAdmin }) {
   const [sub, setSub] = useState('countries');
   return (
     <div>
       <h3 className="font-semibold mb-2">Global Settings</h3>
       <nav className="cz-tabbar" style={{ marginBottom: 20 }}>
-        {[{ key: 'countries', label: 'Countries' }, { key: 'languages', label: 'Languages' }, { key: 'currencies', label: 'Currencies' }, { key: 'features', label: 'Feature Toggles' }].map((t) => (
+        {[{ key: 'countries', label: 'Countries' }, { key: 'languages', label: 'Languages' }, { key: 'currencies', label: 'Currencies' }, { key: 'features', label: 'Feature Toggles' }, ...(isSuperAdmin ? [{ key: 'aiProviders', label: 'AI Providers' }] : [])].map((t) => (
           <button key={t.key} type="button" aria-pressed={sub === t.key} className={`cz-tab${sub === t.key ? ' active' : ''}`} onClick={() => setSub(t.key)}>{t.label}</button>
         ))}
       </nav>
@@ -14670,8 +14865,38 @@ function AdminSettingsPanel({ onFlash }) {
       {sub === 'languages' && <SettingsCollectionPanel onFlash={onFlash} kind="languages" fields={['name', 'code']} />}
       {sub === 'currencies' && <SettingsCollectionPanel onFlash={onFlash} kind="currencies" fields={['name', 'code', 'symbol']} />}
       {sub === 'features' && <FeatureFlagsPanel onFlash={onFlash} />}
+      {sub === 'aiProviders' && isSuperAdmin && <AdminAiProvidersPanel onFlash={onFlash} />}
     </div>
   );
+}
+
+function AdminAiProvidersPanel({ onFlash }) {
+  const [policies, setPolicies] = useState(null);
+  function load() { apiRequest('/ai/provider-policies').then(setPolicies).catch((error) => onFlash(error.message)); }
+  useEffect(load, []);
+  async function save(entry, enabled, modelsText) {
+    try {
+      const allowedModels = modelsText.split(',').map((value) => value.trim()).filter(Boolean);
+      await apiRequest(`/ai/provider-policies/${entry.purpose}/${entry.provider}`, {
+        method: 'PATCH', body: { enabled, allowedModels }
+      });
+      onFlash('AI provider policy saved.', 'success');
+      load();
+    } catch (error) { onFlash(error.message); }
+  }
+  if (!policies) return <p role="status">Loading AI providers...</p>;
+  return <div className="space-y-3">{policies.map((entry) => <AiProviderPolicyRow key={`${entry.purpose}-${entry.provider}`} entry={entry} onSave={save} />)}</div>;
+}
+
+function AiProviderPolicyRow({ entry, onSave }) {
+  const [enabled, setEnabled] = useState(entry.enabled);
+  const [models, setModels] = useState(entry.allowedModels.join(', '));
+  return <div className="card flex flex-wrap items-center gap-3" style={{ padding: 12 }}>
+    <strong className="text-sm">{entry.purpose}: {entry.provider}</strong>
+    <label className="text-xs"><input type="checkbox" checked={enabled} onChange={(event) => setEnabled(event.target.checked)} /> Enabled</label>
+    <input className="form-input" aria-label={`${entry.provider} allowed models`} placeholder="Allowed models (comma separated; blank means any)" value={models} onChange={(event) => setModels(event.target.value)} style={{ minWidth: 250 }} />
+    <button className="btn" type="button" onClick={() => onSave(entry, enabled, models)}>Save</button>
+  </div>;
 }
 
 function SettingsCollectionPanel({ onFlash, kind, fields }) {
@@ -15445,6 +15670,8 @@ function StudentPanel({ onFlash }) {
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState('');
   const [openCourseId, setOpenCourseId] = useState(null);
+  const [paymentConfig, setPaymentConfig] = useState({ stripe: false, paddle: false });
+  const [checkoutId, setCheckoutId] = useState(null);
 
   async function load() {
     setLoading(true); setLoadError('');
@@ -15454,6 +15681,32 @@ function StudentPanel({ onFlash }) {
     } catch (err) { setLoadError(err.message); } finally { setLoading(false); }
   }
   useEffect(() => { load(); }, []);
+  useEffect(() => {
+    Promise.all([
+      apiRequest('/payments/stripe/config').catch(() => ({ enabled: false })),
+      apiRequest('/payments/paddle/config').catch(() => ({ enabled: false }))
+    ]).then(([stripe, paddle]) => setPaymentConfig({ stripe: stripe.enabled, paddle: paddle.enabled ? paddle : false }));
+  }, []);
+
+  async function checkout(course, provider) {
+    setCheckoutId(course._id);
+    try {
+      if (provider === 'stripe') {
+        const { url } = await apiRequest(`/payments/stripe/courses/${course._id}/checkout`, { method: 'POST' });
+        window.location.assign(url);
+        return;
+      }
+      const { transactionId } = await apiRequest(`/payments/paddle/courses/${course._id}/checkout`, { method: 'POST' });
+      const Paddle = await loadPaddle(paymentConfig.paddle.clientToken, paymentConfig.paddle.environment);
+      setActiveCheckoutHandler(async () => {
+        try {
+          const result = await apiRequest(`/payments/paddle/courses/${course._id}/transactions/${transactionId}/sync`);
+          if (result.status === 'paid') { onFlash('Payment confirmed. Course is ready.', 'success'); load(); }
+        } catch (error) { onFlash(error.message); }
+      });
+      Paddle.Checkout.open({ transactionId, settings: { displayMode: 'overlay' } });
+    } catch (error) { onFlash(error.message); } finally { setCheckoutId(null); }
+  }
 
   async function enroll(id) {
     try { await apiRequest(`/courses/${id}/enroll`, { method: 'POST' }); onFlash('Enrolled!', 'success'); load(); } catch (err) { onFlash(err.message); }
@@ -15470,7 +15723,14 @@ function StudentPanel({ onFlash }) {
           <div key={c._id} className="border border-[var(--sand-line)] rounded-xl p-3">
             <strong>{c.title}</strong>
             <p className="text-xs text-[var(--ink-soft)]">{c.subject}</p>
-            <button className="btn btn-primary mt-2" style={{ padding: '5px 12px', fontSize: '0.78rem' }} onClick={() => enroll(c._id)}>Enroll</button>
+            <p className="text-xs mt-2">{c.isFree ? 'Free' : `${c.currency} ${Number(c.price).toFixed(2)}`}</p>
+            {enrollments.some((entry) => entry.course?._id === c._id) ? <span className="text-xs">Enrolled</span>
+              : c.isFree ? <button className="btn btn-primary mt-2" style={{ padding: '5px 12px', fontSize: '0.78rem' }} onClick={() => enroll(c._id)}>Enroll free</button>
+                : <div className="flex gap-2 mt-2 flex-wrap">
+                  {paymentConfig.paddle && <button type="button" className="btn btn-primary" disabled={checkoutId === c._id} onClick={() => checkout(c, 'paddle')}>Pay with Paddle</button>}
+                  {paymentConfig.stripe && <button type="button" className="btn" disabled={checkoutId === c._id} onClick={() => checkout(c, 'stripe')}>Pay with Stripe</button>}
+                  {!paymentConfig.paddle && !paymentConfig.stripe && <span className="text-xs">Checkout is unavailable right now.</span>}
+                </div>}
           </div>
         ))}
       </div>

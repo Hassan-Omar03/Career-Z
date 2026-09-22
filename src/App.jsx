@@ -9,6 +9,7 @@ import VerifyCertificate from './pages/VerifyCertificate';
 import VerifyStudentId from './pages/VerifyStudentId';
 import PublicPortfolio from './pages/PublicPortfolio';
 import { useAuth } from './context/AuthContext';
+import { RealtimeProvider } from './context/RealtimeContext';
 
 function ProtectedRoute({ children }) {
   const { user, loading } = useAuth();
@@ -32,7 +33,9 @@ export default function App() {
         path="/dashboard"
         element={
           <ProtectedRoute>
-            <Dashboard />
+            <RealtimeProvider>
+              <Dashboard />
+            </RealtimeProvider>
           </ProtectedRoute>
         }
       />

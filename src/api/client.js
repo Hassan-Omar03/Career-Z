@@ -1,5 +1,5 @@
 // Thin fetch() wrapper for the CareerZ backend API.
-const API_BASE = import.meta.env.VITE_API_BASE || 'http://localhost:5000/api';
+const API_BASE = import.meta.env?.VITE_API_BASE || 'http://localhost:5000/api';
 
 const TOKEN_KEY = 'cz_access_token';
 const REFRESH_KEY = 'cz_refresh_token';
@@ -51,7 +51,7 @@ export async function apiRequest(path, { method = 'GET', body, auth = true, retr
       headers,
       body: body ? JSON.stringify(body) : undefined
     });
-  } catch (networkErr) {
+  } catch {
     throw new ApiError('Cannot reach the CareerZ server. Is the backend running?', 0);
   }
 
@@ -63,7 +63,7 @@ export async function apiRequest(path, { method = 'GET', body, auth = true, retr
   }
 
   // Access token expired -> try refresh once, then retry the original request.
-  if (res.status === 401 && retry && session.getRefreshToken() && path !== '/auth/refresh') {
+  if (res.status === 401 && auth && retry && session.getRefreshToken() && path !== '/auth/refresh') {
     const refreshed = await tryRefreshToken();
     if (refreshed) return apiRequest(path, { method, body, auth, retry: false });
   }
@@ -75,15 +75,29 @@ export async function apiRequest(path, { method = 'GET', body, auth = true, retr
   return payload.data;
 }
 
-async function tryRefreshToken() {
+let refreshInFlight = null;
+
+function tryRefreshToken() {
+  const refreshToken = session.getRefreshToken();
+  if (refreshInFlight?.token === refreshToken) return refreshInFlight.promise;
+  const pending = { token: refreshToken };
+  pending.promise = refreshSession(refreshToken).finally(() => {
+    if (refreshInFlight === pending) refreshInFlight = null;
+  });
+  refreshInFlight = pending;
+  return pending.promise;
+}
+
+async function refreshSession(refreshToken) {
   try {
     const res = await fetch(`${API_BASE}/auth/refresh`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ refreshToken: session.getRefreshToken() })
+      body: JSON.stringify({ refreshToken })
     });
     const payload = await res.json();
-    if (!res.ok) return false;
+    // Do not restore a session after logout or overwrite a different account's login.
+    if (!res.ok || session.getRefreshToken() !== refreshToken) return false;
     session.set(payload.data);
     return true;
   } catch {

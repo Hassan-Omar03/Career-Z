@@ -38,7 +38,6 @@ export function TranslationProvider({ children }) {
   const pendingRef = useRef(new Set());
   const debounceTimer = useRef(null);
   const langRef = useRef(lang);
-  langRef.current = lang;
 
   useEffect(() => {
     apiRequest('/translate/config', { auth: false }).then((cfg) => setEnabled(cfg.enabled)).catch(() => setEnabled(false));
@@ -97,6 +96,8 @@ export function TranslationProvider({ children }) {
     }
     saveCache(cache);
 
+    // An earlier language request must not overwrite a newer selection.
+    if (langRef.current !== targetLang) return;
     toFetchNodes.forEach((node) => {
       if (!node.isConnected) return;
       const original = originalsRef.current.get(node);
@@ -118,19 +119,28 @@ export function TranslationProvider({ children }) {
   }, [collectTextNodes]);
 
   const translatePage = useCallback(async (targetLang) => {
-    if (targetLang === 'en') { restoreOriginals(document.body); return; }
+    if (targetLang === 'en') { restoreOriginals(document.body); setTranslating(false); return; }
     setTranslating(true);
     await translateNodes(collectTextNodes(document.body), targetLang);
-    setTranslating(false);
+    if (langRef.current === targetLang) setTranslating(false);
   }, [collectTextNodes, translateNodes, restoreOriginals]);
 
   const setLang = useCallback((code) => {
+    langRef.current = code;
     setLangState(code);
     localStorage.setItem(LANG_KEY, code);
-    document.documentElement.lang = code;
-    document.documentElement.dir = RTL_LANGS.includes(code) ? 'rtl' : 'ltr';
-    if (enabled) translatePage(code);
-  }, [enabled, translatePage]);
+  }, []);
+
+  useEffect(() => {
+    langRef.current = lang;
+    document.documentElement.lang = lang;
+    document.documentElement.dir = RTL_LANGS.includes(lang) ? 'rtl' : 'ltr';
+    // Scan after React commits the page; cancel a scheduled scan on a language change.
+    const scanTimer = setTimeout(() => {
+      if (enabled || lang === 'en') translatePage(lang);
+    }, 0);
+    return () => clearTimeout(scanTimer);
+  }, [enabled, lang, translatePage]);
 
   // Re-converges newly-added or React-reverted text back to the active language. Debounced so a
   // burst of DOM changes (a panel loading its data, a route change) becomes one translate batch

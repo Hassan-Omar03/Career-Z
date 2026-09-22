@@ -4,6 +4,7 @@ import {
   FaCircle, FaHand, FaCircleCheck, FaFileLines, FaGraduationCap
 } from 'react-icons/fa6';
 import { apiRequest } from '../../api/client';
+import { loadPaddle, setActiveCheckoutHandler } from '../../utils/paddleLoader';
 
 export function WelcomeBanner({ name }) {
   return (
@@ -41,32 +42,71 @@ export function OverviewStats({ stats }) {
   );
 }
 
-// Wallet — Available/Pending Balance are structurally real fields (always $0 until a payment
-// gateway is connected — we never show a fabricated non-zero balance). Transaction History is
-// genuinely real, built from actual Fee and Marketplace Order records, not placeholder rows.
+// Wallet — a real balance backed by Paddle top-ups (see /payments/paddle/wallet/topup) and a
+// real internal ledger (Withdraw/Transfer). Available/Pending only ever change via a confirmed
+// server-side transaction — never optimistically bumped on the client.
 export function WalletCard({ onFlash }) {
   const [currency, setCurrency] = useState('USD');
-  const [transactions, setTransactions] = useState(null);
+  const [wallet, setWallet] = useState(null);
+  const [modal, setModal] = useState(null); // 'topup' | 'withdraw' | 'transfer' | null
+  const [amount, setAmount] = useState('');
+  const [payoutMethod, setPayoutMethod] = useState('bank_transfer');
+  const [payoutDetails, setPayoutDetails] = useState('');
+  const [recipientEmail, setRecipientEmail] = useState('');
+  const [busy, setBusy] = useState(false);
+  const [paddleConfig, setPaddleConfig] = useState(null);
 
-  useEffect(() => {
-    Promise.all([
-      apiRequest('/students/me/fees').catch(() => []),
-      apiRequest('/marketplace/orders/mine').catch(() => [])
-    ]).then(([fees, orders]) => {
-      const feeTx = (fees || []).filter((f) => f.status === 'paid').map((f) => ({
-        id: `fee-${f._id}`, label: `Fee: ${f.title}`, amount: -f.amount, currency: f.currency, date: f.paidAt || f.updatedAt
-      }));
-      const orderTx = (orders || []).map((o) => ({
-        id: `order-${o._id}`, label: `Marketplace: ${o.product?.title || 'Order'}`, amount: -o.totalPrice, currency: o.currency, date: o.createdAt
-      }));
-      const all = [...feeTx, ...orderTx].sort((a, b) => new Date(b.date) - new Date(a.date));
-      setTransactions(all);
-    });
-  }, []);
-
-  function notReady(action) {
-    onFlash?.(`${action} needs a connected payment gateway, which isn't set up yet — this button is ready for when it is.`, 'error');
+  function load() {
+    apiRequest(`/wallet/me?currency=${currency}`).then(setWallet).catch(() => setWallet({ available: 0, pending: 0, transactions: [] }));
   }
+  useEffect(load, [currency]);
+  useEffect(() => { apiRequest('/payments/paddle/config').then(setPaddleConfig).catch(() => setPaddleConfig({ enabled: false })); }, []);
+
+  function closeModal() { setModal(null); setAmount(''); setPayoutDetails(''); setRecipientEmail(''); }
+
+  async function topUp() {
+    if (!paddleConfig?.enabled) return onFlash?.('Card payments are not set up yet — ask Admin to connect Paddle.', 'error');
+    if (!amount || Number(amount) <= 0) return onFlash?.('Enter a valid amount.');
+    setBusy(true);
+    try {
+      const { transactionId } = await apiRequest('/payments/paddle/wallet/topup', { method: 'POST', body: { amount: Number(amount), currency } });
+      const Paddle = await loadPaddle(paddleConfig.clientToken, paddleConfig.environment);
+      setActiveCheckoutHandler(async () => {
+        try {
+          await apiRequest(`/payments/paddle/wallet/topup/${transactionId}/sync`);
+          load();
+        } catch { /* not confirmed yet — user can retry or it'll arrive via webhook */ }
+      });
+      Paddle.Checkout.open({ transactionId, settings: { displayMode: 'overlay' } });
+      closeModal();
+    } catch (err) { onFlash?.(err.message); } finally { setBusy(false); }
+  }
+
+  async function withdraw() {
+    if (!amount || Number(amount) <= 0) return onFlash?.('Enter a valid amount.');
+    if (!payoutDetails.trim()) return onFlash?.('Enter your payout details (e.g. account number).');
+    setBusy(true);
+    try {
+      await apiRequest('/wallet/withdraw', { method: 'POST', body: { amount: Number(amount), currency, payoutMethod, payoutDetails: payoutDetails.trim() } });
+      onFlash?.('Withdrawal requested — pending Admin review.', 'success');
+      closeModal();
+      load();
+    } catch (err) { onFlash?.(err.message); } finally { setBusy(false); }
+  }
+
+  async function transfer() {
+    if (!amount || Number(amount) <= 0) return onFlash?.('Enter a valid amount.');
+    if (!recipientEmail.trim()) return onFlash?.("Enter the recipient's email.");
+    setBusy(true);
+    try {
+      await apiRequest('/wallet/transfer', { method: 'POST', body: { amount: Number(amount), currency, recipientEmail: recipientEmail.trim() } });
+      onFlash?.('Transfer complete.', 'success');
+      closeModal();
+      load();
+    } catch (err) { onFlash?.(err.message); } finally { setBusy(false); }
+  }
+
+  const TX_LABEL = { topup: 'Wallet Top-up', withdrawal: 'Withdrawal', transfer_in: 'Received', transfer_out: 'Sent' };
 
   return (
     <>
@@ -79,23 +119,51 @@ export function WalletCard({ onFlash }) {
           </select>
         </div>
         <div className="grid g2" style={{ gap: 12, padding: '12px 0' }}>
-          <div><div style={{ fontSize: 12, color: 'var(--ink-soft)' }}>Available Balance</div><strong style={{ fontSize: 20 }}>{currency} 0.00</strong></div>
-          <div><div style={{ fontSize: 12, color: 'var(--ink-soft)' }}>Pending Balance</div><strong style={{ fontSize: 20 }}>{currency} 0.00</strong></div>
+          <div><div style={{ fontSize: 12, color: 'var(--ink-soft)' }}>Available Balance</div><strong style={{ fontSize: 20 }}>{currency} {(wallet?.available ?? 0).toFixed(2)}</strong></div>
+          <div><div style={{ fontSize: 12, color: 'var(--ink-soft)' }}>Pending Balance</div><strong style={{ fontSize: 20 }}>{currency} {(wallet?.pending ?? 0).toFixed(2)}</strong></div>
         </div>
-        <div className="flex gap-2 flex-wrap" style={{ padding: '4px 0 12px' }}>
-          <button type="button" className="btn btn-primary" style={{ padding: '6px 14px', fontSize: '0.8rem' }} onClick={() => notReady('Add Funds')}>Add Funds</button>
-          <button type="button" className="btn" style={{ padding: '6px 14px', fontSize: '0.8rem' }} onClick={() => notReady('Withdraw')}>Withdraw</button>
-          <button type="button" className="btn" style={{ padding: '6px 14px', fontSize: '0.8rem' }} onClick={() => notReady('Transfer')}>Transfer</button>
-        </div>
+
+        {!modal ? (
+          <div className="flex gap-2 flex-wrap" style={{ padding: '4px 0 12px' }}>
+            <button type="button" className="btn btn-primary" style={{ padding: '6px 14px', fontSize: '0.8rem' }} onClick={() => setModal('topup')}>Add Funds</button>
+            <button type="button" className="btn" style={{ padding: '6px 14px', fontSize: '0.8rem' }} onClick={() => setModal('withdraw')}>Withdraw</button>
+            <button type="button" className="btn" style={{ padding: '6px 14px', fontSize: '0.8rem' }} onClick={() => setModal('transfer')}>Transfer</button>
+          </div>
+        ) : (
+          <div style={{ padding: '8px 0 12px', display: 'grid', gap: 8, maxWidth: 320 }}>
+            <input className="form-input" type="number" min="0" placeholder={`Amount (${currency})`} value={amount} onChange={(e) => setAmount(e.target.value)} />
+            {modal === 'withdraw' && (
+              <>
+                <select className="form-select" value={payoutMethod} onChange={(e) => setPayoutMethod(e.target.value)}>
+                  <option value="bank_transfer">Bank Transfer</option>
+                  <option value="mobile_wallet">Mobile Wallet</option>
+                  <option value="other">Other</option>
+                </select>
+                <input className="form-input" placeholder="Account number / details" value={payoutDetails} onChange={(e) => setPayoutDetails(e.target.value)} />
+              </>
+            )}
+            {modal === 'transfer' && (
+              <input className="form-input" type="email" placeholder="Recipient's email" value={recipientEmail} onChange={(e) => setRecipientEmail(e.target.value)} />
+            )}
+            <div className="flex gap-2">
+              <button type="button" className="btn btn-primary" style={{ padding: '6px 14px', fontSize: '0.8rem' }} disabled={busy}
+                onClick={modal === 'topup' ? topUp : modal === 'withdraw' ? withdraw : transfer}>
+                {busy ? 'Working...' : modal === 'topup' ? 'Continue to Payment' : modal === 'withdraw' ? 'Request Withdrawal' : 'Send'}
+              </button>
+              <button type="button" className="btn" style={{ padding: '6px 14px', fontSize: '0.8rem' }} onClick={closeModal} disabled={busy}>Cancel</button>
+            </div>
+          </div>
+        )}
+
         <h5 style={{ fontSize: 13, fontWeight: 600, margin: '8px 0' }}>Transaction History</h5>
-        {transactions === null && <p style={{ fontSize: 13, color: 'var(--ink-soft)' }}>Loading...</p>}
-        {transactions && transactions.length === 0 && <p style={{ fontSize: 13, color: 'var(--ink-soft)' }}>No transactions yet.</p>}
-        {transactions && transactions.length > 0 && (
+        {wallet === null && <p style={{ fontSize: 13, color: 'var(--ink-soft)' }}>Loading...</p>}
+        {wallet && (!wallet.transactions || wallet.transactions.length === 0) && <p style={{ fontSize: 13, color: 'var(--ink-soft)' }}>No transactions yet.</p>}
+        {wallet && wallet.transactions && wallet.transactions.length > 0 && (
           <div className="dash-list">
-            {transactions.map((t) => (
-              <div key={t.id} className="dash-list-item">
-                <div className="dash-list-body"><div className="title">{t.label}</div></div>
-                <span className="dash-list-time">{t.currency} {t.amount} · {new Date(t.date).toLocaleDateString()}</span>
+            {wallet.transactions.map((t) => (
+              <div key={t._id} className="dash-list-item">
+                <div className="dash-list-body"><div className="title">{TX_LABEL[t.type] || t.type}{t.status === 'pending' ? ' (pending)' : ''}</div></div>
+                <span className="dash-list-time">{t.currency} {t.type === 'transfer_out' || t.type === 'withdrawal' ? '-' : '+'}{t.amount} · {new Date(t.createdAt).toLocaleDateString()}</span>
               </div>
             ))}
           </div>
