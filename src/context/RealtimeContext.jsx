@@ -27,7 +27,9 @@ export function RealtimeProvider({ children }) {
     }).catch(() => {});
 
     const socket = io(SOCKET_URL, {
-      auth: { accessToken: session.getAccessToken() },
+      // Socket.IO invokes this for every connection/reconnection, so an access token
+      // refreshed by the REST client is picked up without rebuilding the provider.
+      auth: (callback) => callback({ accessToken: session.getAccessToken() }),
       transports: ['websocket', 'polling']
     });
     socketRef.current = socket;
@@ -39,8 +41,6 @@ export function RealtimeProvider({ children }) {
     socket.on('dashboard:update', () => {
       setDashboardUpdateSignal((s) => s + 1);
     });
-    // A revoked/expired session (logout elsewhere, password reset) disconnects the socket too —
-    // no need to retry with a dead token until the app re-authenticates.
     socket.on('connect_error', () => {});
 
     return () => { socket.disconnect(); socketRef.current = null; };

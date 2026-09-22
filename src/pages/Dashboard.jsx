@@ -2816,7 +2816,7 @@ function AiSettingsPanel({ onFlash, onChanged, purposes = AI_PURPOSES, instituti
               <p className="text-xs font-semibold mb-2">{p.label}</p>
               {s.configured ? (
                 <div className="flex items-center gap-3 flex-wrap">
-                  <Tag status="approved" label={`Connected: ${p.providers.find((x) => x.value === s.provider)?.label || s.provider}${s.keyHint ? ` (${s.keyHint})` : ''}`} />
+                  <Tag status="approved" label={`Connected: ${p.providers.find((x) => x.value === s.provider)?.label || s.provider}${s.keyPreview ? ` (${s.keyPreview})` : ''}`} />
                   <button type="button" className="btn" style={{ padding: '4px 12px', fontSize: '0.75rem' }} onClick={() => remove(p.key)}>Disconnect</button>
                 </div>
               ) : (
@@ -10196,7 +10196,7 @@ function InstitutionAiAssistantPanel({ onFlash }) {
 
   return (
     <div>
-      <AiSettingsPanel key={institution._id} institutionId={institution._id} onFlash={onFlash} purposes={[AI_PURPOSES[0]]} />
+      <AiSettingsPanel key={institution._id} institutionId={institution._id} onFlash={onFlash} />
       <div className="admin-section">
         <div className="admin-section-heading"><div><h2>AI Operations Assistant</h2><p>Uses your own connected AI provider (Profile → AI Settings) to analyze your institution's real fee, payroll and support data. All decisions remain yours — this only summarizes.</p></div></div>
         <button className="btn btn-primary" onClick={generate} disabled={loading}>{loading ? 'Analyzing...' : 'Generate Insights'}</button>
@@ -10272,17 +10272,17 @@ function InstitutionSubscriptionPanel({ onFlash }) {
         <div className="grid grid-cols-2 gap-3">
           <div className="card" style={{ padding: 14 }}>
             <p className="text-xs" style={{ color: 'var(--ink-soft)' }}>Students</p>
-            <p style={{ fontWeight: 700 }}>{data.usage.students} / {data.planDetails.maxStudents ?? 'Unlimited'}</p>
+            <p style={{ fontWeight: 700 }}>{data.usage.students} (unlimited on every plan)</p>
           </div>
           <div className="card" style={{ padding: 14 }}>
-            <p className="text-xs" style={{ color: 'var(--ink-soft)' }}>Staff</p>
+            <p className="text-xs" style={{ color: 'var(--ink-soft)' }}>Staff seats</p>
             <p style={{ fontWeight: 700 }}>{data.usage.staff} / {data.planDetails.maxStaff ?? 'Unlimited'}</p>
           </div>
         </div>
       </div>
 
       <div className="admin-section" style={{ marginTop: 16 }}>
-        <div className="admin-section-heading"><div><h2>Plans</h2><p>Paid plans run for 30 days per purchase via Paddle. Institution-level AI keys require Basic or higher.</p></div></div>
+        <div className="admin-section-heading"><div><h2>Optional plans</h2><p>CareerZ core access remains free. Paid packages are optional 30-day upgrades purchased through Paddle and never disable an institution when they expire.</p></div></div>
         <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
           {planOrder.map((key) => {
             const plan = plans[key];
@@ -10292,8 +10292,8 @@ function InstitutionSubscriptionPanel({ onFlash }) {
                 <h4 style={{ margin: 0 }}>{plan.label}</h4>
                 <p style={{ fontSize: 22, fontWeight: 700, margin: '6px 0' }}>{plan.monthlyPriceUSD > 0 ? `$${plan.monthlyPriceUSD}` : 'Free'}{plan.monthlyPriceUSD > 0 ? <span style={{ fontSize: 12, fontWeight: 400 }}>/30 days</span> : null}</p>
                 <ul style={{ fontSize: 12, color: 'var(--ink-soft)', paddingLeft: 16, margin: '8px 0' }}>
-                  <li>{plan.maxStudents ?? 'Unlimited'} students</li>
-                  <li>{plan.maxStaff ?? 'Unlimited'} staff</li>
+                  <li>Unlimited students</li>
+                  <li>{plan.maxStaff ?? 'Unlimited'} staff seats</li>
                   <li>{plan.aiInstitutionKey ? 'Institution AI key' : 'No institution AI key'}</li>
                 </ul>
                 {isCurrent
@@ -14871,31 +14871,60 @@ function AdminSettingsPanel({ onFlash, isSuperAdmin }) {
 }
 
 function AdminAiProvidersPanel({ onFlash }) {
-  const [policies, setPolicies] = useState(null);
-  function load() { apiRequest('/ai/provider-policies').then(setPolicies).catch((error) => onFlash(error.message)); }
+  const [config, setConfig] = useState(null);
+  const [modelInputs, setModelInputs] = useState({});
+  function load() {
+    apiRequest('/admin/ai-providers').then((d) => {
+      setConfig(d);
+      const inputs = {};
+      Object.entries(d.all).forEach(([purpose, providers]) => providers.forEach((provider) => {
+        inputs[`${purpose}:${provider}`] = d.models?.[purpose]?.[provider] || '';
+      }));
+      setModelInputs(inputs);
+    }).catch((error) => onFlash(error.message));
+  }
   useEffect(load, []);
-  async function save(entry, enabled, modelsText) {
+  async function toggle(purpose, provider) {
     try {
-      const allowedModels = modelsText.split(',').map((value) => value.trim()).filter(Boolean);
-      await apiRequest(`/ai/provider-policies/${entry.purpose}/${entry.provider}`, {
-        method: 'PATCH', body: { enabled, allowedModels }
-      });
-      onFlash('AI provider policy saved.', 'success');
+      const enabled = Object.fromEntries(Object.entries(config.all).map(([key]) => [key, [...(config.enabled[key] || [])]]));
+      enabled[purpose] = enabled[purpose].includes(provider)
+        ? enabled[purpose].filter((item) => item !== provider)
+        : [...enabled[purpose], provider];
+      await apiRequest('/admin/ai-providers', { method: 'PATCH', body: { enabled } });
+      setConfig({ ...config, enabled });
+      onFlash('AI provider availability saved.', 'success');
+    } catch (error) { onFlash(error.message); }
+  }
+  async function saveModel(purpose, provider) {
+    try {
+      const model = (modelInputs[`${purpose}:${provider}`] || '').trim();
+      const models = { [purpose]: { [provider]: model } };
+      await apiRequest('/admin/ai-providers', { method: 'PATCH', body: { models } });
+      onFlash('Default model saved.', 'success');
       load();
     } catch (error) { onFlash(error.message); }
   }
-  if (!policies) return <p role="status">Loading AI providers...</p>;
-  return <div className="space-y-3">{policies.map((entry) => <AiProviderPolicyRow key={`${entry.purpose}-${entry.provider}`} entry={entry} onSave={save} />)}</div>;
-}
-
-function AiProviderPolicyRow({ entry, onSave }) {
-  const [enabled, setEnabled] = useState(entry.enabled);
-  const [models, setModels] = useState(entry.allowedModels.join(', '));
-  return <div className="card flex flex-wrap items-center gap-3" style={{ padding: 12 }}>
-    <strong className="text-sm">{entry.purpose}: {entry.provider}</strong>
-    <label className="text-xs"><input type="checkbox" checked={enabled} onChange={(event) => setEnabled(event.target.checked)} /> Enabled</label>
-    <input className="form-input" aria-label={`${entry.provider} allowed models`} placeholder="Allowed models (comma separated; blank means any)" value={models} onChange={(event) => setModels(event.target.value)} style={{ minWidth: 250 }} />
-    <button className="btn" type="button" onClick={() => onSave(entry, enabled, models)}>Save</button>
+  if (!config) return <p role="status">Loading AI providers...</p>;
+  return <div className="space-y-3">
+    <p className="admin-notice">Choose which bring-your-own-key providers users and institutions may connect, and optionally set the default model used when a connection doesn't request a specific one.</p>
+    {Object.entries(config.all).map(([purpose, providers]) => <div key={purpose} className="card" style={{ padding: 14 }}>
+      <strong className="text-sm" style={{ textTransform: 'capitalize' }}>{purpose}</strong>
+      <div className="space-y-2" style={{ marginTop: 10 }}>
+        {providers.map((provider) => (
+          <div key={provider} className="flex items-center gap-3 flex-wrap">
+            <label className="text-xs" style={{ minWidth: 90 }}>
+              <input type="checkbox" checked={(config.enabled[purpose] || []).includes(provider)} onChange={() => toggle(purpose, provider)} /> {provider}
+            </label>
+            <input
+              className="form-input" placeholder="Default model (optional)" style={{ maxWidth: 220, fontSize: '0.78rem' }}
+              value={modelInputs[`${purpose}:${provider}`] || ''}
+              onChange={(e) => setModelInputs((prev) => ({ ...prev, [`${purpose}:${provider}`]: e.target.value }))}
+            />
+            <button type="button" className="btn" style={{ padding: '4px 10px', fontSize: '0.75rem' }} onClick={() => saveModel(purpose, provider)}>Save model</button>
+          </div>
+        ))}
+      </div>
+    </div>)}
   </div>;
 }
 
