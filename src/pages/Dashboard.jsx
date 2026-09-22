@@ -137,6 +137,7 @@ const WORKSPACES = {
       { key: 'staff', label: 'Staff Management', icon: FaUsers },
       { key: 'teachers', label: 'Teacher Management', icon: FaChalkboardUser },
       { key: 'students', label: 'Student Management', icon: FaUsers },
+      { key: 'parents', label: 'Parent Management', icon: FaUsers },
       { key: 'classes', label: 'Classes & Timetable', icon: FaClipboardList },
       { key: 'attendance', label: 'Attendance Management', icon: FaCalendarCheck },
       { key: 'fees', label: 'Fee Management', icon: FaSackDollar },
@@ -7456,6 +7457,46 @@ function ParentPerformancePanel({ onFlash }) {
   );
 }
 
+// Parent -> Institution satisfaction rating (spec: Institution<->Parent "parent satisfaction/
+// engagement") — backend only accepts it from a parent whose linked child is actually enrolled
+// at this institution.
+function InstitutionFeedbackWidget({ institutionId, onFlash }) {
+  const [summary, setSummary] = useState(null);
+  const [rating, setRating] = useState(5);
+  const [comment, setComment] = useState('');
+  const [busy, setBusy] = useState(false);
+
+  function load() { apiRequest(`/institutions/${institutionId}/feedback/summary`).then((d) => { setSummary(d); if (d.myRating) { setRating(d.myRating); setComment(d.myComment || ''); } }).catch(() => {}); }
+  useEffect(load, [institutionId]);
+
+  async function submit(e) {
+    e.preventDefault();
+    setBusy(true);
+    try {
+      await apiRequest(`/parents/institutions/${institutionId}/feedback`, { method: 'POST', body: { rating, comment } });
+      onFlash?.('Feedback submitted.', 'success');
+      load();
+    } catch (err) { onFlash?.(err.message); } finally { setBusy(false); }
+  }
+
+  if (!institutionId) return null;
+  return (
+    <div className="card" style={{ padding: 16, marginBottom: 20 }}>
+      <strong className="text-sm">How is your experience with this institution?</strong>
+      {summary && summary.count > 0
+        ? <p className="text-xs" style={{ color: 'var(--ink-soft)', margin: '4px 0' }}>Average: ★ {summary.average} ({summary.count} parent rating{summary.count === 1 ? '' : 's'})</p>
+        : <p className="text-xs" style={{ color: 'var(--ink-soft)', margin: '4px 0' }}>No ratings yet — be the first.</p>}
+      <form onSubmit={submit} className="flex gap-2 items-end flex-wrap" style={{ marginTop: 8 }}>
+        <select className="form-select" value={rating} onChange={(e) => setRating(Number(e.target.value))} style={{ maxWidth: 90 }}>
+          {[5, 4, 3, 2, 1].map((n) => <option key={n} value={n}>{n} ★</option>)}
+        </select>
+        <input className="form-input" placeholder="Optional comment" value={comment} onChange={(e) => setComment(e.target.value)} style={{ minWidth: 200 }} />
+        <button type="submit" className="btn" style={{ padding: '5px 12px', fontSize: '0.78rem' }} disabled={busy}>{busy ? 'Saving...' : summary?.myRating ? 'Update rating' : 'Submit rating'}</button>
+      </form>
+    </div>
+  );
+}
+
 function ParentInstitutionInfoPanel({ onFlash }) {
   const [children, setChildren] = useState(null);
   const [institution, setInstitution] = useState(undefined);
@@ -7494,6 +7535,8 @@ function ParentInstitutionInfoPanel({ onFlash }) {
         {institution.description && <p className="text-sm mt-2">{institution.description}</p>}
         {institution.website && <p className="text-sm mt-2"><a href={institution.website} target="_blank" rel="noreferrer">{institution.website}</a></p>}
       </div>
+
+      <InstitutionFeedbackWidget institutionId={institution._id} onFlash={onFlash} />
 
       {campusBuildings && campusBuildings.length > 0 && (
         <>
@@ -8203,6 +8246,7 @@ function InstitutionWorkspace({ tab, user, onFlash, onChanged }) {
   if (tab === 'certificates') return <InstitutionCertificatesPanel onFlash={onFlash} />;
   if (tab === 'teachers') return <InstitutionTeachersPanel onFlash={onFlash} />;
   if (tab === 'students') return <InstitutionStudentsPanel onFlash={onFlash} />;
+  if (tab === 'parents') return <InstitutionParentsPanel onFlash={onFlash} />;
   if (tab === 'attendance') return <InstitutionAttendancePanel onFlash={onFlash} />;
   if (tab === 'payroll') return <InstitutionPayrollPanel onFlash={onFlash} />;
   if (tab === 'reports') return <InstitutionReportsPanel onFlash={onFlash} />;
@@ -9269,6 +9313,85 @@ function InstitutionStudentsPanel({ onFlash }) {
         })}
         empty="No students linked to this institution yet."
       />
+    </div>
+  );
+}
+
+// Institution's Parent Management (spec: Institution<->Parent "parent directory relationship",
+// "guardian verification", "parent messaging panel", "parent satisfaction/feedback"). The
+// directory is real — every row comes from an approved ParentChildLink to one of this
+// institution's actual students, never invented.
+function InstitutionParentsPanel({ onFlash }) {
+  const institution = useMyInstitution(onFlash);
+  const [parents, setParents] = useState(null);
+  const [feedback, setFeedback] = useState(null);
+  const [messageDrafts, setMessageDrafts] = useState({});
+
+  function load(id) {
+    apiRequest(`/institutions/${id}/parents`).then(setParents).catch((err) => onFlash(err.message));
+    apiRequest(`/institutions/${id}/feedback`).then(setFeedback).catch(() => {});
+  }
+  useEffect(() => { if (institution) load(institution._id); }, [institution]);
+
+  async function toggleVerify(linkId, verified) {
+    try {
+      await apiRequest(`/institutions/${institution._id}/parents/${linkId}/verify`, { method: 'PATCH', body: { verified } });
+      onFlash(verified ? 'Guardian link verified.' : 'Verification removed.', 'success');
+      load(institution._id);
+    } catch (err) { onFlash(err.message); }
+  }
+
+  async function sendMessage(parentId) {
+    const text = (messageDrafts[parentId] || '').trim();
+    if (!text) return onFlash('Write a message first.');
+    try {
+      await apiRequest('/messages', { method: 'POST', body: { to: parentId, text } });
+      onFlash('Message sent.', 'success');
+      setMessageDrafts((prev) => ({ ...prev, [parentId]: '' }));
+    } catch (err) { onFlash(err.message); }
+  }
+
+  if (institution === undefined || (institution && parents === null)) return <p role="status" className="admin-notice">Loading...</p>;
+  if (!institution) return <p className="admin-notice">Register an institution first (My Institution tab).</p>;
+
+  return (
+    <div>
+      <h3 className="font-semibold mb-2">Parent Management</h3>
+      {feedback && (
+        <div className="card" style={{ padding: 14, marginBottom: 16 }}>
+          <strong className="text-sm">Parent Satisfaction</strong>
+          <p className="text-xs" style={{ color: 'var(--ink-soft)', margin: '4px 0' }}>
+            {feedback.count > 0 ? `Average: ★ ${feedback.average} (${feedback.count} rating${feedback.count === 1 ? '' : 's'})` : 'No parent ratings yet.'}
+          </p>
+        </div>
+      )}
+      {(parents || []).length === 0 && <p className="admin-notice">No parents linked to your students yet.</p>}
+      <div className="space-y-3">
+        {(parents || []).map((p) => (
+          <div key={p.parent._id} className="card" style={{ padding: 16 }}>
+            <div className="flex items-center justify-between flex-wrap" style={{ gap: 8 }}>
+              <div>
+                <strong className="text-sm">{p.parent.fullName}</strong>
+                <p className="text-xs" style={{ color: 'var(--ink-soft)' }}>{p.parent.email}{p.parent.phone ? ` · ${p.parent.phone}` : ''}</p>
+              </div>
+            </div>
+            <div className="flex flex-wrap gap-2" style={{ marginTop: 8 }}>
+              {p.children.map((c) => (
+                <span key={c.linkId} className="flex items-center gap-2" style={{ fontSize: 12, background: 'var(--sand)', borderRadius: 999, padding: '4px 10px' }}>
+                  {c.name} ({c.relationship})
+                  <button type="button" className="btn" style={{ padding: '2px 8px', fontSize: '0.7rem' }} onClick={() => toggleVerify(c.linkId, !c.institutionVerified)}>
+                    {c.institutionVerified ? '✓ Verified' : 'Verify'}
+                  </button>
+                </span>
+              ))}
+            </div>
+            <div className="flex gap-2 items-end flex-wrap" style={{ marginTop: 10 }}>
+              <input className="form-input" placeholder="Send a message..." value={messageDrafts[p.parent._id] || ''} onChange={(e) => setMessageDrafts((prev) => ({ ...prev, [p.parent._id]: e.target.value }))} style={{ minWidth: 220, flex: 1 }} />
+              <button type="button" className="btn" style={{ padding: '5px 12px', fontSize: '0.78rem' }} onClick={() => sendMessage(p.parent._id)}>Send</button>
+            </div>
+          </div>
+        ))}
+      </div>
     </div>
   );
 }
