@@ -5750,7 +5750,7 @@ function StudentSummary({ onNavigate, user }) {
 
 function TeacherWorkspace({ tab, user, onFlash, onChanged, onNavigate }) {
   if (tab === 'profile') return <><ProfilePanel user={user} onFlash={onFlash} onChanged={onChanged} /><RolesPanel onFlash={onFlash} onChanged={onChanged} /><SupportComplaintPanel onFlash={onFlash} /></>;
-  if (tab === 'teacherProfile') return <TeacherProfileDetailsPanel onFlash={onFlash} onChanged={onChanged} />;
+  if (tab === 'teacherProfile') return <><TeacherProfileDetailsPanel onFlash={onFlash} onChanged={onChanged} /><TeacherEmploymentPanel onFlash={onFlash} /></>;
   if (tab === 'courses') return <TeacherPanel onFlash={onFlash} />;
   if (tab === 'summary') return <TeacherSummary onNavigate={onNavigate} user={user} />;
   if (tab === 'students') return <TeacherStudentsPanel onFlash={onFlash} />;
@@ -6021,6 +6021,78 @@ function parseVideoScenes(text) {
 // subjects, experienceYears, bio, qualifications were already accepted by PATCH /teachers/me
 // and already rendered in the institution's Teacher Management table — but had no form
 // anywhere to actually set them, so that table always showed "—" / "0 yrs".
+// Real hiring lifecycle (spec: Teacher<->Institution "offer/acceptance, employment contract,
+// resignation, transfer, service history") — pending offers to accept/decline, and a full
+// service history including past institutions the teacher can resign from.
+function TeacherEmploymentPanel({ onFlash }) {
+  const [employments, setEmployments] = useState(null);
+  const [busyId, setBusyId] = useState(null);
+
+  function load() { apiRequest('/teacher-employments/mine').then(setEmployments).catch((err) => onFlash(err.message)); }
+  useEffect(load, []);
+
+  async function respond(id, decision) {
+    setBusyId(id);
+    try {
+      await apiRequest(`/teacher-employments/${id}/respond`, { method: 'PATCH', body: { decision } });
+      onFlash(`Offer ${decision}.`, 'success');
+      load();
+    } catch (err) { onFlash(err.message); } finally { setBusyId(null); }
+  }
+
+  async function resignFrom(id) {
+    const reason = window.prompt('Reason for resigning (optional):') || '';
+    setBusyId(id);
+    try {
+      await apiRequest(`/teacher-employments/${id}/resign`, { method: 'POST', body: { reason } });
+      onFlash('Resignation recorded.', 'success');
+      load();
+    } catch (err) { onFlash(err.message); } finally { setBusyId(null); }
+  }
+
+  const STATUS_TAG = { offered: 'pending', active: 'approved', declined: 'rejected', resigned: 'pending', terminated: 'rejected' };
+  const pending = (employments || []).filter((e) => e.status === 'offered');
+  const history = (employments || []).filter((e) => e.status !== 'offered');
+
+  return (
+    <div className="admin-section" style={{ marginTop: 20 }}>
+      <div className="admin-section-heading"><div><h2>Employment</h2><p>Job offers from institutions, and your full service history.</p></div></div>
+
+      {pending.length > 0 && (
+        <div style={{ marginBottom: 16 }}>
+          <strong className="text-sm">Pending Offers</strong>
+          {pending.map((e) => (
+            <div key={e._id} className="flex items-center justify-between flex-wrap" style={{ gap: 8, padding: '10px 0', borderBottom: '1px solid var(--sand-line)' }}>
+              <div>
+                <strong className="text-sm">{e.institution?.name}</strong>
+                <p className="text-xs" style={{ color: 'var(--ink-soft)' }}>{e.role}{e.designation ? ` — ${e.designation}` : ''}{e.contractTerms ? ` · ${e.contractTerms}` : ''}</p>
+              </div>
+              <div className="flex gap-2">
+                <button type="button" className="btn btn-primary" style={{ padding: '5px 12px', fontSize: '0.78rem' }} disabled={busyId === e._id} onClick={() => respond(e._id, 'accepted')}>Accept</button>
+                <button type="button" className="btn" style={{ padding: '5px 12px', fontSize: '0.78rem' }} disabled={busyId === e._id} onClick={() => respond(e._id, 'declined')}>Decline</button>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+
+      <Table
+        loading={employments === null}
+        headers={['Institution', 'Role', 'Status', 'Started', 'Ended', 'Action']}
+        rows={history.map((e) => [
+          e.institution?.name, e.role, <Tag status={STATUS_TAG[e.status] || 'pending'} label={e.status} />,
+          e.startedAt ? new Date(e.startedAt).toLocaleDateString() : '—',
+          e.endedAt ? `${new Date(e.endedAt).toLocaleDateString()}${e.endReason ? ` (${e.endReason})` : ''}` : '—',
+          e.status === 'active'
+            ? <button type="button" className="btn" style={{ padding: '4px 12px', fontSize: '0.78rem' }} disabled={busyId === e._id} onClick={() => resignFrom(e._id)}>Resign</button>
+            : '—'
+        ])}
+        empty="No employment history yet."
+      />
+    </div>
+  );
+}
+
 function TeacherProfileDetailsPanel({ onFlash, onChanged }) {
   const [form, setForm] = useState(null);
   const [saving, setSaving] = useState(false);
@@ -10786,6 +10858,75 @@ function InstitutionStaffPanel({ onFlash }) {
             <button className="btn" type="button" onClick={() => updateAiPermission(s, 'manage')}>AI keys: {s.permissions?.includes('ai:manage') ? 'On' : 'Off'}</button>
           </span>, new Date(s.addedAt).toLocaleDateString(), <button className="btn" style={{ padding: '5px 12px', fontSize: '0.78rem', background: 'var(--sand-line)', color: 'var(--ink)' }} onClick={() => removeStaffMember(s.user)}>Remove</button>])}
         empty="No staff added yet."
+      />
+
+      <InstitutionHiringPanel institutionId={institution._id} onFlash={onFlash} />
+    </div>
+  );
+}
+
+// Real, consent-based hiring (spec: Teacher<->Institution "hiring offer/acceptance, employment
+// contract, resignation/termination, service history") — separate from the quick "Add Staff"
+// above, which stays as an unchanged fast path. The teacher must actually accept an offer here
+// before anything changes on either side.
+function InstitutionHiringPanel({ institutionId, onFlash }) {
+  const [employments, setEmployments] = useState(null);
+  const [form, setForm] = useState({ teacherUserId: '', role: 'teacher', designation: '', department: '', contractTerms: '' });
+  const [busyId, setBusyId] = useState(null);
+
+  function load() {
+    apiRequest(`/institutions/${institutionId}/teacher-employments`).then(setEmployments).catch((err) => onFlash(err.message));
+  }
+  useEffect(load, [institutionId]);
+
+  async function sendOffer(e) {
+    e.preventDefault();
+    try {
+      await apiRequest(`/institutions/${institutionId}/teacher-offers`, { method: 'POST', body: { ...form, teacherUserId: form.teacherUserId.trim() } });
+      onFlash('Offer sent.', 'success');
+      setForm({ teacherUserId: '', role: 'teacher', designation: '', department: '', contractTerms: '' });
+      load();
+    } catch (err) { onFlash(err.message); }
+  }
+
+  async function endEmployment(id) {
+    const reason = window.prompt('Reason for ending this employment (optional):') || '';
+    setBusyId(id);
+    try {
+      await apiRequest(`/teacher-employments/${id}/terminate`, { method: 'PATCH', body: { reason } });
+      onFlash('Employment ended.', 'success');
+      load();
+    } catch (err) { onFlash(err.message); } finally { setBusyId(null); }
+  }
+
+  const STATUS_TAG = { offered: 'pending', active: 'approved', accepted: 'approved', declined: 'rejected', resigned: 'pending', terminated: 'rejected' };
+
+  return (
+    <div className="admin-section" style={{ marginTop: 20 }}>
+      <div className="admin-section-heading"><div><h2>Hiring — Job Offers</h2><p>A formal offer the teacher must accept before they're added as staff (contract terms are a plain-text record, not a legal document).</p></div></div>
+      <form onSubmit={sendOffer} className="flex gap-3 items-end mb-4 flex-wrap">
+        <input className="form-input" placeholder="Teacher's User ID" required value={form.teacherUserId} onChange={(e) => setForm({ ...form, teacherUserId: e.target.value })} />
+        <select className="form-select" value={form.role} onChange={(e) => setForm({ ...form, role: e.target.value })}>
+          {['teacher', 'accountant', 'librarian', 'principal', 'coordinator', 'representative', 'staff'].map((r) => <option key={r} value={r}>{r}</option>)}
+        </select>
+        <input className="form-input" placeholder="Designation" value={form.designation} onChange={(e) => setForm({ ...form, designation: e.target.value })} style={{ maxWidth: 180 }} />
+        <input className="form-input" placeholder="Department" value={form.department} onChange={(e) => setForm({ ...form, department: e.target.value })} style={{ maxWidth: 150 }} />
+        <input className="form-input" placeholder="Contract terms (salary, hours...)" value={form.contractTerms} onChange={(e) => setForm({ ...form, contractTerms: e.target.value })} style={{ minWidth: 220, flex: 1 }} />
+        <button type="submit" className="btn btn-primary">Send Offer</button>
+      </form>
+      <Table
+        loading={employments === null}
+        headers={['Teacher', 'Role', 'Status', 'Offered', 'Ended', 'Action']}
+        rows={(employments || []).map((e) => [
+          e.teacher?.fullName || e.teacher?.email, e.role,
+          <Tag status={STATUS_TAG[e.status] || 'pending'} label={e.status} />,
+          new Date(e.offeredAt).toLocaleDateString(),
+          e.endedAt ? `${new Date(e.endedAt).toLocaleDateString()}${e.endReason ? ` (${e.endReason})` : ''}` : '—',
+          e.status === 'active'
+            ? <button type="button" className="btn" style={{ padding: '4px 12px', fontSize: '0.78rem' }} disabled={busyId === e._id} onClick={() => endEmployment(e._id)}>End employment</button>
+            : '—'
+        ])}
+        empty="No offers sent yet."
       />
     </div>
   );
