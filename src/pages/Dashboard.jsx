@@ -846,8 +846,11 @@ function StudentAcademicProfilePanel({ onFlash, onChanged }) {
   );
 }
 
+const MEMBERSHIP_STATUS_TAG = { active: 'approved', graduated: 'approved', transferred: 'pending', withdrawn: 'rejected' };
+
 function StudentInstitutionsPanel({ onFlash }) {
   const [profile, setProfile] = useState(null);
+  const [memberships, setMemberships] = useState(null);
   const [options, setOptions] = useState([]);
   const [q, setQ] = useState('');
   const [selected, setSelected] = useState('');
@@ -856,7 +859,10 @@ function StudentInstitutionsPanel({ onFlash }) {
   const [fairs, setFairs] = useState([]);
   const [registeredFairIds, setRegisteredFairIds] = useState([]);
 
-  function load() { apiRequest('/students/me').then(setProfile).catch((err) => onFlash(err.message)); }
+  function load() {
+    apiRequest('/students/me').then(setProfile).catch((err) => onFlash(err.message));
+    apiRequest('/students/me/institutions').then(setMemberships).catch(() => setMemberships([]));
+  }
   useEffect(load, []);
 
   function search() {
@@ -906,17 +912,30 @@ function StudentInstitutionsPanel({ onFlash }) {
 
   return (
     <div>
-      <h3 className="font-semibold mb-2">My Institution</h3>
-      {profile.primaryInstitution ? (
-        <div className="border border-[var(--sand-line)] rounded-xl p-4 mb-6" style={{ maxWidth: 420 }}>
-          <strong>{profile.primaryInstitution.name}</strong>
-          <p className="text-xs text-[var(--ink-soft)]">{profile.primaryInstitution.type} · {profile.primaryInstitution.country}</p>
-          {profile.classSection?.name && <p className="text-xs mt-1">Class / Grade: {profile.classSection.name}{profile.classSection.academicYear ? ` (${profile.classSection.academicYear})` : ''}</p>}
-          {profile.rollNumber && <p className="text-xs mt-1">Roll No: {profile.rollNumber}</p>}
-        </div>
-      ) : (
+      <h3 className="font-semibold mb-2">My Institutions</h3>
+      {memberships === null && <p role="status" className="admin-notice">Loading...</p>}
+      {memberships?.length === 0 && (
         <div className="border border-[var(--sand-line)] rounded-xl p-4 mb-6" style={{ maxWidth: 420 }}>
           <p className="text-sm" style={{ color: 'var(--ink-soft)' }}>You are not connected to an institution yet.</p>
+        </div>
+      )}
+      {memberships && memberships.length > 0 && (
+        <div className="grid grid-cols-2 gap-3 mb-6" style={{ maxWidth: 860 }}>
+          {memberships.map((m) => (
+            <div key={m._id} className="border border-[var(--sand-line)] rounded-xl p-4">
+              <div className="flex items-center justify-between flex-wrap" style={{ gap: 6 }}>
+                <strong>{m.institution?.name}</strong>
+                <Tag status={MEMBERSHIP_STATUS_TAG[m.status] || 'pending'} label={m.status} />
+              </div>
+              <p className="text-xs text-[var(--ink-soft)] mt-1">{m.institution?.type} · {m.institution?.country}{m.isPrimary ? ' · Primary' : ''}</p>
+              {m.program && <p className="text-xs mt-1">Program: {m.program}</p>}
+              {m.isPrimary && profile.classSection?.name && <p className="text-xs mt-1">Class / Grade: {profile.classSection.name}{profile.classSection.academicYear ? ` (${profile.classSection.academicYear})` : ''}</p>}
+              {m.isPrimary && profile.rollNumber && <p className="text-xs mt-1">Roll No: {profile.rollNumber}</p>}
+              <p className="text-xs mt-1" style={{ color: 'var(--ink-soft)' }}>
+                Joined {new Date(m.joinedAt).toLocaleDateString()}{m.leftAt ? ` · Left ${new Date(m.leftAt).toLocaleDateString()}` : ''}
+              </p>
+            </div>
+          ))}
         </div>
       )}
 
