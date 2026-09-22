@@ -168,6 +168,7 @@ const WORKSPACES = {
       { key: 'summary', label: 'Dashboard', icon: FaGauge },
       { key: 'post', label: 'Post a Job', icon: FaFileLines },
       { key: 'jobs', label: 'My Jobs', icon: FaBriefcase },
+      { key: 'employees', label: 'Employees', icon: FaUsers },
       { key: 'profile', label: 'Profile', icon: FaUser }
     ]
   },
@@ -2541,17 +2542,72 @@ function RecommendedJobsPanel({ onFlash }) {
   );
 }
 
+// Real employment offer/acceptance/resignation (spec: Student/Teacher<->Employer "offer
+// acceptance/rejection, employment contract, employee onboarding, salary/employment record") —
+// created automatically once an employer marks an application "hired" (Employment.js).
 function JobOffersPanel({ onFlash }) {
-  const [applications, setApplications] = useState(null);
-  useEffect(() => { apiRequest('/jobs/mine/applications').then(setApplications).catch((err) => onFlash(err.message)); }, [onFlash]);
-  if (applications === null) return <p role="status" className="admin-notice">Loading...</p>;
-  const offers = applications.filter((a) => a.status === 'hired');
+  const [employments, setEmployments] = useState(null);
+  const [busyId, setBusyId] = useState(null);
+
+  function load() { apiRequest('/employment/mine').then(setEmployments).catch((err) => onFlash(err.message)); }
+  useEffect(load, [onFlash]);
+
+  async function respond(id, decision) {
+    setBusyId(id);
+    try {
+      await apiRequest(`/employment/${id}/respond`, { method: 'PATCH', body: { decision } });
+      onFlash(`Offer ${decision}.`, 'success');
+      load();
+    } catch (err) { onFlash(err.message); } finally { setBusyId(null); }
+  }
+
+  async function resignFrom(id) {
+    const reason = window.prompt('Reason for resigning (optional):') || '';
+    setBusyId(id);
+    try {
+      await apiRequest(`/employment/${id}/resign`, { method: 'POST', body: { reason } });
+      onFlash('Resignation recorded.', 'success');
+      load();
+    } catch (err) { onFlash(err.message); } finally { setBusyId(null); }
+  }
+
+  if (employments === null) return <p role="status" className="admin-notice">Loading...</p>;
+  const pending = employments.filter((e) => e.status === 'offered');
+  const history = employments.filter((e) => e.status !== 'offered');
+  const STATUS_TAG = { active: 'approved', declined: 'rejected', resigned: 'pending', terminated: 'rejected' };
+
   return (
-    <Table
-      headers={['Job', 'Company', 'Offer Received']}
-      rows={offers.map((a) => [a.job?.title, a.job?.company, new Date(a.updatedAt).toLocaleDateString()])}
-      empty="No job offers yet."
-    />
+    <div>
+      {pending.length > 0 && (
+        <div style={{ marginBottom: 16 }}>
+          <strong className="text-sm">Pending Offers</strong>
+          {pending.map((e) => (
+            <div key={e._id} className="flex items-center justify-between flex-wrap" style={{ gap: 8, padding: '10px 0', borderBottom: '1px solid var(--sand-line)' }}>
+              <div>
+                <strong className="text-sm">{e.job?.title}</strong>
+                <p className="text-xs" style={{ color: 'var(--ink-soft)' }}>{e.job?.company}{e.salary ? ` · ${e.currency} ${e.salary}` : ''}</p>
+              </div>
+              <div className="flex gap-2">
+                <button type="button" className="btn btn-primary" style={{ padding: '5px 12px', fontSize: '0.78rem' }} disabled={busyId === e._id} onClick={() => respond(e._id, 'accepted')}>Accept</button>
+                <button type="button" className="btn" style={{ padding: '5px 12px', fontSize: '0.78rem' }} disabled={busyId === e._id} onClick={() => respond(e._id, 'declined')}>Decline</button>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+      <Table
+        headers={['Job', 'Company', 'Status', 'Started', 'Ended', 'Action']}
+        rows={history.map((e) => [
+          e.job?.title, e.job?.company, <Tag status={STATUS_TAG[e.status] || 'pending'} label={e.status} />,
+          e.startDate ? new Date(e.startDate).toLocaleDateString() : '—',
+          e.endedAt ? `${new Date(e.endedAt).toLocaleDateString()}${e.endReason ? ` (${e.endReason})` : ''}` : '—',
+          e.status === 'active'
+            ? <button type="button" className="btn" style={{ padding: '4px 12px', fontSize: '0.78rem' }} disabled={busyId === e._id} onClick={() => resignFrom(e._id)}>Resign</button>
+            : '—'
+        ])}
+        empty="No job offers yet."
+      />
+    </div>
   );
 }
 
@@ -11163,7 +11219,52 @@ function EmployerWorkspace({ tab, user, onFlash, onChanged }) {
   if (tab === 'summary') return <EmployerSummary />;
   if (tab === 'post') return <EmployerPostJobPanel onFlash={onFlash} />;
   if (tab === 'jobs') return <EmployerJobsPanel onFlash={onFlash} />;
+  if (tab === 'employees') return <EmployerEmploymentsPanel onFlash={onFlash} />;
   return <ComingSoon label={tab} />;
+}
+
+// Real employment records for every candidate who accepted an offer (spec: "employee onboarding/
+// linking, salary/employment record") — created automatically once an application is "hired".
+function EmployerEmploymentsPanel({ onFlash }) {
+  const [employments, setEmployments] = useState(null);
+  const [busyId, setBusyId] = useState(null);
+
+  function load() { apiRequest('/employment/posted').then(setEmployments).catch((err) => onFlash(err.message)); }
+  useEffect(load, [onFlash]);
+
+  async function endEmployment(id) {
+    const reason = window.prompt('Reason for ending this employment (optional):') || '';
+    setBusyId(id);
+    try {
+      await apiRequest(`/employment/${id}/terminate`, { method: 'PATCH', body: { reason } });
+      onFlash('Employment ended.', 'success');
+      load();
+    } catch (err) { onFlash(err.message); } finally { setBusyId(null); }
+  }
+
+  const STATUS_TAG = { offered: 'pending', active: 'approved', declined: 'rejected', resigned: 'pending', terminated: 'rejected' };
+
+  return (
+    <div>
+      <h3 className="font-semibold mb-2">Employees</h3>
+      <p className="text-xs" style={{ color: 'var(--ink-soft)', marginBottom: 12 }}>Every candidate marked "hired" gets a real offer here they must accept before becoming active.</p>
+      <Table
+        loading={employments === null}
+        headers={['Candidate', 'Job', 'Status', 'Salary', 'Started', 'Ended', 'Action']}
+        rows={(employments || []).map((e) => [
+          e.employee?.fullName || e.employee?.email, e.job?.title,
+          <Tag status={STATUS_TAG[e.status] || 'pending'} label={e.status} />,
+          e.salary ? `${e.currency} ${e.salary}` : '—',
+          e.startDate ? new Date(e.startDate).toLocaleDateString() : '—',
+          e.endedAt ? `${new Date(e.endedAt).toLocaleDateString()}${e.endReason ? ` (${e.endReason})` : ''}` : '—',
+          e.status === 'active'
+            ? <button type="button" className="btn" style={{ padding: '4px 12px', fontSize: '0.78rem' }} disabled={busyId === e._id} onClick={() => endEmployment(e._id)}>End employment</button>
+            : '—'
+        ])}
+        empty={'No employment records yet — mark a candidate "Hired" in My Jobs to create one.'}
+      />
+    </div>
+  );
 }
 
 function EmployerSummary() {
