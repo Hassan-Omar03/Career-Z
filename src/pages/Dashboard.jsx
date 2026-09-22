@@ -17,6 +17,7 @@ import DashboardLayout from '../components/dashboard/DashboardLayout';
 import CampusTourViewer from '../components/CampusTourViewer';
 import QrScanner from '../components/QrScanner';
 import { loadPaddle, setActiveCheckoutHandler } from '../utils/paddleLoader';
+import { isPlatformUploadAvailable, uploadToPlatformStorage } from '../utils/platformUpload';
 import {
   OverviewStats, WalletCard, QuickActions,
   ProfileCompletion, MiniCalendar, RecommendedGrid, RecentActivity
@@ -1109,18 +1110,25 @@ const DOCUMENT_CATEGORIES = [
 const DOCUMENT_CATEGORY_LABEL = Object.fromEntries(DOCUMENT_CATEGORIES.map((c) => [c.value, c.label]));
 
 // Student sidebar — Digital Locker (spec Part 10.5): a lifetime document vault, separate from
-// institution-issued Certificates. No file storage service is wired up — same paste-a-link
-// pattern used everywhere else in the app (User.profilePhoto, Resume.cvFileUrl).
-// No cloud storage (S3/Cloudinary) is connected anywhere in this app, so an uploaded file is
-// stored as a base64 data URI on the document record itself (same as the profile-photo upload
-// above). Images are resized/re-encoded to keep them small; other files (PDFs etc.) are read
-// as-is but capped at 3MB raw so the base64-inflated body still fits the server's request-size
-// limit — past that, the "paste a link" option (for a file already hosted somewhere) still works.
+// institution-issued Certificates. Uploads real cloud storage once platform storage is
+// configured (higher size limit); otherwise falls back to the original base64-on-document
+// behavior (images resized, other files capped at 3MB raw so the base64-inflated body still
+// fits the server's request-size limit) — the "paste a link" option always works either way.
 const LOCKER_MAX_FILE_BYTES = 3 * 1024 * 1024;
-function readLockerFile(file) {
-  if (file.type.startsWith('image/')) return resizeImageToDataUrl(file, 1200, 0.82);
+const LOCKER_MAX_UPLOAD_BYTES = 15 * 1024 * 1024;
+async function readLockerFile(file) {
+  if (file.type.startsWith('image/')) return resizeImageToDataUrl(file, 1200, 0.82, 'locker');
+
+  const available = await isPlatformUploadAvailable();
+  if (available) {
+    if (file.size > LOCKER_MAX_UPLOAD_BYTES) {
+      throw new Error(`That file is ${(file.size / (1024 * 1024)).toFixed(1)}MB — over the 15MB upload limit. Host it somewhere and paste the link instead.`);
+    }
+    return uploadToPlatformStorage(file, 'locker');
+  }
+
   if (file.size > LOCKER_MAX_FILE_BYTES) {
-    return Promise.reject(new Error(`That file is ${(file.size / (1024 * 1024)).toFixed(1)}MB — over the 3MB direct-upload limit. Host it somewhere and paste the link instead.`));
+    throw new Error(`That file is ${(file.size / (1024 * 1024)).toFixed(1)}MB — over the 3MB direct-upload limit. Host it somewhere and paste the link instead.`);
   }
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
@@ -5823,7 +5831,7 @@ function TeacherWorkspace({ tab, user, onFlash, onChanged, onNavigate }) {
   if (tab === 'performance') return <TeacherPerformancePanel onFlash={onFlash} />;
   if (tab === 'resourceLibrary') return <TeacherResourceLibraryPanel onFlash={onFlash} />;
   if (tab === 'aiAssistant') return <TeacherAiAssistantPanel onFlash={onFlash} />;
-  if (tab === 'aiCreative') return <ComingSoon label="AI Creative Teacher" note="Optional AI feature — not built yet, and never forced on you. Skipped for now (paid AI API dependency)." />;
+  if (tab === 'aiCreative') return <TeacherCreativeAiPanel onFlash={onFlash} />;
   if (tab === 'advancedControl') return <ComingSoon label="Advanced Class Control" note="Optional voice/gesture/eye-tracking controls — not built yet, and never forced on you. Skipped for now (hardware dependency)." />;
   if (tab === 'engagement') return <TeacherEngagementPanel onFlash={onFlash} />;
   if (tab === 'ptm') return <TeacherPtmPanel onFlash={onFlash} />;
@@ -5851,9 +5859,28 @@ function TeacherAiAssistantPanel({ onFlash }) {
         <AiFeatureCard feature="teacher_lesson_plan" title="AI Lesson Plan Builder" description="Give a topic and grade level — get a structured lesson plan." placeholder="e.g. Introduction to Fractions, Grade 4" aiEnabled={textEnabled} />
       </div>
       <SlideDeckGenerator aiEnabled={textEnabled} />
+      <p className="text-xs mt-4" style={{ color: 'var(--ink-soft)' }}>Graphics, 3D models, narration, avatar video and the AI Video Lesson Creator have their own dedicated tab — AI Creative Teacher.</p>
+    </div>
+  );
+}
 
-      <h4 className="font-semibold mb-2 mt-6" style={{ fontSize: '0.9rem' }}>AI Creative Teacher</h4>
-      <p className="text-xs mb-3" style={{ color: 'var(--ink-soft)' }}>Graphics, 3D models, narration and avatar videos — each connects to a different specialized AI provider above.</p>
+// Real BYOK AI Creative Teacher (spec 15B.6-15B.7) — its own dedicated pipeline, separate from
+// the text-only AI Teacher Assistant: graphics, 3D models, narration, avatar video, and the full
+// AI Video Lesson Creator (script -> narration -> slides -> real MP4).
+function TeacherCreativeAiPanel({ onFlash }) {
+  const [status, setStatus] = useState(null);
+  function refresh() { apiRequest('/ai/config').then(setStatus).catch(() => {}); }
+  useEffect(refresh, []);
+
+  const textEnabled = status?.text.configured || false;
+
+  return (
+    <div>
+      <h3 className="font-semibold mb-3">AI Creative Teacher</h3>
+      <AiSettingsPanel onFlash={onFlash} onChanged={refresh} />
+
+      <h4 className="font-semibold mb-2 mt-2" style={{ fontSize: '0.9rem' }}>Graphics, 3D, Narration &amp; Avatar</h4>
+      <p className="text-xs mb-3" style={{ color: 'var(--ink-soft)' }}>Each connects to a different specialized AI provider above — connect only what you'll actually use.</p>
       <div className="grid grid-cols-1 md:grid-cols-2" style={{ gap: 14 }}>
         <ImageGenerator aiEnabled={status?.image.configured} onFlash={onFlash} />
         <ThreeDModelGenerator aiEnabled={status?.threed.configured} onFlash={onFlash} />
@@ -9935,7 +9962,7 @@ function InstitutionCampusTourPanel({ onFlash }) {
     const file = e.target.files?.[0];
     if (!file) return;
     try {
-      const dataUrl = await resizeImageToDataUrl(file, 800, 0.78);
+      const dataUrl = await resizeImageToDataUrl(file, 800, 0.78, 'campus');
       setForm((f) => ({ ...f, photo: dataUrl }));
     } catch (err) { onFlash(err.message); }
   }
@@ -14692,8 +14719,47 @@ function AdminWorkspace({ tab, user, roles, onFlash, onChanged }) {
   if (tab === 'staff') return <AdminStaffPanel onFlash={onFlash} />;
   if (tab === 'cms') return <AdminCmsPanel onFlash={onFlash} />;
   if (tab === 'backups') return <AdminBackupsPanel onFlash={onFlash} />;
-  if (tab === 'aiInsights') return <ComingSoon label="AI Insights & Predictions" note="Real platform-wide predictions (growth forecasts, fraud pattern detection, revenue trends) need a paid AI provider — never faked with made-up numbers. Skipped for now until an AI API key is connected." />;
+  if (tab === 'aiInsights') return <AdminAiInsightsPanel onFlash={onFlash} />;
   return <ComingSoon label={tab} />;
+}
+
+// Real BYOK AI predictions over real platform-wide aggregates (spec: "AI Insights &
+// Predictions") — same "connect your own key, summarize real numbers, never invent" pattern as
+// every other AI assistant in the platform.
+function AdminAiInsightsPanel({ onFlash }) {
+  const [insights, setInsights] = useState(null);
+  const [dataSummary, setDataSummary] = useState(null);
+  const [loading, setLoading] = useState(false);
+
+  async function generate() {
+    setLoading(true);
+    try {
+      const res = await apiRequest('/admin/ai-insights', { method: 'POST' });
+      setInsights(res.insights);
+      setDataSummary(res.dataSummary);
+    } catch (err) { onFlash(err.message); } finally { setLoading(false); }
+  }
+
+  return (
+    <div>
+      <AiSettingsPanel onFlash={onFlash} purposes={[AI_PURPOSES[0]]} />
+      <div className="admin-section">
+        <div className="admin-section-heading"><div><h2>AI Insights &amp; Predictions</h2><p>Uses your own connected AI provider to analyze real platform-wide growth, verification/support backlog and fee-collection data. All decisions remain yours — this only summarizes/predicts trends.</p></div></div>
+        <button className="btn btn-primary" onClick={generate} disabled={loading}>{loading ? 'Analyzing...' : 'Generate Insights'}</button>
+      </div>
+      {insights && (
+        <div className="admin-section" style={{ marginTop: 16 }}>
+          <div className="admin-section-heading"><div><h2>Insights</h2></div></div>
+          <p style={{ whiteSpace: 'pre-line', fontSize: 14, lineHeight: 1.6 }}>{insights}</p>
+          <details style={{ marginTop: 12 }}>
+            <summary style={{ fontSize: 12, color: 'var(--ink-soft)', cursor: 'pointer' }}>Raw data used</summary>
+            <pre style={{ fontSize: 12, whiteSpace: 'pre-wrap' }}>{dataSummary}</pre>
+          </details>
+        </div>
+      )}
+      <p style={{ fontSize: 12, color: 'var(--ink-soft)', marginTop: 12 }}>Requires an AI provider connected above (BYOK — your own API key, e.g. OpenAI/Claude/Gemini).</p>
+    </div>
+  );
 }
 
 // Super Admin — World Map (spec Part 16A.3). Real per-country user + institution counts, plotted
@@ -15556,12 +15622,7 @@ function FeatureFlagsPanel({ onFlash }) {
   );
 }
 
-// No cloud storage (S3/Cloudinary) is connected anywhere in this app yet, so a photo can't be
-// uploaded to external storage. Instead: resize it in the browser (a phone photo can be several
-// MB — far past the 2mb JSON body limit) and store it as a base64 data URI directly on the User
-// document, the same way profilePhoto/coverImage were already stored (just never had a real
-// upload form). Small enough after resize to comfortably fit the request body.
-function resizeImageToDataUrl(file, maxDimension = 320, quality = 0.72) {
+function resizeImageToCanvas(file, maxDimension) {
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
     reader.onerror = () => reject(new Error('Could not read that file.'));
@@ -15575,12 +15636,24 @@ function resizeImageToDataUrl(file, maxDimension = 320, quality = 0.72) {
         canvas.height = Math.round(img.height * scale);
         const ctx = canvas.getContext('2d');
         ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
-        resolve(canvas.toDataURL('image/jpeg', quality));
+        resolve(canvas);
       };
       img.src = reader.result;
     };
     reader.readAsDataURL(file);
   });
+}
+
+// Resizes in the browser either way (a phone photo can be several MB), then — if platform cloud
+// storage is configured (Super Admin sets CLOUDINARY_CLOUD_NAME etc.) — uploads it for a real
+// https URL. Falls back to a base64 data URI stored directly on the document when storage isn't
+// configured yet, so this never breaks a deployment that hasn't set that up.
+async function resizeImageToDataUrl(file, maxDimension = 320, quality = 0.72, folder = 'uploads') {
+  const canvas = await resizeImageToCanvas(file, maxDimension);
+  const available = await isPlatformUploadAvailable();
+  if (!available) return canvas.toDataURL('image/jpeg', quality);
+  const blob = await new Promise((resolve) => canvas.toBlob(resolve, 'image/jpeg', quality));
+  return uploadToPlatformStorage(blob, folder);
 }
 
 function ProfilePanel({ user, onFlash, onChanged }) {
@@ -15612,7 +15685,7 @@ function ProfilePanel({ user, onFlash, onChanged }) {
     if (!file) return;
     if (!file.type.startsWith('image/')) return onFlash('Please choose an image file.');
     try {
-      const dataUrl = await resizeImageToDataUrl(file);
+      const dataUrl = await resizeImageToDataUrl(file, 320, 0.72, 'profiles');
       setForm((f) => ({ ...f, profilePhoto: dataUrl }));
     } catch (err) { onFlash(err.message); }
   }
