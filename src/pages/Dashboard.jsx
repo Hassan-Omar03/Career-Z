@@ -5004,7 +5004,7 @@ function TimetableView({ onFlash, url }) {
             <div key={t._id} className="border rounded-xl p-3 mb-2 flex items-center justify-between" style={{ borderColor: 'var(--rose)' }}>
               <div>
                 <span style={{ color: 'var(--rose)', fontWeight: 700 }}>🔴 Class in Progress</span>
-                <p className="text-xs mt-1" style={{ color: 'var(--ink-soft)' }}>{t.subject} · {t.startTime}–{t.endTime} · {t.teacher?.fullName || ''}</p>
+                <p className="text-xs mt-1" style={{ color: 'var(--ink-soft)' }}>{t.subject} · {formatTime12h(t.startTime)}–{formatTime12h(t.endTime)} · {t.teacher?.fullName || ''}</p>
               </div>
               <button type="button" className="btn btn-primary" onClick={() => joinClass(t)}>Join Class</button>
             </div>
@@ -5017,7 +5017,7 @@ function TimetableView({ onFlash, url }) {
         headers={['Next Date', 'Day', 'Time', 'Subject', 'Teacher', 'Room', 'Status', 'Action']}
         rows={sorted.map((t) => [
           t.__nextDate ? t.__nextDate.toLocaleDateString(undefined, { month: 'short', day: 'numeric' }) : '—',
-          DOW_LABEL[t.dayOfWeek], `${t.startTime}–${t.endTime}`, t.subject, t.teacher?.fullName || '—', t.room || '—',
+          DOW_LABEL[t.dayOfWeek], `${formatTime12h(t.startTime)}–${formatTime12h(t.endTime)}`, t.subject, t.teacher?.fullName || '—', t.room || '—',
           <Tag status={CLASS_STATUS_TAG[t.__status] || 'pending'} label={CLASS_STATUS_LABEL[t.__status] || 'Upcoming'} />,
           t.__status === 'live' ? <button className="btn btn-primary" style={{ padding: '4px 12px', fontSize: '0.78rem' }} onClick={() => joinClass(t)}>Join</button> : '—'
         ])}
@@ -5673,7 +5673,7 @@ function StudentSummary({ onNavigate, user }) {
             <div>
               <span style={{ color: 'var(--rose)', fontWeight: 700, fontSize: 13 }}>🔴 Class in Progress</span>
               <p className="text-xs mt-1" style={{ color: 'var(--ink-soft)' }}>Subject: {c.subject} · Teacher: {c.teacher?.fullName || '—'}{inst?.name ? ` · Institution: ${inst.name}` : ''}</p>
-              <p className="text-xs" style={{ color: 'var(--ink-soft)' }}>Date: {new Date().toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' })} · Time: {c.startTime}–{c.endTime} · Status: Live</p>
+              <p className="text-xs" style={{ color: 'var(--ink-soft)' }}>Date: {new Date().toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' })} · Time: {formatTime12h(c.startTime)}–{formatTime12h(c.endTime)} · Status: Live</p>
             </div>
             <button type="button" className="btn btn-primary" style={{ padding: '5px 14px', fontSize: '0.78rem' }} onClick={() => onNavigate?.('classes')}>Join Class</button>
           </div>
@@ -5686,7 +5686,7 @@ function StudentSummary({ onNavigate, user }) {
                 <span className="text-xs" style={{ color: 'var(--ink-soft)' }}>Next up</span>
                 <p className="text-xs mt-1" style={{ color: 'var(--ink-soft)' }}>Subject: {c.subject} · Teacher: {c.teacher?.fullName || '—'}{inst?.name ? ` · Institution: ${inst.name}` : ''}</p>
                 <p className="text-xs" style={{ color: 'var(--ink-soft)' }}>
-                  Date: {nextDate ? nextDate.toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' }) : DOW_LABEL[c.dayOfWeek]} · Time: {c.startTime}–{c.endTime} · Status: Upcoming
+                  Date: {nextDate ? nextDate.toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' }) : DOW_LABEL[c.dayOfWeek]} · Time: {formatTime12h(c.startTime)}–{formatTime12h(c.endTime)} · Status: Upcoming
                 </p>
               </div>
               <button type="button" className="btn" style={{ padding: '5px 14px', fontSize: '0.78rem' }} onClick={() => onNavigate?.('classes')}>View My Classes</button>
@@ -7412,7 +7412,7 @@ function TeacherSummary({ onNavigate, user }) {
       <div className="hover-card card" style={{ padding: 16, cursor: 'pointer' }} onClick={() => onNavigate?.('timetable')}>
         <Table
           headers={['Time', 'Subject', 'Class/Section']}
-          rows={dash.todayClasses.map((c) => [`${c.startTime}–${c.endTime}`, c.subject, c.classSection || '—'])}
+          rows={dash.todayClasses.map((c) => [`${formatTime12h(c.startTime)}–${formatTime12h(c.endTime)}`, c.subject, c.classSection || '—'])}
           empty="No classes scheduled for you today."
         />
       </div>
@@ -7531,7 +7531,7 @@ function TeacherLiveClassesPanel({ onFlash }) {
         rows={withLink.map((e) => {
           const status = classStatusNow(e);
           return [
-            DOW_LABEL[e.dayOfWeek], `${e.startTime}–${e.endTime}`, e.subject, e.classSection?.name || '—',
+            DOW_LABEL[e.dayOfWeek], `${formatTime12h(e.startTime)}–${formatTime12h(e.endTime)}`, e.subject, e.classSection?.name || '—',
             status === 'live' ? <span style={{ color: 'var(--rose)', fontWeight: 700 }}>🔴 Live</span> : status,
             <button type="button" className={status === 'live' ? 'btn btn-primary' : 'btn'} style={{ padding: '4px 12px', fontSize: '0.75rem' }} onClick={() => join(e)}>Start Class</button>
           ];
@@ -7840,7 +7840,7 @@ function ParentChildDataPanel({ onFlash, kind }) {
       {rows && kind === 'timetable' && (
         <Table
           headers={['Day', 'Time', 'Subject', 'Teacher', 'Room']}
-          rows={rows.map((t) => [DOW_LABEL[t.dayOfWeek], `${t.startTime}–${t.endTime}`, t.subject, t.teacher?.fullName || '—', t.room || '—'])}
+          rows={rows.map((t) => [DOW_LABEL[t.dayOfWeek], `${formatTime12h(t.startTime)}–${formatTime12h(t.endTime)}`, t.subject, t.teacher?.fullName || '—', t.room || '—'])}
           empty="No timetable set up yet."
         />
       )}
@@ -11719,6 +11719,17 @@ function InstitutionHiringPanel({ institutionId, onFlash }) {
 const DOW_LABEL = { mon: 'Mon', tue: 'Tue', wed: 'Wed', thu: 'Thu', fri: 'Fri', sat: 'Sat', sun: 'Sun' };
 const DOW_INDEX = { sun: 0, mon: 1, tue: 2, wed: 3, thu: 4, fri: 5, sat: 6 };
 
+// <input type="time"> always stores/submits 24-hour "HH:MM" regardless of locale — this is purely
+// a display-only conversion to 12-hour AM/PM for the timetable table (backend keeps storing 24hr).
+function formatTime12h(hhmm) {
+  if (!hhmm) return hhmm;
+  const [h, m] = hhmm.split(':').map(Number);
+  if (Number.isNaN(h) || Number.isNaN(m)) return hhmm;
+  const period = h >= 12 ? 'PM' : 'AM';
+  const hour12 = h % 12 || 12;
+  return `${hour12}:${String(m).padStart(2, '0')} ${period}`;
+}
+
 // The timetable is a recurring weekly template (no per-session date), so we derive the actual
 // next calendar date a given weekday+time next occurs — a real date, not just a day name.
 function nextDateForDow(dow, startTime) {
@@ -11900,7 +11911,7 @@ function InstitutionClassesPanel({ onFlash }) {
           <Table
             headers={['Day', 'Time', 'Subject', 'Teacher', 'Room', 'Online', 'Action']}
             rows={timetable.map((t) => [
-              DOW_LABEL[t.dayOfWeek], `${t.startTime}–${t.endTime}`, t.subject, t.teacher?.fullName || '—', t.room || '—',
+              DOW_LABEL[t.dayOfWeek], `${formatTime12h(t.startTime)}–${formatTime12h(t.endTime)}`, t.subject, t.teacher?.fullName || '—', t.room || '—',
               t.meetingLink ? <Tag status="approved" /> : '—',
               <div className="flex gap-2">
                 <button className="btn" style={{ padding: '5px 12px', fontSize: '0.78rem' }} onClick={() => startEditEntry(t)}>Edit</button>
@@ -17776,7 +17787,7 @@ function CalendarPanel({ onFlash }) {
       const targetDow = DOW_INDEX[t.dayOfWeek];
       if (targetDow === undefined) return;
       for (let d = new Date(monthStart); d <= monthEnd; d.setDate(d.getDate() + 1)) {
-        if (d.getDay() === targetDow) addEvent(new Date(d), 'class', t.subject, `${t.startTime}–${t.endTime}${t.room ? ` · ${t.room}` : ''}`);
+        if (d.getDay() === targetDow) addEvent(new Date(d), 'class', t.subject, `${formatTime12h(t.startTime)}–${formatTime12h(t.endTime)}${t.room ? ` · ${t.room}` : ''}`);
       }
     });
     (pendingAssignments || []).forEach((a) => { if (a.dueDate) addEvent(new Date(a.dueDate), 'assignment', a.title, 'Due date'); });
@@ -17862,7 +17873,7 @@ function CalendarPanel({ onFlash }) {
                 headers={['Next Date', 'Day', 'Time', 'Subject', 'Room']}
                 rows={timetable.map((t) => {
                   const nextDate = nextDateForDow(t.dayOfWeek, t.startTime);
-                  return [nextDate ? nextDate.toLocaleDateString(undefined, { month: 'short', day: 'numeric' }) : '—', DOW_LABEL[t.dayOfWeek], `${t.startTime}–${t.endTime}`, t.subject, t.room || '—'];
+                  return [nextDate ? nextDate.toLocaleDateString(undefined, { month: 'short', day: 'numeric' }) : '—', DOW_LABEL[t.dayOfWeek], `${formatTime12h(t.startTime)}–${formatTime12h(t.endTime)}`, t.subject, t.room || '—'];
                 })}
                 empty="No classes scheduled."
               />
