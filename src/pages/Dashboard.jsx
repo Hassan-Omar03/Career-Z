@@ -155,6 +155,7 @@ const WORKSPACES = {
       { key: 'events', label: 'Events & Activities', icon: FaCalendarDays },
       { key: 'helpdesk', label: 'Complaint & Help Desk', icon: FaHeadset },
       { key: 'aiAssistant', label: 'AI Operations Assistant', icon: FaRobot },
+      { key: 'placement', label: 'Placement Office', icon: FaBriefcase },
       { key: 'subscription', label: 'Subscription Plan', icon: FaStar },
       { key: 'reports', label: 'Reports', icon: FaChartLine },
       { key: 'communication', label: 'Communication Center', icon: FaBell },
@@ -171,6 +172,7 @@ const WORKSPACES = {
       { key: 'post', label: 'Post a Job', icon: FaFileLines },
       { key: 'jobs', label: 'My Jobs', icon: FaBriefcase },
       { key: 'employees', label: 'Employees', icon: FaUsers },
+      { key: 'partnerships', label: 'Institution Partnerships', icon: FaHandshake },
       { key: 'profile', label: 'Profile', icon: FaUser }
     ]
   },
@@ -548,7 +550,15 @@ function StudentParentConnectionsPanel({ onFlash }) {
     } catch (err) { onFlash(err.message); } finally { setBusyId(null); }
   }
 
+  async function togglePermission(link, key) {
+    try {
+      await apiRequest(`/parents/link-requests/${link._id}/permissions`, { method: 'PATCH', body: { [key]: !link.permissions?.[key] } });
+      load();
+    } catch (err) { onFlash(err.message); }
+  }
+
   const RELATIONSHIP_LABEL = { father: 'Father', mother: 'Mother', guardian: 'Guardian', sponsor: 'Sponsor' };
+  const PERMISSION_LABEL = { payFees: 'Pay Fees', viewHealth: 'View Health', giveConsent: 'Give Consent' };
 
   return (
     <div>
@@ -576,12 +586,21 @@ function StudentParentConnectionsPanel({ onFlash }) {
         {linked === null && <p role="status" className="admin-notice">Loading...</p>}
         {linked?.length === 0 && <p className="text-sm" style={{ color: 'var(--ink-soft)' }}>No parent/guardian connected yet.</p>}
         {(linked || []).map((r) => (
-          <div key={r._id} className="flex items-center justify-between flex-wrap" style={{ gap: 8, padding: '10px 0', borderBottom: '1px solid var(--sand-line)' }}>
-            <div>
-              <strong className="text-sm">{r.parent?.fullName}</strong>
-              <p className="text-xs" style={{ color: 'var(--ink-soft)' }}>{r.parent?.email} · {RELATIONSHIP_LABEL[r.relationship] || r.relationship} · Since {new Date(r.approvedAt || r.createdAt).toLocaleDateString()}</p>
+          <div key={r._id} style={{ padding: '10px 0', borderBottom: '1px solid var(--sand-line)' }}>
+            <div className="flex items-center justify-between flex-wrap" style={{ gap: 8 }}>
+              <div>
+                <strong className="text-sm">{r.parent?.fullName}</strong>
+                <p className="text-xs" style={{ color: 'var(--ink-soft)' }}>{r.parent?.email} · {RELATIONSHIP_LABEL[r.relationship] || r.relationship} · Since {new Date(r.approvedAt || r.createdAt).toLocaleDateString()}</p>
+              </div>
+              <button type="button" className="btn" style={{ padding: '5px 12px', fontSize: '0.78rem', background: 'var(--sand-line)' }} disabled={busyId === r._id} onClick={() => unlink(r._id)}>Unlink</button>
             </div>
-            <button type="button" className="btn" style={{ padding: '5px 12px', fontSize: '0.78rem', background: 'var(--sand-line)' }} disabled={busyId === r._id} onClick={() => unlink(r._id)}>Unlink</button>
+            <div className="flex gap-2 flex-wrap" style={{ marginTop: 6 }}>
+              {Object.keys(PERMISSION_LABEL).map((key) => (
+                <button key={key} type="button" className="btn" style={{ padding: '3px 8px', fontSize: '0.7rem' }} onClick={() => togglePermission(r, key)}>
+                  {PERMISSION_LABEL[key]}: {r.permissions?.[key] === false ? 'Off' : 'On'}
+                </button>
+              ))}
+            </div>
           </div>
         ))}
       </div>
@@ -1868,6 +1887,7 @@ function StudentJobsPanel({ onFlash, user }) {
     { key: 'applications', label: 'My Applications' },
     { key: 'interviews', label: 'Interviews' },
     { key: 'offers', label: 'Job Offers' },
+    { key: 'referrals', label: 'Institution Referrals' },
     { key: 'resume', label: 'CV/Resume Builder' },
     { key: 'coverLetters', label: 'Cover Letters' },
     { key: 'portfolio', label: 'Portfolio' },
@@ -1896,6 +1916,7 @@ function StudentJobsPanel({ onFlash, user }) {
       {sub === 'applications' && <MyApplicationsPanel onFlash={onFlash} />}
       {sub === 'interviews' && <InterviewsPanel onFlash={onFlash} />}
       {sub === 'offers' && <JobOffersPanel onFlash={onFlash} />}
+      {sub === 'referrals' && <StudentReferralsPanel onFlash={onFlash} />}
       {sub === 'resume' && <ResumeEditorPanel onFlash={onFlash} />}
       {sub === 'coverLetters' && <CoverLettersPanel />}
       {sub === 'portfolio' && <PortfolioPanel onFlash={onFlash} onNavigate={setSub} />}
@@ -2670,6 +2691,38 @@ function JobOffersPanel({ onFlash }) {
             : '—'
         ])}
         empty="No job offers yet."
+      />
+    </div>
+  );
+}
+
+// Real Institution<->Employer placement referrals (spec: "campus recruitment/student referrals")
+// — never auto-applies; the student reviews and applies themselves.
+function StudentReferralsPanel({ onFlash }) {
+  const [referrals, setReferrals] = useState(null);
+  const [busyId, setBusyId] = useState(null);
+
+  function load() { apiRequest('/institution-employer/referrals/mine').then(setReferrals).catch(() => setReferrals([])); }
+  useEffect(load, []);
+
+  async function apply(id) {
+    setBusyId(id);
+    try { await apiRequest(`/institution-employer/referrals/${id}/apply`, { method: 'POST' }); onFlash('Applied.', 'success'); load(); } catch (err) { onFlash(err.message); } finally { setBusyId(null); }
+  }
+
+  const STATUS_TAG = { referred: 'pending', applied: 'pending', hired: 'approved', declined: 'rejected' };
+
+  return (
+    <div>
+      <p className="text-xs" style={{ color: 'var(--ink-soft)', marginBottom: 12 }}>Your institution recommended you for these — nothing is submitted until you apply yourself.</p>
+      <Table
+        loading={referrals === null}
+        headers={['Job', 'Institution', 'Status', 'Action']}
+        rows={(referrals || []).map((r) => [
+          `${r.job?.title} @ ${r.job?.company}`, r.institution?.name, <Tag status={STATUS_TAG[r.status] || 'pending'} label={r.status} />,
+          r.status === 'referred' ? <button className="btn btn-primary" style={{ padding: '4px 12px', fontSize: '0.78rem' }} disabled={busyId === r._id} onClick={() => apply(r._id)}>Apply</button> : '—'
+        ])}
+        empty="No referrals yet."
       />
     </div>
   );
@@ -8864,6 +8917,7 @@ function InstitutionWorkspace({ tab, user, onFlash, onChanged }) {
   if (tab === 'helpdesk') return <InstitutionHelpDeskPanel onFlash={onFlash} />;
   if (tab === 'aiAssistant') return <InstitutionAiAssistantPanel onFlash={onFlash} />;
   if (tab === 'subscription') return <InstitutionSubscriptionPanel onFlash={onFlash} />;
+  if (tab === 'placement') return <InstitutionPlacementPanel onFlash={onFlash} />;
   return <ComingSoon label={tab} />;
 }
 
@@ -10078,6 +10132,90 @@ function PtmEscalationsPanel({ institutionId, onFlash }) {
           <button type="button" className="btn" style={{ padding: '5px 12px', fontSize: '0.78rem' }} onClick={() => acknowledge(e._id)}>Acknowledge</button>
         </div>
       ))}
+    </div>
+  );
+}
+
+// Institution<->Employer placement office (spec: "placement office, employer partnerships,
+// campus recruitment, student referrals/placement tracking") — request/manage employer
+// partnerships, refer real students to real jobs at partnered employers, track real outcomes.
+function InstitutionPlacementPanel({ onFlash }) {
+  const institution = useMyInstitution(onFlash);
+  const [partnerships, setPartnerships] = useState(null);
+  const [placement, setPlacement] = useState(null);
+  const [employerEmail, setEmployerEmail] = useState('');
+  const [referForm, setReferForm] = useState({ studentId: '', jobId: '' });
+
+  function load(id) {
+    apiRequest('/institution-employer/partnerships/mine').then(setPartnerships).catch(() => setPartnerships([]));
+    apiRequest(`/institution-employer/referrals/institution/${id}`).then(setPlacement).catch(() => setPlacement({ referrals: [], stats: {} }));
+  }
+  useEffect(() => { if (institution) load(institution._id); }, [institution]);
+
+  async function requestPartnership(e) {
+    e.preventDefault();
+    if (!employerEmail.trim()) return;
+    try {
+      await apiRequest('/institution-employer/partnerships', { method: 'POST', body: { institutionId: institution._id, employerEmail: employerEmail.trim() } });
+      onFlash('Partnership request sent.', 'success');
+      setEmployerEmail('');
+      load(institution._id);
+    } catch (err) { onFlash(err.message); }
+  }
+  async function refer(e) {
+    e.preventDefault();
+    if (!referForm.studentId.trim() || !referForm.jobId.trim()) return onFlash('Student User ID and Job ID are required.');
+    try {
+      await apiRequest('/institution-employer/referrals', { method: 'POST', body: { studentId: referForm.studentId.trim(), jobId: referForm.jobId.trim() } });
+      onFlash('Referral created — the student was notified.', 'success');
+      setReferForm({ studentId: '', jobId: '' });
+      load(institution._id);
+    } catch (err) { onFlash(err.message); }
+  }
+
+  const PARTNER_STATUS_TAG = { requested: 'pending', active: 'approved', declined: 'rejected', ended: 'rejected' };
+  const REFERRAL_STATUS_TAG = { referred: 'pending', applied: 'pending', hired: 'approved', declined: 'rejected' };
+
+  if (institution === undefined) return <p role="status" className="admin-notice">Loading...</p>;
+  if (!institution) return <p className="admin-notice">Register an institution first (My Institution tab).</p>;
+
+  return (
+    <div>
+      <h3 className="font-semibold mb-2">Placement Office</h3>
+
+      <div className="admin-section">
+        <div className="admin-section-heading"><div><h2>Employer Partnerships</h2><p>A real, consent-based relationship — referrals only work with an active partnership.</p></div></div>
+        <form onSubmit={requestPartnership} className="flex gap-2 items-end mb-3">
+          <input className="form-input" type="email" placeholder="Employer's account email" value={employerEmail} onChange={(e) => setEmployerEmail(e.target.value)} style={{ minWidth: 240 }} />
+          <button type="submit" className="btn btn-primary">Request Partnership</button>
+        </form>
+        <Table
+          loading={partnerships === null}
+          headers={['Employer', 'Status']}
+          rows={(partnerships || []).map((p) => [p.employer?.companyName || p.employer?.fullName, <Tag status={PARTNER_STATUS_TAG[p.status] || 'pending'} label={p.status} />])}
+          empty="No partnerships yet."
+        />
+      </div>
+
+      <div className="admin-section" style={{ marginTop: 16 }}>
+        <div className="admin-section-heading"><div><h2>Refer a Student</h2><p>Recommends a real student for a real job — the student still applies themselves.</p></div></div>
+        <form onSubmit={refer} className="flex gap-2 items-end mb-3 flex-wrap">
+          <input className="form-input" placeholder="Student's User ID" value={referForm.studentId} onChange={(e) => setReferForm({ ...referForm, studentId: e.target.value })} style={{ minWidth: 200 }} />
+          <input className="form-input" placeholder="Job ID" value={referForm.jobId} onChange={(e) => setReferForm({ ...referForm, jobId: e.target.value })} style={{ minWidth: 200 }} />
+          <button type="submit" className="btn btn-primary">Refer</button>
+        </form>
+        {placement?.stats && <p className="text-xs" style={{ color: 'var(--ink-soft)', marginBottom: 10 }}>Total referrals: {placement.stats.total || 0} · Applied: {placement.stats.applied || 0} · Placed: {placement.stats.placed || 0}</p>}
+        <Table
+          loading={placement === null}
+          headers={['Student', 'Job', 'Status', 'Referred']}
+          rows={(placement?.referrals || []).map((r) => [
+            r.student?.fullName, `${r.job?.title} @ ${r.job?.company}`,
+            <Tag status={REFERRAL_STATUS_TAG[r.status] || 'pending'} label={r.status} />,
+            new Date(r.createdAt).toLocaleDateString()
+          ])}
+          empty="No referrals yet."
+        />
+      </div>
     </div>
   );
 }
@@ -11750,7 +11888,57 @@ function EmployerWorkspace({ tab, user, onFlash, onChanged }) {
   if (tab === 'post') return <EmployerPostJobPanel onFlash={onFlash} />;
   if (tab === 'jobs') return <EmployerJobsPanel onFlash={onFlash} />;
   if (tab === 'employees') return <EmployerEmploymentsPanel onFlash={onFlash} />;
+  if (tab === 'partnerships') return <EmployerPartnershipsPanel onFlash={onFlash} />;
   return <ComingSoon label={tab} />;
+}
+
+// Institution<->Employer partnerships (spec: "employer partnerships, campus recruitment") —
+// employer side: accept/decline a request, or request one with an institution directly.
+function EmployerPartnershipsPanel({ onFlash }) {
+  const [partnerships, setPartnerships] = useState(null);
+  const [instId, setInstId] = useState('');
+
+  function load() { apiRequest('/institution-employer/partnerships/mine').then(setPartnerships).catch((err) => onFlash(err.message)); }
+  useEffect(load, []);
+
+  async function request(e) {
+    e.preventDefault();
+    if (!instId.trim()) return;
+    try {
+      await apiRequest('/institution-employer/partnerships', { method: 'POST', body: { institutionId: instId.trim() } });
+      onFlash('Partnership request sent.', 'success');
+      setInstId('');
+      load();
+    } catch (err) { onFlash(err.message); }
+  }
+  async function respond(id, decision) {
+    try { await apiRequest(`/institution-employer/partnerships/${id}/respond`, { method: 'PATCH', body: { decision } }); onFlash(`Partnership ${decision}.`, 'success'); load(); } catch (err) { onFlash(err.message); }
+  }
+
+  const STATUS_TAG = { requested: 'pending', active: 'approved', declined: 'rejected', ended: 'rejected' };
+
+  return (
+    <div>
+      <h3 className="font-semibold mb-2">Institution Partnerships</h3>
+      <p className="text-xs" style={{ color: 'var(--ink-soft)', marginBottom: 12 }}>A real partnership is required before an institution can refer students to your job postings.</p>
+      <form onSubmit={request} className="flex gap-2 items-end mb-4">
+        <input className="form-input" placeholder="Institution ID" value={instId} onChange={(e) => setInstId(e.target.value)} style={{ minWidth: 240 }} />
+        <button type="submit" className="btn btn-primary">Request Partnership</button>
+      </form>
+      <Table
+        loading={partnerships === null}
+        headers={['Institution', 'Status', 'Action']}
+        rows={(partnerships || []).map((p) => [
+          p.institution?.name, <Tag status={STATUS_TAG[p.status] || 'pending'} label={p.status} />,
+          p.status === 'requested' ? <div className="flex gap-2">
+            <button className="btn btn-primary" style={{ padding: '4px 10px', fontSize: '0.75rem' }} onClick={() => respond(p._id, 'active')}>Accept</button>
+            <button className="btn" style={{ padding: '4px 10px', fontSize: '0.75rem' }} onClick={() => respond(p._id, 'declined')}>Decline</button>
+          </div> : '—'
+        ])}
+        empty="No partnerships yet."
+      />
+    </div>
+  );
 }
 
 // Real employment records for every candidate who accepted an offer (spec: "employee onboarding/
