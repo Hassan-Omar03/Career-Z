@@ -8061,12 +8061,78 @@ function ParentTeacherMessagesPanel({ onFlash, onNavigate }) {
 
 const PTM_STATUS_TAG = { pending: 'pending', confirmed: 'approved', declined: 'rejected', cancelled: 'rejected' };
 
+// Shared: meeting minutes + follow-up action items (spec: "PTM ke baad teacher/parent notes aur
+// follow-up tasks likh sakein") — only editable once the meeting is actually marked completed.
+// Also carries the "mark completed" / (teacher-only) "no-show" actions on a confirmed meeting.
+function PtmMeetingDetails({ meeting, myRole, onFlash, onChanged }) {
+  const [minutes, setMinutes] = useState(meeting.minutes || '');
+  const [savingMinutes, setSavingMinutes] = useState(false);
+  const [actionText, setActionText] = useState('');
+  const [actionAssignee, setActionAssignee] = useState(myRole === 'teacher' ? 'parent' : 'teacher');
+
+  async function markCompleted() {
+    try { await apiRequest(`/ptm/${meeting._id}/complete`, { method: 'PATCH' }); onFlash('Meeting marked completed.', 'success'); onChanged(); } catch (err) { onFlash(err.message); }
+  }
+  async function markNoShow() {
+    try { await apiRequest(`/ptm/${meeting._id}/no-show`, { method: 'PATCH' }); onFlash('Marked as a no-show.', 'success'); onChanged(); } catch (err) { onFlash(err.message); }
+  }
+  async function saveMinutes() {
+    setSavingMinutes(true);
+    try { await apiRequest(`/ptm/${meeting._id}/minutes`, { method: 'PATCH', body: { minutes } }); onFlash('Minutes saved.', 'success'); onChanged(); } catch (err) { onFlash(err.message); } finally { setSavingMinutes(false); }
+  }
+  async function addAction(e) {
+    e.preventDefault();
+    if (!actionText.trim()) return;
+    try { await apiRequest(`/ptm/${meeting._id}/action-items`, { method: 'POST', body: { text: actionText.trim(), assignedTo: actionAssignee } }); setActionText(''); onFlash('Action item added.', 'success'); onChanged(); } catch (err) { onFlash(err.message); }
+  }
+  async function toggleAction(itemId, done) {
+    try { await apiRequest(`/ptm/${meeting._id}/action-items/${itemId}`, { method: 'PATCH', body: { done } }); onChanged(); } catch (err) { onFlash(err.message); }
+  }
+
+  if (meeting.status === 'confirmed') {
+    return (
+      <div className="flex gap-2" style={{ marginTop: 8 }}>
+        <button type="button" className="btn" style={{ padding: '5px 12px', fontSize: '0.75rem' }} onClick={markCompleted}>Mark Completed</button>
+        {myRole === 'teacher' && <button type="button" className="btn" style={{ padding: '5px 12px', fontSize: '0.75rem', color: 'var(--rose)' }} onClick={markNoShow}>Mark No-Show</button>}
+      </div>
+    );
+  }
+  if (meeting.status !== 'completed') return null;
+
+  return (
+    <div style={{ marginTop: 10, paddingTop: 10, borderTop: '1px solid var(--sand-line)' }}>
+      {meeting.noShow && <Tag status="rejected" label="No-show" />}
+      <label className="text-xs" style={{ display: 'block', color: 'var(--ink-soft)', fontWeight: 600, margin: '8px 0 4px' }}>Meeting Minutes</label>
+      <textarea className="form-input" rows={2} value={minutes} onChange={(e) => setMinutes(e.target.value)} placeholder="What was discussed..." />
+      <button type="button" className="btn" style={{ padding: '4px 10px', fontSize: '0.72rem', marginTop: 4 }} disabled={savingMinutes} onClick={saveMinutes}>Save Minutes</button>
+
+      <label className="text-xs" style={{ display: 'block', color: 'var(--ink-soft)', fontWeight: 600, margin: '10px 0 4px' }}>Follow-up Action Items</label>
+      {(meeting.actionItems || []).map((item) => (
+        <div key={item._id} className="flex items-center gap-2" style={{ fontSize: 12, marginBottom: 4 }}>
+          <input type="checkbox" checked={item.done} onChange={(e) => toggleAction(item._id, e.target.checked)} />
+          <span style={{ textDecoration: item.done ? 'line-through' : 'none' }}>{item.text} <em style={{ color: 'var(--ink-soft)' }}>({item.assignedTo})</em></span>
+        </div>
+      ))}
+      <form onSubmit={addAction} className="flex gap-2 items-end flex-wrap" style={{ marginTop: 6 }}>
+        <input className="form-input" placeholder="New action item..." value={actionText} onChange={(e) => setActionText(e.target.value)} style={{ minWidth: 180, flex: 1, fontSize: '0.78rem' }} />
+        <select className="form-select" value={actionAssignee} onChange={(e) => setActionAssignee(e.target.value)} style={{ fontSize: '0.78rem' }}>
+          <option value="parent">Parent</option>
+          <option value="teacher">Teacher</option>
+        </select>
+        <button type="submit" className="btn" style={{ padding: '4px 10px', fontSize: '0.72rem' }}>Add</button>
+      </form>
+    </div>
+  );
+}
+
 function ParentPtmPanel({ onFlash }) {
   const [children, setChildren] = useState(null);
   const [childId, setChildId] = useState('');
   const [teachers, setTeachers] = useState(null);
   const [form, setForm] = useState({ teacherId: '', requestedDate: '', mode: 'video', notes: '' });
   const [meetings, setMeetings] = useState(null);
+  const [recurring, setRecurring] = useState(null);
+  const [expanded, setExpanded] = useState(null);
 
   useEffect(() => {
     apiRequest('/parents/me/dashboard').then((d) => {
@@ -8078,6 +8144,7 @@ function ParentPtmPanel({ onFlash }) {
   useEffect(() => {
     if (!childId) return;
     apiRequest(`/parents/children/${childId}/teachers`).then(setTeachers).catch((err) => onFlash(err.message));
+    apiRequest(`/ptm/recurring/for-child/${childId}`).then(setRecurring).catch(() => setRecurring([]));
   }, [childId, onFlash]);
 
   function loadMeetings() { apiRequest('/ptm/mine').then(setMeetings).catch((err) => onFlash(err.message)); }
@@ -8100,6 +8167,14 @@ function ParentPtmPanel({ onFlash }) {
       loadMeetings();
     } catch (err) { onFlash(err.message); }
   }
+  async function bookRecurring(scheduleId, occurrenceDate) {
+    try {
+      await apiRequest(`/ptm/recurring/${scheduleId}/book`, { method: 'POST', body: { studentId: childId, occurrenceDate } });
+      onFlash('Booked — confirmed immediately.', 'success');
+      loadMeetings();
+      apiRequest(`/ptm/recurring/for-child/${childId}`).then(setRecurring).catch(() => {});
+    } catch (err) { onFlash(err.message); }
+  }
 
   if (children === null) return <p role="status" className="admin-notice">Loading...</p>;
   if (children.length === 0) return <p className="admin-notice">No linked children yet — link one from the "My Children" tab first.</p>;
@@ -8114,6 +8189,22 @@ function ParentPtmPanel({ onFlash }) {
             {children.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
           </select>
         </label>
+      )}
+
+      {recurring && recurring.length > 0 && (
+        <div className="space-y-2 mb-6 border border-[var(--sand-line)] rounded-xl p-3">
+          <strong className="text-sm">Recurring Slots — Book Directly</strong>
+          {recurring.map((s) => (
+            <div key={s._id} className="flex items-center justify-between flex-wrap" style={{ gap: 8, padding: '6px 0' }}>
+              <span className="text-xs">{s.title} ({s.teacher?.fullName}) — {s.frequency}</span>
+              <div className="flex gap-2 flex-wrap">
+                {s.upcoming.slice(0, 2).map((d) => (
+                  <button key={d} type="button" className="btn" style={{ padding: '4px 10px', fontSize: '0.72rem' }} onClick={() => bookRecurring(s._id, d)}>{new Date(d).toLocaleDateString()}</button>
+                ))}
+              </div>
+            </div>
+          ))}
+        </div>
       )}
 
       <form onSubmit={submitRequest} className="space-y-2 max-w-md mb-6 border border-[var(--sand-line)] rounded-xl p-3">
@@ -8135,18 +8226,84 @@ function ParentPtmPanel({ onFlash }) {
         <button type="submit" className="btn btn-primary" disabled={teachers?.length === 0}>Send Request</button>
       </form>
 
+      <div className="space-y-3">
+        {(meetings || []).map((m) => (
+          <div key={m._id} className="border border-[var(--sand-line)] rounded-xl p-3">
+            <div className="flex items-center justify-between flex-wrap" style={{ gap: 8 }}>
+              <div>
+                <strong className="text-sm">{m.teacher?.fullName || '—'}</strong>
+                <p className="text-xs" style={{ color: 'var(--ink-soft)' }}>{m.subject || '—'} · {new Date(m.confirmedDate || m.requestedDate).toLocaleString()} · {m.mode === 'video' ? 'Video' : 'In Person'}</p>
+                {m.status === 'confirmed' && <p className="text-xs mt-1">{m.mode === 'video' ? (m.meetingLink ? <a href={m.meetingLink} target="_blank" rel="noreferrer">Join Link</a> : 'Link pending') : (m.location || 'Location pending')}</p>}
+              </div>
+              <Tag status={PTM_STATUS_TAG[m.status] || 'pending'} label={m.status} />
+            </div>
+            <div className="flex gap-2 flex-wrap" style={{ marginTop: 8 }}>
+              {['pending', 'confirmed'].includes(m.status) && <button className="btn" style={{ padding: '4px 10px', fontSize: '0.75rem', background: 'var(--sand-line)' }} onClick={() => cancelMeeting(m._id)}>Cancel</button>}
+              {['confirmed', 'completed'].includes(m.status) && <button className="btn" style={{ padding: '4px 10px', fontSize: '0.75rem' }} onClick={() => setExpanded(expanded === m._id ? null : m._id)}>{expanded === m._id ? 'Hide' : 'Details'}</button>}
+            </div>
+            {expanded === m._id && <PtmMeetingDetails meeting={m} myRole="parent" onFlash={onFlash} onChanged={loadMeetings} />}
+          </div>
+        ))}
+        {(meetings || []).length === 0 && <p className="admin-notice">No meeting requests yet.</p>}
+      </div>
+    </div>
+  );
+}
+
+function TeacherRecurringPtmPanel({ onFlash }) {
+  const [schedules, setSchedules] = useState(null);
+  const [form, setForm] = useState({ title: '', frequency: 'monthly', dayOfWeek: 1, dayOfMonth: 15, time: '16:00', mode: 'video', meetingLink: '', location: '' });
+
+  function load() { apiRequest('/ptm/recurring/mine').then(setSchedules).catch(() => setSchedules([])); }
+  useEffect(load, []);
+
+  async function create(e) {
+    e.preventDefault();
+    try {
+      await apiRequest('/ptm/recurring', { method: 'POST', body: form });
+      onFlash('Recurring schedule created.', 'success');
+      setForm({ title: '', frequency: 'monthly', dayOfWeek: 1, dayOfMonth: 15, time: '16:00', mode: 'video', meetingLink: '', location: '' });
+      load();
+    } catch (err) { onFlash(err.message); }
+  }
+  async function toggleActive(id, active) {
+    try { await apiRequest(`/ptm/recurring/${id}`, { method: 'PATCH', body: { active } }); load(); } catch (err) { onFlash(err.message); }
+  }
+
+  return (
+    <div className="admin-section" style={{ marginTop: 20 }}>
+      <div className="admin-section-heading"><div><h2>Recurring PTM Schedule</h2><p>Set a repeating slot once — parents book directly into real upcoming dates.</p></div></div>
+      <form onSubmit={create} className="flex gap-2 items-end flex-wrap mb-4">
+        <input className="form-input" placeholder="Title" required value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })} style={{ maxWidth: 180 }} />
+        <select className="form-select" value={form.frequency} onChange={(e) => setForm({ ...form, frequency: e.target.value })}>
+          <option value="weekly">Weekly</option>
+          <option value="monthly">Monthly</option>
+        </select>
+        {form.frequency === 'weekly'
+          ? <select className="form-select" value={form.dayOfWeek} onChange={(e) => setForm({ ...form, dayOfWeek: Number(e.target.value) })}>
+              {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map((d, i) => <option key={d} value={i}>{d}</option>)}
+            </select>
+          : <input className="form-input" type="number" min="1" max="28" value={form.dayOfMonth} onChange={(e) => setForm({ ...form, dayOfMonth: Number(e.target.value) })} style={{ maxWidth: 90 }} placeholder="Day of month" />}
+        <input className="form-input" type="time" value={form.time} onChange={(e) => setForm({ ...form, time: e.target.value })} style={{ maxWidth: 120 }} />
+        <select className="form-select" value={form.mode} onChange={(e) => setForm({ ...form, mode: e.target.value })}>
+          <option value="video">Video</option>
+          <option value="physical">In Person</option>
+        </select>
+        {form.mode === 'video'
+          ? <input className="form-input" placeholder="Meeting link" value={form.meetingLink} onChange={(e) => setForm({ ...form, meetingLink: e.target.value })} style={{ minWidth: 160 }} />
+          : <input className="form-input" placeholder="Location" value={form.location} onChange={(e) => setForm({ ...form, location: e.target.value })} style={{ minWidth: 160 }} />}
+        <button type="submit" className="btn btn-primary">Create</button>
+      </form>
       <Table
-        loading={meetings === null}
-        headers={['Child', 'Teacher', 'Subject', 'Date', 'Mode', 'Status', 'Details', 'Action']}
-        rows={(meetings || []).map((m) => [
-          m.student?.fullName || '—', m.teacher?.fullName || '—', m.subject || '—',
-          new Date(m.confirmedDate || m.requestedDate).toLocaleString(),
-          m.mode === 'video' ? 'Video' : 'In Person',
-          <Tag status={PTM_STATUS_TAG[m.status] || 'pending'} label={m.status} />,
-          m.status === 'confirmed' ? (m.mode === 'video' ? (m.meetingLink ? <a href={m.meetingLink} target="_blank" rel="noreferrer">Join Link</a> : 'Link pending') : (m.location || 'Location pending')) : '—',
-          ['pending', 'confirmed'].includes(m.status) ? <button className="btn" style={{ padding: '4px 10px', fontSize: '0.75rem', background: 'var(--sand-line)' }} onClick={() => cancelMeeting(m._id)}>Cancel</button> : '—'
+        loading={schedules === null}
+        headers={['Title', 'Frequency', 'Time', 'Next Occurrences', 'Status', 'Action']}
+        rows={(schedules || []).map((s) => [
+          s.title, s.frequency, s.time,
+          s.upcoming.slice(0, 2).map((d) => new Date(d).toLocaleDateString()).join(', '),
+          <Tag status={s.active ? 'approved' : 'rejected'} label={s.active ? 'Active' : 'Inactive'} />,
+          <button className="btn" style={{ padding: '4px 10px', fontSize: '0.75rem' }} onClick={() => toggleActive(s._id, !s.active)}>{s.active ? 'Deactivate' : 'Activate'}</button>
         ])}
-        empty="No meeting requests yet."
+        empty="No recurring schedules yet."
       />
     </div>
   );
@@ -8156,6 +8313,7 @@ function TeacherPtmPanel({ onFlash }) {
   const [meetings, setMeetings] = useState(null);
   const [respondFormFor, setRespondFormFor] = useState(null);
   const [respondForm, setRespondForm] = useState({ confirmedDate: '', meetingLink: '', location: '' });
+  const [expanded, setExpanded] = useState(null);
 
   function load() { apiRequest('/ptm/mine').then(setMeetings).catch((err) => onFlash(err.message)); }
   useEffect(load, []);
@@ -8219,12 +8377,20 @@ function TeacherPtmPanel({ onFlash }) {
             {m.status === 'confirmed' && (
               <div className="flex items-center justify-between flex-wrap" style={{ marginTop: 10, gap: 10 }}>
                 <p className="text-xs">{new Date(m.confirmedDate).toLocaleString()} · {m.mode === 'video' ? (m.meetingLink || 'No link set') : (m.location || 'No location set')}</p>
-                <button className="btn" style={{ padding: '5px 12px', fontSize: '0.75rem', background: 'var(--sand-line)' }} onClick={() => cancelMeeting(m._id)}>Cancel</button>
+                <div className="flex gap-2">
+                  <button className="btn" style={{ padding: '5px 12px', fontSize: '0.75rem', background: 'var(--sand-line)' }} onClick={() => cancelMeeting(m._id)}>Cancel</button>
+                  <button className="btn" style={{ padding: '5px 12px', fontSize: '0.75rem' }} onClick={() => setExpanded(expanded === m._id ? null : m._id)}>{expanded === m._id ? 'Hide' : 'Details'}</button>
+                </div>
               </div>
             )}
+            {m.status === 'completed' && (
+              <button className="btn" style={{ padding: '4px 10px', fontSize: '0.75rem', marginTop: 8 }} onClick={() => setExpanded(expanded === m._id ? null : m._id)}>{expanded === m._id ? 'Hide' : 'Minutes & Action Items'}</button>
+            )}
+            {expanded === m._id && <PtmMeetingDetails meeting={m} myRole="teacher" onFlash={onFlash} onChanged={load} />}
           </div>
         ))}
       </div>
+      <TeacherRecurringPtmPanel onFlash={onFlash} />
     </div>
   );
 }
@@ -9880,6 +10046,38 @@ function InstitutionParentsPanel({ onFlash }) {
           {disputes.filter((d) => d.status === 'pending').length === 0 && <p className="text-sm" style={{ color: 'var(--ink-soft)' }}>No pending disputes.</p>}
         </div>
       )}
+
+      <PtmEscalationsPanel institutionId={institution._id} onFlash={onFlash} />
+    </div>
+  );
+}
+
+// Spec: "Automatic escalation — parent baar baar PTM miss kare to institution ko automatically
+// flag ho" — this is the institution's review queue for those real, reactively-created flags.
+function PtmEscalationsPanel({ institutionId, onFlash }) {
+  const [escalations, setEscalations] = useState(null);
+  function load() { apiRequest(`/ptm/escalations/${institutionId}`).then(setEscalations).catch(() => setEscalations([])); }
+  useEffect(load, [institutionId]);
+
+  async function acknowledge(id) {
+    try { await apiRequest(`/ptm/escalations/${id}/acknowledge`, { method: 'PATCH' }); onFlash('Acknowledged.', 'success'); load(); } catch (err) { onFlash(err.message); }
+  }
+
+  const open = (escalations || []).filter((e) => e.status === 'open');
+  if (open.length === 0) return null;
+
+  return (
+    <div className="admin-section" style={{ marginTop: 16 }}>
+      <div className="admin-section-heading"><div><h2>PTM Engagement Flags</h2><p>A parent has repeatedly missed or cancelled Parent-Teacher Meetings.</p></div></div>
+      {open.map((e) => (
+        <div key={e._id} className="flex items-center justify-between flex-wrap" style={{ gap: 8, padding: '10px 0', borderBottom: '1px solid var(--sand-line)' }}>
+          <div>
+            <strong className="text-sm">{e.parent?.fullName}</strong>
+            <p className="text-xs" style={{ color: 'var(--ink-soft)' }}>{e.reason}</p>
+          </div>
+          <button type="button" className="btn" style={{ padding: '5px 12px', fontSize: '0.78rem' }} onClick={() => acknowledge(e._id)}>Acknowledge</button>
+        </div>
+      ))}
     </div>
   );
 }
