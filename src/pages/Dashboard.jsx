@@ -10666,6 +10666,10 @@ function InstitutionAdmissionsPanel({ onFlash }) {
   const institution = useMyInstitution(onFlash);
   const [apps, setApps] = useState(null);
   const [form, setForm] = useState({ applicantName: '', applicantEmail: '', program: '' });
+  const [testFormFor, setTestFormFor] = useState(null);
+  const [testForm, setTestForm] = useState({ date: '', subject: '' });
+  const [interviewFormFor, setInterviewFormFor] = useState(null);
+  const [interviewForm, setInterviewForm] = useState({ date: '', mode: 'video' });
 
   function load(instId) {
     apiRequest(`/institution-applications/institution/${instId}`).then(setApps).catch((err) => onFlash(err.message));
@@ -10702,6 +10706,8 @@ function InstitutionAdmissionsPanel({ onFlash }) {
     try {
       await apiRequest(`/institution-applications/${id}/test`, { method: 'PATCH', body: { scheduledAt, subject } });
       onFlash('Admission test scheduled.', 'success');
+      setTestFormFor(null);
+      setTestForm({ date: '', subject: '' });
       load(institution._id);
     } catch (err) { onFlash(err.message); }
   }
@@ -10710,6 +10716,8 @@ function InstitutionAdmissionsPanel({ onFlash }) {
     try {
       await apiRequest(`/institution-applications/${id}/interview`, { method: 'PATCH', body: { scheduledAt, mode } });
       onFlash('Interview scheduled.', 'success');
+      setInterviewFormFor(null);
+      setInterviewForm({ date: '', mode: 'video' });
       load(institution._id);
     } catch (err) { onFlash(err.message); }
   }
@@ -10734,10 +10742,31 @@ function InstitutionAdmissionsPanel({ onFlash }) {
         rows={(apps || []).map((a) => [
           a.applicant?.fullName, a.program, a.source === 'front_desk' ? 'Offline' : 'Online',
           a.admissionTest?.scheduledAt ? new Date(a.admissionTest.scheduledAt).toLocaleDateString() + (a.admissionTest.score != null ? ` (${a.admissionTest.score}/${a.admissionTest.maxScore})` : '') : (
-            <button className="btn" style={{ padding: '4px 8px', fontSize: '0.72rem' }} onClick={() => { const d = prompt('Test date/time (YYYY-MM-DD HH:MM)'); if (d) scheduleTest(a._id, new Date(d).toISOString(), prompt('Subject') || ''); }}>Schedule Test</button>
+            testFormFor === a._id ? (
+              <div style={{ display: 'grid', gap: 6, minWidth: 160 }}>
+                <input type="datetime-local" className="form-input" style={{ padding: '4px 8px', fontSize: '0.72rem' }} value={testForm.date} onChange={(e) => setTestForm({ ...testForm, date: e.target.value })} />
+                <input className="form-input" placeholder="Subject" style={{ padding: '4px 8px', fontSize: '0.72rem' }} value={testForm.subject} onChange={(e) => setTestForm({ ...testForm, subject: e.target.value })} />
+                <div className="flex gap-1">
+                  <button className="btn btn-primary" style={{ padding: '4px 10px', fontSize: '0.72rem' }} disabled={!testForm.date} onClick={() => scheduleTest(a._id, new Date(testForm.date).toISOString(), testForm.subject)}>Save</button>
+                  <button className="btn" style={{ padding: '4px 10px', fontSize: '0.72rem' }} onClick={() => setTestFormFor(null)}>Cancel</button>
+                </div>
+              </div>
+            ) : <button className="btn" style={{ padding: '4px 8px', fontSize: '0.72rem' }} onClick={() => setTestFormFor(a._id)}>Schedule Test</button>
           ),
           a.interview?.scheduledAt ? new Date(a.interview.scheduledAt).toLocaleDateString() : (
-            <button className="btn" style={{ padding: '4px 8px', fontSize: '0.72rem' }} onClick={() => { const d = prompt('Interview date/time (YYYY-MM-DD HH:MM)'); if (d) scheduleInterview(a._id, new Date(d).toISOString(), 'video'); }}>Schedule Interview</button>
+            interviewFormFor === a._id ? (
+              <div style={{ display: 'grid', gap: 6, minWidth: 160 }}>
+                <input type="datetime-local" className="form-input" style={{ padding: '4px 8px', fontSize: '0.72rem' }} value={interviewForm.date} onChange={(e) => setInterviewForm({ ...interviewForm, date: e.target.value })} />
+                <select className="form-select" style={{ padding: '4px 8px', fontSize: '0.72rem' }} value={interviewForm.mode} onChange={(e) => setInterviewForm({ ...interviewForm, mode: e.target.value })}>
+                  <option value="video">Video</option>
+                  <option value="physical">Physical</option>
+                </select>
+                <div className="flex gap-1">
+                  <button className="btn btn-primary" style={{ padding: '4px 10px', fontSize: '0.72rem' }} disabled={!interviewForm.date} onClick={() => scheduleInterview(a._id, new Date(interviewForm.date).toISOString(), interviewForm.mode)}>Save</button>
+                  <button className="btn" style={{ padding: '4px 10px', fontSize: '0.72rem' }} onClick={() => setInterviewFormFor(null)}>Cancel</button>
+                </div>
+              </div>
+            ) : <button className="btn" style={{ padding: '4px 8px', fontSize: '0.72rem' }} onClick={() => setInterviewFormFor(a._id)}>Schedule Interview</button>
           ),
           <Tag status={a.status === 'accepted' ? 'approved' : a.status === 'rejected' ? 'rejected' : 'pending'} label={a.status.replace('_', ' ')} />,
           ['accepted', 'rejected'].includes(a.status) ? '—' : (
