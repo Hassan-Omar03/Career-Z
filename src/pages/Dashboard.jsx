@@ -1,4 +1,4 @@
-import {
+﻿import {
   FaArrowUpRightFromSquare, FaBookmark, FaRegBookmark, FaCircle, FaXmark, FaShieldHalved, FaUsers, FaBuildingColumns, FaClipboardCheck, FaUser, FaUserShield,
   FaGauge, FaBuilding, FaChalkboardUser, FaBookOpen, FaClipboardList, FaAward, FaFileLines,
   FaGraduationCap, FaBriefcase, FaStore, FaWallet, FaSackDollar, FaSchool, FaChartLine,
@@ -5327,11 +5327,12 @@ function StudentAttendancePanel({ onFlash }) {
       <h3 className="font-semibold mb-2 mt-6">My Attendance History</h3>
       <Table
         loading={attendance === null}
-        headers={['Date', 'Status', 'Method']}
+        headers={['Course', 'Date', 'Status', 'Marked through']}
         rows={(attendance || []).map((a) => [
+          a.course?.title || 'Course',
           new Date(a.date).toLocaleDateString(),
-          <Tag status={a.records?.[0]?.status === 'present' ? 'approved' : a.records?.[0]?.status === 'absent' ? 'rejected' : 'pending'} />,
-          a.records?.[0]?.method || 'manual'
+          <Tag status={a.records?.[0]?.status === 'present' ? 'approved' : a.records?.[0]?.status === 'absent' ? 'rejected' : 'pending'} label={(a.records?.[0]?.status || 'unknown').replace('_', ' ')} />,
+          ({ manual: 'Teacher marked', qr: 'Teacher QR check-in', face: 'Face verified by teacher', gps: 'Location check-in', webauthn: 'Device biometric' })[a.records?.[0]?.method] || 'Teacher marked'
         ])}
         empty="No attendance recorded yet."
       />
@@ -5346,11 +5347,17 @@ function StudentAttendancePanel({ onFlash }) {
 function StudentAttendanceCheckInPanel({ onFlash, onMarked }) {
   const [courses, setCourses] = useState([]);
   const [courseId, setCourseId] = useState('');
-  const [mode, setMode] = useState('qr');
+  const [mode, setMode] = useState('');
   const [scanBusy, setScanBusy] = useState(false);
+  const [sessionCode, setSessionCode] = useState('');
   const [gpsBusy, setGpsBusy] = useState(false);
   const [bioCreds, setBioCreds] = useState(null);
   const [bioBusy, setBioBusy] = useState(false);
+  const [faceReady, setFaceReady] = useState(false);
+  const [faceBusy, setFaceBusy] = useState(false);
+  const [faceRequestStatus, setFaceRequestStatus] = useState('');
+  const faceVideoRef = useRef(null);
+  const faceApiRef = useRef(null);
   const today = new Date().toISOString().slice(0, 10);
 
   useEffect(() => {
@@ -5374,6 +5381,11 @@ function StudentAttendanceCheckInPanel({ onFlash, onMarked }) {
     } catch (err) { onFlash(err.message); } finally { setTimeout(() => setScanBusy(false), 2000); }
   }
 
+  async function submitSessionCode(e) {
+    e.preventDefault();
+    if (sessionCode.trim()) await onQrScan(sessionCode.trim());
+  }
+
   function checkInGps() {
     if (!courseId) return onFlash('Select a course first.');
     if (!navigator.geolocation) return onFlash('Geolocation is not supported on this device/browser.');
@@ -5388,6 +5400,43 @@ function StudentAttendanceCheckInPanel({ onFlash, onMarked }) {
         onMarked?.();
       } catch (err) { onFlash(err.message); } finally { setGpsBusy(false); }
     }, () => { onFlash("Couldn't get your location — check your browser's location permission."); setGpsBusy(false); });
+  }
+
+  useEffect(() => {
+    if (mode !== 'face') return;
+    let stream = null;
+    let cancelled = false;
+    (async () => {
+      try {
+        const { loadFaceModels, faceapi } = await import('../utils/faceApi');
+        await loadFaceModels();
+        faceApiRef.current = faceapi;
+        if (cancelled) return;
+        stream = await navigator.mediaDevices.getUserMedia({ video: {} });
+        if (cancelled) { stream.getTracks().forEach((t) => t.stop()); return; }
+        faceVideoRef.current.srcObject = stream;
+        await faceVideoRef.current.play();
+        setFaceReady(true);
+      } catch (err) { onFlash(err.message); }
+    })();
+    return () => { cancelled = true; stream?.getTracks().forEach((t) => t.stop()); setFaceReady(false); };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [mode]);
+
+  async function requestFaceCheckIn() {
+    if (!courseId) return onFlash('Select a course first.');
+    if (!faceReady || !faceApiRef.current) return onFlash('Camera and face models are still loading.');
+    setFaceBusy(true);
+    try {
+      const faceapi = faceApiRef.current;
+      const detection = await faceapi.detectSingleFace(faceVideoRef.current, new faceapi.TinyFaceDetectorOptions()).withFaceLandmarks().withFaceDescriptor();
+      if (!detection) throw new Error('No face detected — face the camera in good lighting and try again.');
+      const { descriptor: enrolledDescriptor } = await apiRequest('/students/me/face-descriptor');
+      const distance = faceapi.euclideanDistance(detection.descriptor, new Float32Array(enrolledDescriptor));
+      const res = await apiRequest('/students/me/attendance/face-checkin-request', { method: 'POST', body: { course: courseId, date: today, distance } });
+      setFaceRequestStatus(res.status === 'approved' ? 'Already marked present today.' : 'Request sent — waiting for your teacher to confirm.');
+      onFlash(res.status === 'approved' ? 'Already marked present today.' : 'Request sent — your teacher will confirm it.', 'success');
+    } catch (err) { onFlash(err.message); } finally { setFaceBusy(false); }
   }
 
   async function registerBiometric() {
@@ -5425,18 +5474,33 @@ function StudentAttendanceCheckInPanel({ onFlash, onMarked }) {
         <span className="text-xs" style={{ display: 'block', color: 'var(--ink-soft)', fontWeight: 600, marginBottom: 6 }}>Course</span>
         <CustomSelect value={courseId} onChange={setCourseId} ariaLabel="Select course" options={courses.map((c) => ({ value: c._id, label: c.title }))} />
       </label>
-      <div className="flex gap-2 mb-4">
-        <button type="button" className={mode === 'qr' ? 'btn btn-primary' : 'btn'} style={{ padding: '6px 16px', fontSize: '0.8rem' }} onClick={() => setMode('qr')}>📷 Scan QR</button>
+      <div className="admin-notice" style={{ marginBottom: 14 }}><strong>Face attendance:</strong> If you're physically in class, your teacher selects your saved photo and verifies your live face from their own camera. If you're remote/online, use "Face (Remote)" below instead — your own camera verifies you and sends your teacher a request to confirm.</div>
+      <p className="text-xs mb-2" style={{ color: 'var(--ink-soft)', fontWeight: 700 }}>Self check-in options (use only when your teacher enables one):</p>
+      <div className="flex gap-2 mb-4 flex-wrap">
+        <button type="button" className={mode === 'qr' ? 'btn btn-primary' : 'btn'} style={{ padding: '6px 16px', fontSize: '0.8rem' }} onClick={() => setMode(mode === 'qr' ? '' : 'qr')}>▣ Scan Teacher QR</button>
         <button type="button" className={mode === 'gps' ? 'btn btn-primary' : 'btn'} style={{ padding: '6px 16px', fontSize: '0.8rem' }} onClick={() => setMode('gps')}>📍 GPS</button>
+        <button type="button" className={mode === 'face' ? 'btn btn-primary' : 'btn'} style={{ padding: '6px 16px', fontSize: '0.8rem' }} onClick={() => { setMode(mode === 'face' ? '' : 'face'); setFaceRequestStatus(''); }}>😊 Face (Remote)</button>
         <button type="button" className={mode === 'bio' ? 'btn btn-primary' : 'btn'} style={{ padding: '6px 16px', fontSize: '0.8rem' }} onClick={() => setMode('bio')}>🔒 Biometric</button>
       </div>
 
-      {mode === 'qr' && <QrScanner onScan={onQrScan} hint="Point your camera at your teacher's attendance QR code (shown on their screen)." />}
+      {mode === 'qr' && <div><p className="text-xs mb-2" style={{ color: 'var(--ink-soft)' }}>QR on another screen? Scan it. Using the same device or attending online? Enter the code shared by your teacher.</p><form onSubmit={submitSessionCode} className="flex gap-2 mb-3 flex-wrap"><input className="form-input" placeholder="Enter teacher session code" value={sessionCode} onChange={(e) => setSessionCode(e.target.value.toUpperCase())} style={{ maxWidth: 260 }} /><button type="submit" className="btn btn-primary" disabled={!sessionCode.trim() || scanBusy}>{scanBusy ? 'Checking...' : 'Join with Code'}</button></form><details><summary className="text-xs" style={{ cursor: 'pointer', fontWeight: 700 }}>Or scan QR with camera</summary><div style={{ marginTop: 10 }}><QrScanner onScan={onQrScan} hint="Point the camera at the QR code on your teacher's screen." /></div></details></div>}
 
       {mode === 'gps' && (
         <div>
           <p className="text-xs mb-3" style={{ color: 'var(--ink-soft)' }}>Only works if your teacher has enabled GPS attendance for this course and you're within range.</p>
           <button type="button" className="btn btn-primary" onClick={checkInGps} disabled={gpsBusy}>{gpsBusy ? 'Checking location...' : 'Check In via Location'}</button>
+        </div>
+      )}
+
+      {mode === 'face' && (
+        <div>
+          <p className="text-xs mb-3" style={{ color: 'var(--ink-soft)' }}>Requires face enrollment first (Digital Student ID page). Your camera compares your live face against your own enrolled face — the result is sent to your teacher as a request, not marked automatically.</p>
+          <div style={{ position: 'relative', maxWidth: 320, marginBottom: 10 }}>
+            <video ref={faceVideoRef} playsInline muted style={{ width: '100%', borderRadius: 14, background: '#000' }} />
+            {!faceReady && <p className="text-xs" style={{ color: 'var(--ink-soft)', marginTop: 6 }}>Loading face models and starting camera...</p>}
+          </div>
+          <button type="button" className="btn btn-primary" onClick={requestFaceCheckIn} disabled={!faceReady || faceBusy}>{faceBusy ? 'Verifying...' : 'Verify My Face & Send Request'}</button>
+          {faceRequestStatus && <p className="text-xs mt-2" style={{ color: 'var(--forest)', fontWeight: 600 }}>{faceRequestStatus}</p>}
         </div>
       )}
 
@@ -7022,6 +7086,7 @@ function TeacherQrAttendancePanel({ courseId, date, onFlash }) {
             <img src={session.qrDataUrl} alt="Attendance session QR code" style={{ width: 260, height: 260, margin: '0 auto', borderRadius: 12, border: '1px solid var(--sand-line)' }} />
           )}
           <p className="text-xs mt-2" style={{ color: 'var(--ink-soft)' }}>Expires {new Date(session.expiresAt).toLocaleTimeString()} — students scan this with their own device camera.</p>
+          {!expired && <div className="admin-notice mt-2"><strong>Same device / online class:</strong> share code <strong style={{ fontSize: '1.1rem', letterSpacing: 2 }}>{session.sessionCode}</strong><button type="button" className="btn ml-2" style={{ padding: '3px 9px', fontSize: '0.7rem' }} onClick={() => navigator.clipboard?.writeText(session.sessionCode)}>Copy Code</button></div>}
           <button type="button" className="btn mt-3" onClick={() => { setSession(null); setLive(null); }}>{expired ? 'New Session' : 'End / Start New'}</button>
           <h4 className="font-semibold mt-5 mb-2" style={{ fontSize: '0.85rem' }}>Checked in ({live?.checkedIn?.length || 0})</h4>
           {!live || live.checkedIn.length === 0 ? (
@@ -7095,19 +7160,35 @@ function TeacherFaceAttendancePanel({ courseId, date, onFlash }) {
   const [enrolled, setEnrolled] = useState(null);
   const [ready, setReady] = useState(false);
   const [scans, setScans] = useState([]);
+  const [selectedId, setSelectedId] = useState('');
+  const [verifying, setVerifying] = useState(false);
   const cancelledRef = useRef(false);
-  const rafRef = useRef(null);
-  const lastMatchRef = useRef({});
+  const faceApiRef = useRef(null);
+  const [remoteRequests, setRemoteRequests] = useState([]);
+  const [remoteBusyId, setRemoteBusyId] = useState(null);
 
   useEffect(() => {
     apiRequest(`/courses/${courseId}/face-descriptors`).then(setEnrolled).catch((err) => onFlash(err.message));
   }, [courseId, onFlash]);
 
-  async function markPresent(studentId, fullName) {
+  function loadRemoteRequests() {
+    apiRequest(`/teachers/me/attendance/face-requests?course=${courseId}&date=${date}`).then(setRemoteRequests).catch(() => setRemoteRequests([]));
+  }
+  useEffect(loadRemoteRequests, [courseId, date]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  async function reviewRemoteRequest(id, decision) {
+    setRemoteBusyId(id);
     try {
-      const result = await apiRequest('/teachers/me/attendance/face-scan', { method: 'POST', body: { studentId, course: courseId, date } });
-      setScans((prev) => [{ ...result, at: new Date() }, ...prev]);
-    } catch (err) { onFlash(err.message || `Could not mark ${fullName}.`); }
+      await apiRequest(`/teachers/me/attendance/face-requests/${id}`, { method: 'PATCH', body: { decision } });
+      onFlash(`Request ${decision}.`, 'success');
+      loadRemoteRequests();
+    } catch (err) { onFlash(err.message); } finally { setRemoteBusyId(null); }
+  }
+
+  async function markPresent(studentId, fullName) {
+    const result = await apiRequest('/teachers/me/attendance/face-scan', { method: 'POST', body: { studentId, course: courseId, date } });
+    setScans((prev) => [{ ...result, at: new Date() }, ...prev]);
+    return result;
   }
 
   useEffect(() => {
@@ -7118,6 +7199,7 @@ function TeacherFaceAttendancePanel({ courseId, date, onFlash }) {
     async function start() {
       const { loadFaceModels, faceapi } = await import('../utils/faceApi');
       await loadFaceModels();
+      faceApiRef.current = faceapi;
       if (cancelledRef.current) return;
 
       stream = await navigator.mediaDevices.getUserMedia({ video: {} });
@@ -7125,40 +7207,32 @@ function TeacherFaceAttendancePanel({ courseId, date, onFlash }) {
       videoRef.current.srcObject = stream;
       await videoRef.current.play();
       setReady(true);
-
-      const byId = Object.fromEntries(enrolled.map((e) => [e.studentId, e.fullName]));
-      const labeled = enrolled.map((e) => new faceapi.LabeledFaceDescriptors(e.studentId, [new Float32Array(e.descriptor)]));
-      const matcher = new faceapi.FaceMatcher(labeled, 0.55);
-
-      async function loop() {
-        if (cancelledRef.current) return;
-        try {
-          const detections = await faceapi.detectAllFaces(videoRef.current, new faceapi.TinyFaceDetectorOptions()).withFaceLandmarks().withFaceDescriptors();
-          detections.forEach((d) => {
-            const match = matcher.findBestMatch(d.descriptor);
-            if (match.label !== 'unknown') {
-              const now = Date.now();
-              if (now - (lastMatchRef.current[match.label] || 0) > 4000) {
-                lastMatchRef.current[match.label] = now;
-                markPresent(match.label, byId[match.label]);
-              }
-            }
-          });
-        } catch { /* transient detection hiccup — just try again next frame */ }
-        if (!cancelledRef.current) rafRef.current = requestAnimationFrame(loop);
-      }
-      loop();
     }
 
     start().catch((err) => onFlash(err.message));
     return () => {
       cancelledRef.current = true;
-      cancelAnimationFrame(rafRef.current);
       stream?.getTracks().forEach((t) => t.stop());
       setReady(false);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [enrolled]);
+
+  async function verifySelectedStudent() {
+    const student = enrolled.find((entry) => String(entry.studentId) === String(selectedId));
+    if (!student) return onFlash('Select a student first.');
+    if (!ready || !faceApiRef.current) return onFlash('Camera and face models are still loading.');
+    setVerifying(true);
+    try {
+      const faceapi = faceApiRef.current;
+      const detection = await faceapi.detectSingleFace(videoRef.current, new faceapi.TinyFaceDetectorOptions()).withFaceLandmarks().withFaceDescriptor();
+      if (!detection) throw new Error('No face detected. Ask the selected student to face the camera in good lighting.');
+      const distance = faceapi.euclideanDistance(detection.descriptor, new Float32Array(student.descriptor));
+      if (distance > 0.55) throw new Error(`Live face does not match ${student.fullName}. Try again with better lighting.`);
+      await markPresent(student.studentId, student.fullName);
+      onFlash(`${student.fullName} verified from live camera and marked present.`, 'success');
+    } catch (err) { onFlash(err.message); } finally { setVerifying(false); }
+  }
 
   if (enrolled === null) return <p role="status" className="admin-notice">Loading...</p>;
   if (enrolled.length === 0) {
@@ -7167,9 +7241,28 @@ function TeacherFaceAttendancePanel({ courseId, date, onFlash }) {
 
   return (
     <div className="card" style={{ padding: 20, marginBottom: 28 }}>
-      <div style={{ position: 'relative', maxWidth: 420 }}>
-        <video ref={videoRef} playsInline muted style={{ width: '100%', borderRadius: 14, background: '#000' }} />
-        {!ready && <p className="text-xs" style={{ color: 'var(--ink-soft)', marginTop: 6 }}>Loading face models and starting camera...</p>}
+      <p className="text-xs mb-3" style={{ color: 'var(--ink-soft)' }}>Select the student's saved photo, place that student in front of the live camera, then verify. Attendance is marked only after the live face matches the selected student's enrolled face.</p>
+      <div className="grid grid-cols-1 md:grid-cols-2" style={{ gap: 18 }}>
+        <div>
+          <h4 className="font-semibold mb-2" style={{ fontSize: '0.85rem' }}>1. Select student</h4>
+          <div className="flex flex-wrap" style={{ gap: 10 }}>
+            {enrolled.map((student) => {
+              const selected = String(selectedId) === String(student.studentId);
+              return <button key={student.studentId} type="button" onClick={() => setSelectedId(student.studentId)} style={{ width: 112, padding: 8, borderRadius: 12, border: selected ? '2px solid var(--emerald)' : '1px solid var(--sand-line)', background: selected ? 'var(--sand)' : '#fff', textAlign: 'center' }}>
+                {student.profilePhoto ? <img src={student.profilePhoto} alt={student.fullName} style={{ width: 72, height: 72, borderRadius: 10, objectFit: 'cover', margin: '0 auto 6px' }} /> : <div style={{ width: 72, height: 72, borderRadius: 10, margin: '0 auto 6px', background: 'var(--sand)', display: 'grid', placeItems: 'center', fontSize: 24, fontWeight: 700 }}>{student.fullName?.[0]}</div>}
+                <span className="text-xs" style={{ fontWeight: 700 }}>{student.fullName}</span>
+              </button>;
+            })}
+          </div>
+        </div>
+        <div>
+          <h4 className="font-semibold mb-2" style={{ fontSize: '0.85rem' }}>2. Verify live face</h4>
+          <div style={{ position: 'relative', maxWidth: 420 }}>
+            <video ref={videoRef} playsInline muted style={{ width: '100%', borderRadius: 14, background: '#000' }} />
+            {!ready && <p className="text-xs" style={{ color: 'var(--ink-soft)', marginTop: 6 }}>Loading face models and starting camera...</p>}
+          </div>
+          <button type="button" className="btn btn-primary mt-2" disabled={!selectedId || !ready || verifying} onClick={verifySelectedStudent}>{verifying ? 'Verifying...' : 'Verify Selected Student & Mark Present'}</button>
+        </div>
       </div>
       <p className="text-xs" style={{ color: 'var(--ink-soft)', margin: '8px 0' }}>{enrolled.length} student{enrolled.length > 1 ? 's' : ''} enrolled for face attendance in this course.</p>
       <h4 className="font-semibold mt-2 mb-2" style={{ fontSize: '0.85rem' }}>Scanned this session</h4>
@@ -7181,6 +7274,29 @@ function TeacherFaceAttendancePanel({ courseId, date, onFlash }) {
             <li key={i}>{s.alreadyMarked ? '↺' : '✓'} {s.studentName} — {s.at.toLocaleTimeString()}{s.alreadyMarked ? ' (already marked)' : ''}</li>
           ))}
         </ul>
+      )}
+
+      <h4 className="font-semibold mt-4 mb-2" style={{ fontSize: '0.85rem' }}>Remote check-in requests</h4>
+      <p className="text-xs mb-2" style={{ color: 'var(--ink-soft)' }}>Students not physically here verified their own live face against their enrolled face — review before it counts as attendance.</p>
+      {remoteRequests.length === 0 ? (
+        <p className="text-xs" style={{ color: 'var(--ink-soft)' }}>No pending remote requests for this date.</p>
+      ) : (
+        <div style={{ display: 'grid', gap: 8 }}>
+          {remoteRequests.map((r) => (
+            <div key={r._id} className="flex items-center justify-between flex-wrap" style={{ gap: 8, padding: '8px 12px', borderRadius: 10, background: 'var(--sand)' }}>
+              <span className="text-sm">
+                <strong>{r.student?.fullName}</strong>{' '}
+                <span style={{ color: r.distance <= 0.55 ? 'var(--emerald)' : 'var(--rose)', fontWeight: 600 }}>
+                  {r.distance <= 0.55 ? 'Strong match' : 'Weak match'} (distance {r.distance.toFixed(2)})
+                </span>
+              </span>
+              <div className="flex gap-2">
+                <button type="button" className="btn btn-primary" style={{ padding: '4px 12px', fontSize: '0.78rem' }} disabled={remoteBusyId === r._id} onClick={() => reviewRemoteRequest(r._id, 'approved')}>Approve</button>
+                <button type="button" className="btn" style={{ padding: '4px 12px', fontSize: '0.78rem' }} disabled={remoteBusyId === r._id} onClick={() => reviewRemoteRequest(r._id, 'rejected')}>Reject</button>
+              </div>
+            </div>
+          ))}
+        </div>
       )}
     </div>
   );
