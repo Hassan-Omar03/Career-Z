@@ -48,6 +48,20 @@
 .admin-notice { padding: 16px; margin-bottom: 20px; border-radius: 12px; background: var(--sand); border: 1px solid var(--sand-line); }
 .admin-notice.error { border-color: var(--rose); }
 .admin-notice button { text-decoration: underline; margin-inline-start: 8px; cursor: pointer; }
+
+/* A save/action confirmation needs to stay visible regardless of scroll position — long forms
+   (e.g. Teaching Profile) put their submit button far below the fold, so an inline banner at the
+   top of the page is invisible when it fires. Fixed + high z-index keeps it on screen either way. */
+.dash-toast {
+  position: fixed; top: 20px; right: 20px; z-index: 2000; max-width: 360px;
+  padding: 14px 20px; border-radius: 12px; font-size: 0.85rem; font-weight: 600;
+  box-shadow: 0 8px 24px rgba(11, 20, 16, 0.18);
+  background: var(--forest, #0F3D2E); color: #fff; border: 1px solid transparent;
+}
+.dash-toast.error { background: var(--rose, #b42318); }
+@media (max-width: 640px) {
+  .dash-toast { left: 16px; right: 16px; top: 12px; max-width: none; }
+}
 .admin-layout a:focus-visible, .admin-layout button:focus-visible { outline: 3px solid var(--emerald); outline-offset: 3px; }
 @media (max-width: 900px) {
   .admin-layout .dash-main { padding: 24px; }

@@ -466,7 +466,7 @@ export default function Dashboard() {
         </nav>
       )}
 
-      {msg && <div role="status" className={`admin-notice ${msg.type}`}>{msg.text}</div>}
+      {msg && <div role="status" className={`dash-toast ${msg.type}`}>{msg.text}</div>}
 
       <div className={`workspace-content${activeWorkspace === 'student' ? ' student-page-content' : ''}`} data-page={activeTab} key={`${activeWorkspace}-${activeTab}`}>
         {activeTab === 'messages' && <MessagesPanel onFlash={flash} />}
