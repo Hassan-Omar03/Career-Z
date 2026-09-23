@@ -10670,6 +10670,8 @@ function InstitutionAdmissionsPanel({ onFlash }) {
   const [testForm, setTestForm] = useState({ date: '', subject: '' });
   const [interviewFormFor, setInterviewFormFor] = useState(null);
   const [interviewForm, setInterviewForm] = useState({ date: '', mode: 'video' });
+  const [scoreFormFor, setScoreFormFor] = useState(null);
+  const [scoreForm, setScoreForm] = useState({ score: '', maxScore: '' });
 
   function load(instId) {
     apiRequest(`/institution-applications/institution/${instId}`).then(setApps).catch((err) => onFlash(err.message));
@@ -10712,6 +10714,16 @@ function InstitutionAdmissionsPanel({ onFlash }) {
     } catch (err) { onFlash(err.message); }
   }
 
+  async function recordTestScore(id, score, maxScore) {
+    try {
+      await apiRequest(`/institution-applications/${id}/test`, { method: 'PATCH', body: { score: Number(score), maxScore: Number(maxScore) } });
+      onFlash('Test score recorded.', 'success');
+      setScoreFormFor(null);
+      setScoreForm({ score: '', maxScore: '' });
+      load(institution._id);
+    } catch (err) { onFlash(err.message); }
+  }
+
   async function scheduleInterview(id, scheduledAt, mode) {
     try {
       await apiRequest(`/institution-applications/${id}/interview`, { method: 'PATCH', body: { scheduledAt, mode } });
@@ -10741,7 +10753,22 @@ function InstitutionAdmissionsPanel({ onFlash }) {
         headers={['Applicant', 'Program', 'Source', 'Test', 'Interview', 'Status', 'Actions']}
         rows={(apps || []).map((a) => [
           a.applicant?.fullName, a.program, a.source === 'front_desk' ? 'Offline' : 'Online',
-          a.admissionTest?.scheduledAt ? new Date(a.admissionTest.scheduledAt).toLocaleDateString() + (a.admissionTest.score != null ? ` (${a.admissionTest.score}/${a.admissionTest.maxScore})` : '') : (
+          a.admissionTest?.scheduledAt ? (
+            <div>
+              <div>{new Date(a.admissionTest.scheduledAt).toLocaleString(undefined, { dateStyle: 'medium', timeStyle: 'short' })}{a.admissionTest.subject ? ` · ${a.admissionTest.subject}` : ''}</div>
+              {a.admissionTest.score != null ? (
+                <div style={{ fontWeight: 600 }}>Score: {a.admissionTest.score}/{a.admissionTest.maxScore}</div>
+              ) : scoreFormFor === a._id ? (
+                <div className="flex gap-1 items-center" style={{ marginTop: 4 }}>
+                  <input className="form-input" type="number" placeholder="Score" style={{ padding: '4px 6px', fontSize: '0.72rem', width: 60 }} value={scoreForm.score} onChange={(e) => setScoreForm({ ...scoreForm, score: e.target.value })} />
+                  <span>/</span>
+                  <input className="form-input" type="number" placeholder="Max" style={{ padding: '4px 6px', fontSize: '0.72rem', width: 60 }} value={scoreForm.maxScore} onChange={(e) => setScoreForm({ ...scoreForm, maxScore: e.target.value })} />
+                  <button className="btn btn-primary" style={{ padding: '4px 8px', fontSize: '0.7rem' }} disabled={!scoreForm.score || !scoreForm.maxScore} onClick={() => recordTestScore(a._id, scoreForm.score, scoreForm.maxScore)}>Save</button>
+                  <button className="btn" style={{ padding: '4px 8px', fontSize: '0.7rem' }} onClick={() => setScoreFormFor(null)}>Cancel</button>
+                </div>
+              ) : <button className="btn" style={{ padding: '2px 8px', fontSize: '0.7rem', marginTop: 4 }} onClick={() => setScoreFormFor(a._id)}>Enter Score</button>}
+            </div>
+          ) : (
             testFormFor === a._id ? (
               <div style={{ display: 'grid', gap: 6, minWidth: 160 }}>
                 <input type="datetime-local" className="form-input" style={{ padding: '4px 8px', fontSize: '0.72rem' }} value={testForm.date} onChange={(e) => setTestForm({ ...testForm, date: e.target.value })} />
@@ -10753,7 +10780,7 @@ function InstitutionAdmissionsPanel({ onFlash }) {
               </div>
             ) : <button className="btn" style={{ padding: '4px 8px', fontSize: '0.72rem' }} onClick={() => setTestFormFor(a._id)}>Schedule Test</button>
           ),
-          a.interview?.scheduledAt ? new Date(a.interview.scheduledAt).toLocaleDateString() : (
+          a.interview?.scheduledAt ? `${new Date(a.interview.scheduledAt).toLocaleString(undefined, { dateStyle: 'medium', timeStyle: 'short' })} (${a.interview.mode === 'physical' ? 'Physical' : 'Video'})` : (
             interviewFormFor === a._id ? (
               <div style={{ display: 'grid', gap: 6, minWidth: 160 }}>
                 <input type="datetime-local" className="form-input" style={{ padding: '4px 8px', fontSize: '0.72rem' }} value={interviewForm.date} onChange={(e) => setInterviewForm({ ...interviewForm, date: e.target.value })} />
