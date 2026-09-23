@@ -11888,7 +11888,10 @@ function InstitutionClassesPanel({ onFlash }) {
             <input className="form-input" type="time" value={entryForm.startTime} onChange={(e) => setEntryForm({ ...entryForm, startTime: e.target.value })} required />
             <input className="form-input" type="time" value={entryForm.endTime} onChange={(e) => setEntryForm({ ...entryForm, endTime: e.target.value })} required />
             <input className="form-input" placeholder="Room (optional, for physical classes)" value={entryForm.room} onChange={(e) => setEntryForm({ ...entryForm, room: e.target.value })} style={{ maxWidth: 180 }} />
-            <input className="form-input" placeholder="Teacher's User ID (optional)" value={entryForm.teacher} onChange={(e) => setEntryForm({ ...entryForm, teacher: e.target.value })} style={{ maxWidth: 160 }} />
+            <select className="form-select" value={entryForm.teacher} onChange={(e) => setEntryForm({ ...entryForm, teacher: e.target.value })} style={{ maxWidth: 180 }} aria-label="Teacher">
+              <option value="">Teacher (optional)</option>
+              {teachers.map((t) => <option key={t.user._id} value={t.user._id}>{t.user.fullName}</option>)}
+            </select>
             <input className="form-input" placeholder="Meeting link (optional, for online classes)" value={entryForm.meetingLink} onChange={(e) => setEntryForm({ ...entryForm, meetingLink: e.target.value })} style={{ maxWidth: 240 }} />
             <button type="submit" className="btn btn-primary">{editingEntryId ? 'Save Changes' : 'Add Slot'}</button>
             {editingEntryId && <button type="button" className="btn" onClick={cancelEditEntry}>Cancel</button>}
