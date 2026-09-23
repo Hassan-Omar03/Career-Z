@@ -935,6 +935,7 @@ function StudentInstitutionsPanel({ onFlash }) {
   const [selected, setSelected] = useState('');
   const [inquiryForm, setInquiryForm] = useState({ interestedProgram: '', qualification: '', country: '', message: '' });
   const [appForm, setAppForm] = useState({ program: '' });
+  const [institutionPrograms, setInstitutionPrograms] = useState([]);
   const [fairs, setFairs] = useState([]);
   const [registeredFairIds, setRegisteredFairIds] = useState([]);
 
@@ -948,6 +949,12 @@ function StudentInstitutionsPanel({ onFlash }) {
     apiRequest(`/institutions${q ? `?q=${encodeURIComponent(q)}` : ''}`).then(setOptions).catch((err) => onFlash(err.message));
   }
   useEffect(search, []);
+
+  useEffect(() => {
+    if (!selected) { setInstitutionPrograms([]); setAppForm({ program: '' }); return; }
+    apiRequest(`/institutions/${selected}/programs`, { auth: false }).then(setInstitutionPrograms).catch(() => setInstitutionPrograms([]));
+    setAppForm({ program: '' });
+  }, [selected]);
 
   useEffect(() => {
     apiRequest('/virtual-fairs').then(setFairs).catch(() => {});
@@ -1046,9 +1053,24 @@ function StudentInstitutionsPanel({ onFlash }) {
 
       <h4 className="font-semibold mb-2">Apply to a Program</h4>
       <form onSubmit={submitApplication} className="flex gap-2 items-end mb-6 flex-wrap border border-[var(--sand-line)] rounded-xl p-3">
-        <input className="form-input" placeholder="Program name" value={appForm.program} onChange={(e) => setAppForm({ program: e.target.value })} required style={{ flex: '1 1 220px', minWidth: 0 }} />
+        <select className="form-select" value={appForm.program} onChange={(e) => setAppForm({ program: e.target.value })} required style={{ flex: '1 1 280px', minWidth: 0 }} disabled={!selected}>
+          <option value="">{selected ? 'Select a published program' : 'Select an institution first'}</option>
+          {institutionPrograms.map((program) => <option key={program._id} value={program.name}>{program.name} — {program.currency} {Number(program.admissionFee) + Number(program.totalTuitionFee) + Object.values(program.additionalFees || {}).filter((item) => item?.enabled).reduce((sum, item) => sum + Number(item.amount || 0), 0)}</option>)}
+        </select>
         <button type="submit" className="btn btn-primary" disabled={!selected} style={{ flexShrink: 0 }}>Submit Application</button>
       </form>
+      {appForm.program && (() => {
+        const program = institutionPrograms.find((item) => item.name === appForm.program);
+        if (!program) return null;
+        const extras = Object.entries(program.additionalFees || {}).filter(([, value]) => value?.enabled && Number(value.amount) > 0);
+        const extrasTotal = extras.reduce((sum, [, value]) => sum + Number(value.amount), 0);
+        return <div className="admin-notice" style={{ marginTop: -12, marginBottom: 24 }}>
+          <strong>{program.name}</strong> · {program.department} · {program.durationTerms} terms · Class/section: {program.classSection?.name || 'assigned on admission'}<br />
+          Admission fee: <strong>{program.currency} {program.admissionFee}</strong> · Complete tuition: <strong>{program.currency} {program.totalTuitionFee}</strong> · {program.installments} installments of approximately <strong>{program.currency} {(Number(program.totalTuitionFee) / Number(program.installments)).toFixed(2)}</strong><br />
+          Additional charges: <strong>{extras.length ? extras.map(([type, value]) => `${type} ${program.currency} ${value.amount}`).join(', ') : 'None'}</strong><br />
+          Total program charges: <strong>{program.currency} {Number(program.admissionFee) + Number(program.totalTuitionFee) + extrasTotal}</strong>. Your application stores this fee plan so later price changes do not silently change your agreed amount.
+        </div>;
+      })()}
 
       <h4 className="font-semibold mb-2">Upcoming Virtual Fairs</h4>
       {fairs.length === 0 && (
@@ -5026,6 +5048,10 @@ function TimetableView({ onFlash, url }) {
   useEffect(() => { apiRequest(url).then(setEntries).catch((err) => onFlash(err.message)); }, [url, onFlash]);
 
   function joinClass(entry) {
+    if (entry.feeAccess?.blocked) {
+      onFlash(`${entry.feeAccess.title} is ${entry.feeAccess.status}. Pay it from Fees & Wallet to unlock class access.`, 'error');
+      return;
+    }
     if (entry.meetingLink) { window.open(entry.meetingLink, '_blank', 'noreferrer'); return; }
     onFlash('No video provider is connected yet for live classes — once one is configured, Join Class will open it directly here.', 'error');
   }
@@ -5035,10 +5061,12 @@ function TimetableView({ onFlash, url }) {
     .sort((a, b) => (a.__status === 'live' ? -1 : 1) - (b.__status === 'live' ? -1 : 1) || (a.__nextDate || 0) - (b.__nextDate || 0));
 
   const live = sorted.filter((t) => t.__status === 'live');
+  const blockedFee = sorted.find((t) => t.feeAccess?.blocked)?.feeAccess;
 
   return (
     <div>
       <h3 className="font-semibold mb-2">My Classes</h3>
+      {blockedFee && <div className="admin-notice error" role="alert">🔒 Class access locked: {blockedFee.title} ({blockedFee.currency} {blockedFee.amount}) is {blockedFee.status}. Open Fees &amp; Wallet, complete payment, and wait for institution confirmation if you used a manual method.</div>}
 
       {live.length > 0 && (
         <div className="mb-4">
@@ -5056,12 +5084,13 @@ function TimetableView({ onFlash, url }) {
 
       <Table
         loading={entries === null}
-        headers={['Next Date', 'Day', 'Time', 'Subject', 'Teacher', 'Room', 'Status', 'Action']}
+        headers={['Next Date', 'Day', 'Time', 'Course / Subject', 'Teacher', 'Class / Section', 'Room', 'Status', 'Action']}
         rows={sorted.map((t) => [
           t.__nextDate ? t.__nextDate.toLocaleDateString(undefined, { month: 'short', day: 'numeric' }) : '—',
-          DOW_LABEL[t.dayOfWeek], `${formatTime12h(t.startTime)}–${formatTime12h(t.endTime)}`, t.subject, t.teacher?.fullName || '—', t.room || '—',
+          DOW_LABEL[t.dayOfWeek], `${formatTime12h(t.startTime)}–${formatTime12h(t.endTime)}`, t.course?.title || t.subject, t.teacher?.fullName || t.teacher?.email || '—', t.classSection?.name || '—', t.room || '—',
           <Tag status={CLASS_STATUS_TAG[t.__status] || 'pending'} label={CLASS_STATUS_LABEL[t.__status] || 'Upcoming'} />,
-          t.__status === 'live' ? <button className="btn btn-primary" style={{ padding: '4px 12px', fontSize: '0.78rem' }} onClick={() => joinClass(t)}>Join</button> : '—'
+          t.feeAccess?.blocked ? <button className="btn" style={{ padding: '4px 12px', fontSize: '0.78rem' }} onClick={() => joinClass(t)}>🔒 Fee due</button>
+            : t.__status === 'live' ? <button className="btn btn-primary" style={{ padding: '4px 12px', fontSize: '0.78rem' }} onClick={() => joinClass(t)}>Join</button> : '—'
         ])}
         empty="No timetable set up yet."
       />
@@ -5114,8 +5143,17 @@ function PaddleCheckoutButton({ feeId, onFlash, onPaid }) {
 
   if (!config?.enabled) return null;
   return (
-    <button type="button" className="btn" style={{ padding: '5px 12px', fontSize: '0.75rem', borderColor: '#1e2f4f', color: '#1e2f4f' }} onClick={startCheckout} disabled={loading}>
-      {loading ? 'Loading...' : '🌍 Pay Online (Card / Apple Pay / Google Pay)'}
+    <button
+      type="button"
+      onClick={startCheckout}
+      disabled={loading}
+      style={{
+        padding: '10px 18px', fontSize: '0.85rem', fontWeight: 700, borderRadius: 10, border: 'none',
+        background: 'linear-gradient(135deg, #1e2f4f, #34507f)', color: '#fff', cursor: loading ? 'default' : 'pointer',
+        opacity: loading ? 0.7 : 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, width: '100%'
+      }}
+    >
+      🌍 {loading ? 'Loading...' : 'Pay Online'} {!loading && <span style={{ fontWeight: 400, opacity: 0.85, fontSize: '0.78rem' }}>(Card / Apple Pay / Google Pay)</span>}
     </button>
   );
 }
@@ -5135,8 +5173,17 @@ function StripeCheckoutButton({ feeId, onFlash }) {
 
   if (!config?.enabled) return null;
   return (
-    <button type="button" className="btn" style={{ padding: '5px 12px', fontSize: '0.75rem', borderColor: '#635bff', color: '#635bff' }} onClick={startCheckout} disabled={loading}>
-      {loading ? 'Redirecting...' : '💳 Pay Online (Stripe)'}
+    <button
+      type="button"
+      onClick={startCheckout}
+      disabled={loading}
+      style={{
+        padding: '10px 18px', fontSize: '0.85rem', fontWeight: 700, borderRadius: 10, border: 'none',
+        background: 'linear-gradient(135deg, #635bff, #7a73ff)', color: '#fff', cursor: loading ? 'default' : 'pointer',
+        opacity: loading ? 0.7 : 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, width: '100%'
+      }}
+    >
+      💳 {loading ? 'Redirecting...' : 'Pay Online (Stripe)'}
     </button>
   );
 }
@@ -5169,10 +5216,15 @@ function PayFeeButton({ fee, payUrl, onFlash, onPaid }) {
 
   if (!open) {
     return (
-      <div className="flex items-center flex-wrap" style={{ gap: 6 }}>
+      <div style={{ display: 'grid', gap: 8, minWidth: 220 }}>
         <PaddleCheckoutButton feeId={fee._id} onFlash={onFlash} onPaid={onPaid} />
         <StripeCheckoutButton feeId={fee._id} onFlash={onFlash} />
-        <button type="button" className="btn" style={{ padding: '5px 12px', fontSize: '0.75rem' }} onClick={() => setOpen(true)} title="Only use this if you already paid outside CareerZ (cash, bank transfer) and need to record it">
+        <button
+          type="button"
+          onClick={() => setOpen(true)}
+          title="Only use this if you already paid outside CareerZ (cash, bank transfer) and need to record it"
+          style={{ background: 'none', border: 'none', padding: '4px 2px', fontSize: '0.76rem', color: 'var(--ink-soft)', textDecoration: 'underline', cursor: 'pointer', textAlign: 'center' }}
+        >
           I already paid another way
         </button>
       </div>
@@ -10489,7 +10541,6 @@ const FEE_TYPES = ['tuition', 'admission', 'exam', 'hostel', 'transport', 'libra
 function InstitutionFeesPanel({ onFlash }) {
   const [institution, setInstitution] = useState(null);
   const [fees, setFees] = useState([]);
-  const [form, setForm] = useState({ studentId: '', title: '', feeType: 'tuition', amount: '', dueDate: '', installments: 1 });
 
   function load() {
     apiRequest('/institutions/mine/list').then((list) => {
@@ -10499,19 +10550,6 @@ function InstitutionFeesPanel({ onFlash }) {
     }).catch((err) => onFlash(err.message));
   }
   useEffect(load, []);
-
-  async function createFee(e) {
-    e.preventDefault();
-    try {
-      await apiRequest(`/institutions/${institution._id}/fees`, {
-        method: 'POST',
-        body: { student: form.studentId.trim(), title: form.title, feeType: form.feeType, amount: Number(form.amount), dueDate: form.dueDate || null, installments: Number(form.installments) || 1 }
-      });
-      onFlash('Fee recorded.', 'success');
-      setForm({ studentId: '', title: '', feeType: 'tuition', amount: '', dueDate: '', installments: 1 });
-      load();
-    } catch (err) { onFlash(err.message); }
-  }
 
   const [payVia, setPayVia] = useState({});
 
@@ -10551,20 +10589,7 @@ function InstitutionFeesPanel({ onFlash }) {
 
   return (
     <div>
-      <form onSubmit={createFee} className="flex gap-3 items-end mb-3 flex-wrap">
-        <input className="form-input" placeholder="Student's User ID" value={form.studentId} onChange={(e) => setForm({ ...form, studentId: e.target.value })} required />
-        <input className="form-input" placeholder="Title (e.g. Tuition Fee - Term 1)" value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })} required />
-        <select className="form-select" value={form.feeType} onChange={(e) => setForm({ ...form, feeType: e.target.value })}>
-          {FEE_TYPES.map((t) => <option key={t} value={t}>{t.charAt(0).toUpperCase() + t.slice(1)}</option>)}
-        </select>
-        <input className="form-input" type="number" placeholder="Amount" value={form.amount} onChange={(e) => setForm({ ...form, amount: e.target.value })} required style={{ maxWidth: 120 }} />
-        <input className="form-input" type="date" value={form.dueDate} onChange={(e) => setForm({ ...form, dueDate: e.target.value })} />
-        <input className="form-input" type="number" min="1" max="12" placeholder="Instalments" value={form.installments} onChange={(e) => setForm({ ...form, installments: e.target.value })} style={{ maxWidth: 100 }} title="Split into N monthly instalments" />
-        <button type="submit" className="btn btn-primary">Add Fee</button>
-      </form>
-      <p style={{ fontSize: 12, color: 'var(--ink-soft)', marginBottom: 16 }}>
-        Ask the student for their account's User ID from their Profile tab. Online payment isn't wired up yet — mark a fee "Paid" once you've received payment through any other method (bank transfer, cash, external link). Leave Instalments at 1 for a single payment.
-      </p>
+      <div className="admin-notice">Fees are generated automatically from the accepted student's program rules. Configure tuition, installments, and Yes/No additional charges in Admission Management. This screen is for payment verification, reminders, receipts, escrow, and refunds.</div>
       <Table
         headers={['Student', 'Title', 'Amount', 'Receipt', 'Due', 'Status', 'Escrow', 'Refund', 'Action']}
         rows={fees.map((f) => [
@@ -10834,10 +10859,25 @@ function InstitutionAdmissionsPanel({ onFlash }) {
   const [testBuilder, setTestBuilder] = useState({ title: '', program: '', subject: '', instructions: '', durationMinutes: 30, passingPercent: 50, questions: [{ text: '', options: ['', '', '', ''], correctOption: 0, marks: 1 }] });
   const [assignFor, setAssignFor] = useState(null);
   const [assignment, setAssignment] = useState({ testId: '', scheduledAt: '' });
+  const [sections, setSections] = useState([]);
+  const [programs, setPrograms] = useState([]);
+  const emptyAdditionalFees = () => Object.fromEntries(['exam', 'hostel', 'transport', 'library', 'activity'].map((type) => [type, { enabled: false, amount: '' }]));
+  const [programForm, setProgramForm] = useState({ name: '', department: '', classSection: '', durationTerms: 8, admissionFee: '', totalTuitionFee: '', installments: 8, currency: 'PKR', additionalFees: emptyAdditionalFees() });
 
   function load(instId) {
     apiRequest(`/institution-applications/institution/${instId}`).then(setApps).catch((err) => onFlash(err.message));
     apiRequest(`/institution-applications/tests/institution/${instId}`).then(setOnlineTests).catch((err) => onFlash(err.message));
+    apiRequest(`/institutions/${instId}/class-sections`).then((list) => { setSections(list); setProgramForm((form) => ({ ...form, classSection: form.classSection || list[0]?._id || '' })); }).catch(() => {});
+    apiRequest(`/institutions/${instId}/programs`).then(setPrograms).catch(() => {});
+  }
+
+  async function createProgram(e) {
+    e.preventDefault();
+    try {
+      await apiRequest(`/institutions/${institution._id}/programs`, { method: 'POST', body: { ...programForm, durationTerms: Number(programForm.durationTerms), admissionFee: Number(programForm.admissionFee) || 0, totalTuitionFee: Number(programForm.totalTuitionFee), installments: Number(programForm.installments) } });
+      onFlash('Program, section and complete fee plan saved.', 'success');
+      setProgramForm({ name: '', department: '', classSection: sections[0]?._id || '', durationTerms: 8, admissionFee: '', totalTuitionFee: '', installments: 8, currency: 'PKR', additionalFees: emptyAdditionalFees() }); load(institution._id);
+    } catch (err) { onFlash(err.message); }
   }
   useEffect(() => { if (institution) load(institution._id); }, [institution]);
 
@@ -10931,6 +10971,30 @@ function InstitutionAdmissionsPanel({ onFlash }) {
 
   return (
     <div>
+      <div className="admin-section">
+        <div className="admin-section-heading"><div><h2>Programs, Departments & Degree Fees</h2><p>Institution defines the complete degree fee, installments and class section. Accepted students are assigned to this section and its courses.</p></div></div>
+        <form onSubmit={createProgram} className="flex gap-2 items-end flex-wrap mb-3">
+          <input className="form-input" placeholder="Program (e.g. BS Computer Science)" required value={programForm.name} onChange={(e) => setProgramForm({ ...programForm, name: e.target.value })} />
+          <input className="form-input" placeholder="Department" required value={programForm.department} onChange={(e) => setProgramForm({ ...programForm, department: e.target.value })} />
+          <select className="form-select" required value={programForm.classSection} onChange={(e) => setProgramForm({ ...programForm, classSection: e.target.value })}><option value="">Select class/section</option>{sections.map((s) => <option key={s._id} value={s._id}>{s.name} ({s.academicYear || 'year not set'})</option>)}</select>
+          <input className="form-input" type="number" min="1" placeholder="Terms" value={programForm.durationTerms} onChange={(e) => setProgramForm({ ...programForm, durationTerms: e.target.value })} style={{ maxWidth: 90 }} />
+          <input className="form-input" type="number" min="0" placeholder="Admission fee" value={programForm.admissionFee} onChange={(e) => setProgramForm({ ...programForm, admissionFee: e.target.value })} />
+          <input className="form-input" type="number" min="1" placeholder="Total degree tuition" required value={programForm.totalTuitionFee} onChange={(e) => setProgramForm({ ...programForm, totalTuitionFee: e.target.value })} />
+          <input className="form-input" type="number" min="1" placeholder="Installments" value={programForm.installments} onChange={(e) => setProgramForm({ ...programForm, installments: e.target.value })} style={{ maxWidth: 110 }} />
+          <input className="form-input" placeholder="Currency" value={programForm.currency} onChange={(e) => setProgramForm({ ...programForm, currency: e.target.value.toUpperCase() })} style={{ maxWidth: 90 }} />
+        <div className="flex gap-3 flex-wrap mb-3" style={{ flexBasis: '100%' }}>
+          {['exam', 'hostel', 'transport', 'library', 'activity'].map((type) => {
+            const item = programForm.additionalFees[type];
+            return <div key={type} className="border border-[var(--sand-line)] rounded-xl p-2" style={{ minWidth: 190 }}>
+              <label className="flex gap-2 items-center text-sm"><input type="checkbox" checked={item.enabled} onChange={(e) => setProgramForm({ ...programForm, additionalFees: { ...programForm.additionalFees, [type]: { ...item, enabled: e.target.checked } } })} /> Charge {type.charAt(0).toUpperCase() + type.slice(1)} fee?</label>
+              {item.enabled && <input className="form-input mt-2" type="number" min="0" placeholder={`${type} fee amount`} required value={item.amount} onChange={(e) => setProgramForm({ ...programForm, additionalFees: { ...programForm.additionalFees, [type]: { ...item, amount: e.target.value } } })} />}
+            </div>;
+          })}
+        </div>
+          <button type="submit" className="btn btn-primary">Save Program & Fee Rules</button>
+        </form>
+        <Table headers={['Program', 'Department', 'Section', 'Admission Fee', 'Complete Tuition', 'Additional Fees', 'Plan']} rows={programs.map((p) => [p.name, p.department, p.classSection?.name || '—', `${p.currency} ${p.admissionFee}`, `${p.currency} ${p.totalTuitionFee}`, Object.entries(p.additionalFees || {}).filter(([, value]) => value?.enabled).map(([type, value]) => `${type}: ${p.currency} ${value.amount}`).join(', ') || 'None', `${p.installments} installments / ${p.durationTerms} terms`])} empty="No program fee plan yet. Create this before accepting admissions." />
+      </div>
       <div className="admin-section">
         <div className="admin-section-heading"><div><h2>Online Admission Test Builder</h2><p>Create one reusable test and assign it to applicants. MCQs are graded automatically.</p></div></div>
         <form onSubmit={createOnlineTest} style={{ display: 'grid', gap: 10 }}>
@@ -12038,12 +12102,13 @@ function InstitutionClassesPanel({ onFlash }) {
   const [campuses, setCampuses] = useState([]);
   const [sections, setSections] = useState([]);
   const [teachers, setTeachers] = useState([]);
+  const [courses, setCourses] = useState([]);
   const [campusForm, setCampusForm] = useState({ name: '', address: '' });
   const [sectionForm, setSectionForm] = useState({ name: '', academicYear: '', classTeacher: '' });
   const [sectionTeacherEdits, setSectionTeacherEdits] = useState({});
   const [timetableSection, setTimetableSection] = useState('');
   const [timetable, setTimetable] = useState([]);
-  const [entryForm, setEntryForm] = useState({ teacher: '', subject: '', dayOfWeek: 'mon', startTime: '', endTime: '', room: '', meetingLink: '' });
+  const [entryForm, setEntryForm] = useState({ teacher: '', course: '', dayOfWeek: 'mon', startTime: '', endTime: '', room: '', meetingLink: '' });
   const [editingEntryId, setEditingEntryId] = useState(null);
 
   function load() {
@@ -12057,6 +12122,7 @@ function InstitutionClassesPanel({ onFlash }) {
           if (list2[0] && !timetableSection) setTimetableSection(list2[0]._id);
         }).catch((err) => onFlash(err.message));
         apiRequest(`/institutions/${inst._id}/teachers`).then(setTeachers).catch((err) => onFlash(err.message));
+        apiRequest(`/courses?institution=${inst._id}`).then(setCourses).catch((err) => onFlash(err.message));
       }
     }).catch((err) => onFlash(err.message));
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -12104,28 +12170,28 @@ function InstitutionClassesPanel({ onFlash }) {
         // and the backend notifies the assigned teacher about it.
         await apiRequest(`/institutions/timetable/${editingEntryId}`, {
           method: 'PATCH',
-          body: { ...entryForm, teacher: entryForm.teacher.trim() || null }
+          body: entryForm
         });
         onFlash('Class changed — teacher notified.', 'success');
         setEditingEntryId(null);
       } else {
         await apiRequest(`/institutions/${institution._id}/class-sections/${timetableSection}/timetable`, {
           method: 'POST',
-          body: { ...entryForm, teacher: entryForm.teacher.trim() || undefined }
+          body: entryForm
         });
         onFlash('Timetable entry added.', 'success');
       }
-      setEntryForm({ teacher: '', subject: '', dayOfWeek: 'mon', startTime: '', endTime: '', room: '', meetingLink: '' });
+      setEntryForm({ teacher: '', course: '', dayOfWeek: 'mon', startTime: '', endTime: '', room: '', meetingLink: '' });
       loadTimetable(timetableSection);
     } catch (err) { onFlash(err.message); }
   }
   function startEditEntry(t) {
     setEditingEntryId(t._id);
-    setEntryForm({ teacher: t.teacher?._id || '', subject: t.subject, dayOfWeek: t.dayOfWeek, startTime: t.startTime, endTime: t.endTime, room: t.room || '', meetingLink: t.meetingLink || '' });
+    setEntryForm({ teacher: t.teacher?._id || '', course: t.course?._id || '', dayOfWeek: t.dayOfWeek, startTime: t.startTime, endTime: t.endTime, room: t.room || '', meetingLink: t.meetingLink || '' });
   }
   function cancelEditEntry() {
     setEditingEntryId(null);
-    setEntryForm({ teacher: '', subject: '', dayOfWeek: 'mon', startTime: '', endTime: '', room: '', meetingLink: '' });
+    setEntryForm({ teacher: '', course: '', dayOfWeek: 'mon', startTime: '', endTime: '', room: '', meetingLink: '' });
   }
   async function removeEntry(entryId) {
     try {
@@ -12180,7 +12246,13 @@ function InstitutionClassesPanel({ onFlash }) {
             {sections.map((s) => <option key={s._id} value={s._id}>{s.name}</option>)}
           </select>
           <form onSubmit={createEntry} className="flex gap-3 items-end mb-4 flex-wrap">
-            <input className="form-input" placeholder="Subject" value={entryForm.subject} onChange={(e) => setEntryForm({ ...entryForm, subject: e.target.value })} required style={{ maxWidth: 140 }} />
+            <select className="form-select" value={entryForm.course} onChange={(e) => {
+              const selected = courses.find((course) => course._id === e.target.value);
+              setEntryForm({ ...entryForm, course: e.target.value, teacher: selected?.teacher?._id || selected?.teacher || '' });
+            }} required style={{ maxWidth: 250 }} aria-label="Course">
+              <option value="">Select section course</option>
+              {courses.filter((course) => (course.classSection?._id || course.classSection) === timetableSection).map((course) => <option key={course._id} value={course._id}>{course.title}</option>)}
+            </select>
             <select className="form-select" value={entryForm.dayOfWeek} onChange={(e) => setEntryForm({ ...entryForm, dayOfWeek: e.target.value })}>
               {Object.entries(DOW_LABEL).map(([v, l]) => <option key={v} value={v}>{l}</option>)}
             </select>
@@ -12188,7 +12260,7 @@ function InstitutionClassesPanel({ onFlash }) {
             <input className="form-input" type="time" value={entryForm.endTime} onChange={(e) => setEntryForm({ ...entryForm, endTime: e.target.value })} required />
             <input className="form-input" placeholder="Room (optional, for physical classes)" value={entryForm.room} onChange={(e) => setEntryForm({ ...entryForm, room: e.target.value })} style={{ maxWidth: 180 }} />
             <select className="form-select" value={entryForm.teacher} onChange={(e) => setEntryForm({ ...entryForm, teacher: e.target.value })} style={{ maxWidth: 180 }} aria-label="Teacher">
-              <option value="">Teacher (optional)</option>
+              <option value="">Select teacher</option>
               {teachers.map((t) => <option key={t.user._id} value={t.user._id}>{t.user.fullName}</option>)}
             </select>
             <input className="form-input" placeholder="Meeting link (optional, for online classes)" value={entryForm.meetingLink} onChange={(e) => setEntryForm({ ...entryForm, meetingLink: e.target.value })} style={{ maxWidth: 240 }} />
@@ -12197,9 +12269,9 @@ function InstitutionClassesPanel({ onFlash }) {
           </form>
           <p className="text-xs mb-3" style={{ color: 'var(--ink-soft)' }}>Paste your own Zoom/Google Meet/Teams link for online classes — CareerZ doesn't host video calls itself, but "Join Class" will open whatever link you set here.</p>
           <Table
-            headers={['Day', 'Time', 'Subject', 'Teacher', 'Room', 'Online', 'Action']}
+            headers={['Day', 'Time', 'Course / Subject', 'Teacher', 'Class / Section', 'Room', 'Online', 'Action']}
             rows={timetable.map((t) => [
-              DOW_LABEL[t.dayOfWeek], `${formatTime12h(t.startTime)}–${formatTime12h(t.endTime)}`, t.subject, t.teacher?.fullName || '—', t.room || '—',
+              DOW_LABEL[t.dayOfWeek], `${formatTime12h(t.startTime)}–${formatTime12h(t.endTime)}`, t.course?.title || t.subject, t.teacher?.fullName || '—', t.classSection?.name || '—', t.room || '—',
               t.meetingLink ? <Tag status="approved" /> : '—',
               <div className="flex gap-2">
                 <button className="btn" style={{ padding: '5px 12px', fontSize: '0.78rem' }} onClick={() => startEditEntry(t)}>Edit</button>
@@ -17477,8 +17549,9 @@ function StudentPanel({ onFlash }) {
           <div key={c._id} className="border border-[var(--sand-line)] rounded-xl p-3">
             <strong>{c.title}</strong>
             <p className="text-xs text-[var(--ink-soft)]">{c.subject}</p>
-            <p className="text-xs mt-2">{c.isFree ? 'Free' : `${c.currency} ${Number(c.price).toFixed(2)}`}</p>
+            <p className="text-xs mt-2">{c.institution ? 'Included in institution degree fee' : (c.isFree ? 'Free' : `${c.currency} ${Number(c.price).toFixed(2)}`)}</p>
             {enrollments.some((entry) => entry.course?._id === c._id) ? <span className="text-xs">Enrolled</span>
+              : c.institution ? <span className="text-xs">Assigned after admission and fee-plan enrollment</span>
               : c.isFree ? <button className="btn btn-primary mt-2" style={{ padding: '5px 12px', fontSize: '0.78rem' }} onClick={() => enroll(c._id)}>Enroll free</button>
                 : <div className="flex gap-2 mt-2 flex-wrap">
                   {paymentConfig.paddle && <button type="button" className="btn btn-primary" disabled={checkoutId === c._id} onClick={() => checkout(c, 'paddle')}>Pay with Paddle</button>}
@@ -17510,7 +17583,7 @@ function CourseResourcesPanel({ courseId, onFlash, onClose }) {
   const [completedIds, setCompletedIds] = useState([]);
 
   function load() {
-    apiRequest(`/courses/${courseId}`, { auth: false }).then(setData).catch((err) => onFlash(err.message));
+    apiRequest(`/courses/${courseId}`).then(setData).catch((err) => onFlash(err.message));
     apiRequest('/students/me/enrollments').then((list) => {
       const mine = list.find((e) => e.course?._id === courseId);
       setCompletedIds((mine?.completedLessons || []).map(String));
