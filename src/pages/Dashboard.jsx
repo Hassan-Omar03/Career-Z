@@ -112,6 +112,7 @@ const WORKSPACES = {
       { key: 'summary', label: 'Dashboard', icon: FaGauge },
       { key: 'children', label: 'My Children', icon: FaUsers },
       { key: 'attendance', label: 'Attendance', icon: FaCalendarCheck },
+      { key: 'transport', label: 'Live Transport', icon: FaTruck },
       { key: 'progress', label: 'Results / Grades', icon: FaChartLine },
       { key: 'homework', label: 'Homework / Assignments', icon: FaFileLines },
       { key: 'examSchedule', label: 'Exam Schedule', icon: FaAward },
@@ -584,6 +585,61 @@ function StudentParentConnectionsPanel({ onFlash }) {
           </div>
         ))}
       </div>
+
+      <StudentTutoringPanel onFlash={onFlash} />
+    </div>
+  );
+}
+
+// Independent Teacher Enrollment — student side: accept/decline invitations, revoke anytime.
+function StudentTutoringPanel({ onFlash }) {
+  const [links, setLinks] = useState(null);
+  const [busyId, setBusyId] = useState(null);
+
+  function load() { apiRequest('/teacher-students/as-student').then(setLinks).catch(() => setLinks([])); }
+  useEffect(load, []);
+
+  async function respond(id, decision) {
+    setBusyId(id);
+    try { await apiRequest(`/teacher-students/${id}/respond`, { method: 'PATCH', body: { decision } }); onFlash(`Invitation ${decision}.`, 'success'); load(); }
+    catch (err) { onFlash(err.message); } finally { setBusyId(null); }
+  }
+  async function revokeLink(id) {
+    setBusyId(id);
+    try { await apiRequest(`/teacher-students/${id}/revoke`, { method: 'POST' }); onFlash('Relationship ended.', 'success'); load(); }
+    catch (err) { onFlash(err.message); } finally { setBusyId(null); }
+  }
+
+  const pending = (links || []).filter((l) => l.status === 'invited');
+  const others = (links || []).filter((l) => l.status !== 'invited');
+  const STATUS_TAG = { consent_pending: 'pending', active: 'approved', paused: 'pending', completed: 'approved', removed: 'rejected' };
+
+  return (
+    <div className="admin-section" style={{ marginTop: 16 }}>
+      <div className="admin-section-heading"><div><h2>Independent Tutoring Invitations</h2></div></div>
+      {pending.map((l) => (
+        <div key={l._id} className="flex items-center justify-between flex-wrap" style={{ gap: 8, padding: '10px 0', borderBottom: '1px solid var(--sand-line)' }}>
+          <div>
+            <strong className="text-sm">{l.teacher?.fullName}</strong>
+            <p className="text-xs" style={{ color: 'var(--ink-soft)' }}>{l.course?.title}{l.subject ? ` — ${l.subject}` : ''}</p>
+          </div>
+          <div className="flex gap-2">
+            <button type="button" className="btn btn-primary" style={{ padding: '5px 12px', fontSize: '0.78rem' }} disabled={busyId === l._id} onClick={() => respond(l._id, 'accepted')}>Accept</button>
+            <button type="button" className="btn" style={{ padding: '5px 12px', fontSize: '0.78rem' }} disabled={busyId === l._id} onClick={() => respond(l._id, 'declined')}>Decline</button>
+          </div>
+        </div>
+      ))}
+      {pending.length === 0 && <p className="text-sm" style={{ color: 'var(--ink-soft)' }}>No pending invitations.</p>}
+      <Table
+        headers={['Teacher', 'Course', 'Status', 'Action']}
+        rows={others.map((l) => [
+          l.teacher?.fullName, l.course?.title, <Tag status={STATUS_TAG[l.status] || 'pending'} label={l.status} />,
+          ['active', 'paused', 'consent_pending'].includes(l.status)
+            ? <button className="btn" style={{ padding: '4px 12px', fontSize: '0.75rem' }} disabled={busyId === l._id} onClick={() => revokeLink(l._id)}>End</button>
+            : '—'
+        ])}
+        empty="No tutoring history yet."
+      />
     </div>
   );
 }
@@ -6694,6 +6750,64 @@ function TeacherStudentsPanel({ onFlash }) {
     <div>
       <CourseSelect courses={courses} value={courseId} onChange={setCourseId} />
       {courseId && <Table headers={['Name', 'Email', 'Progress', 'Status']} rows={enrollments.map((e) => [e.student?.fullName, e.student?.email, `${e.progressPercent}%`, <Tag status={e.status === 'active' ? 'approved' : e.status} />])} empty="No students enrolled in this course yet." />}
+      <IndependentTutoringPanel onFlash={onFlash} courses={courses} />
+    </div>
+  );
+}
+
+// Real, consent-gated Independent Teacher Enrollment (spec) — a teacher can never force-add a
+// student; every relationship here started as an invitation the student (or their guardian, if a
+// minor) actually accepted. Only shown to independent teachers (Profile -> Teacher Profile ->
+// "Teaches independently").
+function IndependentTutoringPanel({ onFlash, courses }) {
+  const [links, setLinks] = useState(null);
+  const [form, setForm] = useState({ studentEmail: '', courseId: '', subject: '', feeAmount: '' });
+
+  function load() { apiRequest('/teacher-students/mine').then(setLinks).catch(() => setLinks([])); }
+  useEffect(load, []);
+
+  async function invite(e) {
+    e.preventDefault();
+    try {
+      await apiRequest('/teacher-students/invite', { method: 'POST', body: { studentEmail: form.studentEmail.trim(), courseId: form.courseId, subject: form.subject, feeAmount: form.feeAmount ? Number(form.feeAmount) : undefined } });
+      onFlash('Invitation sent — the student (or their guardian, if a minor) must accept it.', 'success');
+      setForm({ studentEmail: '', courseId: '', subject: '', feeAmount: '' });
+      load();
+    } catch (err) { onFlash(err.message); }
+  }
+  async function setStatus(id, status) {
+    try { await apiRequest(`/teacher-students/${id}/status`, { method: 'PATCH', body: { status } }); onFlash(`Relationship ${status}.`, 'success'); load(); } catch (err) { onFlash(err.message); }
+  }
+
+  const independentCourses = (courses || []).filter((c) => !c.institution);
+  const STATUS_TAG = { invited: 'pending', consent_pending: 'pending', active: 'approved', paused: 'pending', completed: 'approved', removed: 'rejected' };
+
+  return (
+    <div className="admin-section" style={{ marginTop: 20 }}>
+      <div className="admin-section-heading"><div><h2>Independent Tutoring</h2><p>Invite a specific student to a course you teach independently — nothing happens until they (or their guardian, if a minor) accept.</p></div></div>
+      <form onSubmit={invite} className="flex gap-3 items-end mb-4 flex-wrap">
+        <input className="form-input" type="email" placeholder="Student's email" required value={form.studentEmail} onChange={(e) => setForm({ ...form, studentEmail: e.target.value })} />
+        <select className="form-select" required value={form.courseId} onChange={(e) => setForm({ ...form, courseId: e.target.value })}>
+          <option value="">Select independent course</option>
+          {independentCourses.map((c) => <option key={c._id} value={c._id}>{c.title}</option>)}
+        </select>
+        <input className="form-input" placeholder="Subject (optional)" value={form.subject} onChange={(e) => setForm({ ...form, subject: e.target.value })} style={{ maxWidth: 160 }} />
+        <input className="form-input" type="number" placeholder="Fee (optional)" value={form.feeAmount} onChange={(e) => setForm({ ...form, feeAmount: e.target.value })} style={{ maxWidth: 120 }} />
+        <button type="submit" className="btn btn-primary">Send Invitation</button>
+      </form>
+      {independentCourses.length === 0 && <p className="text-xs" style={{ color: 'var(--ink-soft)', marginBottom: 12 }}>Create a course with no institution attached (My Courses) first — institution and independent-teacher records stay separate.</p>}
+      <Table
+        loading={links === null}
+        headers={['Student', 'Course', 'Status', 'Action']}
+        rows={(links || []).map((l) => [
+          l.student?.fullName || l.student?.email, l.course?.title,
+          <Tag status={STATUS_TAG[l.status] || 'pending'} label={l.status} />,
+          l.status === 'active' ? <button className="btn" style={{ padding: '4px 12px', fontSize: '0.75rem' }} onClick={() => setStatus(l._id, 'paused')}>Pause</button>
+            : l.status === 'paused' ? <div className="flex gap-2"><button className="btn" style={{ padding: '4px 12px', fontSize: '0.75rem' }} onClick={() => setStatus(l._id, 'active')}>Resume</button><button className="btn" style={{ padding: '4px 12px', fontSize: '0.75rem' }} onClick={() => setStatus(l._id, 'completed')}>Complete</button></div>
+            : '—'
+        ])}
+        empty="No independent students yet."
+      />
     </div>
   );
 }
@@ -7469,7 +7583,36 @@ function ParentWorkspace({ tab, user, onFlash, onChanged, onNavigate }) {
   if (tab === 'permissions') return <ParentPermissionsPanel onFlash={onFlash} />;
   if (tab === 'ptm') return <ParentPtmPanel onFlash={onFlash} />;
   if (tab === 'aiAssistant') return <ParentAiAssistantPanel onFlash={onFlash} />;
+  if (tab === 'transport') return <ParentTransportPanel onFlash={onFlash} />;
   return <ComingSoon label={tab} />;
+}
+
+// Real, journey-scoped live transport (spec: Parent Safety) — location only ever shown while a
+// journey is actually in progress for a vehicle the parent's own linked child is assigned to.
+function ParentTransportPanel({ onFlash }) {
+  const [vehicles, setVehicles] = useState(null);
+  function load() { apiRequest('/transport/my-children').then(setVehicles).catch((err) => onFlash(err.message)); }
+  useEffect(load, []);
+
+  if (vehicles === null) return <p role="status" className="admin-notice">Loading...</p>;
+  if (vehicles.length === 0) return <p className="admin-notice">No transport vehicle assigned to your linked children yet.</p>;
+
+  return (
+    <div className="space-y-3">
+      {vehicles.map((v) => (
+        <div key={v.vehicle._id} className="card" style={{ padding: 16 }}>
+          <div className="flex items-center justify-between flex-wrap" style={{ gap: 8 }}>
+            <strong className="text-sm">{v.vehicle.vehicleNumber} — {v.vehicle.routeName || v.vehicle.type}</strong>
+            {v.activeJourney ? <span style={{ color: 'var(--rose)', fontWeight: 700 }}>● Live</span> : <span className="text-xs" style={{ color: 'var(--ink-soft)' }}>Not on the road</span>}
+          </div>
+          <p className="text-xs mt-1" style={{ color: 'var(--ink-soft)' }}>Children on this vehicle: {v.children.join(', ')}</p>
+          {v.activeJourney?.lastPing?.lat != null && (
+            <p className="text-xs mt-2">Last location: {v.activeJourney.lastPing.lat.toFixed(4)}, {v.activeJourney.lastPing.lng.toFixed(4)} ({new Date(v.activeJourney.lastPing.at).toLocaleTimeString()})</p>
+          )}
+        </div>
+      ))}
+    </div>
+  );
 }
 
 // Master spec Part 11.10 "AI Parent Assistant" — BYOK (parent's own connected AI provider), asks
@@ -7746,6 +7889,49 @@ function InstitutionFeedbackWidget({ institutionId, onFlash }) {
   );
 }
 
+// Private engagement score, own view (spec 11.15) — never punitive, and the parent can dispute
+// any specific input that feeds it.
+function ParentOwnReputationPanel({ institutionId, onFlash }) {
+  const { user } = useAuth();
+  const [rep, setRep] = useState(null);
+  const [disputeFor, setDisputeFor] = useState(null);
+  const [reason, setReason] = useState('');
+
+  function load() { apiRequest(`/parent-reputation/${institutionId}/${user._id}`).then(setRep).catch(() => {}); }
+  useEffect(load, [institutionId]);
+
+  async function submitDispute(category) {
+    if (!reason.trim()) return onFlash('Explain what was incorrect first.');
+    try {
+      await apiRequest('/parent-reputation/disputes', { method: 'POST', body: { institutionId, category, referenceId: institutionId, reason: reason.trim() } });
+      onFlash('Dispute submitted for the institution to review.', 'success');
+      setDisputeFor(null); setReason('');
+    } catch (err) { onFlash(err.message); }
+  }
+
+  if (!rep) return null;
+  return (
+    <div className="card" style={{ padding: 16, marginBottom: 20 }}>
+      <strong className="text-sm">Your Engagement (private — only you and this institution see this)</strong>
+      <p className="text-xs" style={{ color: 'var(--ink-soft)', margin: '6px 0' }}>{rep.overall !== null ? `${rep.label} (${rep.overall}/100)` : rep.label} — never affects admission, account access, or is shown publicly.</p>
+      <div className="space-y-1" style={{ marginTop: 8 }}>
+        {rep.components.filter((c) => c.score !== null).map((c) => (
+          <div key={c.key} className="flex items-center justify-between">
+            <span className="text-xs">{c.key} ({Math.round(c.score)}%, {c.count} record{c.count === 1 ? '' : 's'})</span>
+            <button type="button" className="btn" style={{ padding: '2px 8px', fontSize: '0.68rem' }} onClick={() => setDisputeFor(disputeFor === c.key ? null : c.key)}>Dispute</button>
+          </div>
+        ))}
+      </div>
+      {disputeFor && (
+        <div className="flex gap-2 items-end flex-wrap" style={{ marginTop: 8 }}>
+          <input className="form-input" placeholder="What was incorrect?" value={reason} onChange={(e) => setReason(e.target.value)} style={{ minWidth: 200, flex: 1 }} />
+          <button type="button" className="btn btn-primary" style={{ padding: '5px 12px', fontSize: '0.78rem' }} onClick={() => submitDispute(disputeFor === 'ptmAttendance' ? 'ptm' : disputeFor === 'consentResponsiveness' ? 'consent' : disputeFor === 'notificationAcknowledgement' ? 'notifications' : 'fees')}>Submit</button>
+        </div>
+      )}
+    </div>
+  );
+}
+
 function ParentInstitutionInfoPanel({ onFlash }) {
   const [children, setChildren] = useState(null);
   const [institution, setInstitution] = useState(undefined);
@@ -7786,6 +7972,7 @@ function ParentInstitutionInfoPanel({ onFlash }) {
       </div>
 
       <InstitutionFeedbackWidget institutionId={institution._id} onFlash={onFlash} />
+      <ParentOwnReputationPanel institutionId={institution._id} onFlash={onFlash} />
 
       {campusBuildings && campusBuildings.length > 0 && (
         <>
@@ -9570,17 +9757,48 @@ function InstitutionStudentsPanel({ onFlash }) {
 // "guardian verification", "parent messaging panel", "parent satisfaction/feedback"). The
 // directory is real — every row comes from an approved ParentChildLink to one of this
 // institution's actual students, never invented.
+const REP_LABEL_TAG = { 'Highly engaged': 'approved', 'Engaged': 'pending', 'Needs contact': 'rejected' };
+
+// Private, read-only reputation view (spec 11.15) — never shown to anyone but the institution
+// and the parent themselves; the caller here is always institution staff/owner.
+function ParentReputationInline({ institutionId, parentId }) {
+  const [rep, setRep] = useState(null);
+  useEffect(() => { apiRequest(`/parent-reputation/${institutionId}/${parentId}`).then(setRep).catch(() => {}); }, [institutionId, parentId]);
+  if (!rep) return null;
+  return (
+    <div style={{ marginTop: 8, padding: 10, background: 'var(--sand)', borderRadius: 10 }}>
+      <div className="flex items-center gap-2">
+        <strong className="text-xs">Engagement:</strong>
+        {rep.overall !== null ? <Tag status={REP_LABEL_TAG[rep.label] || 'pending'} label={`${rep.label} (${rep.overall})`} /> : <span className="text-xs" style={{ color: 'var(--ink-soft)' }}>{rep.label}</span>}
+      </div>
+      <div className="flex flex-wrap gap-3 mt-1">
+        {rep.components.filter((c) => c.score !== null).map((c) => (
+          <span key={c.key} className="text-xs" style={{ color: 'var(--ink-soft)' }}>{c.key}: {Math.round(c.score)}%</span>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 function InstitutionParentsPanel({ onFlash }) {
   const institution = useMyInstitution(onFlash);
   const [parents, setParents] = useState(null);
   const [feedback, setFeedback] = useState(null);
   const [messageDrafts, setMessageDrafts] = useState({});
+  const [repFor, setRepFor] = useState(null);
+  const [disputes, setDisputes] = useState(null);
 
   function load(id) {
     apiRequest(`/institutions/${id}/parents`).then(setParents).catch((err) => onFlash(err.message));
     apiRequest(`/institutions/${id}/feedback`).then(setFeedback).catch(() => {});
+    apiRequest(`/parent-reputation/disputes/${id}`).then(setDisputes).catch(() => {});
   }
   useEffect(() => { if (institution) load(institution._id); }, [institution]);
+
+  async function resolveDispute(id, decision) {
+    try { await apiRequest(`/parent-reputation/disputes/${id}/resolve`, { method: 'PATCH', body: { decision } }); onFlash(`Dispute ${decision}.`, 'success'); load(institution._id); }
+    catch (err) { onFlash(err.message); }
+  }
 
   async function toggleVerify(linkId, verified) {
     try {
@@ -9637,10 +9855,31 @@ function InstitutionParentsPanel({ onFlash }) {
             <div className="flex gap-2 items-end flex-wrap" style={{ marginTop: 10 }}>
               <input className="form-input" placeholder="Send a message..." value={messageDrafts[p.parent._id] || ''} onChange={(e) => setMessageDrafts((prev) => ({ ...prev, [p.parent._id]: e.target.value }))} style={{ minWidth: 220, flex: 1 }} />
               <button type="button" className="btn" style={{ padding: '5px 12px', fontSize: '0.78rem' }} onClick={() => sendMessage(p.parent._id)}>Send</button>
+              <button type="button" className="btn" style={{ padding: '5px 12px', fontSize: '0.78rem' }} onClick={() => setRepFor(repFor === p.parent._id ? null : p.parent._id)}>{repFor === p.parent._id ? 'Hide' : 'Engagement'}</button>
             </div>
+            {repFor === p.parent._id && <ParentReputationInline institutionId={institution._id} parentId={p.parent._id} />}
           </div>
         ))}
       </div>
+
+      {disputes && disputes.length > 0 && (
+        <div className="admin-section" style={{ marginTop: 16 }}>
+          <div className="admin-section-heading"><div><h2>Reputation Disputes</h2></div></div>
+          {disputes.filter((d) => d.status === 'pending').map((d) => (
+            <div key={d._id} className="flex items-center justify-between flex-wrap" style={{ gap: 8, padding: '10px 0', borderBottom: '1px solid var(--sand-line)' }}>
+              <div>
+                <strong className="text-sm">{d.parent?.fullName}</strong> — <span className="text-xs" style={{ textTransform: 'capitalize' }}>{d.category}</span>
+                <p className="text-xs" style={{ color: 'var(--ink-soft)' }}>{d.reason}</p>
+              </div>
+              <div className="flex gap-2">
+                <button type="button" className="btn btn-primary" style={{ padding: '5px 12px', fontSize: '0.78rem' }} onClick={() => resolveDispute(d._id, 'upheld')}>Uphold</button>
+                <button type="button" className="btn" style={{ padding: '5px 12px', fontSize: '0.78rem' }} onClick={() => resolveDispute(d._id, 'rejected')}>Reject</button>
+              </div>
+            </div>
+          ))}
+          {disputes.filter((d) => d.status === 'pending').length === 0 && <p className="text-sm" style={{ color: 'var(--ink-soft)' }}>No pending disputes.</p>}
+        </div>
+      )}
     </div>
   );
 }
@@ -10356,6 +10595,8 @@ function InstitutionHostelPanel({ onFlash }) {
 function InstitutionTransportPanel({ onFlash }) {
   const institution = useMyInstitution(onFlash);
   const [vehicles, setVehicles] = useState(null);
+  const [journeys, setJourneys] = useState({}); // vehicleId -> active journey or null
+  const [pingForm, setPingForm] = useState({}); // vehicleId -> {lat,lng}
   const [form, setForm] = useState({ vehicleNumber: '', type: 'bus', capacity: '', driverName: '', driverPhone: '', routeName: '', monthlyFee: '' });
   const [assignForm, setAssignForm] = useState({});
 
@@ -10363,6 +10604,41 @@ function InstitutionTransportPanel({ onFlash }) {
     apiRequest(`/institution-ops/${instId}/vehicles`).then(setVehicles).catch((err) => onFlash(err.message));
   }
   useEffect(() => { if (institution) load(institution._id); }, [institution]);
+
+  async function startJourney(vehicleId) {
+    try {
+      const journey = await apiRequest(`/transport/vehicles/${vehicleId}/journeys/start`, { method: 'POST' });
+      setJourneys((prev) => ({ ...prev, [vehicleId]: journey }));
+      onFlash('Journey started — parents notified.', 'success');
+    } catch (err) { onFlash(err.message); }
+  }
+  async function endJourney(vehicleId) {
+    const journey = journeys[vehicleId];
+    if (!journey) return;
+    try {
+      await apiRequest(`/transport/journeys/${journey._id}/end`, { method: 'PATCH' });
+      setJourneys((prev) => ({ ...prev, [vehicleId]: null }));
+      onFlash('Journey ended.', 'success');
+    } catch (err) { onFlash(err.message); }
+  }
+  async function sendPing(vehicleId) {
+    const journey = journeys[vehicleId];
+    const coords = pingForm[vehicleId];
+    if (!journey || !coords?.lat || !coords?.lng) return onFlash('Enter lat/lng first (manual/simulated GPS for now).');
+    try {
+      await apiRequest(`/transport/journeys/${journey._id}/ping`, { method: 'POST', body: { lat: Number(coords.lat), lng: Number(coords.lng) } });
+      onFlash('Location updated.', 'success');
+    } catch (err) { onFlash(err.message); }
+  }
+  async function sendSos(vehicleId) {
+    const journey = journeys[vehicleId];
+    if (!journey) return onFlash('Start a journey first.');
+    const message = window.prompt('Emergency details:') || '';
+    try {
+      await apiRequest(`/transport/journeys/${journey._id}/sos`, { method: 'POST', body: { message } });
+      onFlash('Emergency alert sent to parents and the owner.', 'success');
+    } catch (err) { onFlash(err.message); }
+  }
 
   async function addVehicle(e) {
     e.preventDefault();
@@ -10418,7 +10694,36 @@ function InstitutionTransportPanel({ onFlash }) {
         ])}
         empty="No vehicles added yet."
       />
-      <p style={{ fontSize: 12, color: 'var(--ink-soft)', marginTop: 12 }}>Live GPS tracking needs a physical GPS unit per vehicle (spec: optional) — not included here.</p>
+
+      <h4 className="font-semibold mt-6 mb-2" style={{ fontSize: '0.9rem' }}>Live Journey Tracking</h4>
+      <p className="text-xs mb-3" style={{ color: 'var(--ink-soft)' }}>Manual/simulated GPS entry for now — a real device feed would call the same ping endpoint. Parents only ever see location while a journey is in progress.</p>
+      <div className="space-y-3">
+        {(vehicles || []).map((v) => {
+          const journey = journeys[v._id];
+          return (
+            <div key={v._id} className="card" style={{ padding: 14 }}>
+              <div className="flex items-center justify-between flex-wrap" style={{ gap: 8 }}>
+                <strong className="text-sm">{v.vehicleNumber} {journey && <span style={{ color: 'var(--rose)' }}>● Live</span>}</strong>
+                <div className="flex gap-2">
+                  {!journey
+                    ? <button type="button" className="btn btn-primary" style={{ padding: '5px 12px', fontSize: '0.78rem' }} onClick={() => startJourney(v._id)}>Start Journey</button>
+                    : <>
+                        <button type="button" className="btn" style={{ padding: '5px 12px', fontSize: '0.78rem' }} onClick={() => endJourney(v._id)}>End Journey</button>
+                        <button type="button" className="btn" style={{ padding: '5px 12px', fontSize: '0.78rem', color: 'var(--rose)' }} onClick={() => sendSos(v._id)}>SOS</button>
+                      </>}
+                </div>
+              </div>
+              {journey && (
+                <div className="flex gap-2 items-end flex-wrap" style={{ marginTop: 10 }}>
+                  <input className="form-input" placeholder="Lat" style={{ maxWidth: 120 }} onChange={(e) => setPingForm((p) => ({ ...p, [v._id]: { ...p[v._id], lat: e.target.value } }))} />
+                  <input className="form-input" placeholder="Lng" style={{ maxWidth: 120 }} onChange={(e) => setPingForm((p) => ({ ...p, [v._id]: { ...p[v._id], lng: e.target.value } }))} />
+                  <button type="button" className="btn" style={{ padding: '5px 12px', fontSize: '0.78rem' }} onClick={() => sendPing(v._id)}>Update Location</button>
+                </div>
+              )}
+            </div>
+          );
+        })}
+      </div>
     </div>
   );
 }
@@ -16777,6 +17082,42 @@ function ParentPanel({ onFlash }) {
       <p className="text-xs" style={{ color: 'var(--ink-soft)', marginTop: 10 }}>
         Father / Mother / Guardian links get full access, including Health Record and signing permission slips. A Sponsor link can view academic progress and pay fees, but cannot edit medical information or sign trip/event/medical consent on the child's behalf.
       </p>
+      <GuardianTutoringApprovalPanel onFlash={onFlash} />
+    </div>
+  );
+}
+
+// Independent Teacher Enrollment — guardian side: a minor's tutoring invitation cannot become
+// active without this (spec: "Minor student ke liye linked parent/guardian approval mandatory").
+function GuardianTutoringApprovalPanel({ onFlash }) {
+  const [links, setLinks] = useState(null);
+  const [busyId, setBusyId] = useState(null);
+
+  function load() { apiRequest('/teacher-students/pending-guardian-approval').then(setLinks).catch(() => setLinks([])); }
+  useEffect(load, []);
+
+  async function decide(id, approved) {
+    setBusyId(id);
+    try { await apiRequest(`/teacher-students/${id}/guardian-approve`, { method: 'PATCH', body: { approved } }); onFlash(approved ? 'Approved.' : 'Declined.', 'success'); load(); }
+    catch (err) { onFlash(err.message); } finally { setBusyId(null); }
+  }
+
+  if (links === null || links.length === 0) return null;
+  return (
+    <div className="admin-section" style={{ marginTop: 20 }}>
+      <div className="admin-section-heading"><div><h2>Tutoring Approval Needed</h2><p>Your child was invited to independent tutoring and needs your consent before it can start.</p></div></div>
+      {links.map((l) => (
+        <div key={l._id} className="flex items-center justify-between flex-wrap" style={{ gap: 8, padding: '10px 0', borderBottom: '1px solid var(--sand-line)' }}>
+          <div>
+            <strong className="text-sm">{l.teacher?.fullName}</strong>
+            <p className="text-xs" style={{ color: 'var(--ink-soft)' }}>For {l.student?.fullName} — {l.course?.title}{l.subject ? ` (${l.subject})` : ''}</p>
+          </div>
+          <div className="flex gap-2">
+            <button type="button" className="btn btn-primary" style={{ padding: '5px 12px', fontSize: '0.78rem' }} disabled={busyId === l._id} onClick={() => decide(l._id, true)}>Approve</button>
+            <button type="button" className="btn" style={{ padding: '5px 12px', fontSize: '0.78rem' }} disabled={busyId === l._id} onClick={() => decide(l._id, false)}>Decline</button>
+          </div>
+        </div>
+      ))}
     </div>
   );
 }
