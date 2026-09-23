@@ -11535,6 +11535,7 @@ function InstitutionCampusLifePanel({ onFlash }) {
 function InstitutionStaffPanel({ onFlash }) {
   const [institution, setInstitution] = useState(null);
   const [form, setForm] = useState({ userId: '', role: 'teacher', department: '', designation: '', canApprove: false, canUseAi: false, canManageAi: false });
+  const [selectedStaffUser, setSelectedStaffUser] = useState(null);
 
   function load() {
     apiRequest('/institutions/mine/list').then((list) => setInstitution(list[0] || null)).catch((err) => onFlash(err.message));
@@ -11552,6 +11553,7 @@ function InstitutionStaffPanel({ onFlash }) {
       await apiRequest(`/institutions/${institution._id}/staff`, { method: 'POST', body: { userId: form.userId.trim(), role: form.role, department: form.department, designation: form.designation, permissions } });
       onFlash('Staff member added.', 'success');
       setForm({ userId: '', role: 'teacher', department: '', designation: '', canApprove: false, canUseAi: false, canManageAi: false });
+      setSelectedStaffUser(null);
       load();
     } catch (err) { onFlash(err.message); }
   }
@@ -11578,7 +11580,12 @@ function InstitutionStaffPanel({ onFlash }) {
   return (
     <div>
       <form onSubmit={addStaffMember} className="flex gap-3 items-end mb-3 flex-wrap">
-        <input className="form-input" placeholder="Staff member's User ID" value={form.userId} onChange={(e) => setForm({ ...form, userId: e.target.value })} required />
+        <PersonPicker
+          selected={selectedStaffUser}
+          placeholder="Search staff member by name or email"
+          onPick={(u) => { setSelectedStaffUser(u); setForm({ ...form, userId: u._id }); }}
+          onClear={() => { setSelectedStaffUser(null); setForm({ ...form, userId: '' }); }}
+        />
         <select className="form-select" value={form.role} onChange={(e) => setForm({ ...form, role: e.target.value })}>
           {['teacher', 'accountant', 'librarian', 'principal', 'coordinator', 'representative', 'staff'].map((r) => <option key={r} value={r}>{r}</option>)}
         </select>
@@ -16654,6 +16661,58 @@ function ComplaintTargetPicker({ target, onPick, onClear }) {
     <div style={{ position: 'relative' }}>
       <input
         className="form-input" placeholder="Search person by name or email (optional — who is this against?)"
+        value={query}
+        onChange={(e) => setQuery(e.target.value)}
+        onFocus={() => results.length > 0 && setOpen(true)}
+        onBlur={() => setTimeout(() => setOpen(false), 150)}
+      />
+      {open && results.length > 0 && (
+        <div style={{ position: 'absolute', top: '100%', left: 0, right: 0, zIndex: 5, maxHeight: 220, overflowY: 'auto', background: 'var(--paper, #fff)', border: '1px solid var(--sand-line, #ddd)', borderRadius: 8, boxShadow: '0 4px 16px rgba(0,0,0,0.12)', marginTop: 4 }}>
+          {results.map((u) => (
+            <button
+              type="button" key={u._id}
+              style={{ display: 'block', width: '100%', textAlign: 'left', padding: '8px 12px', border: 'none', background: 'transparent', cursor: 'pointer' }}
+              onMouseDown={() => { onPick(u); setQuery(''); setResults([]); setOpen(false); }}
+            >
+              <div>{u.fullName}</div>
+              <div style={{ fontSize: '0.75rem', color: 'var(--ink-soft)' }}>{u.email} · {(u.roles || []).join(', ')}</div>
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// Generic "find a person by name/email instead of pasting their raw User ID" picker — same
+// search-as-you-type pattern as ComplaintTargetPicker, reused anywhere a form needs a userId
+// (e.g. adding institution staff) without forcing the owner to go dig up someone's account ID.
+function PersonPicker({ selected, onPick, onClear, placeholder }) {
+  const [query, setQuery] = useState('');
+  const [results, setResults] = useState([]);
+  const [open, setOpen] = useState(false);
+
+  useEffect(() => {
+    if (query.trim().length < 2) { setResults([]); return; }
+    const t = setTimeout(() => {
+      apiRequest(`/users/search?q=${encodeURIComponent(query.trim())}`).then((r) => { setResults(r); setOpen(true); }).catch(() => {});
+    }, 300);
+    return () => clearTimeout(t);
+  }, [query]);
+
+  if (selected) {
+    return (
+      <div className="form-input" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, minWidth: 220 }}>
+        <span><strong>{selected.fullName}</strong> <span style={{ color: 'var(--ink-soft)', fontSize: '0.78rem' }}>({selected.email})</span></span>
+        <button type="button" className="btn" style={{ padding: '3px 10px', fontSize: '0.75rem' }} onClick={onClear}>Change</button>
+      </div>
+    );
+  }
+
+  return (
+    <div style={{ position: 'relative', minWidth: 220 }}>
+      <input
+        className="form-input" placeholder={placeholder || 'Search person by name or email'}
         value={query}
         onChange={(e) => setQuery(e.target.value)}
         onFocus={() => results.length > 0 && setOpen(true)}
