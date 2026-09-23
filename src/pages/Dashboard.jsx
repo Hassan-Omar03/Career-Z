@@ -6309,6 +6309,7 @@ function TeacherProfileDetailsPanel({ onFlash, onChanged }) {
         experienceYears: p.experienceYears || 0,
         bio: p.bio || '',
         independent: !!p.independent,
+        visibleToInstitutions: p.visibleToInstitutions !== false,
         qualifications: p.qualifications && p.qualifications.length > 0 ? p.qualifications : [{ title: '', institutionName: '', year: '' }]
       });
     }).catch((err) => onFlash(err.message));
@@ -6336,6 +6337,7 @@ function TeacherProfileDetailsPanel({ onFlash, onChanged }) {
           experienceYears: Number(form.experienceYears) || 0,
           bio: form.bio,
           independent: form.independent,
+          visibleToInstitutions: form.visibleToInstitutions,
           qualifications: form.qualifications.filter((q) => q.title.trim())
         }
       });
@@ -6364,6 +6366,9 @@ function TeacherProfileDetailsPanel({ onFlash, onChanged }) {
         </label>
         <label className="flex items-center text-xs" style={{ color: 'var(--ink-soft)', gap: 8 }}>
           <input type="checkbox" checked={form.independent} onChange={(e) => setForm({ ...form, independent: e.target.checked })} /> I teach independently (without an institution)
+        </label>
+        <label className="flex items-center text-xs" style={{ color: 'var(--ink-soft)', gap: 8 }}>
+          <input type="checkbox" checked={form.visibleToInstitutions} onChange={(e) => setForm({ ...form, visibleToInstitutions: e.target.checked })} /> Show my profile in the institution "Find Teachers" directory (lets institutions discover and offer you a job)
         </label>
 
         <div style={{ paddingTop: 4, borderTop: '1px solid var(--sand-line)' }}>
@@ -11610,11 +11615,26 @@ function InstitutionHiringPanel({ institutionId, onFlash }) {
   const [employments, setEmployments] = useState(null);
   const [form, setForm] = useState({ teacherUserId: '', role: 'teacher', designation: '', department: '', contractTerms: '' });
   const [busyId, setBusyId] = useState(null);
+  const [directory, setDirectory] = useState(null);
+  const [directoryQuery, setDirectoryQuery] = useState('');
+  const offerFormRef = useRef(null);
 
   function load() {
     apiRequest(`/institutions/${institutionId}/teacher-employments`).then(setEmployments).catch((err) => onFlash(err.message));
   }
   useEffect(load, [institutionId]);
+
+  function loadDirectory() {
+    setDirectory(null);
+    apiRequest(`/institutions/${institutionId}/teacher-directory${directoryQuery.trim() ? `?q=${encodeURIComponent(directoryQuery.trim())}` : ''}`)
+      .then(setDirectory).catch((err) => onFlash(err.message));
+  }
+  useEffect(loadDirectory, [institutionId]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  function pickFromDirectory(teacher) {
+    setForm((f) => ({ ...f, teacherUserId: teacher.userId }));
+    offerFormRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  }
 
   async function sendOffer(e) {
     e.preventDefault();
@@ -11640,8 +11660,35 @@ function InstitutionHiringPanel({ institutionId, onFlash }) {
 
   return (
     <div className="admin-section" style={{ marginTop: 20 }}>
+      <div className="admin-section-heading"><div><h2>Find Teachers</h2><p>Browse teachers who've made themselves discoverable, then send an offer — no need to already know their User ID.</p></div></div>
+      <form onSubmit={(e) => { e.preventDefault(); loadDirectory(); }} className="flex gap-3 items-end mb-4 flex-wrap">
+        <input className="form-input" placeholder="Search by subject or keyword" value={directoryQuery} onChange={(e) => setDirectoryQuery(e.target.value)} style={{ minWidth: 220, flex: 1 }} />
+        <button type="submit" className="btn">Search</button>
+      </form>
+      <div className="grid" style={{ gap: 12, gridTemplateColumns: 'repeat(auto-fill, minmax(240px, 1fr))', marginBottom: 24 }}>
+        {directory === null && <p role="status" className="admin-notice">Loading...</p>}
+        {directory && directory.length === 0 && <p className="text-xs" style={{ color: 'var(--ink-soft)' }}>No discoverable teachers found. Teachers control this from their own Teaching Profile ("Show my profile in the institution directory").</p>}
+        {(directory || []).map((t) => (
+          <div key={t.userId} className="card" style={{ padding: 16 }}>
+            <div className="flex items-center" style={{ gap: 10, marginBottom: 8 }}>
+              {t.profilePhoto
+                ? <img src={t.profilePhoto} alt="" style={{ width: 40, height: 40, borderRadius: '50%', objectFit: 'cover', flexShrink: 0 }} />
+                : <div style={{ width: 40, height: 40, borderRadius: '50%', background: 'var(--forest)', color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 700, flexShrink: 0 }}>{(t.fullName || '?')[0]}</div>}
+              <div>
+                <strong className="text-sm">{t.fullName}</strong>
+                <p className="text-xs" style={{ color: 'var(--ink-soft)' }}>{t.experienceYears || 0} yrs experience</p>
+              </div>
+            </div>
+            {t.subjects?.length > 0 && <p className="text-xs" style={{ marginBottom: 6 }}><strong>Subjects:</strong> {t.subjects.join(', ')}</p>}
+            {t.qualifications?.length > 0 && <p className="text-xs" style={{ marginBottom: 6, color: 'var(--ink-soft)' }}>{t.qualifications.map((q) => q.title).filter(Boolean).join(', ')}</p>}
+            {t.bio && <p className="text-xs" style={{ marginBottom: 10, color: 'var(--ink-soft)' }}>{t.bio}</p>}
+            <button type="button" className="btn btn-primary" style={{ padding: '6px 14px', fontSize: '0.78rem' }} onClick={() => pickFromDirectory(t)}>Send Offer</button>
+          </div>
+        ))}
+      </div>
+
       <div className="admin-section-heading"><div><h2>Hiring — Job Offers</h2><p>A formal offer the teacher must accept before they're added as staff (contract terms are a plain-text record, not a legal document).</p></div></div>
-      <form onSubmit={sendOffer} className="flex gap-3 items-end mb-4 flex-wrap">
+      <form ref={offerFormRef} onSubmit={sendOffer} className="flex gap-3 items-end mb-4 flex-wrap">
         <input className="form-input" placeholder="Teacher's User ID" required value={form.teacherUserId} onChange={(e) => setForm({ ...form, teacherUserId: e.target.value })} />
         <select className="form-select" value={form.role} onChange={(e) => setForm({ ...form, role: e.target.value })}>
           {['teacher', 'accountant', 'librarian', 'principal', 'coordinator', 'representative', 'staff'].map((r) => <option key={r} value={r}>{r}</option>)}
@@ -16435,6 +16482,11 @@ function ProfilePanel({ user, onFlash, onChanged }) {
             <p><strong>Phone:</strong> {user.phone || '—'}</p>
             <p><strong>Roles:</strong> {user.roles.join(', ')}</p>
             <p><strong>Status:</strong> {user.status}</p>
+            <p className="flex items-center" style={{ gap: 8 }}>
+              <strong>User ID:</strong>
+              <code style={{ fontSize: '0.78rem', background: 'var(--sand)', padding: '2px 8px', borderRadius: 6 }}>{user._id}</code>
+              <button type="button" className="btn" style={{ padding: '2px 10px', fontSize: '0.72rem' }} onClick={() => navigator.clipboard?.writeText(user._id)}>Copy</button>
+            </p>
           </div>
         </div>
       ) : (
