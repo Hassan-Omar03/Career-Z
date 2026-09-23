@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
+import { FaArrowLeft } from 'react-icons/fa6';
 import AuthNavbar from '../components/AuthNavbar';
 import PasswordField from '../components/PasswordField';
 import { resetPassword } from '../api/auth';
@@ -49,7 +50,7 @@ export default function ResetPassword() {
       <AuthNavbar />
       <section className="auth-shell">
         <div className="auth-wrap">
-          <Link to="/login" className="auth-back">← Back to sign in</Link>
+          <Link to="/login" className="auth-back flex items-center" style={{ gap: 5 }}><FaArrowLeft aria-hidden="true" /> Back to sign in</Link>
 
           <div className="auth-card reveal in">
             <div className="auth-head">

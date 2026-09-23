@@ -1,4 +1,4 @@
-import { FaCircleCheck, FaCircleXmark } from 'react-icons/fa6';
+import { FaCircleCheck, FaCircleXmark, FaArrowLeft } from 'react-icons/fa6';
 import { useEffect, useState } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { apiRequest, ApiError } from '../api/client';
@@ -64,8 +64,8 @@ export default function VerifyStudentId() {
           </div>
         )}
 
-        <Link to="/" style={styles.homeLink}>
-          ← Back to CareerZ
+        <Link to="/" style={{ ...styles.homeLink, display: 'inline-flex', alignItems: 'center', gap: 5 }}>
+          <FaArrowLeft aria-hidden="true" /> Back to CareerZ
         </Link>
       </div>
     </div>

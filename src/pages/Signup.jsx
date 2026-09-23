@@ -1,4 +1,4 @@
-import { FaGraduationCap, FaUsers, FaChalkboardUser, FaBriefcase, FaSchool, FaHandshake, FaHeart, FaUser } from 'react-icons/fa6';
+import { FaGraduationCap, FaUsers, FaChalkboardUser, FaBriefcase, FaSchool, FaHandshake, FaHeart, FaUser, FaArrowLeft } from 'react-icons/fa6';
 import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import AuthNavbar from '../components/AuthNavbar';
@@ -123,7 +123,7 @@ export default function Signup() {
       <AuthNavbar />
       <section className="auth-shell">
         <div className="auth-wrap auth-wrap-wide">
-          <Link to="/" className="auth-back">← Back to home</Link>
+          <Link to="/" className="auth-back flex items-center" style={{ gap: 5 }}><FaArrowLeft aria-hidden="true" /> Back to home</Link>
 
           <div className="auth-card reveal in">
             <div className="auth-head">

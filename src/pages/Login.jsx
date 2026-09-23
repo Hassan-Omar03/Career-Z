@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
+import { FaArrowLeft } from 'react-icons/fa6';
 import AuthNavbar from '../components/AuthNavbar';
 import PasswordField from '../components/PasswordField';
 import { useAuth } from '../context/AuthContext';
@@ -115,7 +116,7 @@ export default function Login() {
       <AuthNavbar />
       <section className="auth-shell">
         <div className="auth-wrap">
-          <Link to="/" className="auth-back">← Back to home</Link>
+          <Link to="/" className="auth-back flex items-center" style={{ gap: 5 }}><FaArrowLeft aria-hidden="true" /> Back to home</Link>
 
           <div className="auth-card reveal in">
             <div className="auth-head">
@@ -158,8 +159,8 @@ export default function Login() {
                 <button type="submit" className="btn btn-primary btn-block" disabled={submitting || !twoFactorCode.trim()}>
                   {submitting ? 'Verifying…' : 'Verify & Sign In'}
                 </button>
-                <button type="button" className="btn-social" style={{ marginTop: 12, width: '100%' }} onClick={() => { setTwoFactorEmail(null); setTwoFactorCode(''); setServerError(''); }}>
-                  ← Back to login
+                <button type="button" className="btn-social flex items-center" style={{ marginTop: 12, width: '100%', justifyContent: 'center', gap: 5 }} onClick={() => { setTwoFactorEmail(null); setTwoFactorCode(''); setServerError(''); }}>
+                  <FaArrowLeft aria-hidden="true" /> Back to login
                 </button>
               </form>
             ) : (

@@ -1,4 +1,4 @@
-import { FaCircleXmark, FaBriefcase, FaGraduationCap, FaAward, FaLink } from 'react-icons/fa6';
+import { FaCircleXmark, FaBriefcase, FaGraduationCap, FaAward, FaLink, FaArrowLeft } from 'react-icons/fa6';
 import { useEffect, useState } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { apiRequest, ApiError } from '../api/client';
@@ -38,7 +38,7 @@ export default function PublicPortfolio() {
           <div style={styles.invalidIcon}><FaCircleXmark aria-hidden="true" /></div>
           <h2 style={styles.invalidTitle}>Portfolio Not Available</h2>
           <p style={styles.muted}>{state.error}</p>
-          <Link to="/" style={styles.homeLink}>← Back to CareerZ</Link>
+          <Link to="/" style={{ ...styles.homeLink, display: 'inline-flex', alignItems: 'center', gap: 5 }}><FaArrowLeft aria-hidden="true" /> Back to CareerZ</Link>
         </div>
       </div>
     );
@@ -111,7 +111,7 @@ export default function PublicPortfolio() {
           </section>
         )}
 
-        <Link to="/" style={styles.homeLink}>← Powered by CareerZ</Link>
+        <Link to="/" style={{ ...styles.homeLink, display: 'inline-flex', alignItems: 'center', gap: 5 }}><FaArrowLeft aria-hidden="true" /> Powered by CareerZ</Link>
       </div>
     </div>
   );

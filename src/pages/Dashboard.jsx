@@ -3,9 +3,11 @@
   FaGauge, FaBuilding, FaChalkboardUser, FaBookOpen, FaClipboardList, FaAward, FaFileLines,
   FaGraduationCap, FaBriefcase, FaStore, FaWallet, FaSackDollar, FaSchool, FaChartLine,
   FaCalendarCheck, FaMoneyBillWave, FaHandshake, FaHourglassHalf, FaGear, FaBell, FaCommentDots, FaCircleQuestion, FaChevronDown,
-  FaCartShopping, FaBoxOpen, FaBoxesStacked, FaTruck, FaStar, FaTriangleExclamation, FaQrcode, FaLock,
+  FaCartShopping, FaBoxOpen, FaBoxesStacked, FaTruck, FaStar, FaRegStar, FaTriangleExclamation, FaQrcode, FaLock,
   FaEarthAmericas, FaDatabase, FaUserGear, FaNewspaper, FaWandMagicSparkles,
-  FaUserGraduate, FaBed, FaKitMedical, FaCalendarDays, FaHeadset, FaRobot
+  FaUserGraduate, FaBed, FaKitMedical, FaCalendarDays, FaHeadset, FaRobot,
+  FaCheck, FaLocationDot, FaExpand, FaGlobe, FaCreditCard, FaFaceSmile, FaCircleCheck,
+  FaArrowLeft, FaArrowRight, FaArrowRotateLeft
 } from 'react-icons/fa6';
 import { Children, useEffect, useRef, useState } from 'react';
 import { useLocation } from 'react-router-dom';
@@ -1093,7 +1095,7 @@ function StudentInstitutionsPanel({ onFlash }) {
                 {isRegistered ? <Tag status="approved" label="Registered" /> : <button type="button" className="btn" style={{ padding: '5px 14px', fontSize: '0.75rem' }} onClick={() => registerFair(f._id)}>Register</button>}
                 {isRegistered && f.videoCallLink && <a className="btn btn-primary" style={{ padding: '5px 14px', fontSize: '0.75rem' }} href={f.videoCallLink} target="_blank" rel="noreferrer">Join Video Call</a>}
                 {isRegistered && !f.videoCallLink && <span className="text-xs" style={{ color: 'var(--ink-soft)' }}>Video call link not shared yet.</span>}
-                {f.brochureUrl && <a className="btn" style={{ padding: '5px 14px', fontSize: '0.75rem' }} href={f.brochureUrl} target="_blank" rel="noreferrer">📄 Brochure</a>}
+                {f.brochureUrl && <a className="btn" style={{ padding: '5px 14px', fontSize: '0.75rem' }} href={f.brochureUrl} target="_blank" rel="noreferrer"><FaFileLines aria-hidden="true" /> Brochure</a>}
               </div>
             </div>
           );
@@ -1226,7 +1228,7 @@ function StudentCertificatesPanel({ onFlash }) {
           <div style={{ flex: 1 }}>
             <strong>{c.title}</strong>
             <p className="text-xs text-[var(--ink-soft)]">{c.institution?.name} · Issued {new Date(c.issueDate).toLocaleDateString()}</p>
-            <a href={c.verifyUrl} target="_blank" rel="noreferrer" className="text-xs" style={{ color: 'var(--emerald)' }}>Verification link ↗</a>
+            <a href={c.verifyUrl} target="_blank" rel="noreferrer" className="text-xs flex items-center" style={{ color: 'var(--emerald)', gap: 4, display: 'inline-flex' }}>Verification link <FaArrowUpRightFromSquare aria-hidden="true" size={10} /></a>
           </div>
         </div>
       ))}
@@ -1363,8 +1365,8 @@ function StudentDigitalLockerPanel({ onFlash }) {
             </label>
             {fileName && (
               <span className="flex items-center text-xs" style={{ gap: 6, color: 'var(--forest)' }}>
-                ✓ {fileName}
-                <button type="button" aria-label="Remove selected file" onClick={clearFile} style={{ border: 'none', background: 'var(--sand-line)', borderRadius: '50%', width: 18, height: 18, lineHeight: 1, cursor: 'pointer', color: 'var(--ink)' }}>✕</button>
+                <FaCheck aria-hidden="true" /> {fileName}
+                <button type="button" aria-label="Remove selected file" onClick={clearFile} style={{ border: 'none', background: 'var(--sand-line)', borderRadius: '50%', width: 18, height: 18, lineHeight: 1, cursor: 'pointer', color: 'var(--ink)' }}><FaXmark aria-hidden="true" /></button>
               </span>
             )}
             <span className="text-xs" style={{ color: 'var(--ink-soft)' }}>or</span>
@@ -1485,7 +1487,7 @@ function StudentDigitalIdPanel({ onFlash }) {
           <img src={id.qrDataUrl} alt="Student ID verification QR code" style={{ width: 84, height: 84, borderRadius: 10, border: '1px solid var(--sand-line)' }} />
           <div style={{ minWidth: 0 }}>
             <p className="text-xs" style={{ color: 'var(--ink-soft)', lineHeight: 1.6 }}>Anyone can scan this code to verify your enrollment status instantly — no login required.</p>
-            <a href={id.verifyUrl} target="_blank" rel="noreferrer" className="text-xs" style={{ color: 'var(--emerald)', display: 'inline-block', marginTop: 6 }}>Open verification link ↗</a>
+            <a href={id.verifyUrl} target="_blank" rel="noreferrer" className="text-xs flex items-center" style={{ color: 'var(--emerald)', display: 'inline-flex', marginTop: 6, gap: 4 }}>Open verification link <FaArrowUpRightFromSquare aria-hidden="true" size={10} /></a>
           </div>
         </div>
       </div>
@@ -1496,7 +1498,7 @@ function StudentDigitalIdPanel({ onFlash }) {
           Optional — enroll your face (computed from your profile photo, entirely in your browser) so your teacher can mark you present with a camera scan instead of a QR code. Only a set of numbers is stored, never the photo itself, and accuracy is moderate (a regular webcam, not dedicated biometric hardware).
         </p>
         <button type="button" className="btn btn-primary" onClick={enrollFace} disabled={enrolling}>
-          {enrolling ? 'Enrolling...' : faceEnrolled ? '✓ Face Enrolled' : 'Enroll My Face'}
+          {enrolling ? 'Enrolling...' : faceEnrolled ? <span className="flex items-center" style={{ gap: 5, justifyContent: 'center' }}><FaCheck aria-hidden="true" /> Face Enrolled</span> : 'Enroll My Face'}
         </button>
       </div>
     </div>
@@ -1900,7 +1902,7 @@ function StudyGroupDetail({ group, user, onFlash, onBack }) {
 
   return (
     <div>
-      <button type="button" className="btn" style={{ padding: '6px 14px', fontSize: '0.75rem', marginBottom: 16 }} onClick={onBack}>← Back to Study Groups</button>
+      <button type="button" className="btn flex items-center" style={{ padding: '6px 14px', fontSize: '0.75rem', marginBottom: 16, gap: 5 }} onClick={onBack}><FaArrowLeft aria-hidden="true" /> Back to Study Groups</button>
 
       <div className="card" style={{ padding: 20, marginBottom: 20, display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 14 }}>
         <div className="flex items-center" style={{ gap: 14, minWidth: 0 }}>
@@ -2036,7 +2038,7 @@ function JobDetailModal({ job, onClose, isSaved, onToggleSave, onApply }) {
               <p className="text-xs" style={{ color: 'var(--ink-soft)' }}>{job.company}</p>
             </div>
           </div>
-          <button type="button" className="u-modal-close" onClick={onClose}>✕</button>
+          <button type="button" className="u-modal-close" onClick={onClose}><FaXmark aria-hidden="true" /></button>
         </div>
         <div className="u-modal-body">
           <p className="text-xs" style={{ color: 'var(--ink-soft)', marginBottom: 8 }}>
@@ -2057,7 +2059,7 @@ function JobDetailModal({ job, onClose, isSaved, onToggleSave, onApply }) {
           )}
         </div>
         <div className="u-modal-foot">
-          {onToggleSave && <button type="button" className="btn" onClick={() => onToggleSave(job._id, isSaved)}>{isSaved ? '★ Saved' : '☆ Save'}</button>}
+          {onToggleSave && <button type="button" className="btn" onClick={() => onToggleSave(job._id, isSaved)}>{isSaved ? <span className="flex items-center" style={{ gap: 5 }}><FaStar aria-hidden="true" /> Saved</span> : <span className="flex items-center" style={{ gap: 5 }}><FaRegStar aria-hidden="true" /> Save</span>}</button>}
           {onApply && <button type="button" className="btn btn-primary" onClick={() => onApply(job._id)}>Apply Now</button>}
         </div>
       </div>
@@ -2149,7 +2151,7 @@ function JobDashboardPanel({ onFlash, onNavigate, user }) {
                 </div>
                 <div className="flex" style={{ gap: 8, flexShrink: 0 }}>
                   <button type="button" className="btn" style={{ padding: '6px 14px', fontSize: '0.75rem' }} onClick={() => recordJobView(j, setViewingJob)}>View Job</button>
-                  <button type="button" className="btn" style={{ padding: '6px 14px', fontSize: '0.75rem' }} onClick={() => toggleSave(j._id, isSaved)}>{isSaved ? '★ Saved' : '☆ Save'}</button>
+                  <button type="button" className="btn" style={{ padding: '6px 14px', fontSize: '0.75rem' }} onClick={() => toggleSave(j._id, isSaved)}>{isSaved ? <span className="flex items-center" style={{ gap: 5 }}><FaStar aria-hidden="true" /> Saved</span> : <span className="flex items-center" style={{ gap: 5 }}><FaRegStar aria-hidden="true" /> Save</span>}</button>
                   <button type="button" className="btn btn-primary" style={{ padding: '6px 14px', fontSize: '0.75rem' }} onClick={() => apply(j._id)}>Apply Now</button>
                 </div>
               </div>
@@ -2456,7 +2458,7 @@ function JobSearchPanel({ onFlash }) {
                 <input className="form-input" placeholder="Cover letter (optional)" value={coverLetters[j._id] || ''} onChange={(e) => setCoverLetters({ ...coverLetters, [j._id]: e.target.value })} style={{ maxWidth: 260 }} />
                 <button type="button" className="btn" style={{ padding: '6px 16px', fontSize: '0.8rem' }} onClick={() => recordJobView(j, setViewingJob)}>View Job</button>
                 <button type="button" className="btn btn-primary" style={{ padding: '6px 16px', fontSize: '0.8rem' }} onClick={() => apply(j._id)}>Apply</button>
-                <button type="button" className="btn" style={{ padding: '6px 16px', fontSize: '0.8rem' }} onClick={() => toggleSave(j._id, isSaved)}>{isSaved ? '★ Saved' : '☆ Save'}</button>
+                <button type="button" className="btn" style={{ padding: '6px 16px', fontSize: '0.8rem' }} onClick={() => toggleSave(j._id, isSaved)}>{isSaved ? <span className="flex items-center" style={{ gap: 5 }}><FaStar aria-hidden="true" /> Saved</span> : <span className="flex items-center" style={{ gap: 5 }}><FaRegStar aria-hidden="true" /> Save</span>}</button>
               </div>
             </div>
           );
@@ -2549,7 +2551,7 @@ function InternshipsPanel({ onFlash }) {
                     {applied
                       ? <Tag status="pending" label="Applied" />
                       : <button type="button" className="btn btn-primary" style={{ padding: '6px 14px', fontSize: '0.75rem' }} onClick={() => apply(j._id)}>Apply</button>}
-                    <button type="button" className="btn" style={{ padding: '6px 14px', fontSize: '0.75rem' }} onClick={() => toggleSave(j._id, isSaved)}>{isSaved ? '★ Saved' : '☆ Save'}</button>
+                    <button type="button" className="btn" style={{ padding: '6px 14px', fontSize: '0.75rem' }} onClick={() => toggleSave(j._id, isSaved)}>{isSaved ? <span className="flex items-center" style={{ gap: 5 }}><FaStar aria-hidden="true" /> Saved</span> : <span className="flex items-center" style={{ gap: 5 }}><FaRegStar aria-hidden="true" /> Save</span>}</button>
                   </div>
                 </div>
               );
@@ -2681,7 +2683,7 @@ function RecommendedJobsPanel({ onFlash }) {
               </div>
               <div className="flex gap-2">
                 <button type="button" className="btn" style={{ padding: '5px 12px', fontSize: '0.75rem' }} onClick={() => recordJobView(j, setViewingJob)}>View Job</button>
-                <button type="button" className="btn" style={{ padding: '5px 12px', fontSize: '0.75rem' }} onClick={() => toggleSave(j._id, isSaved)}>{isSaved ? '★ Saved' : '☆ Save'}</button>
+                <button type="button" className="btn" style={{ padding: '5px 12px', fontSize: '0.75rem' }} onClick={() => toggleSave(j._id, isSaved)}>{isSaved ? <span className="flex items-center" style={{ gap: 5 }}><FaStar aria-hidden="true" /> Saved</span> : <span className="flex items-center" style={{ gap: 5 }}><FaRegStar aria-hidden="true" /> Save</span>}</button>
                 <button type="button" className="btn btn-primary" style={{ padding: '5px 12px', fontSize: '0.75rem' }} onClick={() => apply(j._id)}>Apply Now</button>
               </div>
             </div>
@@ -3280,9 +3282,9 @@ function SlideDeckGenerator({ aiEnabled }) {
             <span style={{ position: 'absolute', bottom: 16, right: 24, fontSize: 12, opacity: 0.6 }}>{current + 1} / {slides.length}</span>
           </div>
           <div className="flex items-center gap-2" style={{ marginTop: 10 }}>
-            <button type="button" className="btn" style={{ padding: '6px 14px', fontSize: '0.78rem' }} onClick={() => setCurrent((c) => Math.max(0, c - 1))} disabled={current === 0}>← Previous</button>
-            <button type="button" className="btn" style={{ padding: '6px 14px', fontSize: '0.78rem' }} onClick={() => setCurrent((c) => Math.min(slides.length - 1, c + 1))} disabled={current === slides.length - 1}>Next →</button>
-            <button type="button" className="btn btn-primary" style={{ padding: '6px 14px', fontSize: '0.78rem' }} onClick={() => viewerRef.current?.requestFullscreen?.()}>⛶ Present Fullscreen</button>
+            <button type="button" className="btn flex items-center" style={{ padding: '6px 14px', fontSize: '0.78rem', gap: 5 }} onClick={() => setCurrent((c) => Math.max(0, c - 1))} disabled={current === 0}><FaArrowLeft aria-hidden="true" /> Previous</button>
+            <button type="button" className="btn flex items-center" style={{ padding: '6px 14px', fontSize: '0.78rem', gap: 5 }} onClick={() => setCurrent((c) => Math.min(slides.length - 1, c + 1))} disabled={current === slides.length - 1}>Next <FaArrowRight aria-hidden="true" /></button>
+            <button type="button" className="btn btn-primary flex items-center" style={{ padding: '6px 14px', fontSize: '0.78rem', gap: 5 }} onClick={() => viewerRef.current?.requestFullscreen?.()}><FaExpand aria-hidden="true" /> Present Fullscreen</button>
           </div>
         </div>
       )}
@@ -3612,7 +3614,7 @@ function ResumeEditorPanel({ onFlash }) {
           <div>
             <p style={sectionLabel}>Career Portfolio Visibility</p>
             <p className="text-xs" style={{ color: 'var(--ink-soft)', marginTop: 6, lineHeight: 1.6 }}>{resume.isPublic ? 'Anyone with the link can view your public portfolio.' : 'Your portfolio is private — only you can see it.'}</p>
-            {resume.isPublic && <a href={publicUrl} target="_blank" rel="noreferrer" className="text-xs" style={{ color: 'var(--emerald)', display: 'inline-block', marginTop: 6, overflowWrap: 'anywhere' }}>{publicUrl} ↗</a>}
+            {resume.isPublic && <a href={publicUrl} target="_blank" rel="noreferrer" className="text-xs flex items-center" style={{ color: 'var(--emerald)', display: 'inline-flex', marginTop: 6, overflowWrap: 'anywhere', gap: 4 }}>{publicUrl} <FaArrowUpRightFromSquare aria-hidden="true" size={10} /></a>}
           </div>
           <label className="flex items-center" style={{ gap: 10, flexShrink: 0, cursor: 'pointer' }}>
             <span className="text-xs" style={{ fontWeight: 600 }}>{resume.isPublic ? 'Public' : 'Private'}</span>
@@ -4036,7 +4038,7 @@ function ProductDetailModal({ product, onClose }) {
             <h3>{product.title}</h3>
             <p className="text-xs" style={{ color: 'var(--ink-soft)' }}>{product.category}</p>
           </div>
-          <button type="button" className="u-modal-close" onClick={onClose}>✕</button>
+          <button type="button" className="u-modal-close" onClick={onClose}><FaXmark aria-hidden="true" /></button>
         </div>
         <div className="u-modal-body">
           {product.images?.[0] && <img src={product.images[0]} alt="" style={{ width: '100%', maxHeight: 220, objectFit: 'cover', borderRadius: 8, marginBottom: 12 }} />}
@@ -4404,7 +4406,7 @@ function SellerReviewsPanel({ onFlash }) {
         <div>
           <p style={fieldLabel}>Overall Seller Rating</p>
           <strong style={{ fontSize: 22, fontFamily: 'Fraunces, serif', display: 'block', marginTop: 4 }}>
-            {profile?.sellerRating !== null && profile?.sellerRating !== undefined ? `★ ${profile.sellerRating}` : 'No reviews yet'}
+            {profile?.sellerRating !== null && profile?.sellerRating !== undefined ? profile.sellerRating : 'No reviews yet'}
           </strong>
           {profile?.sellerRating !== null && profile?.sellerRating !== undefined && <span className="text-xs" style={{ color: 'var(--ink-soft)' }}>{profile.totalReviews} review{profile.totalReviews === 1 ? '' : 's'}</span>}
         </div>
@@ -4413,7 +4415,7 @@ function SellerReviewsPanel({ onFlash }) {
       <p style={{ ...fieldLabel, marginBottom: 12 }}>Product Ratings</p>
       <Table
         headers={['Product', 'Average Rating', 'Reviews']}
-        rows={productRatings.map((p) => [p.title, `★ ${p.avg}`, p.count])}
+        rows={productRatings.map((p) => [p.title, <span className="flex items-center" style={{ gap: 4 }}><FaStar aria-hidden="true" style={{ color: 'var(--gold)' }} /> {p.avg}</span>, p.count])}
         empty="No product ratings yet."
       />
 
@@ -4433,7 +4435,7 @@ function SellerReviewsPanel({ onFlash }) {
                   <div style={{ minWidth: 0 }}>
                     <strong className="text-sm">{r.buyer?.fullName}</strong>
                     <div className="flex items-center flex-wrap" style={{ gap: 6, marginTop: 2 }}>
-                      <span className="text-xs" style={{ color: 'var(--ink-soft)' }}>{r.product?.title} · ★ {r.rating} · {new Date(r.createdAt).toLocaleDateString()}</span>
+                      <span className="text-xs flex items-center" style={{ color: 'var(--ink-soft)', gap: 4 }}>{r.product?.title} · <FaStar aria-hidden="true" style={{ color: 'var(--gold)' }} /> {r.rating} · {new Date(r.createdAt).toLocaleDateString()}</span>
                       {r.reported && <Tag status="rejected" label="Reported" />}
                     </div>
                     {r.comment && <p className="text-xs" style={{ marginTop: 8, color: 'var(--ink)' }}>{r.comment}</p>}
@@ -4641,7 +4643,7 @@ function SellerVerificationPanel({ onFlash }) {
           <div style={{ display: 'grid', gap: 8 }}>
             {(request?.documents || []).map((d) => (
               <div key={d} className="flex items-center justify-between flex-wrap" style={{ gap: 10, padding: 12, borderRadius: 12, background: 'var(--sand)' }}>
-                <a href={d} target="_blank" rel="noreferrer" className="text-xs" style={{ overflowWrap: 'anywhere' }}>📄 {d}</a>
+                <a href={d} target="_blank" rel="noreferrer" className="text-xs" style={{ overflowWrap: 'anywhere' }}><FaFileLines aria-hidden="true" /> {d}</a>
                 <button type="button" className="btn" style={{ padding: '5px 12px', fontSize: '0.72rem', background: 'var(--paper-raised)', flexShrink: 0 }} onClick={() => removeDocument(d)}>Remove</button>
               </div>
             ))}
@@ -5066,14 +5068,14 @@ function TimetableView({ onFlash, url }) {
   return (
     <div>
       <h3 className="font-semibold mb-2">My Classes</h3>
-      {blockedFee && <div className="admin-notice error" role="alert">🔒 Class access locked: {blockedFee.title} ({blockedFee.currency} {blockedFee.amount}) is {blockedFee.status}. Open Fees &amp; Wallet, complete payment, and wait for institution confirmation if you used a manual method.</div>}
+      {blockedFee && <div className="admin-notice error flex items-center" role="alert" style={{ gap: 6 }}><FaLock aria-hidden="true" /> Class access locked: {blockedFee.title} ({blockedFee.currency} {blockedFee.amount}) is {blockedFee.status}. Open Fees &amp; Wallet, complete payment, and wait for institution confirmation if you used a manual method.</div>}
 
       {live.length > 0 && (
         <div className="mb-4">
           {live.map((t) => (
             <div key={t._id} className="border rounded-xl p-3 mb-2 flex items-center justify-between" style={{ borderColor: 'var(--rose)' }}>
               <div>
-                <span style={{ color: 'var(--rose)', fontWeight: 700 }}>🔴 Class in Progress</span>
+                <span style={{ color: 'var(--rose)', fontWeight: 700 }}><FaCircle aria-hidden="true" style={{ color: 'var(--rose)', fontSize: 8, verticalAlign: 'middle' }} /> Class in Progress</span>
                 <p className="text-xs mt-1" style={{ color: 'var(--ink-soft)' }}>{t.subject} · {formatTime12h(t.startTime)}–{formatTime12h(t.endTime)} · {t.teacher?.fullName || ''}</p>
               </div>
               <button type="button" className="btn btn-primary" onClick={() => joinClass(t)}>Join Class</button>
@@ -5089,7 +5091,7 @@ function TimetableView({ onFlash, url }) {
           t.__nextDate ? t.__nextDate.toLocaleDateString(undefined, { month: 'short', day: 'numeric' }) : '—',
           DOW_LABEL[t.dayOfWeek], `${formatTime12h(t.startTime)}–${formatTime12h(t.endTime)}`, t.course?.title || t.subject, t.teacher?.fullName || t.teacher?.email || '—', t.classSection?.name || '—', t.room || '—',
           <Tag status={CLASS_STATUS_TAG[t.__status] || 'pending'} label={CLASS_STATUS_LABEL[t.__status] || 'Upcoming'} />,
-          t.feeAccess?.blocked ? <button className="btn" style={{ padding: '4px 12px', fontSize: '0.78rem' }} onClick={() => joinClass(t)}>🔒 Fee due</button>
+          t.feeAccess?.blocked ? <button className="btn flex items-center" style={{ padding: '4px 12px', fontSize: '0.78rem', gap: 5 }} onClick={() => joinClass(t)}><FaLock aria-hidden="true" /> Fee due</button>
             : t.__status === 'live' ? <button className="btn btn-primary" style={{ padding: '4px 12px', fontSize: '0.78rem' }} onClick={() => joinClass(t)}>Join</button> : '—'
         ])}
         empty="No timetable set up yet."
@@ -5153,7 +5155,7 @@ function PaddleCheckoutButton({ feeId, onFlash, onPaid }) {
         opacity: loading ? 0.7 : 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, width: '100%'
       }}
     >
-      🌍 {loading ? 'Loading...' : 'Pay Online'} {!loading && <span style={{ fontWeight: 400, opacity: 0.85, fontSize: '0.78rem' }}>(Card / Apple Pay / Google Pay)</span>}
+      <FaGlobe aria-hidden="true" /> {loading ? 'Loading...' : 'Pay Online'} {!loading && <span style={{ fontWeight: 400, opacity: 0.85, fontSize: '0.78rem' }}>(Card / Apple Pay / Google Pay)</span>}
     </button>
   );
 }
@@ -5183,7 +5185,7 @@ function StripeCheckoutButton({ feeId, onFlash }) {
         opacity: loading ? 0.7 : 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, width: '100%'
       }}
     >
-      💳 {loading ? 'Redirecting...' : 'Pay Online (Stripe)'}
+      <FaCreditCard aria-hidden="true" /> {loading ? 'Redirecting...' : 'Pay Online (Stripe)'}
     </button>
   );
 }
@@ -5530,9 +5532,9 @@ function StudentAttendanceCheckInPanel({ onFlash, onMarked }) {
       <p className="text-xs mb-2" style={{ color: 'var(--ink-soft)', fontWeight: 700 }}>Self check-in options (use only when your teacher enables one):</p>
       <div className="flex gap-2 mb-4 flex-wrap">
         <button type="button" className={mode === 'qr' ? 'btn btn-primary' : 'btn'} style={{ padding: '6px 16px', fontSize: '0.8rem' }} onClick={() => setMode(mode === 'qr' ? '' : 'qr')}>▣ Scan Teacher QR</button>
-        <button type="button" className={mode === 'gps' ? 'btn btn-primary' : 'btn'} style={{ padding: '6px 16px', fontSize: '0.8rem' }} onClick={() => setMode('gps')}>📍 GPS</button>
-        <button type="button" className={mode === 'face' ? 'btn btn-primary' : 'btn'} style={{ padding: '6px 16px', fontSize: '0.8rem' }} onClick={() => { setMode(mode === 'face' ? '' : 'face'); setFaceRequestStatus(''); }}>😊 Face (Remote)</button>
-        <button type="button" className={mode === 'bio' ? 'btn btn-primary' : 'btn'} style={{ padding: '6px 16px', fontSize: '0.8rem' }} onClick={() => setMode('bio')}>🔒 Biometric</button>
+        <button type="button" className={mode === 'gps' ? 'btn btn-primary' : 'btn'} style={{ padding: '6px 16px', fontSize: '0.8rem' }} onClick={() => setMode('gps')}><FaLocationDot aria-hidden="true" /> GPS</button>
+        <button type="button" className={mode === 'face' ? 'btn btn-primary' : 'btn'} style={{ padding: '6px 16px', fontSize: '0.8rem' }} onClick={() => { setMode(mode === 'face' ? '' : 'face'); setFaceRequestStatus(''); }}><FaFaceSmile aria-hidden="true" /> Face (Remote)</button>
+        <button type="button" className={mode === 'bio' ? 'btn btn-primary' : 'btn'} style={{ padding: '6px 16px', fontSize: '0.8rem' }} onClick={() => setMode('bio')}><FaLock aria-hidden="true" /> Biometric</button>
       </div>
 
       {mode === 'qr' && <div><p className="text-xs mb-2" style={{ color: 'var(--ink-soft)' }}>QR on another screen? Scan it. Using the same device or attending online? Enter the code shared by your teacher.</p><form onSubmit={submitSessionCode} className="flex gap-2 mb-3 flex-wrap"><input className="form-input" placeholder="Enter teacher session code" value={sessionCode} onChange={(e) => setSessionCode(e.target.value.toUpperCase())} style={{ maxWidth: 260 }} /><button type="submit" className="btn btn-primary" disabled={!sessionCode.trim() || scanBusy}>{scanBusy ? 'Checking...' : 'Join with Code'}</button></form><details><summary className="text-xs" style={{ cursor: 'pointer', fontWeight: 700 }}>Or scan QR with camera</summary><div style={{ marginTop: 10 }}><QrScanner onScan={onQrScan} hint="Point the camera at the QR code on your teacher's screen." /></div></details></div>}
@@ -5829,7 +5831,7 @@ function StudentSummary({ onNavigate, user }) {
         {dash.currentClasses.map((c) => (
           <div key={c._id} className="flex items-center justify-between mb-2">
             <div>
-              <span style={{ color: 'var(--rose)', fontWeight: 700, fontSize: 13 }}>🔴 Class in Progress</span>
+              <span style={{ color: 'var(--rose)', fontWeight: 700, fontSize: 13 }}><FaCircle aria-hidden="true" style={{ color: 'var(--rose)', fontSize: 8, verticalAlign: 'middle' }} /> Class in Progress</span>
               <p className="text-xs mt-1" style={{ color: 'var(--ink-soft)' }}>Subject: {c.subject} · Teacher: {c.teacher?.fullName || '—'}{inst?.name ? ` · Institution: ${inst.name}` : ''}</p>
               <p className="text-xs" style={{ color: 'var(--ink-soft)' }}>Date: {new Date().toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' })} · Time: {formatTime12h(c.startTime)}–{formatTime12h(c.endTime)} · Status: Live</p>
             </div>
@@ -7071,7 +7073,7 @@ function TeacherSelfAttendancePanel({ onFlash }) {
     <div>
       <div className="card" style={{ padding: 20, marginBottom: 20 }}>
         {checkedInToday ? (
-          <p className="text-sm" style={{ color: 'var(--emerald)' }}>✓ You've checked in today.</p>
+          <p className="text-sm flex items-center" style={{ color: 'var(--emerald)', gap: 5 }}><FaCheck aria-hidden="true" /> You've checked in today.</p>
         ) : (
           <button type="button" className="btn btn-primary" onClick={checkIn} disabled={checkingIn}>
             {checkingIn ? 'Checking in...' : 'Check In for Today'}
@@ -7145,7 +7147,7 @@ function TeacherQrAttendancePanel({ courseId, date, onFlash }) {
             <p className="text-xs" style={{ color: 'var(--ink-soft)' }}>No students checked in yet.</p>
           ) : (
             <ul className="text-sm space-y-1" style={{ textAlign: 'left' }}>
-              {live.checkedIn.map((name, i) => <li key={i}>✓ {name}</li>)}
+              {live.checkedIn.map((name, i) => <li key={i} className="flex items-center" style={{ gap: 5 }}><FaCheck aria-hidden="true" /> {name}</li>)}
             </ul>
           )}
         </div>
@@ -7189,7 +7191,7 @@ function TeacherGpsAttendancePanel({ courseId, onFlash }) {
       <p className="text-xs mb-3" style={{ color: 'var(--ink-soft)' }}>Optional — sets your current location as the allowed check-in area. Students must grant location permission and be within range to mark themselves present.</p>
       {config?.enabled ? (
         <div>
-          <p className="text-sm">✅ Enabled — radius {config.radiusMeters}m from where you enabled this.</p>
+          <p className="text-sm flex items-center" style={{ gap: 5 }}><FaCircleCheck aria-hidden="true" style={{ color: 'var(--emerald)' }} /> Enabled — radius {config.radiusMeters}m from where you enabled this.</p>
           <button type="button" className="btn mt-2" onClick={disable}>Disable GPS Attendance</button>
         </div>
       ) : (
@@ -7323,7 +7325,7 @@ function TeacherFaceAttendancePanel({ courseId, date, onFlash }) {
       ) : (
         <ul className="text-sm space-y-1">
           {scans.map((s, i) => (
-            <li key={i}>{s.alreadyMarked ? '↺' : '✓'} {s.studentName} — {s.at.toLocaleTimeString()}{s.alreadyMarked ? ' (already marked)' : ''}</li>
+            <li key={i} className="flex items-center" style={{ gap: 5 }}>{s.alreadyMarked ? <FaArrowRotateLeft aria-hidden="true" /> : <FaCheck aria-hidden="true" />} {s.studentName} — {s.at.toLocaleTimeString()}{s.alreadyMarked ? ' (already marked)' : ''}</li>
           ))}
         </ul>
       )}
@@ -7397,9 +7399,9 @@ function TeacherAttendancePanel({ onFlash }) {
       {courseId && (
         <div className="flex gap-2 mb-4">
           <button type="button" className={mode === 'manual' ? 'btn btn-primary' : 'btn'} style={{ padding: '6px 16px', fontSize: '0.8rem' }} onClick={() => setMode('manual')}>Manual</button>
-          <button type="button" className={mode === 'qr' ? 'btn btn-primary' : 'btn'} style={{ padding: '6px 16px', fontSize: '0.8rem' }} onClick={() => setMode('qr')}>📷 QR Session</button>
-          <button type="button" className={mode === 'face' ? 'btn btn-primary' : 'btn'} style={{ padding: '6px 16px', fontSize: '0.8rem' }} onClick={() => setMode('face')}>🙂 Face Scan</button>
-          <button type="button" className={mode === 'gps' ? 'btn btn-primary' : 'btn'} style={{ padding: '6px 16px', fontSize: '0.8rem' }} onClick={() => setMode('gps')}>📍 GPS</button>
+          <button type="button" className={mode === 'qr' ? 'btn btn-primary' : 'btn'} style={{ padding: '6px 16px', fontSize: '0.8rem' }} onClick={() => setMode('qr')}><FaQrcode aria-hidden="true" /> QR Session</button>
+          <button type="button" className={mode === 'face' ? 'btn btn-primary' : 'btn'} style={{ padding: '6px 16px', fontSize: '0.8rem' }} onClick={() => setMode('face')}><FaFaceSmile aria-hidden="true" /> Face Scan</button>
+          <button type="button" className={mode === 'gps' ? 'btn btn-primary' : 'btn'} style={{ padding: '6px 16px', fontSize: '0.8rem' }} onClick={() => setMode('gps')}><FaLocationDot aria-hidden="true" /> GPS</button>
         </div>
       )}
       {courseId && (mode === 'qr' || mode === 'face') && (
@@ -7742,7 +7744,7 @@ function TeacherLiveClassesPanel({ onFlash }) {
           const status = classStatusNow(e);
           return [
             DOW_LABEL[e.dayOfWeek], `${formatTime12h(e.startTime)}–${formatTime12h(e.endTime)}`, e.subject, e.classSection?.name || '—',
-            status === 'live' ? <span style={{ color: 'var(--rose)', fontWeight: 700 }}>🔴 Live</span> : status,
+            status === 'live' ? <span className="flex items-center" style={{ color: 'var(--rose)', fontWeight: 700, gap: 5 }}><FaCircle aria-hidden="true" style={{ fontSize: 8 }} /> Live</span> : status,
             <button type="button" className={status === 'live' ? 'btn btn-primary' : 'btn'} style={{ padding: '4px 12px', fontSize: '0.75rem' }} onClick={() => join(e)}>Start Class</button>
           ];
         })}
@@ -7831,7 +7833,7 @@ function TeacherResourceLibraryPanel({ onFlash }) {
                 <div className="flex flex-wrap items-center" style={{ gap: 8, marginTop: 10 }}>
                   {it.videoUrl && <a href={it.videoUrl} target="_blank" rel="noreferrer" className="text-xs" style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '5px 12px', borderRadius: 999, background: 'var(--sand)', border: '1px solid var(--sand-line)', color: 'var(--forest)', fontWeight: 600 }}>▶ Video</a>}
                   {it.resources.map((r, ri) => (
-                    <a key={ri} href={r.url} target="_blank" rel="noreferrer" className="text-xs" style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '5px 12px', borderRadius: 999, background: 'var(--sand)', border: '1px solid var(--sand-line)', color: 'var(--forest)', fontWeight: 600 }}>📄 {r.name || 'Download'}</a>
+                    <a key={ri} href={r.url} target="_blank" rel="noreferrer" className="text-xs" style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '5px 12px', borderRadius: 999, background: 'var(--sand)', border: '1px solid var(--sand-line)', color: 'var(--forest)', fontWeight: 600 }}><FaFileLines aria-hidden="true" /> {r.name || 'Download'}</a>
                   ))}
                 </div>
               )}
@@ -8157,7 +8159,7 @@ function InstitutionFeedbackWidget({ institutionId, onFlash }) {
     <div className="card" style={{ padding: 16, marginBottom: 20 }}>
       <strong className="text-sm">How is your experience with this institution?</strong>
       {summary && summary.count > 0
-        ? <p className="text-xs" style={{ color: 'var(--ink-soft)', margin: '4px 0' }}>Average: ★ {summary.average} ({summary.count} parent rating{summary.count === 1 ? '' : 's'})</p>
+        ? <p className="text-xs flex items-center" style={{ color: 'var(--ink-soft)', margin: '4px 0', gap: 4 }}>Average: <FaStar aria-hidden="true" style={{ color: 'var(--gold)' }} /> {summary.average} ({summary.count} parent rating{summary.count === 1 ? '' : 's'})</p>
         : <p className="text-xs" style={{ color: 'var(--ink-soft)', margin: '4px 0' }}>No ratings yet — be the first.</p>}
       <form onSubmit={submit} className="flex gap-2 items-end flex-wrap" style={{ marginTop: 8 }}>
         <select className="form-select" value={rating} onChange={(e) => setRating(Number(e.target.value))} style={{ maxWidth: 90 }}>
@@ -9481,7 +9483,7 @@ function RepApplicationsPanel({ onFlash, repInfo, user }) {
                       value={a.status} onChange={(v) => setStatus(a._id, v)} ariaLabel="Application status" minWidth="100%"
                       options={REP_APP_STATUS.map((s) => {
                         const locked = ['accepted', 'rejected'].includes(s) && !canApprove;
-                        return { value: s, label: REP_APP_STATUS_LABEL[s] + (locked ? ' 🔒' : ''), disabled: locked };
+                        return { value: s, label: locked ? <span className="flex items-center" style={{ gap: 5 }}>{REP_APP_STATUS_LABEL[s]} <FaLock aria-hidden="true" size={10} /></span> : REP_APP_STATUS_LABEL[s], disabled: locked };
                       })}
                     />
                   </div>
@@ -9915,7 +9917,7 @@ function RepVirtualFairPanel({ onFlash, repInfo }) {
                 {f.description && <p className="text-sm" style={{ marginTop: 8 }}>{f.description}</p>}
                 <div className="flex flex-wrap" style={{ gap: 10, marginTop: 12 }}>
                   {f.videoCallLink && <a className="btn btn-primary" style={{ padding: '7px 16px', fontSize: '0.78rem' }} href={f.videoCallLink} target="_blank" rel="noreferrer">Start Video Call</a>}
-                  {f.brochureUrl && <a className="btn" style={{ padding: '7px 16px', fontSize: '0.78rem' }} href={f.brochureUrl} target="_blank" rel="noreferrer">📄 Brochure</a>}
+                  {f.brochureUrl && <a className="btn" style={{ padding: '7px 16px', fontSize: '0.78rem' }} href={f.brochureUrl} target="_blank" rel="noreferrer"><FaFileLines aria-hidden="true" /> Brochure</a>}
                 </div>
               </div>
             </div>
@@ -10275,8 +10277,8 @@ function InstitutionParentsPanel({ onFlash }) {
       {feedback && (
         <div className="card" style={{ padding: 14, marginBottom: 16 }}>
           <strong className="text-sm">Parent Satisfaction</strong>
-          <p className="text-xs" style={{ color: 'var(--ink-soft)', margin: '4px 0' }}>
-            {feedback.count > 0 ? `Average: ★ ${feedback.average} (${feedback.count} rating${feedback.count === 1 ? '' : 's'})` : 'No parent ratings yet.'}
+          <p className="text-xs flex items-center" style={{ color: 'var(--ink-soft)', margin: '4px 0', gap: 4 }}>
+            {feedback.count > 0 ? <>Average: <FaStar aria-hidden="true" style={{ color: 'var(--gold)' }} /> {feedback.average} ({feedback.count} rating{feedback.count === 1 ? '' : 's'})</> : 'No parent ratings yet.'}
           </p>
         </div>
       )}
@@ -10295,7 +10297,7 @@ function InstitutionParentsPanel({ onFlash }) {
                 <span key={c.linkId} className="flex items-center gap-2" style={{ fontSize: 12, background: 'var(--sand)', borderRadius: 999, padding: '4px 10px' }}>
                   {c.name} ({c.relationship})
                   <button type="button" className="btn" style={{ padding: '2px 8px', fontSize: '0.7rem' }} onClick={() => toggleVerify(c.linkId, !c.institutionVerified)}>
-                    {c.institutionVerified ? '✓ Verified' : 'Verify'}
+                    {c.institutionVerified ? <span className="flex items-center" style={{ gap: 5, justifyContent: 'center' }}><FaCheck aria-hidden="true" /> Verified</span> : 'Verify'}
                   </button>
                 </span>
               ))}
@@ -12791,7 +12793,7 @@ function FundingRequestDetailModal({ request, onClose, onDonate, onSponsor, onSa
             <h3>{request.title}</h3>
             <p className="text-xs" style={{ color: 'var(--ink-soft)' }}>{request.requestedBy?.fullName}{request.institution?.name ? ` · ${request.institution.name}` : ''}</p>
           </div>
-          <button type="button" className="u-modal-close" onClick={onClose}>✕</button>
+          <button type="button" className="u-modal-close" onClick={onClose}><FaXmark aria-hidden="true" /></button>
         </div>
         <div className="u-modal-body">
           <p className="text-xs" style={{ marginBottom: 8 }}><strong>Request type:</strong> {request.requestType}</p>
@@ -12808,7 +12810,7 @@ function FundingRequestDetailModal({ request, onClose, onDonate, onSponsor, onSa
           <p className="text-xs"><strong>Verification:</strong> <Tag status={VERIFICATION_TAG[request.verificationStatus]} label={VERIFICATION_LABEL[request.verificationStatus]} /></p>
         </div>
         <div className="u-modal-foot">
-          {onSave && <button type="button" className="btn" onClick={() => onSave(request._id)}>{isSaved ? '★ Saved' : '☆ Save Request'}</button>}
+          {onSave && <button type="button" className="btn" onClick={() => onSave(request._id)}>{isSaved ? <span className="flex items-center" style={{ gap: 5 }}><FaStar aria-hidden="true" /> Saved</span> : <span className="flex items-center" style={{ gap: 5 }}><FaRegStar aria-hidden="true" /> Save Request</span>}</button>}
           {onSponsor && request.requestType === 'student' && <button type="button" className="btn" disabled={request.verificationStatus !== 'verified'} title={request.verificationStatus !== 'verified' ? 'Only Super Admin-verified requests can receive donations.' : undefined} onClick={() => onSponsor(request)}>Sponsor Student</button>}
           {onDonate && <button type="button" className="btn btn-primary" disabled={request.verificationStatus !== 'verified'} title={request.verificationStatus !== 'verified' ? 'Only Super Admin-verified requests can receive donations.' : undefined} onClick={() => onDonate(request)}>Donate Now</button>}
         </div>
@@ -12878,7 +12880,7 @@ function RecommendedFundingRequestsPanel({ onFlash }) {
           r.applicationDeadline ? new Date(r.applicationDeadline).toLocaleDateString() : '—',
           <div className="flex flex-wrap" style={{ gap: 8 }}>
             <button type="button" className="btn" style={{ padding: '6px 12px', fontSize: '0.72rem' }} onClick={() => setViewing(r)}>View Request</button>
-            <button type="button" className="btn" style={{ padding: '6px 12px', fontSize: '0.72rem' }} onClick={() => toggleSave(r._id)}>{savedIds.includes(r._id) ? '★ Saved' : '☆ Save'}</button>
+            <button type="button" className="btn" style={{ padding: '6px 12px', fontSize: '0.72rem' }} onClick={() => toggleSave(r._id)}>{savedIds.includes(r._id) ? <span className="flex items-center" style={{ gap: 5 }}><FaStar aria-hidden="true" /> Saved</span> : <span className="flex items-center" style={{ gap: 5 }}><FaRegStar aria-hidden="true" /> Save</span>}</button>
             {r.requestType === 'student' && <button type="button" className="btn" style={{ padding: '6px 12px', fontSize: '0.72rem' }} disabled={r.verificationStatus !== 'verified'} title={r.verificationStatus !== 'verified' ? 'Only Super Admin-verified requests can receive donations.' : undefined} onClick={() => startDonate(r, 'sponsorship')}>Sponsor Student</button>}
             <button type="button" className="btn btn-primary" style={{ padding: '6px 12px', fontSize: '0.72rem' }} disabled={r.verificationStatus !== 'verified'} title={r.verificationStatus !== 'verified' ? 'Only Super Admin-verified requests can receive donations.' : undefined} onClick={() => startDonate(r, 'donation')}>Donate Now</button>
           </div>
@@ -12898,7 +12900,7 @@ function RecommendedFundingRequestsPanel({ onFlash }) {
           <div className="u-modal u-modal-sm" onClick={(e) => e.stopPropagation()}>
             <div className="u-modal-head">
               <h3>{donateFor.type === 'sponsorship' ? 'Sponsor Student' : 'Donate Now'}</h3>
-              <button type="button" className="u-modal-close" onClick={() => setDonateFor(null)}>✕</button>
+              <button type="button" className="u-modal-close" onClick={() => setDonateFor(null)}><FaXmark aria-hidden="true" /></button>
             </div>
             <div className="u-modal-body">
               <p className="text-xs mb-2" style={{ color: 'var(--ink-soft)' }}>{donateFor.request.title} — {donateFor.request.currency} {Math.max(donateFor.request.requiredAmount - donateFor.request.collectedAmount, 0)} remaining</p>
@@ -13022,7 +13024,7 @@ function DonationOpportunitiesPanel({ onFlash }) {
           r.applicationDeadline ? new Date(r.applicationDeadline).toLocaleDateString() : '—',
           <div className="flex gap-2 flex-wrap">
             <button type="button" className="btn" style={{ padding: '4px 10px', fontSize: '0.72rem' }} onClick={() => setViewing(r)}>View Request</button>
-            <button type="button" className="btn" style={{ padding: '4px 10px', fontSize: '0.72rem' }} onClick={() => toggleSave(r._id)}>{savedIds.includes(r._id) ? '★ Saved' : '☆ Save'}</button>
+            <button type="button" className="btn" style={{ padding: '4px 10px', fontSize: '0.72rem' }} onClick={() => toggleSave(r._id)}>{savedIds.includes(r._id) ? <span className="flex items-center" style={{ gap: 5 }}><FaStar aria-hidden="true" /> Saved</span> : <span className="flex items-center" style={{ gap: 5 }}><FaRegStar aria-hidden="true" /> Save</span>}</button>
             {r.requestType === 'student' && <button type="button" className="btn" style={{ padding: '4px 10px', fontSize: '0.72rem' }} disabled={r.verificationStatus !== 'verified'} title={r.verificationStatus !== 'verified' ? 'Only Super Admin-verified requests can receive donations.' : undefined} onClick={() => startDonate(r, 'sponsorship')}>Sponsor Student</button>}
             <button type="button" className="btn btn-primary" style={{ padding: '4px 10px', fontSize: '0.72rem' }} disabled={r.verificationStatus !== 'verified'} title={r.verificationStatus !== 'verified' ? 'Only Super Admin-verified requests can receive donations.' : undefined} onClick={() => startDonate(r, 'donation')}>Donate Now</button>
           </div>
@@ -13042,7 +13044,7 @@ function DonationOpportunitiesPanel({ onFlash }) {
           <div className="u-modal u-modal-sm" onClick={(e) => e.stopPropagation()}>
             <div className="u-modal-head">
               <h3>{donateFor.type === 'sponsorship' ? 'Sponsor Student' : 'Donate Now'}</h3>
-              <button type="button" className="u-modal-close" onClick={() => setDonateFor(null)}>✕</button>
+              <button type="button" className="u-modal-close" onClick={() => setDonateFor(null)}><FaXmark aria-hidden="true" /></button>
             </div>
             <div className="u-modal-body">
               <p className="text-xs mb-2" style={{ color: 'var(--ink-soft)' }}>{donateFor.request.title} — {donateFor.request.currency} {Math.max(donateFor.request.requiredAmount - donateFor.request.collectedAmount, 0)} remaining</p>
@@ -13197,7 +13199,7 @@ function DonationReceiptModal({ donation, onClose }) {
       <div className="u-modal u-modal-sm" onClick={(e) => e.stopPropagation()}>
         <div className="u-modal-head">
           <h3>Donation Receipt</h3>
-          <button type="button" className="u-modal-close" onClick={onClose}>✕</button>
+          <button type="button" className="u-modal-close" onClick={onClose}><FaXmark aria-hidden="true" /></button>
         </div>
         <div className="u-modal-body">
           <p className="text-xs" style={{ marginBottom: 8 }}><strong>Date:</strong> {new Date(donation.createdAt).toLocaleString()}</p>
@@ -13691,7 +13693,7 @@ function DonorWalletPanel({ onFlash }) {
           <div className="u-modal u-modal-sm" onClick={(e) => e.stopPropagation()}>
             <div className="u-modal-head">
               <h3>Add Funds</h3>
-              <button type="button" className="u-modal-close" onClick={() => setAddFundsFor(null)}>✕</button>
+              <button type="button" className="u-modal-close" onClick={() => setAddFundsFor(null)}><FaXmark aria-hidden="true" /></button>
             </div>
             <div className="u-modal-body">
               {addFundsFor === '' && (
@@ -13758,7 +13760,7 @@ function SavedOpportunitiesPanel({ onFlash }) {
   return (
     <div>
       <h3 className="font-semibold mb-2">Saved Opportunities</h3>
-      <p className="text-xs mb-3" style={{ color: 'var(--ink-soft)' }}>Everything you've saved (★) from Recommended Funding Requests and Donation Opportunities.</p>
+      <p className="text-xs mb-3 flex items-center" style={{ color: 'var(--ink-soft)', gap: 4 }}>Everything you've saved (<FaStar aria-hidden="true" style={{ color: 'var(--gold)' }} />) from Recommended Funding Requests and Donation Opportunities.</p>
       {group('Saved Students', savedStudents)}
       {group('Saved Scholarship Requests', savedScholarshipRequests)}
       {group('Saved Institutions', savedInstitutions)}
@@ -14037,7 +14039,7 @@ function DonorVerificationPanel({ onFlash }) {
           <div style={{ display: 'grid', gap: 8 }}>
             {(request?.documents || []).map((d) => (
               <div key={d} className="flex items-center justify-between flex-wrap" style={{ gap: 10, padding: 12, borderRadius: 12, background: 'var(--sand)' }}>
-                <a href={d} target="_blank" rel="noreferrer" className="text-xs" style={{ overflowWrap: 'anywhere' }}>📄 {d}</a>
+                <a href={d} target="_blank" rel="noreferrer" className="text-xs" style={{ overflowWrap: 'anywhere' }}><FaFileLines aria-hidden="true" /> {d}</a>
                 <button type="button" className="btn" style={{ padding: '5px 12px', fontSize: '0.72rem', background: 'var(--paper-raised)', flexShrink: 0 }} onClick={() => removeDocument(d)}>Remove</button>
               </div>
             ))}
@@ -14700,7 +14702,7 @@ function SellerDashboardPanel({ user, onFlash, onChanged, onNavigate }) {
           p.unitsSold,
           `${p.currency} ${p.totalRevenue}`,
           p.currentStock ?? '—',
-          p.rating !== null ? `★ ${p.rating}` : 'No reviews yet'
+          p.rating !== null ? <span className="flex items-center" style={{ gap: 4 }}><FaStar aria-hidden="true" style={{ color: 'var(--gold)' }} /> {p.rating}</span> : 'No reviews yet'
         ])}
         loading={bestSelling === null}
         empty="No sales yet."
@@ -14787,7 +14789,7 @@ function SellerDashboardPanel({ user, onFlash, onChanged, onNavigate }) {
               <span style={{ width: 34, height: 34, borderRadius: '50%', background: 'var(--gold)', color: '#fff', display: 'grid', placeItems: 'center', flexShrink: 0, fontWeight: 700, fontSize: 13 }}>{(r.buyer?.fullName || '?')[0]}</span>
               <div style={{ minWidth: 0 }}>
                 <strong className="text-sm">{r.buyer?.fullName}</strong>
-                <p className="text-xs" style={{ color: 'var(--ink-soft)', marginTop: 2 }}>{r.product?.title} · ★ {r.rating}{r.comment ? ` · "${r.comment}"` : ''}</p>
+                <p className="text-xs flex items-center" style={{ color: 'var(--ink-soft)', marginTop: 2, gap: 4 }}>{r.product?.title} · <FaStar aria-hidden="true" style={{ color: 'var(--gold)' }} /> {r.rating}{r.comment ? ` · "${r.comment}"` : ''}</p>
               </div>
             </div>
           ))}
@@ -15099,7 +15101,7 @@ function AgentVerificationPanel({ user, onFlash }) {
           <div style={{ display: 'grid', gap: 8 }}>
             {(request?.documents || []).map((d) => (
               <div key={d} className="flex items-center justify-between flex-wrap" style={{ gap: 10, padding: 12, borderRadius: 12, background: 'var(--sand)' }}>
-                <a href={d} target="_blank" rel="noreferrer" className="text-xs" style={{ overflowWrap: 'anywhere' }}>📄 {d}</a>
+                <a href={d} target="_blank" rel="noreferrer" className="text-xs" style={{ overflowWrap: 'anywhere' }}><FaFileLines aria-hidden="true" /> {d}</a>
                 <button type="button" className="btn" style={{ padding: '5px 12px', fontSize: '0.72rem', background: 'var(--paper-raised)', flexShrink: 0 }} onClick={() => removeDocument(d)}>Remove</button>
               </div>
             ))}
@@ -15125,7 +15127,7 @@ function CandidateProfileModal({ candidate, onClose }) {
               <p className="text-xs" style={{ color: 'var(--ink-soft)' }}>{candidate.headline || 'No headline set'}</p>
             </div>
           </div>
-          <button type="button" className="u-modal-close" onClick={onClose}>✕</button>
+          <button type="button" className="u-modal-close" onClick={onClose}><FaXmark aria-hidden="true" /></button>
         </div>
         <div className="u-modal-body">
           <p className="text-xs" style={{ marginBottom: 8 }}><strong>Skills:</strong> {candidate.skills?.length > 0 ? candidate.skills.join(', ') : 'None listed'}</p>
@@ -16875,7 +16877,7 @@ function ProfilePanel({ user, onFlash, onChanged }) {
             </label>
             {form.profilePhoto && (
               <button type="button" className="btn" title="Remove selected photo" style={{ padding: '7px 10px', fontSize: '0.78rem', color: '#b42318', borderColor: '#e5b4b4' }} onClick={() => setForm((f) => ({ ...f, profilePhoto: '' }))}>
-                ✕
+                <FaXmark aria-hidden="true" />
               </button>
             )}
           </div>
@@ -17354,9 +17356,9 @@ function AdminUsers({ onFlash }) {
 
       {total > limit && (
         <div className="flex items-center justify-between" style={{ marginTop: 14 }}>
-          <button type="button" className="btn" disabled={page <= 1} style={{ padding: '6px 14px', fontSize: '0.8rem' }} onClick={() => setPage((p) => Math.max(1, p - 1))}>← Prev</button>
+          <button type="button" className="btn flex items-center" disabled={page <= 1} style={{ padding: '6px 14px', fontSize: '0.8rem', gap: 5 }} onClick={() => setPage((p) => Math.max(1, p - 1))}><FaArrowLeft aria-hidden="true" /> Prev</button>
           <span className="text-xs" style={{ color: 'var(--ink-soft)' }}>Page {page} of {totalPages}</span>
-          <button type="button" className="btn" disabled={page >= totalPages} style={{ padding: '6px 14px', fontSize: '0.8rem' }} onClick={() => setPage((p) => Math.min(totalPages, p + 1))}>Next →</button>
+          <button type="button" className="btn flex items-center" disabled={page >= totalPages} style={{ padding: '6px 14px', fontSize: '0.8rem', gap: 5 }} onClick={() => setPage((p) => Math.min(totalPages, p + 1))}>Next <FaArrowRight aria-hidden="true" /></button>
         </div>
       )}
     </div>
@@ -17624,14 +17626,14 @@ function CourseResourcesPanel({ courseId, onFlash, onClose }) {
               <div key={l._id} className="border border-[var(--sand-line)] rounded-xl p-3 mb-3">
                 <div className="flex items-center justify-between">
                   <strong className="text-sm">{l.title}</strong>
-                  <button type="button" className={isDone ? 'btn' : 'btn btn-primary'} style={{ padding: '3px 10px', fontSize: '0.72rem' }} onClick={() => toggleComplete(l._id)}>{isDone ? '✓ Completed' : 'Mark Complete'}</button>
+                  <button type="button" className={isDone ? 'btn' : 'btn btn-primary'} style={{ padding: '3px 10px', fontSize: '0.72rem' }} onClick={() => toggleComplete(l._id)}>{isDone ? <span className="flex items-center" style={{ gap: 5, justifyContent: 'center' }}><FaCheck aria-hidden="true" /> Completed</span> : 'Mark Complete'}</button>
                 </div>
                 {l.content && <p className="text-sm mt-1" style={{ whiteSpace: 'pre-wrap' }}>{l.content}</p>}
                 {l.videoUrl && <a href={l.videoUrl} target="_blank" rel="noreferrer" className="text-xs mt-2" style={{ display: 'inline-block', color: 'var(--emerald)' }}>▶ Watch video</a>}
                 {(l.resources || []).length > 0 && (
                   <div className="mt-2 flex gap-3 flex-wrap">
                     {l.resources.map((r, i) => (
-                      <a key={i} href={r.url} target="_blank" rel="noreferrer" className="text-xs" style={{ color: 'var(--emerald)' }}>📄 {r.name || 'Download'}</a>
+                      <a key={i} href={r.url} target="_blank" rel="noreferrer" className="text-xs" style={{ color: 'var(--emerald)' }}><FaFileLines aria-hidden="true" /> {r.name || 'Download'}</a>
                     ))}
                   </div>
                 )}
@@ -17673,7 +17675,7 @@ function TeacherReputationWidget({ teacherId, onFlash }) {
     <div className="card" style={{ padding: 14, marginTop: 12 }}>
       <strong className="text-xs">Teacher Rating</strong>
       {reputation && reputation.totalCount > 0
-        ? <p className="text-sm" style={{ margin: '4px 0' }}>★ {reputation.overallAverage} ({reputation.totalCount} rating{reputation.totalCount === 1 ? '' : 's'})</p>
+        ? <p className="text-sm flex items-center" style={{ margin: '4px 0', gap: 4 }}><FaStar aria-hidden="true" style={{ color: 'var(--gold)' }} /> {reputation.overallAverage} ({reputation.totalCount} rating{reputation.totalCount === 1 ? '' : 's'})</p>
         : <p className="text-xs" style={{ color: 'var(--ink-soft)', margin: '4px 0' }}>No ratings yet.</p>}
       <form onSubmit={submit} className="flex gap-2 items-end flex-wrap" style={{ marginTop: 8 }}>
         <select className="form-select" value={rating} onChange={(e) => setRating(Number(e.target.value))} style={{ maxWidth: 90 }}>
@@ -17816,7 +17818,7 @@ function TeacherLessonsPanel({ courseId, onFlash, onClose }) {
                       <a href={l.videoUrl} target="_blank" rel="noreferrer" className="text-xs" style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '5px 12px', borderRadius: 999, background: 'var(--sand)', border: '1px solid var(--sand-line)', color: 'var(--forest)', fontWeight: 600 }}>▶ Video link</a>
                     )}
                     {(l.resources || []).map((r, ri) => (
-                      <a key={ri} href={r.url} target="_blank" rel="noreferrer" className="text-xs" style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '5px 12px', borderRadius: 999, background: 'var(--sand)', border: '1px solid var(--sand-line)', color: 'var(--forest)', fontWeight: 600 }}>📄 {r.name || 'Download'}</a>
+                      <a key={ri} href={r.url} target="_blank" rel="noreferrer" className="text-xs" style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '5px 12px', borderRadius: 999, background: 'var(--sand)', border: '1px solid var(--sand-line)', color: 'var(--forest)', fontWeight: 600 }}><FaFileLines aria-hidden="true" /> {r.name || 'Download'}</a>
                     ))}
                   </div>
                 )}
