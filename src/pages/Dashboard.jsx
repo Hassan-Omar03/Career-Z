@@ -1087,6 +1087,10 @@ function StudentApplicationsPanel({ onFlash }) {
   const [profile, setProfile] = useState(null);
   const [enrollments, setEnrollments] = useState(null);
   const [programApps, setProgramApps] = useState(null);
+  const [admissionTestSession, setAdmissionTestSession] = useState(null);
+  const [admissionAnswers, setAdmissionAnswers] = useState({});
+  const [admissionResult, setAdmissionResult] = useState(null);
+  const [testNow, setTestNow] = useState(Date.now());
 
   useEffect(() => {
     apiRequest('/jobs/mine/applications').then(setJobApps).catch((err) => onFlash(err.message));
@@ -1095,6 +1099,29 @@ function StudentApplicationsPanel({ onFlash }) {
     apiRequest('/students/me/enrollments').then(setEnrollments).catch((err) => onFlash(err.message));
     apiRequest('/institution-applications/mine').then(setProgramApps).catch((err) => onFlash(err.message));
   }, [onFlash]);
+
+  useEffect(() => {
+    if (!admissionTestSession) return undefined;
+    const timer = setInterval(() => setTestNow(Date.now()), 1000);
+    return () => clearInterval(timer);
+  }, [admissionTestSession]);
+
+  async function startAdmissionTest(applicationId) {
+    try {
+      const session = await apiRequest(`/institution-applications/${applicationId}/test/start`, { method: 'POST' });
+      setAdmissionTestSession(session); setAdmissionAnswers({}); setAdmissionResult(null); setTestNow(Date.now());
+    } catch (err) { onFlash(err.message); }
+  }
+
+  async function submitAdmissionTest() {
+    try {
+      const answers = Object.entries(admissionAnswers).map(([questionIndex, selectedOption]) => ({ questionIndex: Number(questionIndex), selectedOption: Number(selectedOption) }));
+      const result = await apiRequest(`/institution-applications/${admissionTestSession.applicationId}/test/submit`, { method: 'POST', body: { answers } });
+      setAdmissionResult(result); setAdmissionTestSession(null);
+      apiRequest('/institution-applications/mine').then(setProgramApps).catch(() => {});
+      onFlash(`Test submitted: ${result.score}/${result.maxScore}`, result.passed ? 'success' : undefined);
+    } catch (err) { onFlash(err.message); }
+  }
 
   return (
     <div>
@@ -1117,10 +1144,25 @@ function StudentApplicationsPanel({ onFlash }) {
       <p className="text-xs mb-2" style={{ color: 'var(--ink-soft)' }}>Real admissions applications you submitted from My Institutions — reviewed by that institution's representatives.</p>
       <Table
         loading={programApps === null}
-        headers={['Institution', 'Program', 'Status', 'Progress', 'Missing Documents']}
-        rows={(programApps || []).map((a) => [a.institution?.name, a.program, <Tag status={a.status === 'accepted' ? 'approved' : a.status === 'rejected' ? 'rejected' : 'pending'} />, `${a.admissionProgress}%`, a.missingRequirements?.length ? a.missingRequirements.join(', ') : '—'])}
+        headers={['Institution', 'Program', 'Status', 'Progress', 'Admission Test', 'Missing Documents']}
+        rows={(programApps || []).map((a) => [a.institution?.name, a.program, <Tag status={a.status === 'accepted' ? 'approved' : a.status === 'rejected' ? 'rejected' : 'pending'} />, `${a.admissionProgress}%`, a.admissionTest?.test ? (
+          <div>
+            <div className="text-xs">{a.admissionTest.scheduledAt ? new Date(a.admissionTest.scheduledAt).toLocaleString() : 'Scheduled'} · {a.admissionTest.status?.replace('_', ' ')}</div>
+            {['scheduled', 'in_progress'].includes(a.admissionTest.status) && <button type="button" className="btn btn-primary mt-1" style={{ padding: '4px 10px', fontSize: '0.72rem' }} onClick={() => startAdmissionTest(a._id)}>{a.admissionTest.status === 'in_progress' ? 'Resume Test' : 'Start Test'}</button>}
+            {['passed', 'failed'].includes(a.admissionTest.status) && <strong className="text-xs">{a.admissionTest.score}/{a.admissionTest.maxScore} · {a.admissionTest.status}</strong>}
+          </div>
+        ) : a.admissionTest?.scheduledAt ? 'Manual test scheduled' : 'Not assigned', a.missingRequirements?.length ? a.missingRequirements.join(', ') : '—'])}
         empty="No program applications yet — go to My Institutions to apply."
       />
+      {admissionTestSession && (() => {
+        const seconds = Math.max(0, Math.floor((new Date(admissionTestSession.endsAt).getTime() - testNow) / 1000));
+        return <div className="card mt-4" style={{ padding: 20 }}>
+          <div className="flex items-center justify-between gap-3"><div><h3 className="font-semibold">{admissionTestSession.test.title}</h3><p className="text-xs" style={{ color: 'var(--ink-soft)' }}>{admissionTestSession.test.instructions || 'Select one answer for each question.'}</p></div><strong style={{ color: seconds < 60 ? 'var(--rose)' : 'var(--forest)' }}>{Math.floor(seconds / 60)}:{String(seconds % 60).padStart(2, '0')}</strong></div>
+          <div style={{ display: 'grid', gap: 14, marginTop: 16 }}>{admissionTestSession.test.questions.map((q) => <fieldset key={q.index} className="border border-[var(--sand-line)] rounded-xl p-3"><legend className="text-sm font-semibold">{q.index + 1}. {q.text} ({q.marks} mark{q.marks === 1 ? '' : 's'})</legend>{q.options.map((option, oi) => <label key={oi} className="flex items-center gap-2 text-sm mt-2"><input type="radio" name={`admission-q-${q.index}`} checked={Number(admissionAnswers[q.index]) === oi} onChange={() => setAdmissionAnswers({ ...admissionAnswers, [q.index]: oi })} />{option}</label>)}</fieldset>)}</div>
+          <button type="button" className="btn btn-primary mt-4" onClick={submitAdmissionTest}>Submit Test</button>
+        </div>;
+      })()}
+      {admissionResult && <div className="admin-notice mt-3"><strong>{admissionResult.passed ? 'Passed' : 'Not passed'}</strong> — Score {admissionResult.score}/{admissionResult.maxScore} ({admissionResult.percent}%).</div>}
 
       <h3 className="font-semibold mb-2 mt-6">Institution Connection</h3>
       <p className="text-xs mb-2" style={{ color: 'var(--ink-soft)' }}>Connecting to an institution here is instant, so every connection shows as Accepted right away — there's no waiting period. This is separate from the formal Program Applications above.</p>
@@ -10672,9 +10714,14 @@ function InstitutionAdmissionsPanel({ onFlash }) {
   const [interviewForm, setInterviewForm] = useState({ date: '', mode: 'video' });
   const [scoreFormFor, setScoreFormFor] = useState(null);
   const [scoreForm, setScoreForm] = useState({ score: '', maxScore: '' });
+  const [onlineTests, setOnlineTests] = useState([]);
+  const [testBuilder, setTestBuilder] = useState({ title: '', program: '', subject: '', instructions: '', durationMinutes: 30, passingPercent: 50, questions: [{ text: '', options: ['', '', '', ''], correctOption: 0, marks: 1 }] });
+  const [assignFor, setAssignFor] = useState(null);
+  const [assignment, setAssignment] = useState({ testId: '', scheduledAt: '' });
 
   function load(instId) {
     apiRequest(`/institution-applications/institution/${instId}`).then(setApps).catch((err) => onFlash(err.message));
+    apiRequest(`/institution-applications/tests/institution/${instId}`).then(setOnlineTests).catch((err) => onFlash(err.message));
   }
   useEffect(() => { if (institution) load(institution._id); }, [institution]);
 
@@ -10734,11 +10781,64 @@ function InstitutionAdmissionsPanel({ onFlash }) {
     } catch (err) { onFlash(err.message); }
   }
 
+  async function completeInterview(id) {
+    try {
+      await apiRequest(`/institution-applications/${id}/interview`, { method: 'PATCH', body: { completed: true } });
+      onFlash('Interview marked completed.', 'success'); load(institution._id);
+    } catch (err) { onFlash(err.message); }
+  }
+
+  function updateQuestion(index, patch) {
+    setTestBuilder((current) => ({ ...current, questions: current.questions.map((q, i) => i === index ? { ...q, ...patch } : q) }));
+  }
+
+  async function createOnlineTest(e) {
+    e.preventDefault();
+    try {
+      await apiRequest('/institution-applications/tests', { method: 'POST', body: { institution: institution._id, ...testBuilder, durationMinutes: Number(testBuilder.durationMinutes), passingPercent: Number(testBuilder.passingPercent), published: true, questions: testBuilder.questions.map((q) => ({ ...q, correctOption: Number(q.correctOption), marks: Number(q.marks) })) } });
+      onFlash('Online admission test created and published.', 'success');
+      setTestBuilder({ title: '', program: '', subject: '', instructions: '', durationMinutes: 30, passingPercent: 50, questions: [{ text: '', options: ['', '', '', ''], correctOption: 0, marks: 1 }] });
+      load(institution._id);
+    } catch (err) { onFlash(err.message); }
+  }
+
+  async function assignOnlineTest(applicationId) {
+    try {
+      await apiRequest(`/institution-applications/${applicationId}/test/assign`, { method: 'POST', body: { testId: assignment.testId, scheduledAt: new Date(assignment.scheduledAt).toISOString() } });
+      onFlash('Online test assigned to applicant.', 'success');
+      setAssignFor(null); setAssignment({ testId: '', scheduledAt: '' }); load(institution._id);
+    } catch (err) { onFlash(err.message); }
+  }
+
   if (institution === undefined) return <p role="status" className="admin-notice">Loading...</p>;
   if (!institution) return <p className="admin-notice">Register an institution first (My Institution tab).</p>;
 
   return (
     <div>
+      <div className="admin-section">
+        <div className="admin-section-heading"><div><h2>Online Admission Test Builder</h2><p>Create one reusable test and assign it to applicants. MCQs are graded automatically.</p></div></div>
+        <form onSubmit={createOnlineTest} style={{ display: 'grid', gap: 10 }}>
+          <div className="flex gap-2 flex-wrap">
+            <input className="form-input" placeholder="Test title" value={testBuilder.title} onChange={(e) => setTestBuilder({ ...testBuilder, title: e.target.value })} required />
+            <input className="form-input" placeholder="Program / Grade" value={testBuilder.program} onChange={(e) => setTestBuilder({ ...testBuilder, program: e.target.value })} />
+            <input className="form-input" placeholder="Subject" value={testBuilder.subject} onChange={(e) => setTestBuilder({ ...testBuilder, subject: e.target.value })} />
+            <input className="form-input" type="number" min="1" max="240" aria-label="Duration minutes" value={testBuilder.durationMinutes} onChange={(e) => setTestBuilder({ ...testBuilder, durationMinutes: e.target.value })} style={{ maxWidth: 130 }} />
+            <input className="form-input" type="number" min="0" max="100" aria-label="Passing percentage" value={testBuilder.passingPercent} onChange={(e) => setTestBuilder({ ...testBuilder, passingPercent: e.target.value })} style={{ maxWidth: 130 }} />
+          </div>
+          <textarea className="form-input" rows={2} placeholder="Instructions" value={testBuilder.instructions} onChange={(e) => setTestBuilder({ ...testBuilder, instructions: e.target.value })} />
+          {testBuilder.questions.map((q, qi) => (
+            <div key={qi} className="card" style={{ padding: 12 }}>
+              <div className="flex gap-2 items-center"><strong className="text-xs">Question {qi + 1}</strong>{testBuilder.questions.length > 1 && <button type="button" className="btn" onClick={() => setTestBuilder({ ...testBuilder, questions: testBuilder.questions.filter((_, i) => i !== qi) })}>Remove</button>}</div>
+              <input className="form-input mt-2" placeholder="Question text" value={q.text} onChange={(e) => updateQuestion(qi, { text: e.target.value })} required />
+              <div className="grid grid-cols-1 md:grid-cols-2" style={{ gap: 8, marginTop: 8 }}>
+                {q.options.map((option, oi) => <input key={oi} className="form-input" placeholder={`Option ${oi + 1}`} value={option} onChange={(e) => updateQuestion(qi, { options: q.options.map((v, i) => i === oi ? e.target.value : v) })} required />)}
+              </div>
+              <div className="flex gap-2 items-center mt-2"><span className="text-xs">Correct answer:</span><CustomSelect value={String(q.correctOption)} onChange={(v) => updateQuestion(qi, { correctOption: Number(v) })} ariaLabel="Correct answer" options={q.options.map((_, i) => ({ value: String(i), label: `Option ${i + 1}` }))} /><input className="form-input" type="number" min="1" aria-label="Question marks" value={q.marks} onChange={(e) => updateQuestion(qi, { marks: e.target.value })} style={{ maxWidth: 90 }} /></div>
+            </div>
+          ))}
+          <div className="flex gap-2"><button type="button" className="btn" onClick={() => setTestBuilder({ ...testBuilder, questions: [...testBuilder.questions, { text: '', options: ['', '', '', ''], correctOption: 0, marks: 1 }] })}>+ Add Question</button><button type="submit" className="btn btn-primary">Publish Test</button></div>
+        </form>
+      </div>
       <div className="admin-section">
         <div className="admin-section-heading"><div><h2>Offline Admission Entry</h2><p>Register a walk-in applicant who doesn't have an account yet.</p></div></div>
         <form onSubmit={addOffline} className="flex gap-3 items-end mb-3 flex-wrap">
@@ -10756,6 +10856,7 @@ function InstitutionAdmissionsPanel({ onFlash }) {
           a.admissionTest?.scheduledAt ? (
             <div>
               <div>{new Date(a.admissionTest.scheduledAt).toLocaleString(undefined, { dateStyle: 'medium', timeStyle: 'short' })}{a.admissionTest.subject ? ` · ${a.admissionTest.subject}` : ''}</div>
+              {a.admissionTest.test && <div className="text-xs" style={{ fontWeight: 600 }}>Online · {a.admissionTest.status?.replace('_', ' ')}</div>}
               {a.admissionTest.score != null ? (
                 <div style={{ fontWeight: 600 }}>Score: {a.admissionTest.score}/{a.admissionTest.maxScore}</div>
               ) : scoreFormFor === a._id ? (
@@ -10768,7 +10869,14 @@ function InstitutionAdmissionsPanel({ onFlash }) {
                 </div>
               ) : <button className="btn" style={{ padding: '2px 8px', fontSize: '0.7rem', marginTop: 4 }} onClick={() => setScoreFormFor(a._id)}>Enter Score</button>}
             </div>
-          ) : (
+          ) : a.admissionTest?.test ? 'Online test assigned' : (
+            assignFor === a._id ? (
+              <div style={{ display: 'grid', gap: 6, minWidth: 190 }}>
+                <CustomSelect value={assignment.testId} onChange={(v) => setAssignment({ ...assignment, testId: v })} ariaLabel="Admission test" options={onlineTests.filter((t) => t.published).map((t) => ({ value: t._id, label: t.title }))} placeholder="Select online test" />
+                <input type="datetime-local" className="form-input" value={assignment.scheduledAt} onChange={(e) => setAssignment({ ...assignment, scheduledAt: e.target.value })} />
+                <div className="flex gap-1"><button type="button" className="btn btn-primary" disabled={!assignment.testId || !assignment.scheduledAt} onClick={() => assignOnlineTest(a._id)}>Assign</button><button type="button" className="btn" onClick={() => setAssignFor(null)}>Cancel</button></div>
+              </div>
+            ) : onlineTests.some((t) => t.published) ? <button type="button" className="btn btn-primary" style={{ padding: '4px 8px', fontSize: '0.72rem' }} onClick={() => setAssignFor(a._id)}>Assign Online Test</button> : (
             testFormFor === a._id ? (
               <div style={{ display: 'grid', gap: 6, minWidth: 160 }}>
                 <input type="datetime-local" className="form-input" style={{ padding: '4px 8px', fontSize: '0.72rem' }} value={testForm.date} onChange={(e) => setTestForm({ ...testForm, date: e.target.value })} />
@@ -10778,29 +10886,30 @@ function InstitutionAdmissionsPanel({ onFlash }) {
                   <button className="btn" style={{ padding: '4px 10px', fontSize: '0.72rem' }} onClick={() => setTestFormFor(null)}>Cancel</button>
                 </div>
               </div>
-            ) : <button className="btn" style={{ padding: '4px 8px', fontSize: '0.72rem' }} onClick={() => setTestFormFor(a._id)}>Schedule Test</button>
+            ) : <button className="btn" style={{ padding: '4px 8px', fontSize: '0.72rem' }} onClick={() => setTestFormFor(a._id)}>Schedule Manual Test</button>
+            )
           ),
-          a.interview?.scheduledAt ? `${new Date(a.interview.scheduledAt).toLocaleString(undefined, { dateStyle: 'medium', timeStyle: 'short' })} (${a.interview.mode === 'physical' ? 'Physical' : 'Video'})` : (
+          a.interview?.scheduledAt ? <div>{new Date(a.interview.scheduledAt).toLocaleString(undefined, { dateStyle: 'medium', timeStyle: 'short' })} ({a.interview.mode === 'in_person' ? 'Physical' : 'Video'}){a.interview.completed ? <div className="text-xs" style={{ color: 'var(--emerald)', fontWeight: 700 }}>Completed</div> : <button type="button" className="btn mt-1" style={{ padding: '2px 8px', fontSize: '0.7rem' }} onClick={() => completeInterview(a._id)}>Mark Complete</button>}</div> : (
             interviewFormFor === a._id ? (
               <div style={{ display: 'grid', gap: 6, minWidth: 160 }}>
                 <input type="datetime-local" className="form-input" style={{ padding: '4px 8px', fontSize: '0.72rem' }} value={interviewForm.date} onChange={(e) => setInterviewForm({ ...interviewForm, date: e.target.value })} />
                 <select className="form-select" style={{ padding: '4px 8px', fontSize: '0.72rem' }} value={interviewForm.mode} onChange={(e) => setInterviewForm({ ...interviewForm, mode: e.target.value })}>
                   <option value="video">Video</option>
-                  <option value="physical">Physical</option>
+                  <option value="in_person">Physical</option>
                 </select>
                 <div className="flex gap-1">
                   <button className="btn btn-primary" style={{ padding: '4px 10px', fontSize: '0.72rem' }} disabled={!interviewForm.date} onClick={() => scheduleInterview(a._id, new Date(interviewForm.date).toISOString(), interviewForm.mode)}>Save</button>
                   <button className="btn" style={{ padding: '4px 10px', fontSize: '0.72rem' }} onClick={() => setInterviewFormFor(null)}>Cancel</button>
                 </div>
               </div>
-            ) : <button className="btn" style={{ padding: '4px 8px', fontSize: '0.72rem' }} onClick={() => setInterviewFormFor(a._id)}>Schedule Interview</button>
+            ) : <button className="btn" style={{ padding: '4px 8px', fontSize: '0.72rem' }} disabled={Boolean(a.admissionTest?.test && a.admissionTest.status !== 'passed')} title={a.admissionTest?.test && a.admissionTest.status !== 'passed' ? 'Applicant must pass the online test first' : ''} onClick={() => setInterviewFormFor(a._id)}>Schedule Interview</button>
           ),
           <Tag status={a.status === 'accepted' ? 'approved' : a.status === 'rejected' ? 'rejected' : 'pending'} label={a.status.replace('_', ' ')} />,
           ['accepted', 'rejected'].includes(a.status) ? '—' : (
             <div className="flex gap-1 flex-wrap">
               <button className="btn" style={{ padding: '4px 8px', fontSize: '0.72rem' }} onClick={() => setStatus(a._id, 'under_review')}>Review</button>
               <button className="btn" style={{ padding: '4px 8px', fontSize: '0.72rem' }} onClick={() => setStatus(a._id, 'waitlisted')}>Waitlist</button>
-              <button className="btn btn-primary" style={{ padding: '4px 8px', fontSize: '0.72rem' }} onClick={() => accept(a._id)}>Accept</button>
+              <button className="btn btn-primary" style={{ padding: '4px 8px', fontSize: '0.72rem' }} disabled={Boolean(a.admissionTest?.test && (a.admissionTest.status !== 'passed' || !a.interview?.completed))} title={a.admissionTest?.test && (a.admissionTest.status !== 'passed' || !a.interview?.completed) ? 'Pass the online test and complete the interview first' : ''} onClick={() => accept(a._id)}>Accept</button>
               <button className="btn" style={{ padding: '4px 8px', fontSize: '0.72rem', color: 'var(--rose)' }} onClick={() => setStatus(a._id, 'rejected')}>Reject</button>
             </div>
           )
