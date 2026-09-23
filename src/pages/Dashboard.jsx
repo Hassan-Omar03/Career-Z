@@ -16,6 +16,7 @@ import { verifyEmail, resendVerification } from '../api/auth';
 import DashboardLayout from '../components/dashboard/DashboardLayout';
 import CampusTourViewer from '../components/CampusTourViewer';
 import QrScanner from '../components/QrScanner';
+import AdminOperationsCenter from '../components/admin/AdminOperationsCenter';
 import { loadPaddle, setActiveCheckoutHandler } from '../utils/paddleLoader';
 import { isPlatformUploadAvailable, uploadToPlatformStorage } from '../utils/platformUpload';
 import {
@@ -192,6 +193,7 @@ const WORKSPACES = {
       { key: 'cms', label: 'Content (Pages & Blog)', icon: FaNewspaper },
       { key: 'backups', label: 'Backups & Maintenance', icon: FaDatabase },
       { key: 'aiInsights', label: 'AI Insights', icon: FaWandMagicSparkles },
+      { key: 'operationsCenter', label: 'Operations Center', icon: FaGauge },
       { key: 'settings', label: 'Global Settings', icon: FaGear },
       { key: 'analytics', label: 'Reports', icon: FaChartLine },
       { key: 'profile', label: 'Profile', icon: FaUser }
@@ -6049,7 +6051,7 @@ function AiVideoLessonCreator({ aiEnabled, onFlash }) {
 
   // Renders one scene (title + on-screen bullets) to a real PNG, same visual language as the
   // Slides Generator — free, no image-generation API call needed for the default path.
-  function renderSlideImage(title, bullets) {
+  function renderSlideImage(title, bullets, narration) {
     const canvas = document.createElement('canvas');
     canvas.width = 1280; canvas.height = 720;
     const ctx = canvas.getContext('2d');
@@ -6063,6 +6065,17 @@ function AiVideoLessonCreator({ aiEnabled, onFlash }) {
       wrapText(ctx, b, 120, y, 1060, 44);
       y += 44 * Math.max(1, Math.ceil(b.length / 70)) + 22;
     });
+    // Burn the spoken narration into the frame as captions. This keeps captions available in
+    // the saved MP4 on every player, without depending on a provider-specific subtitle format.
+    if (narration) {
+      ctx.fillStyle = 'rgba(0, 0, 0, 0.72)';
+      ctx.fillRect(40, 570, 1200, 120);
+      ctx.fillStyle = '#fff';
+      ctx.font = '26px Arial, sans-serif';
+      ctx.textAlign = 'center';
+      wrapText(ctx, narration, 640, 615, 1100, 34);
+      ctx.textAlign = 'left';
+    }
     return new Promise((resolve) => canvas.toBlob(resolve, 'image/png'));
   }
 
@@ -6105,7 +6118,7 @@ function AiVideoLessonCreator({ aiEnabled, onFlash }) {
       const clipNames = [];
       for (let i = 0; i < withAudio.length; i++) {
         setProgress(`Rendering scene ${i + 1}/${withAudio.length}...`);
-        const imgBlob = await renderSlideImage(withAudio[i].title, withAudio[i].bullets);
+        const imgBlob = await renderSlideImage(withAudio[i].title, withAudio[i].bullets, withAudio[i].narration);
         await ffmpeg.writeFile(`img${i}.png`, await fetchFile(imgBlob));
         await ffmpeg.writeFile(`aud${i}.mp3`, await fetchFile(withAudio[i].audioDataUrl));
         await ffmpeg.exec([
@@ -15411,6 +15424,7 @@ function AdminWorkspace({ tab, user, roles, onFlash, onChanged }) {
   if (tab === 'cms') return <AdminCmsPanel onFlash={onFlash} />;
   if (tab === 'backups') return <AdminBackupsPanel onFlash={onFlash} />;
   if (tab === 'aiInsights') return <AdminAiInsightsPanel onFlash={onFlash} />;
+  if (tab === 'operationsCenter') return <AdminOperationsCenter onFlash={onFlash} />;
   return <ComingSoon label={tab} />;
 }
 

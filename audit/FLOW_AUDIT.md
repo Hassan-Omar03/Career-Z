@@ -1,5 +1,24 @@
 # CareerZ flow audit — 22 September 2026
 
+## Final attendance and AI video scope
+
+The current online attendance implementation includes teacher-entered manual statuses, short-lived
+session QR check-in, browser camera face matching, optional browser geolocation with a configured
+course radius, and WebAuthn/passkey verification. Attendance records retain the capture method,
+check-in time and, for QR check-ins, the source session. Student and linked-parent reads are scoped
+to that student. RFID/NFC readers, physical fingerprint machines and retina/iris hardware are
+outside the current product scope.
+
+The AI Video Lesson Creator uses the configured text and voice providers, creates scene slides,
+narration and burned-in captions, assembles an MP4 in the browser with ffmpeg.wasm, uploads it to
+the configured lesson storage, and saves the resulting URL as a course lesson for student playback.
+The scene/video assembly is open source and provider-independent; AI keys remain configurable.
+Self-hosted Whisper transcription and self-hosted TTS remain provider options for a later deployment
+integration because this text-to-video path does not currently ingest speech and no self-hosted TTS
+service URL is configured in this environment.
+
+AI Cheating Detector and Class Energy Meter are explicitly deferred roadmap items.
+
 ## Remediation status
 
 The confirmed failures below describe the baseline audit. The flow fixes have
