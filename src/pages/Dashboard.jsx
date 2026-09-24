@@ -6632,14 +6632,29 @@ function AdvancedClassControlPanel({ onFlash }) {
 
               wristHistory.push({ x: wrist.x, t: now });
               wristHistory = wristHistory.filter((p) => now - p.t < 700);
-              if (wristHistory.length > 3 && now > swipeCooldownUntil) {
+              if (wristHistory.length > 4 && now > swipeCooldownUntil) {
                 const dx = wristHistory[wristHistory.length - 1].x - wristHistory[0].x;
                 // Easier to trigger than the original build: a normal hand-swipe across roughly
                 // an eighth of the frame now registers, instead of needing a fast quarter-frame
                 // sweep — that threshold was the main reason swipes weren't registering at all.
                 const threshold = 0.22 - gestureSensitivityRef.current * 0.14;
-                if (dx > threshold) { setLastGesture('Swipe → Previous'); goPrev(); wristHistory = []; swipeCooldownUntil = now + 500; holdCooldownUntil = now + 500; lastPose = 'none'; }
-                else if (dx < -threshold) { setLastGesture('Swipe → Next'); goNext(); wristHistory = []; swipeCooldownUntil = now + 500; holdCooldownUntil = now + 500; lastPose = 'none'; }
+                if (Math.abs(dx) > threshold) {
+                  // Net displacement alone isn't enough — a hand that wobbles back-and-forth can
+                  // still net past the threshold in whichever direction it happened to end on,
+                  // which was firing the wrong direction unpredictably. Require most of the
+                  // frame-to-frame steps to actually agree with the overall direction.
+                  let agreeing = 0;
+                  for (let i = 1; i < wristHistory.length; i++) {
+                    const step = wristHistory[i].x - wristHistory[i - 1].x;
+                    if (step === 0 || Math.sign(step) === Math.sign(dx)) agreeing++;
+                  }
+                  const consistency = agreeing / (wristHistory.length - 1);
+                  if (consistency >= 0.6) {
+                    if (dx > 0) { setLastGesture('Swipe → Previous'); goPrev(); }
+                    else { setLastGesture('Swipe → Next'); goNext(); }
+                    wristHistory = []; swipeCooldownUntil = now + 500; holdCooldownUntil = now + 500; lastPose = 'none';
+                  }
+                }
               }
             }
           }
