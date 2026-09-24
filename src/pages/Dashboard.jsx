@@ -13,6 +13,7 @@
 import { Children, useEffect, useRef, useState } from 'react';
 import { useLocation } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
+import { useRealtime } from '../context/RealtimeContext';
 import { apiRequest } from '../api/client';
 import { startRegistration, startAuthentication } from '@simplewebauthn/browser';
 import { verifyEmail, resendVerification } from '../api/auth';
@@ -506,7 +507,7 @@ function StudentWorkspace({ tab, user, onFlash, onChanged, onNavigate }) {
   if (tab === 'summary') return <StudentSummary onNavigate={onNavigate} user={user} />;
   if (tab === 'assignments') return <StudentAssignmentsPanel onFlash={onFlash} />;
   if (tab === 'attendance') return <StudentAttendancePanel onFlash={onFlash} />;
-  if (tab === 'classes') return <TimetableView onFlash={onFlash} url="/students/me/timetable" />;
+  if (tab === 'classes') return <><StudentLiveClassBanner onFlash={onFlash} /><TimetableView onFlash={onFlash} url="/students/me/timetable" /></>;
   if (tab === 'jobs') return <StudentJobsPanel onFlash={onFlash} user={user} />;
   if (tab === 'certificates') return <StudentCertificatesPanel onFlash={onFlash} />;
   if (tab === 'digitalLocker') return <StudentDigitalLockerPanel onFlash={onFlash} />;
@@ -3455,6 +3456,157 @@ function parseSlides(raw) {
   }).filter((s) => s.title !== 'Untitled Slide' || s.bullets.length > 0);
 }
 
+function deckFileName(title, extension) {
+  const safe = String(title || 'slide-deck').trim().replace(/[^a-z0-9_-]+/gi, '-').replace(/^-|-$/g, '').slice(0, 80) || 'slide-deck';
+  return `${safe}.${extension}`;
+}
+
+async function imageSourceToDataUrl(source) {
+  if (!source || source.startsWith('data:')) return source || '';
+  const response = await fetch(source);
+  if (!response.ok) throw new Error('Could not download a slide image.');
+  const blob = await response.blob();
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(reader.result);
+    reader.onerror = reject;
+    reader.readAsDataURL(blob);
+  });
+}
+
+async function downloadDeckAsPptx(title, slides) {
+  const { default: PptxGenJS } = await import('pptxgenjs');
+  const pptx = new PptxGenJS();
+  pptx.layout = 'LAYOUT_WIDE';
+  pptx.author = 'CareerZ.pk';
+  pptx.subject = title;
+  pptx.title = title;
+  for (const slideData of slides) {
+    const slide = pptx.addSlide();
+    slide.background = { color: (slideData.background || '#fff8e7').slice(1) };
+    slide.addShape(pptx.ShapeType.rect, { x: 0, y: 0, w: 13.333, h: 0.12, fill: { color: (slideData.accent || '#d97706').slice(1) }, line: { color: (slideData.accent || '#d97706').slice(1) } });
+    const hasImage = Boolean(slideData.imageUrl || slideData.image);
+    slide.addText(slideData.title || '', { x: 0.65, y: 0.45, w: hasImage ? 7.1 : 12, h: 0.75, fontFace: 'Aptos Display', fontSize: 27, bold: true, color: (slideData.text || '#1f2937').slice(1), margin: 0 });
+    slide.addText((slideData.bullets || []).map((text) => ({ text, options: { bullet: { indent: 18 } } })), { x: 0.78, y: 1.55, w: hasImage ? 6.8 : 11.7, h: 5.15, fontFace: 'Aptos', fontSize: 18, breakLine: true, color: (slideData.text || '#1f2937').slice(1), margin: 0.08, valign: 'top' });
+    if (hasImage) {
+      try {
+        const data = await imageSourceToDataUrl(slideData.imageUrl || slideData.image);
+        slide.addImage({ data, x: 8.15, y: 1.45, w: 4.5, h: 4.5, sizing: 'contain' });
+      } catch { /* deck remains usable if a remote image blocks cross-origin download */ }
+    }
+  }
+  await pptx.writeFile({ fileName: deckFileName(title, 'pptx') });
+}
+
+async function downloadDeckAsPdf(title, slides) {
+  const { jsPDF } = await import('jspdf');
+  const pdf = new jsPDF({ orientation: 'landscape', unit: 'pt', format: 'a4' });
+  for (let index = 0; index < slides.length; index++) {
+    if (index > 0) pdf.addPage('a4', 'landscape');
+    const slide = slides[index];
+    const bg = slide.background || '#fff8e7';
+    const accent = slide.accent || '#d97706';
+    const text = slide.text || '#1f2937';
+    pdf.setFillColor(bg); pdf.rect(0, 0, 842, 595, 'F');
+    pdf.setFillColor(accent); pdf.rect(0, 0, 842, 12, 'F');
+    pdf.setTextColor(text); pdf.setFont('helvetica', 'bold'); pdf.setFontSize(27);
+    pdf.text(pdf.splitTextToSize(slide.title || '', 700), 48, 70);
+    pdf.setFont('helvetica', 'normal'); pdf.setFontSize(16);
+    let y = 135;
+    for (const bullet of slide.bullets || []) {
+      const lines = pdf.splitTextToSize(`• ${bullet}`, (slide.imageUrl || slide.image) ? 430 : 730);
+      pdf.text(lines, 62, y); y += lines.length * 22 + 10;
+    }
+    if (slide.imageUrl || slide.image) {
+      try {
+        const image = await imageSourceToDataUrl(slide.imageUrl || slide.image);
+        pdf.addImage(image, 'JPEG', 535, 125, 255, 255, undefined, 'FAST');
+      } catch { /* keep text content downloadable */ }
+    }
+    pdf.setFontSize(10); pdf.text(`${index + 1} / ${slides.length}`, 780, 565);
+  }
+  pdf.save(deckFileName(title, 'pdf'));
+}
+
+function SlideDeckViewer({ title, slides, allowDownloads = true }) {
+  const [current, setCurrent] = useState(0);
+  const [downloading, setDownloading] = useState('');
+  const viewerRef = useRef(null);
+  const slide = slides[current];
+  if (!slide) return null;
+  async function download(format) {
+    setDownloading(format);
+    try {
+      if (format === 'pptx') await downloadDeckAsPptx(title, slides);
+      else await downloadDeckAsPdf(title, slides);
+    } finally { setDownloading(''); }
+  }
+  return (
+    <div style={{ marginTop: 12 }}>
+      <div ref={viewerRef} style={{ position: 'relative', overflow: 'hidden', background: slide.background, color: slide.text, borderRadius: 14, padding: '32px 38px', minHeight: 330, display: 'grid', gridTemplateColumns: (slide.imageUrl || slide.image) ? 'minmax(0, 1.15fr) minmax(220px, .85fr)' : '1fr', gap: 28, alignItems: 'center', borderTop: `9px solid ${slide.accent}` }}>
+        <div><h3 style={{ fontSize: 27, marginBottom: 18, fontFamily: 'Fraunces, serif', color: slide.text }}>{slide.title}</h3><ul style={{ fontSize: 16, lineHeight: 1.55, paddingLeft: 22 }}>{(slide.bullets || []).map((b, i) => <li key={i} style={{ marginBottom: 8 }}>{b}</li>)}</ul></div>
+        {(slide.imageUrl || slide.image) && <img src={slide.imageUrl || slide.image} alt={`Illustration for ${slide.title}`} style={{ width: '100%', maxHeight: 250, objectFit: 'contain', borderRadius: 14 }} />}
+        <span style={{ position: 'absolute', right: 20, bottom: 12, fontSize: 11, opacity: .65 }}>{current + 1} / {slides.length}</span>
+      </div>
+      <div className="flex gap-2 flex-wrap" style={{ marginTop: 8 }}>
+        <button type="button" className="btn" onClick={() => setCurrent((n) => Math.max(0, n - 1))} disabled={current === 0}>Previous</button>
+        <button type="button" className="btn" onClick={() => setCurrent((n) => Math.min(slides.length - 1, n + 1))} disabled={current === slides.length - 1}>Next</button>
+        <button type="button" className="btn btn-primary" onClick={() => viewerRef.current?.requestFullscreen?.()}>Present Fullscreen</button>
+        {allowDownloads && <button type="button" className="btn" onClick={() => download('pptx')} disabled={Boolean(downloading)}>{downloading === 'pptx' ? 'Preparing…' : 'Download PPTX'}</button>}
+        {allowDownloads && <button type="button" className="btn" onClick={() => download('pdf')} disabled={Boolean(downloading)}>{downloading === 'pdf' ? 'Preparing…' : 'Download PDF'}</button>}
+      </div>
+    </div>
+  );
+}
+
+function ShareSlideDeckToClass({ slides, defaultTitle }) {
+  const [open, setOpen] = useState(false);
+  const [courses, setCourses] = useState(null);
+  const [courseId, setCourseId] = useState('');
+  const [title, setTitle] = useState(defaultTitle || 'AI Slide Deck');
+  const [busy, setBusy] = useState(false);
+  const [status, setStatus] = useState('');
+
+  function openReview() {
+    setOpen(true); setTitle(defaultTitle || 'AI Slide Deck'); setStatus('');
+    if (courses) return;
+    apiRequest('/courses/mine/list').then((list) => { setCourses(list); if (list[0]) setCourseId(list[0]._id); }).catch(() => setCourses([]));
+  }
+
+  async function share() {
+    if (!courseId || !title.trim()) return;
+    setBusy(true); setStatus('');
+    try {
+      const hasEmbeddedImages = slides.some((slide) => slide.image?.startsWith('data:'));
+      if (hasEmbeddedImages && !(await isPlatformUploadAvailable())) throw new Error('Permanent media storage is required to share generated slide images. Configure platform Cloudinary first.');
+      const persistedSlides = [];
+      for (const slide of slides) {
+        let imageUrl = slide.imageUrl || slide.image || '';
+        if (imageUrl.startsWith('data:')) {
+          const blob = await (await fetch(imageUrl)).blob();
+          imageUrl = await uploadToPlatformStorage(blob, 'slide-decks');
+        }
+        persistedSlides.push({ title: slide.title, bullets: slide.bullets, background: slide.background, accent: slide.accent, text: slide.text, imageUrl });
+      }
+      const result = await apiRequest(`/courses/${courseId}/ai-resource`, { method: 'POST', body: { title: title.trim(), deck: { slides: persistedSlides } } });
+      setStatus(`Saved to Class Resources — ${result.notifiedCount} student${result.notifiedCount === 1 ? '' : 's'} notified${result.feeBlockedCount ? `; ${result.feeBlockedCount} fee-blocked` : ''}.`);
+    } catch (err) { setStatus(err.message); } finally { setBusy(false); }
+  }
+
+  if (!open) return <button type="button" className="btn btn-primary" style={{ marginTop: 10 }} onClick={openReview}><FaPaperPlane /> Save &amp; Share with Students</button>;
+  return (
+    <div className="card" style={{ padding: 14, marginTop: 10 }}>
+      <strong className="text-sm">Save deck to Class Resources</strong>
+      <input className="form-input" value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Deck title" style={{ marginTop: 8 }} />
+      {courses === null && <p className="text-xs mt-2">Loading classes…</p>}
+      {courses?.length === 0 && <p className="text-xs mt-2">Create a course before sharing.</p>}
+      {courses?.length > 0 && <select className="form-select" value={courseId} onChange={(e) => setCourseId(e.target.value)} style={{ marginTop: 8 }}>{courses.map((course) => <option key={course._id} value={course._id}>{course.title}</option>)}</select>}
+      <div className="flex gap-2" style={{ marginTop: 8 }}><button type="button" className="btn btn-primary" onClick={share} disabled={busy || !courseId}>{busy ? 'Uploading & sharing…' : 'Publish to Course'}</button><button type="button" className="btn" onClick={() => setOpen(false)} disabled={busy}>Cancel</button></div>
+      {status && <p className="text-xs" style={{ marginTop: 8, color: status.startsWith('Saved') ? 'var(--emerald)' : 'var(--rose)' }}>{status}</p>}
+    </div>
+  );
+}
+
 // Real AI Slides Generator (spec 15B.6 "خودکار پریزنٹیشن سلائیڈز") — the one sub-feature of "AI
 // Creative Teacher" buildable with the existing text-AI system (no image/video/3D AI provider
 // needed). Produces an actual presentable, fullscreen-able slide deck, not just a text blob.
@@ -3552,6 +3704,7 @@ function SlideDeckGenerator({ aiEnabled, imageEnabled }) {
             <button type="button" className="btn flex items-center" style={{ padding: '6px 14px', fontSize: '0.78rem', gap: 5 }} onClick={() => setCurrent((c) => Math.min(slides.length - 1, c + 1))} disabled={current === slides.length - 1}>Next <FaArrowRight aria-hidden="true" /></button>
             <button type="button" className="btn btn-primary flex items-center" style={{ padding: '6px 14px', fontSize: '0.78rem', gap: 5 }} onClick={() => viewerRef.current?.requestFullscreen?.()}><FaExpand aria-hidden="true" /> Present Fullscreen</button>
           </div>
+          <ShareSlideDeckToClass slides={slides} defaultTitle={topic || 'AI Slide Deck'} />
         </div>
       )}
     </div>
@@ -5307,6 +5460,161 @@ function classStatusNow(entry) {
 const CLASS_STATUS_TAG = { live: 'approved', today: 'pending', upcoming: 'pending', past: 'completed' };
 const CLASS_STATUS_LABEL = { live: 'Live Now', today: 'Upcoming', upcoming: 'Upcoming', past: 'Completed' };
 
+// Real synchronized live-class room (spec: teacher's Advanced Class Control broadcasts the slide
+// over Socket.IO — see src/realtime/socket.js — to every joined, actively-enrolled, fee-cleared
+// student). Students never see the teacher's voice/gesture/eye controls or camera feed — only the
+// resulting slide change, exactly like a real classroom projector.
+function StudentLiveClassRoom({ session: initialSession, onLeave, onFlash }) {
+  const { socket } = useRealtime();
+  const [session, setSession] = useState(initialSession);
+  const [ended, setEnded] = useState(false);
+  const [current, setCurrent] = useState(initialSession.currentSlide || 0);
+  const [messages, setMessages] = useState(initialSession.messages || []);
+  const [chatText, setChatText] = useState('');
+  const [handRaised, setHandRaised] = useState(false);
+  const [connected, setConnected] = useState(true);
+  const socketRef = useRef(null);
+  useEffect(() => { socketRef.current = socket; }, [socket]);
+  const sessionIdRef = useRef(session.id);
+
+  useEffect(() => {
+    if (!socket) return;
+    function onSlide({ sessionId, currentSlide }) { if (sessionId === sessionIdRef.current) setCurrent(currentSlide); }
+    function onMessage(msg) { setMessages((m) => [...m, msg].slice(-200)); }
+    function onEnded({ sessionId }) { if (sessionId === sessionIdRef.current) setEnded(true); }
+    // A dropped connection (brief network blip) auto-reconnects via socket.io's own retry logic —
+    // this just re-registers as a room member once it's back, so slide sync resumes without the
+    // student having to click Join again. A full page reload is a fresh mount, not this path —
+    // they'll see the class in the live-sessions list again and can rejoin with one click.
+    function onConnect() { setConnected(true); socketRef.current?.emit('class:join', { sessionId: sessionIdRef.current }, () => {}); }
+    function onDisconnect() { setConnected(false); }
+    socket.on('class:slide', onSlide);
+    socket.on('class:message', onMessage);
+    socket.on('class:ended', onEnded);
+    socket.on('connect', onConnect);
+    socket.on('disconnect', onDisconnect);
+    return () => {
+      socket.off('class:slide', onSlide); socket.off('class:message', onMessage);
+      socket.off('class:ended', onEnded); socket.off('connect', onConnect); socket.off('disconnect', onDisconnect);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [socket]);
+
+  function leave() {
+    socketRef.current?.emit('class:leave', { sessionId: sessionIdRef.current }, () => {});
+    onLeave();
+  }
+
+  function toggleHand() {
+    const next = !handRaised;
+    setHandRaised(next);
+    socketRef.current?.emit('class:raise-hand', { sessionId: sessionIdRef.current, raised: next }, (ack) => { if (!ack?.ok) setHandRaised(!next); });
+  }
+
+  function sendMessage(e) {
+    e.preventDefault();
+    if (!chatText.trim()) return;
+    socketRef.current?.emit('class:message', { sessionId: sessionIdRef.current, text: chatText.trim() }, (ack) => { if (!ack?.ok) onFlash(ack?.message || 'Message failed to send.'); });
+    setChatText('');
+  }
+
+  if (ended) {
+    return (
+      <div className="card" style={{ padding: 20, textAlign: 'center', marginBottom: 16 }}>
+        <strong>Class Ended</strong>
+        <p className="text-xs" style={{ color: 'var(--ink-soft)', marginTop: 6 }}>The teacher ended this live class.</p>
+        <button type="button" className="btn btn-primary" style={{ marginTop: 10 }} onClick={onLeave}>Back to My Classes</button>
+      </div>
+    );
+  }
+
+  const slide = session.slides[current];
+  return (
+    <div className="card" style={{ padding: 16, marginBottom: 16 }}>
+      <div className="flex items-center justify-between" style={{ marginBottom: 8 }}>
+        <span className="text-xs flex items-center" style={{ gap: 5, color: connected ? 'var(--emerald)' : 'var(--rose)' }}><FaCircle aria-hidden="true" style={{ fontSize: 8 }} /> {connected ? 'Connected' : 'Reconnecting…'}</span>
+        <button type="button" className="btn" style={{ padding: '4px 12px', fontSize: '0.72rem' }} onClick={leave}>Leave Class</button>
+      </div>
+      <p className="text-xs" style={{ color: 'var(--ink-soft)', marginBottom: 8 }}>{session.courseTitle} · {session.teacherName}</p>
+      {slide && (
+        <div style={{ position: 'relative', overflow: 'hidden', background: slide.background, color: slide.text, borderRadius: 14, padding: '28px 32px', minHeight: 260, borderTop: `8px solid ${slide.accent}` }}>
+          <h3 style={{ fontSize: 22, marginBottom: 14, fontFamily: 'Fraunces, serif', color: slide.text }}>{slide.title}</h3>
+          <ul style={{ fontSize: 14, lineHeight: 1.5, paddingLeft: 20, margin: 0 }}>{(slide.bullets || []).map((b, i) => <li key={i} style={{ marginBottom: 6 }}>{b}</li>)}</ul>
+          {slide.imageUrl && <img src={slide.imageUrl} alt="" style={{ maxWidth: '100%', maxHeight: 140, marginTop: 10, borderRadius: 8 }} />}
+          <span style={{ position: 'absolute', bottom: 10, right: 16, fontSize: 11, opacity: 0.6 }}>{current + 1} / {session.slides.length}</span>
+        </div>
+      )}
+      {session.meetingLink && <a href={session.meetingLink} target="_blank" rel="noreferrer" className="text-xs" style={{ display: 'inline-block', marginTop: 8, color: 'var(--emerald)' }}>Open Video/Audio Call ↗</a>}
+      <div style={{ marginTop: 10 }}>
+        <button type="button" className={handRaised ? 'btn btn-primary' : 'btn'} style={{ padding: '6px 14px', fontSize: '0.78rem' }} onClick={toggleHand}>✋ {handRaised ? 'Lower Hand' : 'Raise Hand'}</button>
+      </div>
+      <div style={{ maxHeight: 140, overflowY: 'auto', margin: '10px 0', display: 'flex', flexDirection: 'column', gap: 4 }}>
+        {messages.length === 0 && <p className="text-xs" style={{ color: 'var(--ink-soft)' }}>No questions yet — ask below.</p>}
+        {messages.map((m) => <p key={m.id} className="text-xs"><strong>{m.name}{m.teacher ? ' (teacher)' : ''}:</strong> {m.text}</p>)}
+      </div>
+      <form onSubmit={sendMessage} className="flex gap-2">
+        <input className="form-input" placeholder="Ask a question…" value={chatText} onChange={(e) => setChatText(e.target.value)} style={{ flex: 1 }} />
+        <button type="submit" className="btn btn-primary" style={{ padding: '6px 14px', fontSize: '0.78rem' }}>Send</button>
+      </form>
+    </div>
+  );
+}
+
+// Sits above the timetable in Student -> My Classes. Lists real active live sessions for courses
+// this student is actively enrolled in (the server-side class:list handler already filters out
+// anything the student isn't eligible for — unenrolled or fee-blocked courses never appear here).
+function StudentLiveClassBanner({ onFlash }) {
+  const { socket } = useRealtime();
+  const [sessions, setSessions] = useState([]);
+  const [joined, setJoined] = useState(null);
+  const socketRef = useRef(null);
+  useEffect(() => { socketRef.current = socket; }, [socket]);
+
+  function refreshList() {
+    socketRef.current?.emit('class:list', {}, (ack) => { if (ack?.ok) setSessions(ack.sessions); });
+  }
+
+  useEffect(() => {
+    if (!socket) return;
+    refreshList();
+    function onStarted(started) { setSessions((prev) => [...prev.filter((s) => s.id !== started.id), started]); }
+    function onEndedGlobal({ sessionId }) { setSessions((prev) => prev.filter((s) => s.id !== sessionId)); }
+    socket.on('class:started', onStarted);
+    socket.on('class:ended', onEndedGlobal);
+    socket.on('connect', refreshList);
+    // Belt-and-braces poll — covers the rare case a class:started push was missed (e.g. this tab
+    // was reconnecting at that exact moment).
+    const interval = setInterval(refreshList, 20000);
+    return () => { socket.off('class:started', onStarted); socket.off('class:ended', onEndedGlobal); socket.off('connect', refreshList); clearInterval(interval); };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [socket]);
+
+  function join(sessionSummary) {
+    socketRef.current?.timeout(8000).emit('class:join', { sessionId: sessionSummary.id }, (err, ack) => {
+      if (err || !ack?.ok) return onFlash(ack?.message || 'Could not join the class.');
+      setJoined(ack.session);
+    });
+  }
+
+  if (joined) return <StudentLiveClassRoom session={joined} onLeave={() => { setJoined(null); refreshList(); }} onFlash={onFlash} />;
+  if (sessions.length === 0) return null;
+
+  return (
+    <div className="card" style={{ padding: 16, marginBottom: 16, borderInlineStart: '4px solid var(--rose)' }}>
+      <strong className="text-sm flex items-center" style={{ gap: 6, color: 'var(--rose)' }}><FaCircle aria-hidden="true" style={{ fontSize: 8 }} /> Live Class{sessions.length > 1 ? 'es' : ''} Now</strong>
+      {sessions.map((s) => (
+        <div key={s.id} className="flex items-center justify-between" style={{ marginTop: 10, padding: 10, background: 'var(--sand)', borderRadius: 10, flexWrap: 'wrap', gap: 8 }}>
+          <div>
+            <p className="text-sm" style={{ fontWeight: 600, margin: 0 }}>{s.courseTitle}</p>
+            <p className="text-xs" style={{ color: 'var(--ink-soft)', margin: '2px 0 0' }}>{s.teacherName} · started {new Date(s.startedAt).toLocaleTimeString()}</p>
+          </div>
+          <button type="button" className="btn btn-primary" style={{ padding: '6px 14px', fontSize: '0.78rem' }} onClick={() => join(s)}>Join Live Class</button>
+        </div>
+      ))}
+    </div>
+  );
+}
+
 // PDF Section 4 — "My Classes: Central Learning Entry": Current / Upcoming / In-Progress,
 // with a clear Live indicator and a Join Class action (structure is real; the actual video
 // classroom is a paid/third-party integration the client hasn't provided credentials for yet,
@@ -6457,7 +6765,39 @@ function matchVoiceCommand(transcript) {
 // Eye tracking is the least precise of the three — webcam gaze tracking is a genuinely hard
 // problem — so it only drives two large dwell zones (look left / look right), never a cursor, and
 // always sits alongside manual controls rather than replacing them.
+// Teacher-facing live-class status board — participants, raised hands, question/chat, End Class.
+// Session state (participants/raisedHands) comes straight from the server (src/realtime/socket.js
+// tracks it per session), kept in sync here purely by listening to class:participant/class:hand —
+// see the effect in AdvancedClassControlPanel that updates the `session` prop this renders.
+function LiveClassControlBoard({ session, messages, chatText, onChatText, onSendChat, onEnd }) {
+  const students = (session.participants || []).filter((p) => !p.teacher);
+  return (
+    <div className="card" style={{ padding: 14, background: 'var(--sand)' }}>
+      <div className="flex items-center justify-between" style={{ marginBottom: 8 }}>
+        <span className="flex items-center" style={{ gap: 6, fontWeight: 700, color: 'var(--rose)' }}><FaCircle aria-hidden="true" style={{ fontSize: 8 }} /> LIVE — {session.courseTitle}</span>
+        <button type="button" className="btn" style={{ padding: '4px 12px', fontSize: '0.72rem', background: 'var(--rose)', color: '#fff', border: 'none' }} onClick={onEnd}>End Class</button>
+      </div>
+      {session.meetingLink && <a href={session.meetingLink} target="_blank" rel="noreferrer" className="text-xs" style={{ display: 'inline-block', marginBottom: 8, color: 'var(--emerald)' }}>Open Video/Audio Call ↗</a>}
+      <p className="text-xs" style={{ color: 'var(--ink-soft)', marginBottom: 8 }}>{students.length} student{students.length === 1 ? '' : 's'} joined{students.length > 0 ? `: ${students.map((s) => s.name).join(', ')}` : ''}</p>
+      {(session.raisedHands || []).length > 0 && (
+        <p className="text-xs" style={{ marginBottom: 8, color: 'var(--gold)', fontWeight: 700 }}>✋ Raised hands: {session.raisedHands.map((h) => h.name).join(', ')}</p>
+      )}
+      <div style={{ maxHeight: 160, overflowY: 'auto', marginBottom: 8, display: 'flex', flexDirection: 'column', gap: 4 }}>
+        {messages.length === 0 && <p className="text-xs" style={{ color: 'var(--ink-soft)' }}>No questions yet.</p>}
+        {messages.map((m) => (
+          <p key={m.id} className="text-xs"><strong>{m.name}{m.teacher ? ' (you)' : ''}:</strong> {m.text}</p>
+        ))}
+      </div>
+      <form onSubmit={onSendChat} className="flex gap-2">
+        <input className="form-input" placeholder="Reply to the class…" value={chatText} onChange={(e) => onChatText(e.target.value)} style={{ flex: 1 }} />
+        <button type="submit" className="btn btn-primary" style={{ padding: '6px 14px', fontSize: '0.78rem' }}>Send</button>
+      </form>
+    </div>
+  );
+}
+
 function AdvancedClassControlPanel({ onFlash }) {
+  const { socket } = useRealtime();
   const [topic, setTopic] = useState('');
   const [slides, setSlides] = useState(null);
   const [current, setCurrent] = useState(0);
@@ -6466,8 +6806,108 @@ function AdvancedClassControlPanel({ onFlash }) {
   const slidesRef = useRef(null);
   useEffect(() => { slidesRef.current = slides; }, [slides]);
 
-  const goNext = useRef(() => setCurrent((c) => Math.min((slidesRef.current?.length || 1) - 1, c + 1))).current;
-  const goPrev = useRef(() => setCurrent((c) => Math.max(0, c - 1))).current;
+  // ---- Live Class (Socket.IO broadcast to joined students) ----
+  const [myCourses, setMyCourses] = useState([]);
+  const [liveCourseId, setLiveCourseId] = useState('');
+  const [savedDecks, setSavedDecks] = useState([]);
+  const [liveSession, setLiveSession] = useState(null); // null while not live
+  const [liveMessages, setLiveMessages] = useState([]);
+  const [liveChatText, setLiveChatText] = useState('');
+  const [liveBusy, setLiveBusy] = useState(false);
+  const socketRef = useRef(null);
+  useEffect(() => { socketRef.current = socket; }, [socket]);
+  const liveSessionIdRef = useRef(null);
+  useEffect(() => { liveSessionIdRef.current = liveSession?.id || null; }, [liveSession?.id]);
+
+  useEffect(() => { apiRequest('/courses/mine/list').then(setMyCourses).catch(() => {}); }, []);
+  useEffect(() => {
+    if (!liveCourseId) { setSavedDecks([]); return; }
+    apiRequest(`/courses/${liveCourseId}`).then((data) => {
+      setSavedDecks((data.lessons || []).filter((l) => l.kind === 'slide_deck' && l.published && l.deck?.slides?.length > 0));
+    }).catch(() => setSavedDecks([]));
+  }, [liveCourseId]);
+
+  function loadSavedDeck(lesson) {
+    setSlides(lesson.deck.slides.map((s) => ({ ...s, image: s.imageUrl, imageStatus: s.imageUrl ? 'ready' : 'none' })));
+    setCurrent(0);
+  }
+
+  async function startLiveClass() {
+    if (!socketRef.current) return onFlash('Not connected — check your connection and try again.');
+    if (!liveCourseId) return onFlash('Choose which class this is for first.');
+    if (!slidesRef.current?.length) return onFlash('Generate or load a deck first.');
+    setLiveBusy(true);
+    socketRef.current.timeout(8000).emit('class:start', {
+      courseId: liveCourseId,
+      slides: slidesRef.current.map((s) => ({
+        title: s.title, bullets: s.bullets, background: s.background, accent: s.accent, text: s.text,
+        // Only a real, permanently-hosted https image survives the trip — an in-progress AI
+        // generation is a data: URL, which the server deliberately drops (see socket.js).
+        imageUrl: typeof (s.imageUrl || s.image) === 'string' && (s.imageUrl || s.image).startsWith('https://') ? (s.imageUrl || s.image) : ''
+      }))
+    }, (err, ack) => {
+      setLiveBusy(false);
+      if (err || !ack?.ok) return onFlash(ack?.message || 'Could not start the live class.');
+      setLiveSession(ack.session);
+      setCurrent(ack.session.currentSlide || 0);
+      onFlash(`Live class started — students in this course can now join.`, 'success');
+    });
+  }
+
+  function endLiveClass() {
+    if (!socketRef.current || !liveSessionIdRef.current) return;
+    socketRef.current.emit('class:end', { sessionId: liveSessionIdRef.current }, () => {});
+    setLiveSession(null); setLiveMessages([]);
+  }
+
+  function sendLiveChat(e) {
+    e.preventDefault();
+    if (!liveChatText.trim() || !socketRef.current || !liveSessionIdRef.current) return;
+    socketRef.current.emit('class:message', { sessionId: liveSessionIdRef.current, text: liveChatText.trim() }, (ack) => {
+      if (!ack?.ok) onFlash(ack?.message || 'Message failed to send.');
+    });
+    setLiveChatText('');
+  }
+
+  useEffect(() => {
+    if (!socket || !liveSession) return;
+    function onSlide({ sessionId, currentSlide }) { if (sessionId === liveSession.id) setCurrent(currentSlide); }
+    function onParticipant({ userId, name, joined }) {
+      setLiveSession((s) => {
+        if (!s) return s;
+        const participants = (s.participants || []).filter((p) => p.userId !== userId);
+        if (joined) participants.push({ userId, name });
+        return { ...s, participants };
+      });
+    }
+    function onHand({ userId, name, raised }) {
+      setLiveSession((s) => {
+        if (!s) return s;
+        const raisedHands = (s.raisedHands || []).filter((h) => h.userId !== userId);
+        if (raised) raisedHands.push({ userId, name });
+        return { ...s, raisedHands };
+      });
+    }
+    function onMessage(msg) { setLiveMessages((m) => [...m, msg].slice(-200)); }
+    function onEnded() { setLiveSession(null); setLiveMessages([]); onFlash('Live class ended.'); }
+    socket.on('class:slide', onSlide);
+    socket.on('class:participant', onParticipant);
+    socket.on('class:hand', onHand);
+    socket.on('class:message', onMessage);
+    socket.on('class:ended', onEnded);
+    return () => {
+      socket.off('class:slide', onSlide); socket.off('class:participant', onParticipant);
+      socket.off('class:hand', onHand); socket.off('class:message', onMessage); socket.off('class:ended', onEnded);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [socket, liveSession?.id]);
+
+  function broadcastSlide(index) {
+    if (socketRef.current && liveSessionIdRef.current) socketRef.current.emit('class:control', { sessionId: liveSessionIdRef.current, currentSlide: index });
+  }
+
+  const goNext = useRef(() => setCurrent((c) => { const next = Math.min((slidesRef.current?.length || 1) - 1, c + 1); broadcastSlide(next); return next; })).current;
+  const goPrev = useRef(() => setCurrent((c) => { const next = Math.max(0, c - 1); broadcastSlide(next); return next; })).current;
   const startPresenting = useRef(() => viewerRef.current?.requestFullscreen?.()).current;
   const stopPresenting = useRef(() => { if (document.fullscreenElement) document.exitFullscreen?.(); }).current;
 
@@ -6750,12 +7190,23 @@ function AdvancedClassControlPanel({ onFlash }) {
 
       {!slides ? (
         <div className="card" style={{ padding: 18 }}>
-          <strong className="text-sm">Step 1 — Choose what to present</strong>
-          <p className="text-xs" style={{ color: 'var(--ink-soft)', marginTop: 6 }}>Generate a slide deck to control hands-free. (For a fully illustrated deck, use AI Slides Generator under AI Teacher Assistant instead, then come back here.)</p>
+          <strong className="text-sm">Step 1 — Create or select a deck</strong>
+          <p className="text-xs" style={{ color: 'var(--ink-soft)', marginTop: 6 }}>Generate a new slide deck, or load one you already saved to a class's Resources.</p>
           <form onSubmit={generateDeck} style={{ marginTop: 12 }}>
             <input className="form-input" placeholder="e.g. The Water Cycle, Grade 5" value={topic} onChange={(e) => setTopic(e.target.value)} required />
             <button type="submit" className="btn btn-primary" style={{ padding: '6px 14px', fontSize: '0.78rem', marginTop: 8 }} disabled={generating}>{generating ? 'Generating...' : 'Generate & Start'}</button>
           </form>
+          <div style={{ marginTop: 16, paddingTop: 14, borderTop: '1px solid var(--sand-line)' }}>
+            <label className="text-xs" style={{ color: 'var(--ink-soft)', display: 'block', marginBottom: 6 }}>Or load a saved deck from a class</label>
+            <select className="form-select" value={liveCourseId} onChange={(e) => setLiveCourseId(e.target.value)} style={{ marginBottom: 8 }}>
+              <option value="">Select a class…</option>
+              {myCourses.map((c) => <option key={c._id} value={c._id}>{c.title}</option>)}
+            </select>
+            {liveCourseId && savedDecks.length === 0 && <p className="text-xs" style={{ color: 'var(--ink-soft)' }}>No saved decks in this class yet — generate one above, then "Save & Share with Students" to reuse it here later.</p>}
+            {savedDecks.map((deck) => (
+              <button key={deck._id} type="button" className="btn" style={{ display: 'block', width: '100%', textAlign: 'left', marginTop: 6, padding: '8px 12px', fontSize: '0.78rem' }} onClick={() => loadSavedDeck(deck)}>{deck.title} ({deck.deck.slides.length} slides)</button>
+            ))}
+          </div>
         </div>
       ) : (
         <>
@@ -6776,6 +7227,25 @@ function AdvancedClassControlPanel({ onFlash }) {
                 <button type="button" className="btn flex items-center" style={{ padding: '6px 14px', fontSize: '0.78rem', gap: 5, marginLeft: 'auto', background: 'var(--rose)', color: '#fff', border: 'none' }} onClick={emergencyDisableAll}>
                   <FaPowerOff aria-hidden="true" /> Emergency Disable All
                 </button>
+              )}
+            </div>
+            <ShareSlideDeckToClass slides={slides} defaultTitle={topic || 'Class Slide Deck'} />
+
+            <div style={{ marginTop: 14, paddingTop: 14, borderTop: '1px solid var(--sand-line)' }}>
+              {!liveSession ? (
+                <>
+                  <strong className="text-sm">Go Live</strong>
+                  <p className="text-xs" style={{ color: 'var(--ink-soft)', margin: '4px 0 8px' }}>Broadcast this deck live — every action below (manual, voice, gesture, eye) will move the slide on every joined student's screen in real time.</p>
+                  <select className="form-select" value={liveCourseId} onChange={(e) => setLiveCourseId(e.target.value)} style={{ marginBottom: 8, maxWidth: 320 }}>
+                    <option value="">Select which class…</option>
+                    {myCourses.map((c) => <option key={c._id} value={c._id}>{c.title}</option>)}
+                  </select>
+                  <button type="button" className="btn btn-primary flex items-center" style={{ padding: '6px 14px', fontSize: '0.78rem', gap: 5 }} onClick={startLiveClass} disabled={liveBusy || !liveCourseId}>
+                    <FaChalkboardUser aria-hidden="true" /> {liveBusy ? 'Starting…' : 'Start Live Class'}
+                  </button>
+                </>
+              ) : (
+                <LiveClassControlBoard session={liveSession} messages={liveMessages} chatText={liveChatText} onChatText={setLiveChatText} onSendChat={sendLiveChat} onEnd={endLiveClass} />
               )}
             </div>
           </div>
@@ -18363,7 +18833,9 @@ function CourseResourcesPanel({ courseId, onFlash, onClose }) {
                   <strong className="text-sm">{l.title}</strong>
                   <button type="button" className={isDone ? 'btn' : 'btn btn-primary'} style={{ padding: '3px 10px', fontSize: '0.72rem' }} onClick={() => toggleComplete(l._id)}>{isDone ? <span className="flex items-center" style={{ gap: 5, justifyContent: 'center' }}><FaCheck aria-hidden="true" /> Completed</span> : 'Mark Complete'}</button>
                 </div>
-                {l.content && <p className="text-sm mt-1" style={{ whiteSpace: 'pre-wrap' }}>{l.content}</p>}
+                {l.kind === 'slide_deck' && l.deck?.slides?.length > 0
+                  ? <SlideDeckViewer title={l.title} slides={l.deck.slides} />
+                  : l.content && <p className="text-sm mt-1" style={{ whiteSpace: 'pre-wrap' }}>{l.content}</p>}
                 {l.videoUrl && <a href={l.videoUrl} target="_blank" rel="noreferrer" className="text-xs mt-2" style={{ display: 'inline-block', color: 'var(--emerald)' }}>▶ Watch video</a>}
                 {(l.resources || []).length > 0 && (
                   <div className="mt-2 flex gap-3 flex-wrap">
@@ -18569,6 +19041,66 @@ function CompletionRulesEditor({ course, onFlash, onSaved }) {
   );
 }
 
+function TeacherSlideDeckManager({ lesson, onFlash, onChanged }) {
+  const [editing, setEditing] = useState(false);
+  const [title, setTitle] = useState(lesson.title);
+  const [slides, setSlides] = useState(lesson.deck?.slides || []);
+  const [busy, setBusy] = useState(false);
+
+  function updateSlide(index, changes) {
+    setSlides((current) => current.map((slide, i) => i === index ? { ...slide, ...changes } : slide));
+  }
+  async function save() {
+    setBusy(true);
+    try {
+      await apiRequest(`/courses/lessons/${lesson._id}`, { method: 'PATCH', body: { title: title.trim(), deck: { slides } } });
+      onFlash('Slide deck updated.', 'success'); setEditing(false); onChanged();
+    } catch (err) { onFlash(err.message); } finally { setBusy(false); }
+  }
+  async function togglePublished() {
+    setBusy(true);
+    try {
+      await apiRequest(`/courses/lessons/${lesson._id}`, { method: 'PATCH', body: { published: !lesson.published } });
+      onFlash(lesson.published ? 'Deck unpublished from students.' : 'Deck published to students.', 'success'); onChanged();
+    } catch (err) { onFlash(err.message); } finally { setBusy(false); }
+  }
+  async function remove() {
+    if (!window.confirm(`Delete “${lesson.title}” permanently?`)) return;
+    setBusy(true);
+    try { await apiRequest(`/courses/lessons/${lesson._id}`, { method: 'DELETE' }); onFlash('Slide deck deleted.', 'success'); onChanged(); }
+    catch (err) { onFlash(err.message); setBusy(false); }
+  }
+
+  return (
+    <div style={{ marginTop: 10 }}>
+      <div className="flex gap-2 flex-wrap">
+        <button type="button" className="btn" onClick={() => setEditing((value) => !value)} disabled={busy}>{editing ? 'Close Editor' : 'Edit Deck'}</button>
+        <button type="button" className="btn" onClick={togglePublished} disabled={busy}>{lesson.published ? 'Unpublish' : 'Publish'}</button>
+        <button type="button" className="btn" onClick={remove} disabled={busy} style={{ color: 'var(--rose)' }}>Delete</button>
+        <span className="text-xs" style={{ alignSelf: 'center', color: lesson.published ? 'var(--emerald)' : 'var(--ink-soft)' }}>{lesson.published ? 'Visible to students' : 'Hidden from students'}</span>
+      </div>
+      {editing && (
+        <div className="card" style={{ padding: 14, marginTop: 10 }}>
+          <label className="text-xs">Deck title<input className="form-input" value={title} onChange={(e) => setTitle(e.target.value)} style={{ marginTop: 4 }} /></label>
+          <div style={{ display: 'grid', gap: 12, marginTop: 12 }}>
+            {slides.map((slide, index) => (
+              <div key={index} style={{ padding: 12, border: '1px solid var(--sand-line)', borderRadius: 10 }}>
+                <strong className="text-xs">Slide {index + 1}</strong>
+                <input className="form-input" value={slide.title || ''} onChange={(e) => updateSlide(index, { title: e.target.value })} placeholder="Slide title" style={{ marginTop: 6 }} />
+                <textarea className="form-input" rows={5} value={(slide.bullets || []).join('\n')} onChange={(e) => updateSlide(index, { bullets: e.target.value.split('\n').filter((line) => line.trim()) })} placeholder="One bullet per line" style={{ marginTop: 6 }} />
+                <div className="flex gap-2 flex-wrap" style={{ marginTop: 6 }}>
+                  {[['background', 'Background'], ['accent', 'Accent'], ['text', 'Text']].map(([key, label]) => <label key={key} className="text-xs">{label}<input type="color" value={slide[key] || (key === 'background' ? '#fff8e7' : key === 'accent' ? '#d97706' : '#1f2937')} onChange={(e) => updateSlide(index, { [key]: e.target.value })} style={{ display: 'block', width: 52, height: 34 }} /></label>)}
+                </div>
+              </div>
+            ))}
+          </div>
+          <button type="button" className="btn btn-primary" onClick={save} disabled={busy || !title.trim()} style={{ marginTop: 12 }}>{busy ? 'Saving…' : 'Save Changes'}</button>
+        </div>
+      )}
+    </div>
+  );
+}
+
 function TeacherLessonsPanel({ courseId, onFlash, onClose }) {
   const [data, setData] = useState(null);
   const [form, setForm] = useState({ title: '', content: '', videoUrl: '', resourceName: '', resourceUrl: '' });
@@ -18613,7 +19145,12 @@ function TeacherLessonsPanel({ courseId, onFlash, onClose }) {
               <span style={{ width: 34, height: 34, borderRadius: 10, background: 'var(--sand)', color: 'var(--forest)', display: 'grid', placeItems: 'center', flexShrink: 0, fontWeight: 700, fontSize: 13 }}>{i + 1}</span>
               <div style={{ minWidth: 0, flex: 1 }}>
                 <strong className="text-sm">{l.title}</strong>
-                {l.content && <p className="text-sm" style={{ whiteSpace: 'pre-wrap', marginTop: 6, color: 'var(--ink-soft)' }}>{l.content}</p>}
+                {l.kind === 'slide_deck' && l.deck?.slides?.length > 0 ? (
+                  <>
+                    <SlideDeckViewer title={l.title} slides={l.deck.slides} />
+                    <TeacherSlideDeckManager lesson={l} onFlash={onFlash} onChanged={load} />
+                  </>
+                ) : l.content && <p className="text-sm" style={{ whiteSpace: 'pre-wrap', marginTop: 6, color: 'var(--ink-soft)' }}>{l.content}</p>}
                 {(l.videoUrl || (l.resources || []).length > 0) && (
                   <div className="flex flex-wrap items-center" style={{ gap: 8, marginTop: 12 }}>
                     {l.videoUrl && (

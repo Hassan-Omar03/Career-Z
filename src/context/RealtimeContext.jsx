@@ -17,6 +17,7 @@ export function RealtimeProvider({ children }) {
   const [unreadCount, setUnreadCount] = useState(0);
   const [latestNotification, setLatestNotification] = useState(null);
   const [dashboardUpdateSignal, setDashboardUpdateSignal] = useState(0);
+  const [socket, setSocket] = useState(null);
   const socketRef = useRef(null);
 
   useEffect(() => {
@@ -33,6 +34,7 @@ export function RealtimeProvider({ children }) {
       transports: ['websocket', 'polling']
     });
     socketRef.current = socket;
+    setSocket(socket);
 
     socket.on('notification:new', (notification) => {
       setUnreadCount((c) => c + 1);
@@ -43,13 +45,13 @@ export function RealtimeProvider({ children }) {
     });
     socket.on('connect_error', () => {});
 
-    return () => { socket.disconnect(); socketRef.current = null; };
+    return () => { socket.disconnect(); socketRef.current = null; setSocket(null); };
   }, [user?._id]); // eslint-disable-line react-hooks/exhaustive-deps
 
   function clearUnread() { setUnreadCount(0); }
 
   return (
-    <RealtimeContext.Provider value={{ unreadCount, latestNotification, dashboardUpdateSignal, clearUnread }}>
+    <RealtimeContext.Provider value={{ unreadCount, latestNotification, dashboardUpdateSignal, clearUnread, socket }}>
       {children}
     </RealtimeContext.Provider>
   );
@@ -58,5 +60,5 @@ export function RealtimeProvider({ children }) {
 export function useRealtime() {
   const ctx = useContext(RealtimeContext);
   // Components can render outside the provider (e.g. in isolated tests) — return safe no-op defaults.
-  return ctx || { unreadCount: 0, latestNotification: null, dashboardUpdateSignal: 0, clearUnread: () => {} };
+  return ctx || { unreadCount: 0, latestNotification: null, dashboardUpdateSignal: 0, clearUnread: () => {}, socket: null };
 }
