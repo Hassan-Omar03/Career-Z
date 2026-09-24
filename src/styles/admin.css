@@ -62,6 +62,32 @@
 @media (max-width: 640px) {
   .dash-toast { left: 16px; right: 16px; top: 12px; max-width: none; }
 }
+
+/* AI Feature Card results — formatted notes/quiz/lesson-plan output, not a raw text blob. */
+.ai-result-card { margin-top: 12px; padding: 16px; background: var(--paper-raised); border: 1px solid var(--sand-line); border-radius: 14px; }
+.ai-result-header { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-bottom: 12px; padding-bottom: 10px; border-bottom: 1px solid var(--sand-line); }
+.ai-result-badge { display: inline-flex; align-items: center; gap: 6px; font-size: 11px; font-weight: 700; letter-spacing: .04em; text-transform: uppercase; color: var(--emerald); }
+.ai-result-copy { display: inline-flex; align-items: center; gap: 6px; font-size: 11px; font-weight: 600; color: var(--ink-soft); background: var(--sand); border: 1px solid var(--sand-line); border-radius: 999px; padding: 5px 12px; cursor: pointer; }
+.ai-result-copy:hover { color: var(--ink); border-color: var(--emerald); }
+.ai-result-heading { margin: 16px 0 8px; font-size: 14px; font-weight: 700; color: var(--emerald); }
+.ai-result-heading:first-child { margin-top: 0; }
+.ai-result-para { margin: 0 0 10px; font-size: 13.5px; line-height: 1.7; color: var(--ink); }
+.ai-result-para:last-child { margin-bottom: 0; }
+.ai-result-list { margin: 0 0 10px; padding-inline-start: 20px; font-size: 13.5px; line-height: 1.7; color: var(--ink); }
+.ai-result-list li { margin-bottom: 6px; }
+.ai-result-list ul { margin-top: 4px; padding-inline-start: 18px; list-style: circle; }
+.ai-result-list:last-child { margin-bottom: 0; }
+
+.ai-quiz-body { display: flex; flex-direction: column; gap: 14px; }
+.ai-quiz-question { padding: 14px; background: var(--sand); border-radius: 12px; }
+.ai-quiz-qnum { display: inline-block; font-size: 10px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; color: var(--emerald); background: var(--paper-raised); border-radius: 999px; padding: 3px 10px; margin-bottom: 8px; }
+.ai-quiz-qtext { margin: 0 0 10px; font-size: 13.5px; font-weight: 600; color: var(--ink); line-height: 1.6; }
+.ai-quiz-options { list-style: none; margin: 0 0 10px; padding: 0; display: flex; flex-direction: column; gap: 6px; }
+.ai-quiz-options li { display: flex; align-items: center; gap: 8px; padding: 8px 10px; background: var(--paper-raised); border: 1px solid var(--sand-line); border-radius: 8px; font-size: 13px; color: var(--ink); }
+.ai-quiz-options li.ai-quiz-correct { border-color: var(--emerald); background: rgba(27, 138, 99, 0.14); color: var(--ink); font-weight: 700; }
+.ai-quiz-optletter { display: inline-grid; place-items: center; width: 20px; height: 20px; flex-shrink: 0; border-radius: 50%; background: var(--sand-line); font-size: 11px; font-weight: 700; }
+.ai-quiz-reveal { display: inline-flex; align-items: center; gap: 6px; font-size: 12px; font-weight: 600; color: var(--emerald); background: transparent; border: 1px solid var(--emerald); border-radius: 999px; padding: 5px 12px; cursor: pointer; }
+.ai-quiz-reveal:hover { background: var(--emerald); color: #fff; }
 .admin-layout a:focus-visible, .admin-layout button:focus-visible { outline: 3px solid var(--emerald); outline-offset: 3px; }
 @media (max-width: 900px) {
   .admin-layout .dash-main { padding: 24px; }

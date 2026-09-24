@@ -7,7 +7,8 @@
   FaEarthAmericas, FaDatabase, FaUserGear, FaNewspaper, FaWandMagicSparkles,
   FaUserGraduate, FaBed, FaKitMedical, FaCalendarDays, FaHeadset, FaRobot,
   FaCheck, FaLocationDot, FaExpand, FaGlobe, FaCreditCard, FaFaceSmile, FaCircleCheck,
-  FaArrowLeft, FaArrowRight, FaArrowRotateLeft
+  FaArrowLeft, FaArrowRight, FaArrowRotateLeft, FaCopy, FaEye, FaPaperPlane,
+  FaMicrophone, FaHand, FaVideo, FaPowerOff, FaCrosshairs
 } from 'react-icons/fa6';
 import { Children, useEffect, useRef, useState } from 'react';
 import { useLocation } from 'react-router-dom';
@@ -3173,7 +3174,224 @@ function AiSettingsPanel({ onFlash, onChanged, purposes = AI_PURPOSES, instituti
 
 // One AI-powered tool, real end to end — calls the user's own connected provider via
 // POST /ai/generate. Disabled until AiSettingsPanel reports a provider connected.
-function AiFeatureCard({ feature, title, description, placeholder, aiEnabled }) {
+// Inline **bold** markdown -> <strong>; every other AI-formatting need is handled by the
+// block-level parser below, so this only ever has to deal with one inline pattern.
+function renderAiInline(text) {
+  return text.split(/(\*\*[^*]+\*\*)/g).map((part, idx) => {
+    const m = part.match(/^\*\*([^*]+)\*\*$/);
+    return m ? <strong key={idx}>{m[1]}</strong> : <span key={idx}>{part}</span>;
+  });
+}
+
+// Turns a free-text AI response (numbered "N) Heading" sections, "- bullet" / nested "  - bullet"
+// lists, "Short Label:" sub-headers, and plain paragraphs) into real block elements instead of
+// one unstyled wall of text. Deliberately regex-based, not a markdown lib: AI providers are not
+// consistent enough about markdown syntax for a strict parser to be worth the dependency.
+function parseAiBlocks(raw) {
+  const lines = raw.replace(/\r\n/g, '\n').split('\n');
+  const blocks = [];
+  let i = 0;
+  while (i < lines.length) {
+    const line = lines[i];
+    const trimmed = line.trim();
+    if (!trimmed) { i++; continue; }
+
+    const bulletMatch = line.match(/^(\s*)[-*]\s+(.+)$/);
+    if (bulletMatch) {
+      const items = [];
+      while (i < lines.length) {
+        const bm = lines[i].match(/^(\s*)[-*]\s+(.+)$/);
+        if (!bm) break;
+        const text = bm[2].trim();
+        if (bm[1].length >= 2 && items.length) items[items.length - 1].sub.push(text);
+        else items.push({ text, sub: [] });
+        i++;
+      }
+      blocks.push({ type: 'list', items });
+      continue;
+    }
+
+    const headingMatch = trimmed.match(/^\d+[).]\s+(.+)$/);
+    if (headingMatch) { blocks.push({ type: 'heading', text: headingMatch[1] }); i++; continue; }
+    if (/^[A-Za-z][^.?!]{0,70}:$/.test(trimmed)) { blocks.push({ type: 'heading', text: trimmed.slice(0, -1) }); i++; continue; }
+
+    let para = trimmed;
+    i++;
+    while (i < lines.length && lines[i].trim() && !lines[i].match(/^(\s*)[-*]\s+/) && !lines[i].trim().match(/^\d+[).]\s+/)) {
+      para += ' ' + lines[i].trim();
+      i++;
+    }
+    blocks.push({ type: 'para', text: para });
+  }
+  return blocks;
+}
+
+function AiTextBlock({ text }) {
+  const blocks = parseAiBlocks(text);
+  return (
+    <div className="ai-result-body">
+      {blocks.map((b, idx) => {
+        if (b.type === 'heading') return <h5 key={idx} className="ai-result-heading">{renderAiInline(b.text)}</h5>;
+        if (b.type === 'list') return (
+          <ul key={idx} className="ai-result-list">
+            {b.items.map((it, j) => (
+              <li key={j}>
+                {renderAiInline(it.text)}
+                {it.sub.length > 0 && <ul>{it.sub.map((s, k) => <li key={k}>{renderAiInline(s)}</li>)}</ul>}
+              </li>
+            ))}
+          </ul>
+        );
+        return <p key={idx} className="ai-result-para">{renderAiInline(b.text)}</p>;
+      })}
+    </div>
+  );
+}
+
+function isAiQuizText(text) {
+  const matches = text.match(/^Question\s*\d+[:.]/gim);
+  return !!matches && matches.length >= 2;
+}
+
+function parseAiQuiz(text) {
+  return text.split(/(?=^Question\s*\d+[:.])/gim).map((s) => s.trim()).filter(Boolean).map((block, idx) => {
+    const lines = block.split('\n').map((l) => l.trim()).filter(Boolean);
+    const question = (lines[0] || '').replace(/^Question\s*\d+[:.]\s*/i, '');
+    const options = [];
+    let answerLetter = '';
+    for (let i = 1; i < lines.length; i++) {
+      const optMatch = lines[i].match(/^([A-D])[).]\s*(.+)$/i);
+      if (optMatch) { options.push({ letter: optMatch[1].toUpperCase(), text: optMatch[2] }); continue; }
+      const ansMatch = lines[i].match(/^Answer\s*:\s*([A-D])/i);
+      if (ansMatch) answerLetter = ansMatch[1].toUpperCase();
+    }
+    return { number: idx + 1, question, options, answerLetter };
+  });
+}
+
+function AiQuizBlock({ text }) {
+  const questions = parseAiQuiz(text);
+  const [revealed, setRevealed] = useState(() => new Set());
+  function toggle(idx) {
+    setRevealed((prev) => {
+      const next = new Set(prev);
+      if (next.has(idx)) next.delete(idx); else next.add(idx);
+      return next;
+    });
+  }
+  return (
+    <div className="ai-quiz-body">
+      {questions.map((q, idx) => (
+        <div key={idx} className="ai-quiz-question">
+          <span className="ai-quiz-qnum">Question {q.number}</span>
+          <p className="ai-quiz-qtext">{renderAiInline(q.question)}</p>
+          <ul className="ai-quiz-options">
+            {q.options.map((opt) => (
+              <li key={opt.letter} className={revealed.has(idx) && opt.letter === q.answerLetter ? 'ai-quiz-correct' : ''}>
+                <span className="ai-quiz-optletter">{opt.letter}</span>
+                {renderAiInline(opt.text)}
+              </li>
+            ))}
+          </ul>
+          {q.answerLetter && (
+            <button type="button" className="ai-quiz-reveal" onClick={() => toggle(idx)}>
+              {revealed.has(idx) ? <><FaCircleCheck /> Answer: {q.answerLetter}</> : <><FaEye /> Show Answer</>}
+            </button>
+          )}
+        </div>
+      ))}
+    </div>
+  );
+}
+
+// Lets a teacher review/edit an AI draft, then publish it into one of their own classes (saved
+// as a real Lesson, so it shows up in the student's course view the same as any lesson) — never
+// auto-publishes the raw AI output untouched. Emails every actively enrolled, fee-cleared student
+// that a new lecture was shared; a student with a pending institution fee is skipped, matching the
+// same gate the student's own course view already enforces (getCourse, course.controller.js).
+function ShareAiToClassButton({ title: defaultTitle, content: defaultContent }) {
+  const [open, setOpen] = useState(false);
+  const [title, setTitle] = useState(defaultTitle);
+  const [content, setContent] = useState(defaultContent);
+  const [courses, setCourses] = useState(null);
+  const [courseId, setCourseId] = useState('');
+  const [busy, setBusy] = useState(false);
+  const [status, setStatus] = useState('');
+
+  function openReview() {
+    setOpen(true);
+    setTitle(defaultTitle);
+    setContent(defaultContent);
+    if (courses) return;
+    apiRequest('/courses/mine/list').then((list) => {
+      setCourses(list);
+      if (list.length > 0) setCourseId(list[0]._id);
+    }).catch(() => setCourses([]));
+  }
+
+  async function share() {
+    if (!courseId || !title.trim() || !content.trim()) return;
+    setBusy(true); setStatus('');
+    try {
+      const { notifiedCount, feeBlockedCount } = await apiRequest(`/courses/${courseId}/ai-resource`, { method: 'POST', body: { title, content } });
+      const feeNote = feeBlockedCount > 0 ? ` (${feeBlockedCount} skipped — pending fee)` : '';
+      setStatus(`Published to class — ${notifiedCount} student${notifiedCount === 1 ? '' : 's'} notified${feeNote}.`);
+    } catch (err) { setStatus(err.message); } finally { setBusy(false); }
+  }
+
+  if (!open) {
+    return (
+      <button type="button" className="btn" style={{ padding: '6px 14px', fontSize: '0.78rem', marginTop: 10, display: 'inline-flex', alignItems: 'center', gap: 6 }} onClick={openReview}>
+        <FaPaperPlane aria-hidden="true" /> Review &amp; Share with Students
+      </button>
+    );
+  }
+
+  return (
+    <div style={{ marginTop: 10, padding: 12, background: 'var(--sand)', borderRadius: 10 }}>
+      <p className="text-xs" style={{ color: 'var(--ink-soft)', marginBottom: 8 }}>Review and edit before publishing — this is exactly what students will see.</p>
+      <label className="text-xs" style={{ color: 'var(--ink-soft)', display: 'block', marginBottom: 4 }}>Title</label>
+      <input className="form-input" value={title} onChange={(e) => setTitle(e.target.value)} style={{ marginBottom: 10 }} />
+      <label className="text-xs" style={{ color: 'var(--ink-soft)', display: 'block', marginBottom: 4 }}>Content</label>
+      <textarea className="form-input" rows={8} value={content} onChange={(e) => setContent(e.target.value)} style={{ marginBottom: 10 }} />
+
+      {courses === null && <p className="text-xs" style={{ color: 'var(--ink-soft)' }}>Loading your classes...</p>}
+      {courses?.length === 0 && <p className="text-xs" style={{ color: 'var(--ink-soft)' }}>You have no classes yet — create a course first.</p>}
+      {courses?.length > 0 && (
+        <>
+          <label className="text-xs" style={{ color: 'var(--ink-soft)', display: 'block', marginBottom: 6 }}>Publish to which class?</label>
+          <select className="form-input" value={courseId} onChange={(e) => setCourseId(e.target.value)}>
+            {courses.map((c) => <option key={c._id} value={c._id}>{c.title}</option>)}
+          </select>
+          <div className="flex gap-2" style={{ marginTop: 8 }}>
+            <button type="button" className="btn btn-primary" style={{ padding: '6px 14px', fontSize: '0.78rem' }} onClick={share} disabled={busy}>{busy ? 'Publishing...' : 'Publish to Course'}</button>
+            <button type="button" className="btn" style={{ padding: '6px 14px', fontSize: '0.78rem' }} onClick={() => setOpen(false)}>Cancel</button>
+          </div>
+        </>
+      )}
+      {status && <p className="text-xs" style={{ marginTop: 8, color: status.startsWith('Published') ? 'var(--emerald)' : 'var(--rose)' }}>{status}</p>}
+    </div>
+  );
+}
+
+function AiResultView({ text, shareTitle }) {
+  const [copied, setCopied] = useState(false);
+  function copy() {
+    try { navigator.clipboard?.writeText(text); setCopied(true); setTimeout(() => setCopied(false), 1500); } catch { /* clipboard unavailable */ }
+  }
+  return (
+    <div className="ai-result-card">
+      <div className="ai-result-header">
+        <span className="ai-result-badge"><FaWandMagicSparkles /> AI Generated</span>
+        <button type="button" className="ai-result-copy" onClick={copy}>{copied ? <><FaCheck /> Copied</> : <><FaCopy /> Copy</>}</button>
+      </div>
+      {isAiQuizText(text) ? <AiQuizBlock text={text} /> : <AiTextBlock text={text} />}
+      {shareTitle && <ShareAiToClassButton title={shareTitle} content={text} />}
+    </div>
+  );
+}
+
+function AiFeatureCard({ feature, title, description, placeholder, aiEnabled, shareable }) {
   const [open, setOpen] = useState(false);
   const [prompt, setPrompt] = useState('');
   const [result, setResult] = useState('');
@@ -3190,7 +3408,7 @@ function AiFeatureCard({ feature, title, description, placeholder, aiEnabled }) 
   }
 
   return (
-    <div className="card" style={{ padding: 18 }}>
+    <div className="card" style={{ padding: 18, alignSelf: 'start' }}>
       <strong className="text-sm">{title}</strong>
       <p className="text-xs" style={{ color: 'var(--ink-soft)', marginTop: 6 }}>{description}</p>
       {!open ? (
@@ -3205,7 +3423,7 @@ function AiFeatureCard({ feature, title, description, placeholder, aiEnabled }) 
             <button type="button" className="btn" style={{ padding: '6px 14px', fontSize: '0.78rem' }} onClick={() => setOpen(false)}>Close</button>
           </div>
           {error && <p className="text-xs" style={{ color: 'var(--rose)', marginTop: 8 }}>{error}</p>}
-          {result && <div className="text-sm" style={{ marginTop: 12, padding: 12, background: 'var(--sand)', borderRadius: 10, whiteSpace: 'pre-wrap' }}>{result}</div>}
+          {result && <AiResultView text={result} shareTitle={shareable ? `${title}: ${prompt.slice(0, 60)}` : null} />}
         </form>
       )}
     </div>
@@ -3221,14 +3439,26 @@ function parseSlides(raw) {
     const titleLine = lines.find((l) => /^title:/i.test(l));
     const title = titleLine ? titleLine.replace(/^title:\s*/i, '') : 'Untitled Slide';
     const bullets = lines.filter((l) => l.startsWith('-')).map((l) => l.replace(/^-\s*/, ''));
-    return { title, bullets };
+    const field = (name) => lines.find((line) => new RegExp(`^${name}:`, 'i').test(line))?.replace(new RegExp(`^${name}:\\s*`, 'i'), '') || '';
+    const safeColor = (value, fallback) => /^#[0-9a-f]{6}$/i.test(value) ? value : fallback;
+    return {
+      title,
+      bullets,
+      background: safeColor(field('BACKGROUND'), '#fff8e7'),
+      accent: safeColor(field('ACCENT'), '#d97706'),
+      text: safeColor(field('TEXT'), '#1f2937'),
+      imagePrompt: field('IMAGE_PROMPT'),
+      image: null,
+      imageStatus: field('IMAGE_PROMPT') ? 'pending' : 'none',
+      imageError: ''
+    };
   }).filter((s) => s.title !== 'Untitled Slide' || s.bullets.length > 0);
 }
 
 // Real AI Slides Generator (spec 15B.6 "خودکار پریزنٹیشن سلائیڈز") — the one sub-feature of "AI
 // Creative Teacher" buildable with the existing text-AI system (no image/video/3D AI provider
 // needed). Produces an actual presentable, fullscreen-able slide deck, not just a text blob.
-function SlideDeckGenerator({ aiEnabled }) {
+function SlideDeckGenerator({ aiEnabled, imageEnabled }) {
   const [topic, setTopic] = useState('');
   const [slides, setSlides] = useState(null);
   const [current, setCurrent] = useState(0);
@@ -3245,6 +3475,28 @@ function SlideDeckGenerator({ aiEnabled }) {
       if (parsed.length === 0) throw new Error("Couldn't parse slides from the response — try again.");
       setSlides(parsed);
       setCurrent(0);
+      if (imageEnabled) {
+        let nextImageIndex = 0;
+        async function imageWorker() {
+          while (nextImageIndex < parsed.length) {
+            const index = nextImageIndex;
+            nextImageIndex += 1;
+            const slide = parsed[index];
+            if (!slide.imagePrompt) continue;
+            setSlides((currentSlides) => currentSlides.map((item, i) => i === index ? { ...item, imageStatus: 'loading' } : item));
+            try {
+              const { imageDataUrl } = await apiRequest('/ai/image', {
+                method: 'POST',
+                body: { prompt: `${slide.imagePrompt}. Presentation illustration, clean composition, no words, no letters, no watermark.` }
+              });
+              setSlides((currentSlides) => currentSlides.map((item, i) => i === index ? { ...item, image: imageDataUrl, imageStatus: 'ready', imageError: '' } : item));
+            } catch (imageError) {
+              setSlides((currentSlides) => currentSlides.map((item, i) => i === index ? { ...item, imageStatus: 'error', imageError: imageError.message || 'Illustration failed.' } : item));
+            }
+          }
+        }
+        await Promise.all(Array.from({ length: Math.min(3, parsed.length) }, () => imageWorker()));
+      }
     } catch (err) { setError(err.message); } finally { setLoading(false); }
   }
 
@@ -3267,18 +3519,32 @@ function SlideDeckGenerator({ aiEnabled }) {
       ) : (
         <form onSubmit={generate} style={{ marginTop: 12 }}>
           <input className="form-input" placeholder="e.g. The Water Cycle, Grade 5" value={topic} onChange={(e) => setTopic(e.target.value)} required />
-          <button type="submit" className="btn btn-primary" style={{ padding: '6px 14px', fontSize: '0.78rem', marginTop: 8 }} disabled={loading}>{loading ? 'Generating...' : 'Generate Slides'}</button>
+          <button type="submit" className="btn btn-primary" style={{ padding: '6px 14px', fontSize: '0.78rem', marginTop: 8 }} disabled={loading}>{loading ? (imageEnabled ? 'Generating slides & images...' : 'Generating slides...') : 'Generate Slides'}</button>
+          {!imageEnabled && <p className="text-xs" style={{ color: 'var(--ink-soft)', marginTop: 6 }}>Connect an Image AI provider to automatically illustrate every slide.</p>}
           {error && <p className="text-xs" style={{ color: 'var(--rose)', marginTop: 8 }}>{error}</p>}
         </form>
       )}
 
       {slides && (
         <div style={{ marginTop: 16 }}>
-          <div ref={viewerRef} style={{ position: 'relative', background: '#1a2332', color: '#fff', borderRadius: 14, padding: '48px 56px', minHeight: 260, display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
-            <h2 style={{ fontSize: 28, marginBottom: 20, fontFamily: 'Fraunces, serif' }}>{slides[current].title}</h2>
-            <ul style={{ fontSize: 18, lineHeight: 1.9, paddingLeft: 24 }}>
-              {slides[current].bullets.map((b, i) => <li key={i}>{b}</li>)}
-            </ul>
+          <div ref={viewerRef} style={{ position: 'relative', overflow: 'hidden', background: slides[current].background, color: slides[current].text, borderRadius: 14, padding: '42px 48px', minHeight: 420, display: 'grid', gridTemplateColumns: slides[current].imageStatus !== 'none' ? 'minmax(0, 1.15fr) minmax(260px, 0.85fr)' : '1fr', gap: 32, alignItems: 'center', borderTop: `10px solid ${slides[current].accent}` }}>
+            <div>
+              <h2 style={{ fontSize: 32, marginBottom: 20, fontFamily: 'Fraunces, serif', color: slides[current].text }}>{slides[current].title}</h2>
+              <ul style={{ fontSize: 17, lineHeight: 1.55, paddingLeft: 24, margin: 0 }}>
+                {slides[current].bullets.map((b, i) => <li key={i} style={{ marginBottom: 9 }}>{b}</li>)}
+              </ul>
+            </div>
+            {slides[current].image && <img src={slides[current].image} alt={`Illustration for ${slides[current].title}`} style={{ width: '100%', maxHeight: 280, objectFit: 'cover', borderRadius: 16, boxShadow: '0 14px 32px rgba(0,0,0,.18)' }} />}
+            {!slides[current].image && ['pending', 'loading'].includes(slides[current].imageStatus) && (
+              <div style={{ minHeight: 250, borderRadius: 16, border: `2px dashed ${slides[current].accent}`, display: 'grid', placeItems: 'center', padding: 24, textAlign: 'center', opacity: 0.78 }}>
+                <span>{slides[current].imageStatus === 'loading' ? 'Generating this slide illustration…' : 'Illustration queued…'}</span>
+              </div>
+            )}
+            {slides[current].imageStatus === 'error' && (
+              <div style={{ minHeight: 180, borderRadius: 16, border: '2px dashed #b45309', display: 'grid', placeItems: 'center', padding: 20, textAlign: 'center' }}>
+                <span>Illustration failed: {slides[current].imageError}</span>
+              </div>
+            )}
             <span style={{ position: 'absolute', bottom: 16, right: 24, fontSize: 12, opacity: 0.6 }}>{current + 1} / {slides.length}</span>
           </div>
           <div className="flex items-center gap-2" style={{ marginTop: 10 }}>
@@ -3508,7 +3774,7 @@ function VoiceAndAvatarGenerator({ aiEnabled, onFlash }) {
       <div className="card" style={{ padding: 18 }}>
         <strong className="text-sm">AI Voice Narration</strong>
         <p className="text-xs" style={{ color: 'var(--ink-soft)', marginTop: 6 }}>Type narration text — get real speech audio to play over slides.</p>
-        {!aiEnabled?.voice ? (
+        {!aiEnabled?.voice?.configured ? (
           <p className="text-xs" style={{ color: 'var(--ink-soft)', marginTop: 12 }}>Connect a Voice AI provider above first.</p>
         ) : (
           <form onSubmit={generateNarration} style={{ marginTop: 12 }}>
@@ -3522,7 +3788,7 @@ function VoiceAndAvatarGenerator({ aiEnabled, onFlash }) {
       <div className="card" style={{ padding: 18 }}>
         <strong className="text-sm">AI Avatar Video</strong>
         <p className="text-xs" style={{ color: 'var(--ink-soft)', marginTop: 6 }}>Type a script — get a full talking-avatar educational video (takes a few minutes).</p>
-        {!aiEnabled?.avatar ? (
+        {!aiEnabled?.avatar?.configured ? (
           <p className="text-xs" style={{ color: 'var(--ink-soft)', marginTop: 12 }}>Connect an Avatar Video AI provider above first.</p>
         ) : (
           <form onSubmit={startAvatarVideo} style={{ marginTop: 12 }}>
@@ -6103,7 +6369,7 @@ function TeacherWorkspace({ tab, user, onFlash, onChanged, onNavigate }) {
   if (tab === 'resourceLibrary') return <TeacherResourceLibraryPanel onFlash={onFlash} />;
   if (tab === 'aiAssistant') return <TeacherAiAssistantPanel onFlash={onFlash} />;
   if (tab === 'aiCreative') return <TeacherCreativeAiPanel onFlash={onFlash} />;
-  if (tab === 'advancedControl') return <ComingSoon label="Advanced Class Control" note="Optional voice/gesture/eye-tracking controls — not built yet, and never forced on you. Skipped for now (hardware dependency)." />;
+  if (tab === 'advancedControl') return <AdvancedClassControlPanel onFlash={onFlash} />;
   if (tab === 'engagement') return <TeacherEngagementPanel onFlash={onFlash} />;
   if (tab === 'ptm') return <TeacherPtmPanel onFlash={onFlash} />;
   const labels = {};
@@ -6125,11 +6391,11 @@ function TeacherAiAssistantPanel({ onFlash }) {
       <AiSettingsPanel onFlash={onFlash} onChanged={refresh} />
       <h4 className="font-semibold mb-2" style={{ fontSize: '0.9rem' }}>Text Tools</h4>
       <div className="grid grid-cols-1 md:grid-cols-2" style={{ gap: 14, marginBottom: 14 }}>
-        <AiFeatureCard feature="teacher_notes" title="AI Notes Generator" description="Give a topic — get clear, structured class notes." placeholder="e.g. Photosynthesis for Grade 8 Biology" aiEnabled={textEnabled} />
-        <AiFeatureCard feature="teacher_quiz" title="AI Quiz Generator" description="Give a topic — get 5 multiple-choice questions with answers." placeholder="e.g. Newton's Laws of Motion" aiEnabled={textEnabled} />
-        <AiFeatureCard feature="teacher_lesson_plan" title="AI Lesson Plan Builder" description="Give a topic and grade level — get a structured lesson plan." placeholder="e.g. Introduction to Fractions, Grade 4" aiEnabled={textEnabled} />
+        <AiFeatureCard feature="teacher_notes" title="AI Notes Generator" description="Give a topic — get clear, structured class notes." placeholder="e.g. Photosynthesis for Grade 8 Biology" aiEnabled={textEnabled} shareable />
+        <AiFeatureCard feature="teacher_quiz" title="AI Quiz Generator" description="Give a topic — get 5 multiple-choice questions with answers." placeholder="e.g. Newton's Laws of Motion" aiEnabled={textEnabled} shareable />
+        <AiFeatureCard feature="teacher_lesson_plan" title="AI Lesson Plan Builder" description="Give a topic and grade level — get a structured lesson plan." placeholder="e.g. Introduction to Fractions, Grade 4" aiEnabled={textEnabled} shareable />
       </div>
-      <SlideDeckGenerator aiEnabled={textEnabled} />
+      <SlideDeckGenerator aiEnabled={textEnabled} imageEnabled={status?.image.configured || false} />
       <p className="text-xs mt-4" style={{ color: 'var(--ink-soft)' }}>Graphics, 3D models, narration, avatar video and the AI Video Lesson Creator have their own dedicated tab — AI Creative Teacher.</p>
     </div>
   );
@@ -6162,6 +6428,436 @@ function TeacherCreativeAiPanel({ onFlash }) {
       <h4 className="font-semibold mb-2 mt-6" style={{ fontSize: '0.9rem' }}>AI Video Lesson Creator</h4>
       <p className="text-xs mb-3" style={{ color: 'var(--ink-soft)' }}>Text → AI script → voice narration → slide scenes → real MP4, rendered free in your browser (ffmpeg.wasm), saved to a lesson. Needs Text + Voice AI connected above, and a free video storage account connected below.</p>
       <AiVideoLessonCreator aiEnabled={textEnabled && status?.voice.configured} onFlash={onFlash} />
+    </div>
+  );
+}
+
+const VOICE_COMMANDS = [
+  { cmd: 'next', patterns: ['next slide', 'next', 'agla', 'agli slide', 'aagay', 'aage'] },
+  { cmd: 'previous', patterns: ['previous slide', 'previous', 'go back', 'back', 'pichla', 'pichli slide', 'peechay'] },
+  { cmd: 'start', patterns: ['start presentation', 'start class', 'start', 'shuru karo', 'shuru'] },
+  { cmd: 'stop', patterns: ['stop presentation', 'stop class', 'stop', 'pause', 'rok do', 'band karo'] }
+];
+function matchVoiceCommand(transcript) {
+  const t = transcript.toLowerCase().trim();
+  for (const { cmd, patterns } of VOICE_COMMANDS) {
+    if (patterns.some((p) => t.includes(p))) return cmd;
+  }
+  return null;
+}
+
+// Optional, teacher-only hands-free presentation control (spec: voice/gesture/eye-tracking).
+// All three run entirely client-side (Web Speech API, MediaPipe HandLandmarker, WebGazer.js) —
+// nothing about a teacher's camera/mic feed is ever sent to the CareerZ backend. Manual
+// Previous/Next/Fullscreen buttons and arrow-key navigation stay available at all times regardless
+// of which controls are on, and "Emergency Disable All" immediately kills every stream/listener.
+//
+// Honesty note, deliberately visible in the UI, not just this comment: voice control is reliable
+// (native browser speech recognition). Gesture control is reasonably reliable in good lighting.
+// Eye tracking is the least precise of the three — webcam gaze tracking is a genuinely hard
+// problem — so it only drives two large dwell zones (look left / look right), never a cursor, and
+// always sits alongside manual controls rather than replacing them.
+function AdvancedClassControlPanel({ onFlash }) {
+  const [topic, setTopic] = useState('');
+  const [slides, setSlides] = useState(null);
+  const [current, setCurrent] = useState(0);
+  const [generating, setGenerating] = useState(false);
+  const viewerRef = useRef(null);
+  const slidesRef = useRef(null);
+  useEffect(() => { slidesRef.current = slides; }, [slides]);
+
+  const goNext = useRef(() => setCurrent((c) => Math.min((slidesRef.current?.length || 1) - 1, c + 1))).current;
+  const goPrev = useRef(() => setCurrent((c) => Math.max(0, c - 1))).current;
+  const startPresenting = useRef(() => viewerRef.current?.requestFullscreen?.()).current;
+  const stopPresenting = useRef(() => { if (document.fullscreenElement) document.exitFullscreen?.(); }).current;
+
+  async function generateDeck(e) {
+    e.preventDefault();
+    setGenerating(true);
+    try {
+      const { result } = await apiRequest('/ai/generate', { method: 'POST', body: { feature: 'teacher_slides', prompt: topic } });
+      const parsed = parseSlides(result);
+      if (parsed.length === 0) throw new Error("Couldn't parse slides from the response — try again.");
+      setSlides(parsed);
+      setCurrent(0);
+    } catch (err) { onFlash(err.message); } finally { setGenerating(false); }
+  }
+
+  // Manual keyboard navigation is always live, independent of every toggle below.
+  useEffect(() => {
+    function onKey(e) {
+      if (!slidesRef.current) return;
+      if (e.key === 'ArrowRight') goNext();
+      if (e.key === 'ArrowLeft') goPrev();
+    }
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [goNext, goPrev]);
+
+  // ---- Voice control ----
+  const [voiceOn, setVoiceOn] = useState(false);
+  const [voiceLang, setVoiceLang] = useState('en-US');
+  const [voiceSensitivity, setVoiceSensitivity] = useState(0.2);
+  const [voiceStatus, setVoiceStatus] = useState('idle');
+  const [lastVoiceCommand, setLastVoiceCommand] = useState('');
+  const voiceOnRef = useRef(false);
+  useEffect(() => { voiceOnRef.current = voiceOn; }, [voiceOn]);
+  const voiceSensitivityRef = useRef(0.5);
+  useEffect(() => { voiceSensitivityRef.current = voiceSensitivity; }, [voiceSensitivity]);
+
+  useEffect(() => {
+    if (!voiceOn) return;
+    const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+    if (!SR) {
+      setVoiceStatus('unsupported');
+      setVoiceOn(false);
+      onFlash('Voice control needs a Chrome or Edge browser — not supported here.');
+      return;
+    }
+    const recognition = new SR();
+    recognition.continuous = true;
+    recognition.interimResults = false;
+    recognition.lang = voiceLang;
+    recognition.onresult = (event) => {
+      const result = event.results[event.results.length - 1];
+      const transcript = result[0].transcript;
+      const confidence = result[0].confidence || 0;
+      const cmd = matchVoiceCommand(transcript);
+      // Chrome's confidence score is unreliable for short commands (often 0 even for a correct
+      // match), so it only ever SUPPRESSES EXECUTION at high sensitivity settings — it never hides
+      // what was heard. Without this, a silent confidence gate made it look like nothing was
+      // heard at all, which was the actual bug (not that recognition itself wasn't working).
+      const tooLowConfidence = confidence > 0 && confidence < voiceSensitivityRef.current * 0.6;
+      if (!cmd) {
+        setLastVoiceCommand(`heard: "${transcript.trim()}" → no command matched`);
+      } else if (tooLowConfidence) {
+        setLastVoiceCommand(`heard: "${transcript.trim()}" → ${cmd} (skipped, low confidence — lower Sensitivity)`);
+      } else {
+        setLastVoiceCommand(`heard: "${transcript.trim()}" → ${cmd}`);
+        if (cmd === 'next') goNext();
+        if (cmd === 'previous') goPrev();
+        if (cmd === 'start') startPresenting();
+        if (cmd === 'stop') stopPresenting();
+      }
+    };
+    recognition.onerror = (e) => {
+      if (e.error === 'not-allowed' || e.error === 'service-not-allowed') { setVoiceStatus('denied'); setVoiceOn(false); return; }
+      // 'no-speech' fires constantly and harmlessly during normal pauses (recognition.onend
+      // restarts it right after) — everything else is worth surfacing instead of failing silently.
+      if (e.error !== 'no-speech' && e.error !== 'aborted') setLastVoiceCommand(`mic error: ${e.error}`);
+    };
+    recognition.onend = () => { if (voiceOnRef.current) { try { recognition.start(); } catch { /* already starting */ } } };
+    try { recognition.start(); } catch { /* already started */ }
+    setVoiceStatus('listening');
+    return () => { recognition.onend = null; recognition.onresult = null; recognition.stop(); setVoiceStatus('idle'); };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [voiceOn, voiceLang]);
+
+  // ---- Gesture control ----
+  const [gestureOn, setGestureOn] = useState(false);
+  const [gestureSensitivity, setGestureSensitivity] = useState(0.5);
+  const [gestureStatus, setGestureStatus] = useState('idle');
+  const [lastGesture, setLastGesture] = useState('');
+  const [handDetected, setHandDetected] = useState(false);
+  const [currentPose, setCurrentPose] = useState('none');
+  const gestureVideoRef = useRef(null);
+  const gestureSensitivityRef = useRef(0.5);
+  useEffect(() => { gestureSensitivityRef.current = gestureSensitivity; }, [gestureSensitivity]);
+
+  useEffect(() => {
+    if (!gestureOn) return;
+    let stream = null;
+    let raf = null;
+    let cancelled = false;
+    let lastPose = 'none';
+    let lastPoseStart = 0;
+    let poseCooldownUntil = 0;
+    let wristHistory = [];
+
+    (async () => {
+      try {
+        setGestureStatus('starting');
+        const { loadHandLandmarker, classifyHandPose, getWristPoint } = await import('../utils/gestureApi');
+        const landmarker = await loadHandLandmarker();
+        if (cancelled) return;
+        stream = await navigator.mediaDevices.getUserMedia({ video: {} });
+        if (cancelled) { stream.getTracks().forEach((t) => t.stop()); return; }
+        gestureVideoRef.current.srcObject = stream;
+        await gestureVideoRef.current.play();
+        setGestureStatus('running');
+
+        let lastUiUpdate = 0;
+        function loop() {
+          if (cancelled) return;
+          const video = gestureVideoRef.current;
+          const now = performance.now();
+          if (video && video.readyState >= 2) {
+            const result = landmarker.detectForVideo(video, now);
+            const landmarks = result.landmarks?.[0];
+
+            // Live diagnostic (throttled to ~4/sec — no need to re-render every frame) so it's
+            // visible in the UI whether a hand is even being found at all, separate from whether
+            // a gesture crossed the trigger threshold — these were indistinguishable before.
+            if (now - lastUiUpdate > 250) {
+              lastUiUpdate = now;
+              setHandDetected(Boolean(landmarks));
+              setCurrentPose(landmarks ? classifyHandPose(landmarks) : 'none');
+            }
+
+            if (landmarks) {
+              const pose = classifyHandPose(landmarks);
+              const wrist = getWristPoint(landmarks);
+
+              if ((pose === 'open_palm' || pose === 'fist') && now > poseCooldownUntil) {
+                if (lastPose !== pose) { lastPose = pose; lastPoseStart = now; }
+                else if (now - lastPoseStart > (900 - gestureSensitivityRef.current * 600)) {
+                  if (pose === 'open_palm') { setLastGesture('Open palm held → Start presenting'); startPresenting(); }
+                  else { setLastGesture('Fist held → Stop presenting'); stopPresenting(); }
+                  poseCooldownUntil = now + 2000;
+                }
+              } else if (pose === 'none') {
+                lastPose = 'none';
+              }
+
+              wristHistory.push({ x: wrist.x, t: now });
+              wristHistory = wristHistory.filter((p) => now - p.t < 700);
+              if (wristHistory.length > 3 && now > poseCooldownUntil) {
+                const dx = wristHistory[wristHistory.length - 1].x - wristHistory[0].x;
+                // Easier to trigger than the original build: a normal hand-swipe across roughly
+                // an eighth of the frame now registers, instead of needing a fast quarter-frame
+                // sweep — that threshold was the main reason swipes weren't registering at all.
+                const threshold = 0.22 - gestureSensitivityRef.current * 0.14;
+                if (dx > threshold) { setLastGesture('Swipe → Previous'); goPrev(); wristHistory = []; poseCooldownUntil = now + 500; }
+                else if (dx < -threshold) { setLastGesture('Swipe → Next'); goNext(); wristHistory = []; poseCooldownUntil = now + 500; }
+              }
+            }
+          }
+          raf = requestAnimationFrame(loop);
+        }
+        loop();
+      } catch (err) {
+        setGestureStatus(err.name === 'NotAllowedError' ? 'denied' : 'error');
+        setGestureOn(false);
+        onFlash(err.message || 'Could not start gesture control.');
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+      if (raf) cancelAnimationFrame(raf);
+      stream?.getTracks().forEach((t) => t.stop());
+      setGestureStatus('idle');
+      setHandDetected(false);
+      setCurrentPose('none');
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [gestureOn]);
+
+  // ---- Eye-gaze control ----
+  const [eyeOn, setEyeOn] = useState(false);
+  const [eyeSensitivity, setEyeSensitivity] = useState(0.5);
+  const [eyeStatus, setEyeStatus] = useState('idle');
+  const [lastEyeAction, setLastEyeAction] = useState('');
+  const [calibrating, setCalibrating] = useState(false);
+  const [calibrationClicks, setCalibrationClicks] = useState({});
+  const eyeSensitivityRef = useRef(0.5);
+  useEffect(() => { eyeSensitivityRef.current = eyeSensitivity; }, [eyeSensitivity]);
+  const eyeZoneRef = useRef('center');
+  const eyeDwellStartRef = useRef(0);
+
+  useEffect(() => {
+    if (!eyeOn) return;
+    let active = true;
+    (async () => {
+      try {
+        setEyeStatus('starting');
+        const { startGazeTracking } = await import('../utils/eyeGazeApi');
+        await startGazeTracking((gaze) => {
+          if (!active) return;
+          const w = window.innerWidth;
+          const now = performance.now();
+          let zone = 'center';
+          if (gaze.x < w * 0.22) zone = 'left';
+          else if (gaze.x > w * 0.78) zone = 'right';
+
+          if (zone === eyeZoneRef.current && zone !== 'center') {
+            const dwellNeeded = 2000 - eyeSensitivityRef.current * 1400;
+            if (now - eyeDwellStartRef.current > dwellNeeded) {
+              if (zone === 'left') { setLastEyeAction('Looked left → Previous'); goPrev(); }
+              else { setLastEyeAction('Looked right → Next'); goNext(); }
+              eyeZoneRef.current = 'center';
+              eyeDwellStartRef.current = now;
+            }
+          } else if (zone !== eyeZoneRef.current) {
+            eyeZoneRef.current = zone;
+            eyeDwellStartRef.current = now;
+          }
+        });
+        if (active) setEyeStatus('running');
+      } catch (err) {
+        setEyeStatus(err.name === 'NotAllowedError' ? 'denied' : 'error');
+        setEyeOn(false);
+        onFlash(err.message || 'Could not start eye tracking.');
+      }
+    })();
+    return () => {
+      active = false;
+      import('../utils/eyeGazeApi').then(({ stopGazeTracking }) => stopGazeTracking().catch(() => {})).catch(() => {});
+      setEyeStatus('idle');
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [eyeOn]);
+
+  async function recordCalibrationDot(key, xPercent, yPercent) {
+    const { recordCalibrationClick } = await import('../utils/eyeGazeApi');
+    const x = (xPercent / 100) * window.innerWidth;
+    const y = (yPercent / 100) * window.innerHeight;
+    await recordCalibrationClick(x, y);
+    setCalibrationClicks((prev) => {
+      const next = { ...prev, [key]: (prev[key] || 0) + 1 };
+      return next;
+    });
+  }
+
+  function emergencyDisableAll() {
+    setVoiceOn(false);
+    setGestureOn(false);
+    setEyeOn(false);
+    setCalibrating(false);
+    if (document.fullscreenElement) document.exitFullscreen?.();
+    onFlash('All Advanced Class Control inputs disabled.', 'success');
+  }
+
+  const anyControlOn = voiceOn || gestureOn || eyeOn;
+  const calibrationDots = [
+    [10, 10], [50, 10], [90, 10],
+    [10, 50], [50, 50], [90, 50],
+    [10, 90], [50, 90], [90, 90]
+  ];
+  const calibrationDone = calibrationDots.every(([x, y]) => (calibrationClicks[`${x},${y}`] || 0) >= 4);
+
+  return (
+    <div>
+      <h3 className="font-semibold mb-1">Advanced Class Control</h3>
+      <p className="text-xs mb-4" style={{ color: 'var(--ink-soft)' }}>
+        Optional, hands-free presentation control — voice, hand gestures, and eye-gaze. Entirely browser-side; your camera/microphone are never sent to CareerZ. Manual buttons and arrow keys always work, on or off.
+      </p>
+
+      {!slides ? (
+        <div className="card" style={{ padding: 18 }}>
+          <strong className="text-sm">Step 1 — Choose what to present</strong>
+          <p className="text-xs" style={{ color: 'var(--ink-soft)', marginTop: 6 }}>Generate a slide deck to control hands-free. (For a fully illustrated deck, use AI Slides Generator under AI Teacher Assistant instead, then come back here.)</p>
+          <form onSubmit={generateDeck} style={{ marginTop: 12 }}>
+            <input className="form-input" placeholder="e.g. The Water Cycle, Grade 5" value={topic} onChange={(e) => setTopic(e.target.value)} required />
+            <button type="submit" className="btn btn-primary" style={{ padding: '6px 14px', fontSize: '0.78rem', marginTop: 8 }} disabled={generating}>{generating ? 'Generating...' : 'Generate & Start'}</button>
+          </form>
+        </div>
+      ) : (
+        <>
+          <div className="card" style={{ padding: 18, marginBottom: 14 }}>
+            <div ref={viewerRef} style={{ position: 'relative', overflow: 'hidden', background: slides[current].background, color: slides[current].text, borderRadius: 14, padding: '36px 42px', minHeight: 320, borderTop: `10px solid ${slides[current].accent}` }}>
+              <h2 style={{ fontSize: 28, marginBottom: 16, fontFamily: 'Fraunces, serif', color: slides[current].text }}>{slides[current].title}</h2>
+              <ul style={{ fontSize: 16, lineHeight: 1.55, paddingLeft: 22, margin: 0 }}>
+                {slides[current].bullets.map((b, i) => <li key={i} style={{ marginBottom: 8 }}>{b}</li>)}
+              </ul>
+              <span style={{ position: 'absolute', bottom: 14, right: 20, fontSize: 12, opacity: 0.6 }}>{current + 1} / {slides.length}</span>
+            </div>
+            <div className="flex items-center gap-2" style={{ marginTop: 10, flexWrap: 'wrap' }}>
+              <button type="button" className="btn flex items-center" style={{ padding: '6px 14px', fontSize: '0.78rem', gap: 5 }} onClick={goPrev} disabled={current === 0}><FaArrowLeft aria-hidden="true" /> Previous</button>
+              <button type="button" className="btn flex items-center" style={{ padding: '6px 14px', fontSize: '0.78rem', gap: 5 }} onClick={goNext} disabled={current === slides.length - 1}>Next <FaArrowRight aria-hidden="true" /></button>
+              <button type="button" className="btn btn-primary flex items-center" style={{ padding: '6px 14px', fontSize: '0.78rem', gap: 5 }} onClick={startPresenting}><FaExpand aria-hidden="true" /> Start Class (Fullscreen)</button>
+              <button type="button" className="btn" style={{ padding: '6px 14px', fontSize: '0.78rem' }} onClick={() => { setSlides(null); emergencyDisableAll(); }}>New Deck</button>
+              {anyControlOn && (
+                <button type="button" className="btn flex items-center" style={{ padding: '6px 14px', fontSize: '0.78rem', gap: 5, marginLeft: 'auto', background: 'var(--rose)', color: '#fff', border: 'none' }} onClick={emergencyDisableAll}>
+                  <FaPowerOff aria-hidden="true" /> Emergency Disable All
+                </button>
+              )}
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-3" style={{ gap: 14 }}>
+            {/* Voice */}
+            <div className="card" style={{ padding: 16 }}>
+              <div className="flex items-center justify-between">
+                <strong className="text-sm flex items-center" style={{ gap: 6 }}><FaMicrophone aria-hidden="true" /> Voice Control</strong>
+                <button type="button" className={voiceOn ? 'btn btn-primary' : 'btn'} style={{ padding: '4px 12px', fontSize: '0.72rem' }} onClick={() => setVoiceOn((v) => !v)}>{voiceOn ? 'On' : 'Off'}</button>
+              </div>
+              <p className="text-xs" style={{ color: 'var(--ink-soft)', marginTop: 6 }}>Say "next", "previous", "start", "stop" — English or Urdu.</p>
+              <select className="form-input" style={{ marginTop: 8, fontSize: '0.78rem' }} value={voiceLang} onChange={(e) => setVoiceLang(e.target.value)} disabled={voiceOn}>
+                <option value="en-US">English</option>
+                <option value="ur-PK">Urdu</option>
+              </select>
+              <label className="text-xs" style={{ color: 'var(--ink-soft)', display: 'block', marginTop: 8 }}>Sensitivity</label>
+              <input type="range" min="0" max="1" step="0.05" value={voiceSensitivity} onChange={(e) => setVoiceSensitivity(Number(e.target.value))} style={{ width: '100%' }} />
+              <p className="text-xs" style={{ marginTop: 8 }}>Status: {voiceStatus}{voiceStatus === 'unsupported' && ' (Chrome/Edge only)'}</p>
+              {lastVoiceCommand && <p className="text-xs" style={{ color: 'var(--emerald)', marginTop: 4 }}>{lastVoiceCommand}</p>}
+            </div>
+
+            {/* Gesture */}
+            <div className="card" style={{ padding: 16 }}>
+              <div className="flex items-center justify-between">
+                <strong className="text-sm flex items-center" style={{ gap: 6 }}><FaHand aria-hidden="true" /> Gesture Control</strong>
+                <button type="button" className={gestureOn ? 'btn btn-primary' : 'btn'} style={{ padding: '4px 12px', fontSize: '0.72rem' }} onClick={() => setGestureOn((v) => !v)}>{gestureOn ? 'On' : 'Off'}</button>
+              </div>
+              <p className="text-xs" style={{ color: 'var(--ink-soft)', marginTop: 6 }}>Swipe your hand left/right to change slides. Hold an open palm to start, a fist to stop.</p>
+              {gestureOn && <video ref={gestureVideoRef} muted playsInline style={{ width: '100%', maxWidth: 140, borderRadius: 8, marginTop: 8, transform: 'scaleX(-1)' }} />}
+              {!gestureOn && <video ref={gestureVideoRef} muted playsInline style={{ display: 'none' }} />}
+              <label className="text-xs" style={{ color: 'var(--ink-soft)', display: 'block', marginTop: 8 }}>Sensitivity</label>
+              <input type="range" min="0" max="1" step="0.05" value={gestureSensitivity} onChange={(e) => setGestureSensitivity(Number(e.target.value))} style={{ width: '100%' }} />
+              <p className="text-xs" style={{ marginTop: 8 }}>Status: {gestureStatus}</p>
+              {gestureOn && gestureStatus === 'running' && (
+                <p className="text-xs" style={{ marginTop: 4, color: handDetected ? 'var(--emerald)' : 'var(--rose)' }}>
+                  {handDetected ? `Hand detected — pose: ${currentPose}` : 'No hand detected — hold your hand clearly in front of the camera, well lit'}
+                </p>
+              )}
+              {lastGesture && <p className="text-xs" style={{ color: 'var(--emerald)', marginTop: 4 }}>{lastGesture}</p>}
+            </div>
+
+            {/* Eye tracking */}
+            <div className="card" style={{ padding: 16 }}>
+              <div className="flex items-center justify-between">
+                <strong className="text-sm flex items-center" style={{ gap: 6 }}><FaEye aria-hidden="true" /> Eye Tracking</strong>
+                <button type="button" className={eyeOn ? 'btn btn-primary' : 'btn'} style={{ padding: '4px 12px', fontSize: '0.72rem' }} onClick={() => setEyeOn((v) => !v)}>{eyeOn ? 'On' : 'Off'}</button>
+              </div>
+              <p className="text-xs" style={{ color: 'var(--rose)', marginTop: 6 }}>Experimental — webcam gaze tracking is far less precise than a real eye-tracker. Look toward the left or right edge of the screen and hold to navigate. Always keep manual controls as backup.</p>
+              <button type="button" className="btn" style={{ padding: '6px 14px', fontSize: '0.78rem', marginTop: 8, display: 'flex', alignItems: 'center', gap: 5 }} onClick={() => setCalibrating(true)} disabled={!eyeOn}>
+                <FaCrosshairs aria-hidden="true" /> Calibrate
+              </button>
+              {!eyeOn && <p className="text-xs" style={{ color: 'var(--ink-soft)', marginTop: 4 }}>Turn Eye Tracking on first to calibrate.</p>}
+              <label className="text-xs" style={{ color: 'var(--ink-soft)', display: 'block', marginTop: 8 }}>Sensitivity (dwell time)</label>
+              <input type="range" min="0" max="1" step="0.05" value={eyeSensitivity} onChange={(e) => setEyeSensitivity(Number(e.target.value))} style={{ width: '100%' }} />
+              <p className="text-xs" style={{ marginTop: 8 }}>Status: {eyeStatus}{calibrationDone ? ' · calibrated' : ''}</p>
+              {lastEyeAction && <p className="text-xs" style={{ color: 'var(--emerald)', marginTop: 4 }}>{lastEyeAction}</p>}
+            </div>
+          </div>
+        </>
+      )}
+
+      {calibrating && (
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(15,26,23,0.92)', zIndex: 3000 }}>
+          <p style={{ position: 'absolute', top: 20, left: 0, right: 0, textAlign: 'center', color: '#fff', fontSize: 14 }}>
+            Look at each dot and click it 4-5 times. {calibrationDone ? 'Calibration looks complete — you can close this.' : ''}
+          </p>
+          {calibrationDots.map(([x, y]) => {
+            const key = `${x},${y}`;
+            const clicks = calibrationClicks[key] || 0;
+            return (
+              <button
+                key={key}
+                type="button"
+                onClick={() => recordCalibrationDot(key, x, y)}
+                aria-label="Calibration point"
+                style={{
+                  position: 'absolute', left: `${x}%`, top: `${y}%`, transform: 'translate(-50%, -50%)',
+                  width: 26, height: 26, borderRadius: '50%', border: 'none', cursor: 'pointer',
+                  background: clicks >= 4 ? 'var(--emerald)' : '#fff', opacity: clicks >= 4 ? 0.6 : 1
+                }}
+              />
+            );
+          })}
+          <button type="button" className="btn" style={{ position: 'absolute', bottom: 24, left: '50%', transform: 'translateX(-50%)' }} onClick={() => setCalibrating(false)}>Done</button>
+        </div>
+      )}
     </div>
   );
 }
@@ -6969,18 +7665,43 @@ function CourseSelect({ courses, value, onChange }) {
   );
 }
 
+const COMPLETION_STATUS_TAG = { in_progress: 'pending', pending_approval: 'pending', completed: 'approved' };
+const COMPLETION_STATUS_LABEL = { in_progress: 'In progress', pending_approval: 'Awaiting your approval', completed: 'Completed' };
+
 function TeacherStudentsPanel({ onFlash }) {
   const { courses, courseId, setCourseId } = useTeacherCourses(onFlash);
   const [enrollments, setEnrollments] = useState([]);
-  useEffect(() => {
+  function load() {
     if (!courseId) return;
     apiRequest(`/courses/${courseId}/students`).then(setEnrollments).catch((err) => onFlash(err.message));
-  }, [courseId, onFlash]);
+  }
+  useEffect(load, [courseId, onFlash]);
+
+  async function approve(studentId) {
+    try {
+      await apiRequest(`/courses/${courseId}/students/${studentId}/approve-completion`, { method: 'PATCH' });
+      onFlash('Completion approved.', 'success');
+      load();
+    } catch (err) { onFlash(err.message); }
+  }
 
   return (
     <div>
       <CourseSelect courses={courses} value={courseId} onChange={setCourseId} />
-      {courseId && <Table headers={['Name', 'Email', 'Progress', 'Status']} rows={enrollments.map((e) => [e.student?.fullName, e.student?.email, `${e.progressPercent}%`, <Tag status={e.status === 'active' ? 'approved' : e.status} />])} empty="No students enrolled in this course yet." />}
+      {courseId && (
+        <Table
+          headers={['Name', 'Email', 'Lesson Progress', 'Overall Score', 'Completion', 'Action']}
+          rows={enrollments.map((e) => [
+            e.student?.fullName, e.student?.email, `${e.progressPercent}%`, `${e.overallScore || 0}%`,
+            <Tag status={COMPLETION_STATUS_TAG[e.completionStatus] || 'pending'} label={COMPLETION_STATUS_LABEL[e.completionStatus] || e.completionStatus} />,
+            e.completionStatus === 'pending_approval'
+              ? <button type="button" className="btn btn-primary" style={{ padding: '4px 12px', fontSize: '0.72rem' }} onClick={() => approve(e.student?._id)}>Approve</button>
+              : null
+          ])}
+          empty="No students enrolled in this course yet."
+        />
+      )}
+      <p className="text-xs" style={{ color: 'var(--ink-soft)', marginTop: 8 }}>Lesson Progress = material gone through. Overall Score = lessons + assignments + tests + attendance combined, per this course's Completion Rules (Manage Lessons).</p>
       <IndependentTutoringPanel onFlash={onFlash} courses={courses} />
     </div>
   );
@@ -7762,7 +8483,7 @@ function TeacherPerformancePanel({ onFlash }) {
       const withStats = await Promise.all(list.map(async (c) => {
         try {
           const enrollments = await apiRequest(`/courses/${c._id}/students`);
-          const avg = enrollments.length > 0 ? Math.round(enrollments.reduce((s, e) => s + e.progressPercent, 0) / enrollments.length) : 0;
+          const avg = enrollments.length > 0 ? Math.round(enrollments.reduce((s, e) => s + (e.overallScore || 0), 0) / enrollments.length) : 0;
           const completed = enrollments.filter((e) => e.status === 'completed').length;
           return { id: c._id, title: c.title, students: enrollments.length, avgProgress: avg, completed };
         } catch { return { id: c._id, title: c.title, students: 0, avgProgress: 0, completed: 0 }; }
@@ -7782,10 +8503,10 @@ function TeacherPerformancePanel({ onFlash }) {
       <SummaryRow items={[
         { label: 'Courses', value: rows.length, icon: FaBookOpen, detail: 'Created by you' },
         { label: 'Total Students', value: totalStudents, icon: FaUsers, detail: 'Across all courses' },
-        { label: 'Avg. Progress', value: `${overallAvg}%`, icon: FaChartLine, detail: 'Across all students' }
+        { label: 'Avg. Completion Score', value: `${overallAvg}%`, icon: FaChartLine, detail: 'Lessons + assignments + tests + attendance' }
       ]} />
       <Table
-        headers={['Course', 'Students', 'Avg Progress', 'Completed']}
+        headers={['Course', 'Students', 'Avg. Completion Score', 'Completed']}
         rows={rows.map((r) => [r.title, r.students, `${r.avgProgress}%`, r.completed])}
         empty="No courses yet."
       />
@@ -17552,7 +18273,9 @@ function StudentPanel({ onFlash }) {
             <strong>{c.title}</strong>
             <p className="text-xs text-[var(--ink-soft)]">{c.subject}</p>
             <p className="text-xs mt-2">{c.institution ? 'Included in institution degree fee' : (c.isFree ? 'Free' : `${c.currency} ${Number(c.price).toFixed(2)}`)}</p>
-            {enrollments.some((entry) => entry.course?._id === c._id) ? <span className="text-xs">Enrolled</span>
+            {enrollments.some((entry) => entry.course?._id === c._id) ? (
+                <button type="button" className="btn btn-primary mt-2" style={{ padding: '5px 12px', fontSize: '0.78rem' }} onClick={() => setOpenCourseId(c._id)}>View Lessons & Resources</button>
+              )
               : c.institution ? <span className="text-xs">Assigned after admission and fee-plan enrollment</span>
               : c.isFree ? <button className="btn btn-primary mt-2" style={{ padding: '5px 12px', fontSize: '0.78rem' }} onClick={() => enroll(c._id)}>Enroll free</button>
                 : <div className="flex gap-2 mt-2 flex-wrap">
@@ -17566,9 +18289,9 @@ function StudentPanel({ onFlash }) {
       <h3 className="font-semibold mb-2">My Enrollments</h3>
       <Table
         loading={loading} error={loadError} onRetry={load}
-        headers={['Course', 'Status', 'Progress', 'Action']}
+        headers={['Course', 'Completion', 'Lesson Progress', 'Overall Score', 'Action']}
         rows={enrollments.map((e) => [
-          e.course?.title, e.status, `${e.progressPercent}%`,
+          e.course?.title, COMPLETION_STATUS_LABEL[e.completionStatus] || (e.status === 'active' ? 'In progress' : e.status), `${e.progressPercent}%`, `${e.overallScore || 0}%`,
           <button className="btn" style={{ padding: '4px 12px', fontSize: '0.78rem' }} onClick={() => setOpenCourseId(e.course?._id)}>View Resources</button>
         ])}
         empty="No enrollments yet."
@@ -17583,12 +18306,14 @@ function StudentPanel({ onFlash }) {
 function CourseResourcesPanel({ courseId, onFlash, onClose }) {
   const [data, setData] = useState(null);
   const [completedIds, setCompletedIds] = useState([]);
+  const [enrollment, setEnrollment] = useState(null);
 
   function load() {
     apiRequest(`/courses/${courseId}`).then(setData).catch((err) => onFlash(err.message));
     apiRequest('/students/me/enrollments').then((list) => {
       const mine = list.find((e) => e.course?._id === courseId);
       setCompletedIds((mine?.completedLessons || []).map(String));
+      setEnrollment(mine || null);
     }).catch(() => {});
   }
   useEffect(load, [courseId]);
@@ -17618,7 +18343,12 @@ function CourseResourcesPanel({ courseId, onFlash, onClose }) {
             {data.course.institution?.name ? ` · Institution: ${data.course.institution.name}` : ''}
           </p>
           {data.course.teacher?._id && <TeacherReputationWidget teacherId={data.course.teacher._id} onFlash={onFlash} />}
-          {totalLessons > 0 && <p className="text-xs mb-4" style={{ color: 'var(--ink-soft)' }}>Progress: {completedIds.length}/{totalLessons} lessons ({progressPercent}%)</p>}
+          {totalLessons > 0 && <p className="text-xs mb-1" style={{ color: 'var(--ink-soft)' }}>Lesson Progress: {completedIds.length}/{totalLessons} lessons ({progressPercent}%)</p>}
+          {enrollment && (
+            <p className="text-xs mb-4" style={{ color: 'var(--ink-soft)' }}>
+              Overall Course Score: {enrollment.overallScore || 0}% (lessons + assignments + tests + attendance) — <strong>{COMPLETION_STATUS_LABEL[enrollment.completionStatus] || 'In progress'}</strong>
+            </p>
+          )}
           {data.lessons.length === 0 && <p style={{ fontSize: 13, color: 'var(--ink-soft)' }}>No lessons published for this course yet.</p>}
           {data.lessons.map((l) => {
             const isDone = completedIds.includes(l._id);
@@ -17768,6 +18498,72 @@ function TeacherPanel({ onFlash }) {
 
 // PDF: "Course Resources — Central Download Area" (teacher side) — add notes, an external
 // video link (we never host/stream video ourselves), and downloadable materials per lesson.
+// Lets a teacher define how "course completed" is actually decided for this course — see
+// backend/src/utils/courseProgress.js. Weights only need to sum to 100; a category with no items
+// in this course (e.g. no assignments) is automatically excluded and its weight redistributed,
+// so leaving assignments/tests at their default weight never blocks a course that never uses them.
+function CompletionRulesEditor({ course, onFlash, onSaved }) {
+  const [open, setOpen] = useState(false);
+  const [weights, setWeights] = useState(course.completionRules?.weights || { lessons: 40, assignments: 20, tests: 25, attendance: 15 });
+  const [minAttendancePercent, setMinAttendancePercent] = useState(course.completionRules?.minAttendancePercent || 0);
+  const [requireTeacherApproval, setRequireTeacherApproval] = useState(course.completionRules?.requireTeacherApproval || false);
+  const [saving, setSaving] = useState(false);
+
+  const sum = Object.values(weights).reduce((s, v) => s + (Number(v) || 0), 0);
+
+  async function save() {
+    if (Math.abs(sum - 100) > 1) return onFlash('Weights must add up to 100.');
+    setSaving(true);
+    try {
+      await apiRequest(`/courses/${course._id}`, { method: 'PATCH', body: { completionRules: { weights, minAttendancePercent, requireTeacherApproval } } });
+      onFlash('Completion rules saved.', 'success');
+      onSaved?.();
+    } catch (err) { onFlash(err.message); } finally { setSaving(false); }
+  }
+
+  const labels = { lessons: 'Lessons', assignments: 'Assignments', tests: 'Tests/Exams', attendance: 'Attendance' };
+
+  if (!open) {
+    return (
+      <div style={{ marginBottom: 20 }}>
+        <button type="button" className="btn" style={{ padding: '6px 14px', fontSize: '0.78rem' }} onClick={() => setOpen(true)}>Course Completion Rules</button>
+        <p className="text-xs" style={{ color: 'var(--ink-soft)', marginTop: 6 }}>Decide what "course completed" means for this course — lessons alone, or lessons + assignments + tests + attendance.</p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="card" style={{ padding: 16, marginBottom: 20, background: 'var(--sand)' }}>
+      <strong className="text-sm">Course Completion Rules</strong>
+      <p className="text-xs" style={{ color: 'var(--ink-soft)', margin: '6px 0 12px' }}>How much each category counts toward a student's overall course completion score. Weights must add up to 100 — a category with nothing in it (e.g. no assignments yet) is skipped and its weight redistributed automatically.</p>
+      <div className="grid grid-cols-2" style={{ gap: 10 }}>
+        {Object.keys(labels).map((key) => (
+          <label key={key} className="text-xs">
+            {labels[key]} (%)
+            <input type="number" min="0" max="100" className="form-input" value={weights[key]} onChange={(e) => setWeights({ ...weights, [key]: Number(e.target.value) })} style={{ marginTop: 4 }} />
+          </label>
+        ))}
+      </div>
+      <p className="text-xs" style={{ marginTop: 8, color: Math.abs(sum - 100) > 1 ? 'var(--rose)' : 'var(--emerald)' }}>Total: {sum}% {Math.abs(sum - 100) > 1 ? '(must equal 100)' : '✓'}</p>
+
+      <label className="text-xs" style={{ display: 'block', marginTop: 12 }}>
+        Minimum attendance required (%, 0 = no minimum)
+        <input type="number" min="0" max="100" className="form-input" value={minAttendancePercent} onChange={(e) => setMinAttendancePercent(Number(e.target.value))} style={{ marginTop: 4, maxWidth: 140 }} />
+      </label>
+
+      <label className="text-xs flex items-center" style={{ marginTop: 12, gap: 8 }}>
+        <input type="checkbox" checked={requireTeacherApproval} onChange={(e) => setRequireTeacherApproval(e.target.checked)} />
+        Require my approval before a student is marked "completed" (even after they meet every requirement)
+      </label>
+
+      <div className="flex gap-2" style={{ marginTop: 14 }}>
+        <button type="button" className="btn btn-primary" style={{ padding: '6px 14px', fontSize: '0.78rem' }} onClick={save} disabled={saving}>{saving ? 'Saving...' : 'Save Rules'}</button>
+        <button type="button" className="btn" style={{ padding: '6px 14px', fontSize: '0.78rem' }} onClick={() => setOpen(false)}>Close</button>
+      </div>
+    </div>
+  );
+}
+
 function TeacherLessonsPanel({ courseId, onFlash, onClose }) {
   const [data, setData] = useState(null);
   const [form, setForm] = useState({ title: '', content: '', videoUrl: '', resourceName: '', resourceUrl: '' });
@@ -17794,6 +18590,7 @@ function TeacherLessonsPanel({ courseId, onFlash, onClose }) {
         <h4 className="font-semibold">{data?.course?.title || 'Lessons'}</h4>
         {onClose && <button type="button" className="btn" style={{ padding: '6px 14px', fontSize: '0.78rem' }} onClick={onClose}>Close</button>}
       </div>
+      {data?.course && <CompletionRulesEditor course={data.course} onFlash={onFlash} onSaved={load} />}
       <form onSubmit={addLesson} style={{ display: 'grid', gap: 12, marginBottom: 24, paddingBottom: 24, borderBottom: '1px solid var(--sand-line)' }}>
         <input className="form-input" placeholder="Lesson title" required value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })} />
         <textarea className="form-input" placeholder="Notes / content" rows={3} value={form.content} onChange={(e) => setForm({ ...form, content: e.target.value })} />
