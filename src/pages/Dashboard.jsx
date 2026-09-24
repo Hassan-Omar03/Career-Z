@@ -6560,7 +6560,6 @@ function AdvancedClassControlPanel({ onFlash }) {
   const [lastGesture, setLastGesture] = useState('');
   const [handDetected, setHandDetected] = useState(false);
   const [currentPose, setCurrentPose] = useState('none');
-  const [swipePhaseUi, setSwipePhaseUi] = useState('idle');
   const gestureVideoRef = useRef(null);
   const gestureSensitivityRef = useRef(0.5);
   useEffect(() => { gestureSensitivityRef.current = gestureSensitivity; }, [gestureSensitivity]);
@@ -6570,24 +6569,25 @@ function AdvancedClassControlPanel({ onFlash }) {
     let stream = null;
     let raf = null;
     let cancelled = false;
+    // Four static held poses, each mapped to one action — no motion/direction tracking at all.
+    // Swipe (reading a direction from hand movement over time) turned out to be inherently noisy:
+    // a little incidental drift while holding the pose could register as either direction. A held
+    // pose has no direction to get wrong — it either matches one of these four shapes or it
+    // doesn't, so this is far more reliable than anything swipe-based.
     let lastPose = 'none';
     let lastPoseStart = 0;
-    let holdAnchorX = 0;
-    let holdCooldownUntil = 0;
-    // Swipe is now a deliberate two-step gesture instead of continuously reading raw motion:
-    // 1) hold the hand still for a moment -> "armed" (a few seconds to then swipe)
-    // 2) a clear, consistent swipe within that window -> fires and disarms
-    // Any random hand movement while idle does nothing at all — it first has to be still.
-    let swipePhase = 'idle'; // 'idle' | 'armed'
-    let stillAnchorX = 0;
-    let stillStart = 0;
-    let armedUntil = 0;
-    let wristHistory = [];
+    let poseCooldownUntil = 0;
+    const POSE_ACTIONS = {
+      one_finger: { label: 'Next', run: () => goNext() },
+      two_fingers: { label: 'Previous', run: () => goPrev() },
+      open_palm: { label: 'Start presenting', run: () => startPresenting() },
+      fist: { label: 'Stop presenting', run: () => stopPresenting() }
+    };
 
     (async () => {
       try {
         setGestureStatus('starting');
-        const { loadHandLandmarker, classifyHandPose, getWristPoint } = await import('../utils/gestureApi');
+        const { loadHandLandmarker, classifyHandPose } = await import('../utils/gestureApi');
         const landmarker = await loadHandLandmarker();
         if (cancelled) return;
         stream = await navigator.mediaDevices.getUserMedia({ video: {} });
@@ -6616,76 +6616,20 @@ function AdvancedClassControlPanel({ onFlash }) {
 
             if (landmarks) {
               const pose = classifyHandPose(landmarks);
-              const wrist = getWristPoint(landmarks);
+              const config = POSE_ACTIONS[pose];
 
-              // Hold gesture (open palm / fist kept still) -> start/stop. A swiping hand is also
-              // open-palm-shaped, so this only counts as "held" while the wrist stays roughly in
-              // place (< 0.08 of frame width from where the hold began) — otherwise a swipe kept
-              // getting eaten by this firing first and blocking swipe detection for the next 2s,
-              // which was the actual bug (the diagnostic always showed the hold gesture, never
-              // the swipe the user had just made).
-              if ((pose === 'open_palm' || pose === 'fist') && now > holdCooldownUntil) {
-                if (lastPose !== pose || Math.abs(wrist.x - holdAnchorX) > 0.08) {
-                  lastPose = pose; lastPoseStart = now; holdAnchorX = wrist.x;
-                } else if (now - lastPoseStart > (900 - gestureSensitivityRef.current * 600)) {
-                  if (pose === 'open_palm') { setLastGesture('Open palm held → Start presenting'); startPresenting(); }
-                  else { setLastGesture('Fist held → Stop presenting'); stopPresenting(); }
-                  holdCooldownUntil = now + 2000;
-                  wristHistory = [];
-                  swipePhase = 'idle';
+              if (config && now > poseCooldownUntil) {
+                if (lastPose !== pose) {
+                  lastPose = pose; lastPoseStart = now;
+                } else if (now - lastPoseStart > (700 - gestureSensitivityRef.current * 400)) {
+                  setLastGesture(`${pose.replace('_', ' ')} held → ${config.label}`);
+                  config.run();
+                  poseCooldownUntil = now + 900;
+                  lastPose = 'none';
                 }
-              } else if (pose === 'none') {
+              } else if (!config) {
                 lastPose = 'none';
               }
-
-              // ---- Arm-then-swipe state machine ----
-              if (swipePhase === 'idle') {
-                // Wait for the hand to settle (< 0.04 frame-width drift) for ~350ms before arming
-                // — this is what stops a random in-transit hand movement from ever being read as
-                // a swipe attempt at all.
-                if (Math.abs(wrist.x - stillAnchorX) > 0.04) {
-                  stillAnchorX = wrist.x; stillStart = now;
-                } else if (now - stillStart > 350 && now > holdCooldownUntil) {
-                  swipePhase = 'armed';
-                  armedUntil = now + 2500;
-                  setLastGesture('Ready — swipe now');
-                  wristHistory = [{ x: wrist.x, t: now }];
-                }
-              } else if (swipePhase === 'armed') {
-                if (now > armedUntil) {
-                  swipePhase = 'idle';
-                  stillAnchorX = wrist.x; stillStart = now;
-                  setLastGesture('Swipe window expired — hold still to arm again');
-                } else {
-                  wristHistory.push({ x: wrist.x, t: now });
-                  if (wristHistory.length > 4) {
-                    const dx = wristHistory[wristHistory.length - 1].x - wristHistory[0].x;
-                    const threshold = 0.16 - gestureSensitivityRef.current * 0.08;
-                    if (Math.abs(dx) > threshold) {
-                      // Net displacement alone isn't enough — a hand that wobbles back-and-forth
-                      // can still net past the threshold in whichever direction it happened to
-                      // end on. Require most of the frame-to-frame steps to actually agree with
-                      // the overall direction.
-                      let agreeing = 0;
-                      for (let i = 1; i < wristHistory.length; i++) {
-                        const step = wristHistory[i].x - wristHistory[i - 1].x;
-                        if (step === 0 || Math.sign(step) === Math.sign(dx)) agreeing++;
-                      }
-                      if (agreeing / (wristHistory.length - 1) >= 0.6) {
-                        if (dx > 0) { setLastGesture('Swipe → Previous'); goPrev(); }
-                        else { setLastGesture('Swipe → Next'); goNext(); }
-                        swipePhase = 'idle';
-                        wristHistory = [];
-                        stillAnchorX = wrist.x; stillStart = now;
-                        holdCooldownUntil = now + 500;
-                      }
-                    }
-                  }
-                }
-              }
-              // React bails out on an identical primitive value, so calling this every frame is
-              // cheap — it only actually re-renders on the rare frames where the phase changes.
-              setSwipePhaseUi(swipePhase);
             }
           }
           raf = requestAnimationFrame(loop);
@@ -6705,7 +6649,6 @@ function AdvancedClassControlPanel({ onFlash }) {
       setGestureStatus('idle');
       setHandDetected(false);
       setCurrentPose('none');
-      setSwipePhaseUi('idle');
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [gestureOn]);
@@ -6856,20 +6799,15 @@ function AdvancedClassControlPanel({ onFlash }) {
                 <strong className="text-sm flex items-center" style={{ gap: 6 }}><FaHand aria-hidden="true" /> Gesture Control</strong>
                 <button type="button" className={gestureOn ? 'btn btn-primary' : 'btn'} style={{ padding: '4px 12px', fontSize: '0.72rem' }} onClick={() => setGestureOn((v) => !v)}>{gestureOn ? 'On' : 'Off'}</button>
               </div>
-              <p className="text-xs" style={{ color: 'var(--ink-soft)', marginTop: 6 }}>Hold your hand still for a moment to arm, then swipe left/right to change slides. Hold an open palm still to start, a fist to stop.</p>
+              <p className="text-xs" style={{ color: 'var(--ink-soft)', marginTop: 6 }}>Hold a pose briefly to confirm it: ☝️ 1 finger = Next, ✌️ 2 fingers = Previous, 🖐️ open palm = Start, ✊ fist = Stop.</p>
               {gestureOn && <video ref={gestureVideoRef} muted playsInline style={{ width: '100%', maxWidth: 140, borderRadius: 8, marginTop: 8, transform: 'scaleX(-1)' }} />}
               {!gestureOn && <video ref={gestureVideoRef} muted playsInline style={{ display: 'none' }} />}
-              <label className="text-xs" style={{ color: 'var(--ink-soft)', display: 'block', marginTop: 8 }}>Sensitivity</label>
+              <label className="text-xs" style={{ color: 'var(--ink-soft)', display: 'block', marginTop: 8 }}>Sensitivity (how long to hold)</label>
               <input type="range" min="0" max="1" step="0.05" value={gestureSensitivity} onChange={(e) => setGestureSensitivity(Number(e.target.value))} style={{ width: '100%' }} />
               <p className="text-xs" style={{ marginTop: 8 }}>Status: {gestureStatus}</p>
               {gestureOn && gestureStatus === 'running' && (
                 <p className="text-xs" style={{ marginTop: 4, color: handDetected ? 'var(--emerald)' : 'var(--rose)' }}>
                   {handDetected ? `Hand detected — pose: ${currentPose}` : 'No hand detected — hold your hand clearly in front of the camera, well lit'}
-                </p>
-              )}
-              {gestureOn && gestureStatus === 'running' && (
-                <p className="text-xs" style={{ marginTop: 4, fontWeight: 700, color: swipePhaseUi === 'armed' ? 'var(--emerald)' : 'var(--ink-soft)' }}>
-                  {swipePhaseUi === 'armed' ? '● Ready — swipe now' : '○ Hold hand still to arm'}
                 </p>
               )}
               {lastGesture && <p className="text-xs" style={{ color: 'var(--emerald)', marginTop: 4 }}>{lastGesture}</p>}
