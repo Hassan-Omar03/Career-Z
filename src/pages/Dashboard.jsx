@@ -6602,8 +6602,13 @@ function AdvancedClassControlPanel({ onFlash }) {
           const video = gestureVideoRef.current;
           const now = performance.now();
           if (video && video.readyState >= 2) {
-            const result = landmarker.detectForVideo(video, now);
-            const landmarks = result.landmarks?.[0];
+            // If a single frame throws (a real, observed failure mode with the GPU delegate on
+            // some machines), letting it escape kills the requestAnimationFrame chain entirely —
+            // the loop just stops forever with no visible error, leaving "No hand detected" stuck
+            // on screen even with a hand plainly in frame. Never let one bad frame end the loop.
+            let result = null;
+            try { result = landmarker.detectForVideo(video, now); } catch { /* skip this frame */ }
+            const landmarks = result?.landmarks?.[0];
 
             // Live diagnostic (throttled to ~4/sec — no need to re-render every frame) so it's
             // visible in the UI whether a hand is even being found at all, separate from whether

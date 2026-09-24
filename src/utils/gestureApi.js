@@ -13,9 +13,14 @@ const MODEL_URL = 'https://storage.googleapis.com/mediapipe-models/hand_landmark
 let landmarkerPromise = null;
 export function loadHandLandmarker() {
   if (!landmarkerPromise) {
+    // CPU delegate, not GPU: the GPU delegate depends on the browser's WebGL backend and the
+    // machine's actual GPU driver, which is a real source of "detects nothing, no visible error"
+    // failures across different laptops — a hand plainly in frame, silently never detected.
+    // CPU is slower per-frame but works consistently everywhere, and hand detection here only
+    // needs a few frames per second, not real-time video-game framerates.
     landmarkerPromise = FilesetResolver.forVisionTasks(WASM_URL).then((fileset) =>
       HandLandmarker.createFromOptions(fileset, {
-        baseOptions: { modelAssetPath: MODEL_URL, delegate: 'GPU' },
+        baseOptions: { modelAssetPath: MODEL_URL, delegate: 'CPU' },
         runningMode: 'VIDEO',
         numHands: 1,
         minHandDetectionConfidence: 0.35,
