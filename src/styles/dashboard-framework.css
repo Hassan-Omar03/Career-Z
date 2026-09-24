@@ -87,8 +87,12 @@
 }
 @media(max-width:980px){
   .dash-shell, .dash-shell[data-sidebar-collapsed="true"]{grid-template-columns:1fr; grid-template-areas:"header" "main" "footer";}
-  .dash-sidebar{display:none;}
-  .dash-sidebar.dash-sidebar-open{display:flex;}
+  /* !important: the base (unconditional) .dash-sidebar rule further down this file also sets
+     display:flex, with equal specificity — without !important here, that later declaration wins
+     the cascade regardless of viewport and the sidebar never actually goes off-canvas on mobile,
+     permanently overlapping the page content underneath it. */
+  .dash-sidebar{display:none !important;}
+  .dash-sidebar.dash-sidebar-open{display:flex !important;}
 }
 
 /* =========================================================
