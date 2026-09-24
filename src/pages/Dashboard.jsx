@@ -6571,7 +6571,9 @@ function AdvancedClassControlPanel({ onFlash }) {
     let cancelled = false;
     let lastPose = 'none';
     let lastPoseStart = 0;
-    let poseCooldownUntil = 0;
+    let holdAnchorX = 0;
+    let holdCooldownUntil = 0;
+    let swipeCooldownUntil = 0;
     let wristHistory = [];
 
     (async () => {
@@ -6608,12 +6610,21 @@ function AdvancedClassControlPanel({ onFlash }) {
               const pose = classifyHandPose(landmarks);
               const wrist = getWristPoint(landmarks);
 
-              if ((pose === 'open_palm' || pose === 'fist') && now > poseCooldownUntil) {
-                if (lastPose !== pose) { lastPose = pose; lastPoseStart = now; }
-                else if (now - lastPoseStart > (900 - gestureSensitivityRef.current * 600)) {
+              // Hold gesture (open palm / fist kept still) -> start/stop. A swiping hand is also
+              // open-palm-shaped, so this only counts as "held" while the wrist stays roughly in
+              // place (< 0.08 of frame width from where the hold began) — otherwise a swipe kept
+              // getting eaten by this firing first and blocking swipe detection for the next 2s,
+              // which was the actual bug (the diagnostic always showed the hold gesture, never
+              // the swipe the user had just made).
+              if ((pose === 'open_palm' || pose === 'fist') && now > holdCooldownUntil) {
+                if (lastPose !== pose || Math.abs(wrist.x - holdAnchorX) > 0.08) {
+                  lastPose = pose; lastPoseStart = now; holdAnchorX = wrist.x;
+                } else if (now - lastPoseStart > (900 - gestureSensitivityRef.current * 600)) {
                   if (pose === 'open_palm') { setLastGesture('Open palm held → Start presenting'); startPresenting(); }
                   else { setLastGesture('Fist held → Stop presenting'); stopPresenting(); }
-                  poseCooldownUntil = now + 2000;
+                  holdCooldownUntil = now + 2000;
+                  swipeCooldownUntil = now + 2000;
+                  wristHistory = [];
                 }
               } else if (pose === 'none') {
                 lastPose = 'none';
@@ -6621,14 +6632,14 @@ function AdvancedClassControlPanel({ onFlash }) {
 
               wristHistory.push({ x: wrist.x, t: now });
               wristHistory = wristHistory.filter((p) => now - p.t < 700);
-              if (wristHistory.length > 3 && now > poseCooldownUntil) {
+              if (wristHistory.length > 3 && now > swipeCooldownUntil) {
                 const dx = wristHistory[wristHistory.length - 1].x - wristHistory[0].x;
                 // Easier to trigger than the original build: a normal hand-swipe across roughly
                 // an eighth of the frame now registers, instead of needing a fast quarter-frame
                 // sweep — that threshold was the main reason swipes weren't registering at all.
                 const threshold = 0.22 - gestureSensitivityRef.current * 0.14;
-                if (dx > threshold) { setLastGesture('Swipe → Previous'); goPrev(); wristHistory = []; poseCooldownUntil = now + 500; }
-                else if (dx < -threshold) { setLastGesture('Swipe → Next'); goNext(); wristHistory = []; poseCooldownUntil = now + 500; }
+                if (dx > threshold) { setLastGesture('Swipe → Previous'); goPrev(); wristHistory = []; swipeCooldownUntil = now + 500; holdCooldownUntil = now + 500; lastPose = 'none'; }
+                else if (dx < -threshold) { setLastGesture('Swipe → Next'); goNext(); wristHistory = []; swipeCooldownUntil = now + 500; holdCooldownUntil = now + 500; lastPose = 'none'; }
               }
             }
           }
