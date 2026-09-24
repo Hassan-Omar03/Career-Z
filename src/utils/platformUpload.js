@@ -6,11 +6,20 @@ import { apiRequest } from '../api/client';
 // Not every deployment has this configured yet, so callers should fall back to the previous
 // resize-to-base64 behavior when `isPlatformUploadAvailable()` resolves false.
 let configuredPromise = null;
+let cachedFalseAt = 0;
 
+// Caches a successful "yes, configured" result for the rest of the page session (it can't become
+// unconfigured mid-session). A "not configured"/error result is deliberately NOT cached the same
+// way — otherwise a transient backend hiccup (or checking this before an admin finishes setting
+// Cloudinary env vars, which only take effect after that backend process restarts) freezes every
+// upload feature as "unavailable" for the rest of the tab's life, even after the real problem is
+// fixed, until a full page reload happens to clear this module-level cache.
 export function isPlatformUploadAvailable() {
-  if (!configuredPromise) {
-    configuredPromise = apiRequest('/media/platform/config').then((d) => d.configured).catch(() => false);
-  }
+  if (configuredPromise && (cachedFalseAt === 0 || Date.now() - cachedFalseAt < 15000)) return configuredPromise;
+  configuredPromise = apiRequest('/media/platform/config').then((d) => {
+    if (!d.configured) cachedFalseAt = Date.now(); else cachedFalseAt = 0;
+    return d.configured;
+  }).catch(() => { cachedFalseAt = Date.now(); return false; });
   return configuredPromise;
 }
 
