@@ -415,6 +415,11 @@ export default function Dashboard() {
   const [activeWorkspace, setActiveWorkspace] = useState(defaultWorkspace);
   const [activeTab, setActiveTab] = useState(location.search.includes('courseCheckout=success') && defaultWorkspace === 'student'
     ? 'courses' : WORKSPACES[defaultWorkspace].nav[0].key);
+  // Lets any panel (e.g. Teacher -> Student Communication) jump straight into a conversation with
+  // a specific, already-identified person instead of landing on Messages' generic "paste a User
+  // ID" box — the actual gap being fixed here.
+  const [pendingMessageUser, setPendingMessageUser] = useState(null);
+  function openMessageWith(u) { setPendingMessageUser(u); setActiveTab('messages'); }
 
   useEffect(() => {
     if (!available.includes(activeWorkspace)) {
@@ -477,7 +482,7 @@ export default function Dashboard() {
       {msg && <div role="status" className={`dash-toast ${msg.type}`}>{msg.text}</div>}
 
       <div className={`workspace-content${activeWorkspace === 'student' ? ' student-page-content' : ''}`} data-page={activeTab} key={`${activeWorkspace}-${activeTab}`}>
-        {activeTab === 'messages' && <MessagesPanel onFlash={flash} />}
+        {activeTab === 'messages' && <MessagesPanel onFlash={flash} initialUser={pendingMessageUser} onConsumedInitialUser={() => setPendingMessageUser(null)} />}
         {activeTab === 'notifications' && <NotificationsPanel onFlash={flash} />}
         {activeTab === 'calendar' && <CalendarPanel onFlash={flash} />}
         {activeTab === 'settings' && (activeWorkspace !== 'admin' || isPlatformStaffOnly) && <SettingsPanel user={user} onFlash={flash} onChanged={refreshProfile} />}
@@ -485,7 +490,7 @@ export default function Dashboard() {
         {(!SHARED_TABS.includes(activeTab) || (activeWorkspace === 'admin' && activeTab === 'settings' && !isPlatformStaffOnly)) && (
           <>
             {activeWorkspace === 'student' && <StudentWorkspace tab={activeTab} user={user} onFlash={flash} onChanged={refreshProfile} onNavigate={setActiveTab} />}
-            {activeWorkspace === 'teacher' && <TeacherWorkspace tab={activeTab} user={user} onFlash={flash} onChanged={refreshProfile} onNavigate={setActiveTab} />}
+            {activeWorkspace === 'teacher' && <TeacherWorkspace tab={activeTab} user={user} onFlash={flash} onChanged={refreshProfile} onNavigate={setActiveTab} onMessageUser={openMessageWith} />}
             {activeWorkspace === 'parent' && <ParentWorkspace tab={activeTab} user={user} onFlash={flash} onChanged={refreshProfile} onNavigate={setActiveTab} />}
             {activeWorkspace === 'institution' && (isRepOnly
               ? <RepresentativeWorkspace tab={activeTab} user={user} onFlash={flash} onChanged={refreshProfile} onNavigate={setActiveTab} repInfo={repInfo} />
@@ -6784,7 +6789,7 @@ function StudentSummary({ onNavigate, user }) {
 
 // ---------------------------------------------------------------- Teacher
 
-function TeacherWorkspace({ tab, user, onFlash, onChanged, onNavigate }) {
+function TeacherWorkspace({ tab, user, onFlash, onChanged, onNavigate, onMessageUser }) {
   if (tab === 'profile') return <><ProfilePanel user={user} onFlash={onFlash} onChanged={onChanged} /><RolesPanel onFlash={onFlash} onChanged={onChanged} /><SupportComplaintPanel onFlash={onFlash} /></>;
   if (tab === 'teacherProfile') return <><TeacherProfileDetailsPanel user={user} onFlash={onFlash} onChanged={onChanged} /><TeacherEmploymentPanel onFlash={onFlash} /></>;
   if (tab === 'courses') return <TeacherPanel onFlash={onFlash} />;
@@ -6797,7 +6802,7 @@ function TeacherWorkspace({ tab, user, onFlash, onChanged, onNavigate }) {
   if (tab === 'timetable') return <TimetableView onFlash={onFlash} url="/teachers/me/timetable" />;
   if (tab === 'materialUpload') return <TeacherMaterialUploadPanel onFlash={onFlash} />;
   if (tab === 'liveClasses') return <TeacherLiveClassesPanel user={user} onFlash={onFlash} />;
-  if (tab === 'studentCommunication') return <TeacherStudentCommunicationPanel onFlash={onFlash} onNavigate={onNavigate} />;
+  if (tab === 'studentCommunication') return <TeacherStudentCommunicationPanel onFlash={onFlash} onNavigate={onNavigate} onMessageUser={onMessageUser} />;
   if (tab === 'examination') return <TeacherExaminationPanel onFlash={onFlash} />;
   if (tab === 'earnings') return <TeacherEarningsPanel onFlash={onFlash} />;
   if (tab === 'performance') return <TeacherPerformancePanel onFlash={onFlash} />;
@@ -19655,7 +19660,7 @@ function TeacherMaterialUploadPanel({ onFlash }) {
 // "Student Communication" — a dedicated per-student contact list, separate from the generic
 // "Chat System" (shared Messages tab): shows every student across the teacher's courses with
 // their latest message thread, reusing /messages/conversations for the real unread/last-message data.
-function TeacherStudentCommunicationPanel({ onFlash, onNavigate }) {
+function TeacherStudentCommunicationPanel({ onFlash, onNavigate, onMessageUser }) {
   const { courses } = useTeacherCourses(onFlash);
   const [students, setStudents] = useState(null);
   const [conversations, setConversations] = useState([]);
@@ -19695,7 +19700,7 @@ function TeacherStudentCommunicationPanel({ onFlash, onNavigate }) {
                     <p className="text-xs" style={{ color: 'var(--ink-soft)', marginTop: 2 }}>{s.courseTitle}</p>
                   </div>
                 </div>
-                <button type="button" className="btn btn-primary" style={{ padding: '7px 16px', fontSize: '0.78rem', flexShrink: 0 }} onClick={() => onNavigate?.('messages')}>{convo ? 'View / Reply' : 'Message'}</button>
+                <button type="button" className="btn btn-primary" style={{ padding: '7px 16px', fontSize: '0.78rem', flexShrink: 0 }} onClick={() => (onMessageUser ? onMessageUser(s) : onNavigate?.('messages'))}>{convo ? 'View / Reply' : 'Message'}</button>
               </div>
               <div style={{ marginTop: 14, paddingTop: 14, borderTop: '1px solid var(--sand-line)' }}>
                 {convo ? (
@@ -19805,7 +19810,7 @@ function GuardianTutoringApprovalPanel({ onFlash }) {
 
 // ---------------------------------------------------------------- Shared: Messages & Notifications
 
-function MessagesPanel({ onFlash }) {
+function MessagesPanel({ onFlash, initialUser, onConsumedInitialUser }) {
   const [conversations, setConversations] = useState(null);
   const [activeUser, setActiveUser] = useState(null);
   const [thread, setThread] = useState(null);
@@ -19823,6 +19828,15 @@ function MessagesPanel({ onFlash }) {
     apiRequest(`/messages/with/${u._id}`).then(setThread).catch((err) => onFlash(err.message));
     apiRequest(`/messages/with/${u._id}/read`, { method: 'PATCH' }).then(loadConversations).catch(() => {});
   }
+
+  // Arrived here via a specific person (e.g. Teacher -> Student Communication -> Message) rather
+  // than the generic "paste a User ID" box — open that conversation immediately.
+  useEffect(() => {
+    if (!initialUser) return;
+    openThread(initialUser);
+    onConsumedInitialUser?.();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [initialUser]);
 
   async function send(e) {
     e.preventDefault();
