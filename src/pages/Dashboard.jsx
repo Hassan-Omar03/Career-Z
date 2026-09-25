@@ -23,6 +23,9 @@ import QrScanner from '../components/QrScanner';
 import AdminOperationsCenter from '../components/admin/AdminOperationsCenter';
 import { loadPaddle, setActiveCheckoutHandler } from '../utils/paddleLoader';
 import { isPlatformUploadAvailable, uploadToPlatformStorage } from '../utils/platformUpload';
+import AppDialogHost from '../components/AppDialogHost';
+import { showConfirm, showPrompt } from '../utils/appDialog';
+import CareerZLiveClassroom from '../components/CareerZLiveClassroom';
 import {
   OverviewStats, WalletCard, QuickActions,
   ProfileCompletion, MiniCalendar, RecommendedGrid, RecentActivity
@@ -147,6 +150,7 @@ const WORKSPACES = {
       { key: 'students', label: 'Student Management', icon: FaUsers },
       { key: 'parents', label: 'Parent Management', icon: FaUsers },
       { key: 'classes', label: 'Classes & Timetable', icon: FaClipboardList },
+      { key: 'liveClasses', label: 'Live Classes', icon: FaChalkboardUser },
       { key: 'attendance', label: 'Attendance Management', icon: FaCalendarCheck },
       { key: 'fees', label: 'Fee Management', icon: FaSackDollar },
       { key: 'payroll', label: 'Payroll', icon: FaMoneyBillWave },
@@ -494,6 +498,7 @@ export default function Dashboard() {
           </>
         )}
       </div>
+      <AppDialogHost />
     </DashboardLayout>
   );
 }
@@ -507,7 +512,7 @@ function StudentWorkspace({ tab, user, onFlash, onChanged, onNavigate }) {
   if (tab === 'summary') return <StudentSummary onNavigate={onNavigate} user={user} />;
   if (tab === 'assignments') return <StudentAssignmentsPanel onFlash={onFlash} />;
   if (tab === 'attendance') return <StudentAttendancePanel onFlash={onFlash} />;
-  if (tab === 'classes') return <><StudentLiveClassBanner onFlash={onFlash} /><TimetableView onFlash={onFlash} url="/students/me/timetable" /></>;
+  if (tab === 'classes') return <><StudentScheduledLiveClasses user={user} onFlash={onFlash} /><StudentLiveClassBanner onFlash={onFlash} /><TimetableView onFlash={onFlash} url="/students/me/timetable" /></>;
   if (tab === 'jobs') return <StudentJobsPanel onFlash={onFlash} user={user} />;
   if (tab === 'certificates') return <StudentCertificatesPanel onFlash={onFlash} />;
   if (tab === 'digitalLocker') return <StudentDigitalLockerPanel onFlash={onFlash} />;
@@ -1219,6 +1224,23 @@ function StudentCertificatesPanel({ onFlash }) {
   const [certificates, setCertificates] = useState(null);
   useEffect(() => { apiRequest('/students/me/certificates').then(setCertificates).catch((err) => onFlash(err.message)); }, [onFlash]);
 
+  async function downloadCertificate(certificate) {
+    try {
+      const { jsPDF } = await import('jspdf');
+      const doc = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' });
+      doc.setDrawColor(12, 80, 62); doc.setLineWidth(2); doc.rect(10, 10, 277, 190);
+      doc.setFont('times', 'bold'); doc.setFontSize(28); doc.text('CareerZ Verified Certificate', 148.5, 42, { align: 'center' });
+      doc.setFont('times', 'normal'); doc.setFontSize(15); doc.text('This certifies that', 148.5, 62, { align: 'center' });
+      doc.setFont('times', 'bold'); doc.setFontSize(24); doc.text(certificate.studentName || 'Student', 148.5, 78, { align: 'center' });
+      doc.setFontSize(18); doc.text(certificate.title, 148.5, 98, { align: 'center', maxWidth: 205 });
+      doc.setFont('times', 'normal'); doc.setFontSize(13); doc.text(`Issued by ${certificate.institution?.name || 'Institution'} on ${new Date(certificate.issueDate).toLocaleDateString()}`, 148.5, 118, { align: 'center' });
+      if (certificate.finalGrade || certificate.percentage !== null) doc.text(`Grade: ${certificate.finalGrade || '—'}    Percentage: ${certificate.percentage ?? '—'}%`, 148.5, 132, { align: 'center' });
+      doc.addImage(certificate.qrDataUrl, 'PNG', 128.5, 142, 40, 40);
+      doc.setFontSize(9); doc.text(`Verification ID: ${certificate.verifyCode}`, 148.5, 188, { align: 'center' });
+      doc.save(`${certificate.title.replace(/[^a-z0-9]+/gi, '-')}.pdf`);
+    } catch (error) { onFlash(error.message); }
+  }
+
   if (certificates === null) return <p role="status" className="admin-notice">Loading...</p>;
   if (certificates.length === 0) return <p style={{ fontSize: 13, color: 'var(--ink-soft)' }}>No certificates issued to you yet.</p>;
 
@@ -1229,8 +1251,10 @@ function StudentCertificatesPanel({ onFlash }) {
           <img src={c.qrDataUrl} alt="Verification QR code" style={{ width: 96, height: 96 }} />
           <div style={{ flex: 1 }}>
             <strong>{c.title}</strong>
-            <p className="text-xs text-[var(--ink-soft)]">{c.institution?.name} · Issued {new Date(c.issueDate).toLocaleDateString()}</p>
+            <p className="text-xs text-[var(--ink-soft)]">{c.institution?.name} · {c.course?.title || 'Credential'} · Issued {new Date(c.issueDate).toLocaleDateString()}</p>
+            {(c.finalGrade || c.percentage !== null) && <p className="text-xs"><strong>Grade:</strong> {c.finalGrade || '—'} · <strong>Percentage:</strong> {c.percentage ?? '—'}%</p>}
             <a href={c.verifyUrl} target="_blank" rel="noreferrer" className="text-xs flex items-center" style={{ color: 'var(--emerald)', gap: 4, display: 'inline-flex' }}>Verification link <FaArrowUpRightFromSquare aria-hidden="true" size={10} /></a>
+            <button type="button" className="btn" style={{ padding: '5px 10px', fontSize: '0.72rem', marginLeft: 10 }} onClick={() => downloadCertificate({ ...c, studentName: c.student?.fullName || 'Student' })}>Download PDF</button>
           </div>
         </div>
       ))}
@@ -2717,7 +2741,8 @@ function JobOffersPanel({ onFlash }) {
   }
 
   async function resignFrom(id) {
-    const reason = window.prompt('Reason for resigning (optional):') || '';
+    const reason = await showPrompt('You can add a reason for your resignation, or continue without one.', { title: 'Resign from employment', placeholder: 'Reason (optional)', confirmLabel: 'Submit resignation', danger: true });
+    if (reason === null) return;
     setBusyId(id);
     try {
       await apiRequest(`/employment/${id}/resign`, { method: 'POST', body: { reason } });
@@ -4791,7 +4816,7 @@ function SellerReviewsPanel({ onFlash }) {
     } catch (err) { onFlash(err.message); }
   }
   async function report(id) {
-    const reason = window.prompt('Why is this review inappropriate?');
+    const reason = await showPrompt('Explain why this review should be checked by the platform team.', { title: 'Report review', placeholder: 'Reason for reporting', confirmLabel: 'Report review', required: true });
     if (reason === null) return;
     try {
       await apiRequest(`/marketplace/reviews/${id}/report`, { method: 'POST', body: { reason } });
@@ -5907,6 +5932,78 @@ function StudentFeesPanel({ onFlash }) {
   );
 }
 
+function StudentAssignmentCenter({ onFlash }) {
+  const [assignments, setAssignments] = useState(null);
+  const [submissions, setSubmissions] = useState([]);
+  const [openId, setOpenId] = useState('');
+  const [text, setText] = useState('');
+  const [file, setFile] = useState(null);
+  const [submissionChoice, setSubmissionChoice] = useState('text');
+  const [busy, setBusy] = useState(false);
+
+  async function load() {
+    try {
+      const [enrollments, mine] = await Promise.all([apiRequest('/students/me/enrollments'), apiRequest('/students/me/submissions')]);
+      const lists = await Promise.all(enrollments.filter((entry) => entry.course && entry.status !== 'dropped').map((entry) => apiRequest(`/courses/${entry.course._id}/assignments`).then((rows) => rows.map((row) => ({ ...row, courseTitle: entry.course.title }))).catch(() => [])));
+      setAssignments(lists.flat()); setSubmissions(mine);
+    } catch (err) { onFlash(err.message); setAssignments([]); }
+  }
+  useEffect(() => { load(); }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  async function submit(assignment) {
+    const mode = assignment.submissionMode || 'either';
+    const needsText = mode === 'text' || mode === 'both' || (mode === 'either' && submissionChoice === 'text');
+    const needsFile = mode === 'file' || mode === 'both' || (mode === 'either' && submissionChoice === 'file');
+    if (needsText && !text.trim()) return onFlash('Write your answer before submitting.');
+    if (needsFile && !file) return onFlash('Choose your completed assignment file before submitting.');
+    setBusy(true);
+    try {
+      const attachments = [];
+      if (file) {
+        if (!(await isPlatformUploadAvailable())) throw new Error('File storage is not configured. Ask the administrator to configure Cloudinary.');
+        attachments.push({ name: file.name, url: await uploadToPlatformStorage(file, 'assignment-submissions') });
+      }
+      await apiRequest(`/courses/assignments/${assignment._id}/submit`, { method: 'POST', body: { text: text.trim(), attachments } });
+      onFlash('Assignment submitted.', 'success'); setOpenId(''); setText(''); setFile(null); await load();
+    } catch (err) { onFlash(err.message); } finally { setBusy(false); }
+  }
+
+  const byAssignment = new Map(submissions.map((submission) => [String(submission.assignment?._id), submission]));
+  return (
+    <div>
+      <h3 className="font-semibold mb-2">My Assignments</h3>
+      {assignments === null && <p role="status" className="admin-notice">Loading assignments…</p>}
+      {(assignments || []).length === 0 && assignments !== null && <p className="admin-notice">No assignments published yet.</p>}
+      <div style={{ display: 'grid', gap: 12 }}>
+        {(assignments || []).map((assignment) => {
+          const submission = byAssignment.get(String(assignment._id));
+          const overdue = assignment.dueDate && Date.now() > new Date(assignment.dueDate).getTime();
+          return <div key={assignment._id} className="card" style={{ padding: 18 }}>
+            <div className="flex items-start justify-between flex-wrap" style={{ gap: 10 }}><div><strong>{assignment.title}</strong><p className="text-xs" style={{ color: 'var(--ink-soft)' }}>{assignment.courseTitle} · {assignment.type || 'assignment'} · {['homework', 'worksheet'].includes(assignment.type) ? 'completion + feedback' : `${assignment.maxMarks} marks`}</p></div><Tag status={submission?.status === 'graded' ? 'approved' : submission?.status === 'resubmit_requested' ? 'rejected' : submission ? 'pending' : overdue ? 'rejected' : 'pending'} label={submission?.status === 'graded' && ['homework', 'worksheet'].includes(assignment.type) ? 'reviewed' : submission?.status?.replace('_', ' ') || (overdue ? 'overdue' : 'pending')} /></div>
+            {assignment.description && <p className="text-sm mt-2">{assignment.description}</p>}
+            <p className="text-xs mt-2" style={{ color: overdue ? 'var(--rose)' : 'var(--ink-soft)' }}>Due: {assignment.dueDate ? new Date(assignment.dueDate).toLocaleString() : 'No deadline'}{assignment.allowLate ? ' · Late submissions allowed' : ''}</p>
+            {(assignment.attachments || []).map((item, index) => <a key={index} href={item.url} target="_blank" rel="noreferrer" className="text-xs" style={{ color: 'var(--emerald)', marginRight: 10 }}>Download: {item.name}</a>)}
+            {submission?.feedback && <p className="text-sm mt-2" style={{ padding: 10, background: 'var(--sand)', borderRadius: 8 }}><strong>Teacher feedback:</strong> {submission.feedback}</p>}
+            {submission?.status === 'graded' && <p className="text-sm mt-2"><strong>{['homework', 'worksheet'].includes(assignment.type) ? 'Teacher review complete' : `Marks: ${submission.marksObtained}/${assignment.maxMarks}`}</strong></p>}
+            {submission && submission.status !== 'resubmit_requested' && <div className="admin-notice" style={{ marginTop: 10 }}><strong>{submission.status === 'graded' ? 'Teacher has graded this submission' : 'Submitted — waiting for teacher review'}</strong><p className="text-xs mt-1">Submitted {submission.submittedAt ? new Date(submission.submittedAt).toLocaleString() : 'successfully'}{submission.late ? ' · Marked late' : ' · On time'}</p>{submission.text && <details className="mt-2"><summary style={{ cursor: 'pointer', fontWeight: 600 }}>View my submitted answer</summary><p className="text-sm mt-2" style={{ whiteSpace: 'pre-wrap' }}>{submission.text}</p></details>}{(submission.attachments || []).map((item, index) => <a key={index} href={item.url} target="_blank" rel="noreferrer" className="text-xs mt-2" style={{ color: 'var(--emerald)', display: 'inline-block', marginRight: 10 }}>Open submitted file: {item.name}</a>)}</div>}
+            <p className="text-xs mt-2"><strong>How to submit:</strong> {{ text: 'Write your answer online', file: 'Upload a handwritten scan or completed file', either: 'Choose online writing or file upload', both: 'Write online and upload a supporting file' }[assignment.submissionMode || 'either']}</p>
+            {(!submission || submission.status === 'resubmit_requested') && (!overdue || assignment.allowLate) && <button type="button" className="btn btn-primary mt-2" onClick={() => { setOpenId(assignment._id); setText(''); setFile(null); setSubmissionChoice((assignment.submissionMode || 'either') === 'file' ? 'file' : 'text'); }}>{submission ? 'Submit Revision' : 'Submit Assignment'}</button>}
+            {openId === assignment._id && <div className="card" style={{ marginTop: 12, padding: 14, background: 'var(--sand)' }}>
+              {(assignment.submissionMode || 'either') === 'either' && <div className="flex gap-2 flex-wrap" style={{ marginBottom: 12 }}>
+                <button type="button" className={`btn ${submissionChoice === 'text' ? 'btn-primary' : ''}`} onClick={() => { setSubmissionChoice('text'); setFile(null); }}>Write Online</button>
+                <button type="button" className={`btn ${submissionChoice === 'file' ? 'btn-primary' : ''}`} onClick={() => { setSubmissionChoice('file'); setText(''); }}>Upload Handwritten / File</button>
+              </div>}
+              {['text', 'both'].includes(assignment.submissionMode) || ((assignment.submissionMode || 'either') === 'either' && submissionChoice === 'text') ? <div><label className="text-sm font-semibold" htmlFor={`answer-${assignment._id}`}>Write your answer online</label><textarea id={`answer-${assignment._id}`} className="form-input mt-2" rows={7} placeholder="Type your complete assignment answer here…" value={text} onChange={(e) => setText(e.target.value)} /></div> : null}
+              {['file', 'both'].includes(assignment.submissionMode) || ((assignment.submissionMode || 'either') === 'either' && submissionChoice === 'file') ? <div style={{ marginTop: 10 }}><label className="text-sm font-semibold" htmlFor={`file-${assignment._id}`}>Upload completed work</label><p className="text-xs" style={{ color: 'var(--ink-soft)' }}>For handwritten work, take clear photos or combine pages into a PDF. PDF, Word documents and images are accepted.</p><input id={`file-${assignment._id}`} type="file" accept=".pdf,.doc,.docx,image/*" className="form-input mt-2" onChange={(e) => setFile(e.target.files?.[0] || null)} />{file && <p className="text-xs mt-2">Selected: {file.name}</p>}</div> : null}
+              <div className="flex gap-2 mt-3"><button type="button" className="btn btn-primary" disabled={busy} onClick={() => submit(assignment)}>{busy ? 'Uploading & submitting…' : submission ? 'Submit Revision' : 'Submit Completed Assignment'}</button><button type="button" className="btn" onClick={() => setOpenId('')} disabled={busy}>Cancel</button></div>
+            </div>}
+          </div>;
+        })}
+      </div>
+    </div>
+  );
+}
+
 function StudentAssignmentsPanel({ onFlash }) {
   const [submissions, setSubmissions] = useState(null);
   const [results, setResults] = useState(null);
@@ -5919,19 +6016,20 @@ function StudentAssignmentsPanel({ onFlash }) {
 
   return (
     <div>
+      <StudentAssignmentCenter onFlash={onFlash} />
       <StudentExamsSection onFlash={onFlash} />
       <h3 className="font-semibold mb-2 mt-6">My Submissions</h3>
       <Table
         loading={submissions === null}
         headers={['Assignment', 'Due', 'Status', 'Marks']}
-        rows={(submissions || []).map((s) => [s.assignment?.title, s.assignment?.dueDate ? new Date(s.assignment.dueDate).toLocaleDateString() : '—', <Tag status={s.status === 'graded' ? 'approved' : 'pending'} />, s.marksObtained ?? `/ ${s.assignment?.maxMarks ?? ''}`])}
+        rows={(submissions || []).map((s) => { const completionOnly = ['homework', 'worksheet'].includes(s.assignment?.type); return [s.assignment?.title, s.assignment?.dueDate ? new Date(s.assignment.dueDate).toLocaleDateString() : '—', <Tag status={s.status === 'graded' ? 'approved' : s.status === 'resubmit_requested' ? 'rejected' : 'pending'} label={s.status === 'graded' && completionOnly ? 'reviewed' : s.status?.replace('_', ' ')} />, completionOnly ? (s.status === 'graded' ? 'Completed' : '—') : s.status === 'graded' ? `${s.marksObtained} / ${s.assignment?.maxMarks ?? '—'}` : `— / ${s.assignment?.maxMarks ?? '—'}`]; })}
         empty="No assignment submissions yet."
       />
       <h3 className="font-semibold mb-2 mt-6">My Results</h3>
       <Table
         loading={results === null}
-        headers={['Term', 'Subject', 'Marks', 'Grade']}
-        rows={(results || []).map((r) => [r.term || '—', r.subject || '—', `${r.marksObtained}/${r.totalMarks}`, r.grade || '—'])}
+        headers={['Exam', 'Institution', 'Subject / Class', 'Session / Term', 'Teacher', 'Result']}
+        rows={(results || []).map((r) => [r.exam?.title || r.term || 'Result', r.institution?.name || r.exam?.institution?.name || r.course?.institution?.name || 'Independent', <span className="text-xs"><strong>{r.subject || r.exam?.subject || r.course?.subject || '—'}</strong><br />{r.classSection?.name || r.exam?.classSection?.name || r.course?.classSection?.name || 'No section'}</span>, <span className="text-xs">{r.academicSession || r.exam?.academicSession || r.classSection?.academicYear || '—'}<br />{r.term || r.exam?.term || '—'}</span>, r.teacher?.fullName || r.exam?.teacher?.fullName || '—', <span><strong>{r.marksObtained}/{r.totalMarks}</strong><br /><Tag status={Number(r.marksObtained) / Number(r.totalMarks || 1) * 100 >= Number(r.exam?.passingPercent ?? 50) ? 'approved' : 'rejected'} label={`${r.grade || '—'} · ${Math.round(Number(r.marksObtained) / Number(r.totalMarks || 1) * 100)}%`} /></span>])}
         empty="No results recorded yet."
       />
     </div>
@@ -6158,7 +6256,9 @@ function StudentExamsSection({ onFlash }) {
   const [exams, setExams] = useState(null);
   const [openExam, setOpenExam] = useState(null);
   const [answers, setAnswers] = useState({});
-  const [submitted, setSubmitted] = useState({});
+  const [attempts, setAttempts] = useState({});
+  const [timeRemaining, setTimeRemaining] = useState(null);
+  const autoSubmittingRef = useRef(false);
 
   useEffect(() => {
     apiRequest('/students/me/enrollments').then(async (enrollments) => {
@@ -6168,11 +6268,32 @@ function StudentExamsSection({ onFlash }) {
       ));
       setExams(lists.flat());
     }).catch((err) => onFlash(err.message));
+    apiRequest('/courses/exam-attempts/mine').then((rows) => setAttempts(Object.fromEntries(rows.map((row) => [String(row.exam), row])))).catch(() => {});
   }, [onFlash]);
 
-  function openExamForm(exam) {
-    setOpenExam(exam);
-    setAnswers({});
+  useEffect(() => {
+    if (!openExam?.attempt?.expiresAt) { setTimeRemaining(null); return undefined; }
+    const tick = () => {
+      const seconds = Math.max(0, Math.ceil((new Date(openExam.attempt.expiresAt).getTime() - Date.now()) / 1000));
+      setTimeRemaining(seconds);
+    };
+    tick(); const timer = setInterval(tick, 1000); return () => clearInterval(timer);
+  }, [openExam]);
+
+  useEffect(() => {
+    if (openExam && timeRemaining === 0 && !autoSubmittingRef.current) {
+      autoSubmittingRef.current = true;
+      submitExam();
+    }
+  }, [timeRemaining]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  async function openExamForm(exam) {
+    try {
+      const started = await apiRequest(`/courses/exams/${exam._id}/start`, { method: 'POST' });
+      autoSubmittingRef.current = false;
+      setOpenExam({ ...started.exam, courseTitle: exam.courseTitle, attempt: started.attempt });
+      setAttempts((current) => ({ ...current, [exam._id]: started.attempt })); setAnswers({});
+    } catch (err) { onFlash(err.message); }
   }
 
   async function submitExam() {
@@ -6182,7 +6303,7 @@ function StudentExamsSection({ onFlash }) {
     try {
       await apiRequest(`/courses/exams/${openExam._id}/submit`, { method: 'POST', body: { answers: payload } });
       onFlash('Exam submitted.', 'success');
-      setSubmitted({ ...submitted, [openExam._id]: true });
+      setAttempts({ ...attempts, [openExam._id]: { ...(attempts[openExam._id] || {}), status: 'submitted' } });
       setOpenExam(null);
     } catch (err) { onFlash(err.message); }
   }
@@ -6200,7 +6321,8 @@ function StudentExamsSection({ onFlash }) {
                 <div className="flex items-center justify-between flex-wrap" style={{ gap: 12 }}>
                   <div style={{ minWidth: 0 }}>
                     <strong className="text-sm">{ex.title}</strong>
-                    <p className="text-xs" style={{ color: 'var(--ink-soft)', marginTop: 2 }}>{ex.courseTitle} · {ex.type[0].toUpperCase() + ex.type.slice(1)}{ex.durationMinutes ? ` · ${ex.durationMinutes} min` : ''}</p>
+                    <p className="text-xs" style={{ color: 'var(--ink-soft)', marginTop: 2 }}>{ex.institution?.name || 'Independent'} · {ex.subject || ex.courseTitle} · {ex.classSection?.name || 'No section'}</p>
+                    <p className="text-xs" style={{ color: 'var(--ink-soft)', marginTop: 2 }}>{ex.academicSession || 'Session not set'} · {ex.term || 'Term not set'} · {ex.type[0].toUpperCase() + ex.type.slice(1)} · {ex.teacher?.fullName || 'Teacher'}{ex.durationMinutes ? ` · ${ex.durationMinutes} min` : ''}</p>
                   </div>
                   <strong style={{ fontSize: 15, fontFamily: 'Fraunces, serif', whiteSpace: 'nowrap' }}>{new Date(ex.scheduledDate).toLocaleString(undefined, { dateStyle: 'medium', timeStyle: 'short' })}</strong>
                 </div>
@@ -6219,12 +6341,16 @@ function StudentExamsSection({ onFlash }) {
       <h3 className="font-semibold mb-2">My Exams</h3>
       <Table
         loading={exams === null}
-        headers={['Exam', 'Course', 'Type', 'Questions', 'Action']}
+        headers={['Exam', 'Subject / Class', 'Session / Term', 'Teacher', 'Schedule', 'Paper', 'Action']}
         rows={(exams || []).map((ex) => [
-          ex.title, ex.courseTitle, ex.type, ex.questions.length,
-          submitted[ex._id]
-            ? <Tag status="approved" />
-            : <button className="btn btn-primary" style={{ padding: '5px 12px', fontSize: '0.78rem' }} onClick={() => openExamForm(ex)}>Take Exam</button>
+          <span><strong>{ex.title}</strong><br /><small>{ex.type}</small></span>, <span className="text-xs">{ex.subject || ex.courseTitle}<br />{ex.classSection?.name || 'No section'}</span>, <span className="text-xs">{ex.academicSession || '—'}<br />{ex.term || '—'}</span>, ex.teacher?.fullName || '—', ex.scheduledDate ? new Date(ex.scheduledDate).toLocaleString() : 'Available now', `${ex.questions.length} Q · ${ex.totalMarks} marks · ${ex.durationMinutes ? `${ex.durationMinutes} min` : 'Untimed'}`,
+          attempts[ex._id]?.status && attempts[ex._id].status !== 'in_progress'
+            ? <Tag status="approved" label={attempts[ex._id].status} />
+            : ex.closesAt && Date.now() > new Date(ex.closesAt).getTime()
+              ? <Tag status="rejected" label="closed" />
+            : ex.scheduledDate && Date.now() < new Date(ex.scheduledDate).getTime()
+              ? <span className="text-xs">Opens {new Date(ex.scheduledDate).toLocaleString()}</span>
+              : <button className="btn btn-primary" style={{ padding: '5px 12px', fontSize: '0.78rem' }} onClick={() => openExamForm(ex)}>{attempts[ex._id] ? 'Resume Exam' : 'Start Exam'}</button>
         ])}
         empty="No exams available yet."
       />
@@ -6232,6 +6358,7 @@ function StudentExamsSection({ onFlash }) {
       {openExam && (
         <div className="card reveal in mt-4" style={{ padding: 20 }}>
           <h4 className="font-semibold mb-3">{openExam.title}</h4>
+          {timeRemaining !== null && <p className="text-sm mb-3" style={{ color: timeRemaining < 60 ? 'var(--rose)' : 'var(--ink-soft)', fontWeight: 700 }}>Time remaining: {Math.floor(timeRemaining / 60)}:{String(timeRemaining % 60).padStart(2, '0')}</p>}
           {openExam.questions.map((q, i) => (
             <div key={i} className="mb-4">
               <p className="text-sm font-medium mb-2">{i + 1}. {q.text} <span style={{ color: 'var(--ink-soft)', fontWeight: 400 }}>({q.marks} marks)</span></p>
@@ -6659,7 +6786,7 @@ function StudentSummary({ onNavigate, user }) {
 
 function TeacherWorkspace({ tab, user, onFlash, onChanged, onNavigate }) {
   if (tab === 'profile') return <><ProfilePanel user={user} onFlash={onFlash} onChanged={onChanged} /><RolesPanel onFlash={onFlash} onChanged={onChanged} /><SupportComplaintPanel onFlash={onFlash} /></>;
-  if (tab === 'teacherProfile') return <><TeacherProfileDetailsPanel onFlash={onFlash} onChanged={onChanged} /><TeacherEmploymentPanel onFlash={onFlash} /></>;
+  if (tab === 'teacherProfile') return <><TeacherProfileDetailsPanel user={user} onFlash={onFlash} onChanged={onChanged} /><TeacherEmploymentPanel onFlash={onFlash} /></>;
   if (tab === 'courses') return <TeacherPanel onFlash={onFlash} />;
   if (tab === 'summary') return <TeacherSummary onNavigate={onNavigate} user={user} />;
   if (tab === 'students') return <TeacherStudentsPanel onFlash={onFlash} />;
@@ -6669,7 +6796,7 @@ function TeacherWorkspace({ tab, user, onFlash, onChanged, onNavigate }) {
   if (tab === 'results') return <TeacherResultsPanel onFlash={onFlash} />;
   if (tab === 'timetable') return <TimetableView onFlash={onFlash} url="/teachers/me/timetable" />;
   if (tab === 'materialUpload') return <TeacherMaterialUploadPanel onFlash={onFlash} />;
-  if (tab === 'liveClasses') return <TeacherLiveClassesPanel onFlash={onFlash} />;
+  if (tab === 'liveClasses') return <TeacherLiveClassesPanel user={user} onFlash={onFlash} />;
   if (tab === 'studentCommunication') return <TeacherStudentCommunicationPanel onFlash={onFlash} onNavigate={onNavigate} />;
   if (tab === 'examination') return <TeacherExaminationPanel onFlash={onFlash} />;
   if (tab === 'earnings') return <TeacherEarningsPanel onFlash={onFlash} />;
@@ -7577,7 +7704,8 @@ function TeacherEmploymentPanel({ onFlash }) {
   }
 
   async function resignFrom(id) {
-    const reason = window.prompt('Reason for resigning (optional):') || '';
+    const reason = await showPrompt('You can add a reason for your resignation, or continue without one.', { title: 'Resign from institution', placeholder: 'Reason (optional)', confirmLabel: 'Submit resignation', danger: true });
+    if (reason === null) return;
     setBusyId(id);
     try {
       await apiRequest(`/teacher-employments/${id}/resign`, { method: 'POST', body: { reason } });
@@ -7629,9 +7757,23 @@ function TeacherEmploymentPanel({ onFlash }) {
   );
 }
 
-function TeacherProfileDetailsPanel({ onFlash, onChanged }) {
+function TeacherProfileDetailsPanel({ user, onFlash, onChanged }) {
   const [form, setForm] = useState(null);
   const [saving, setSaving] = useState(false);
+  const [uploadingPhoto, setUploadingPhoto] = useState(false);
+
+  async function handlePhoto(e) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (!file.type.startsWith('image/')) return onFlash('Please choose an image file.');
+    setUploadingPhoto(true);
+    try {
+      const dataUrl = await resizeImageToDataUrl(file, 320, 0.72, 'profiles');
+      await apiRequest('/users/me', { method: 'PATCH', body: { profilePhoto: dataUrl } });
+      onFlash('Profile photo updated.', 'success');
+      onChanged?.();
+    } catch (err) { onFlash(err.message); } finally { setUploadingPhoto(false); }
+  }
 
   function load() {
     apiRequest('/teachers/me').then((p) => {
@@ -7683,6 +7825,30 @@ function TeacherProfileDetailsPanel({ onFlash, onChanged }) {
   return (
     <div className="admin-section admin-account-card" style={{ marginTop: 20 }}>
       <div className="admin-section-heading"><div><h2>Teaching Profile</h2><p>Subjects, experience and qualifications shown to institutions considering you as a class teacher.</p></div><FaChalkboardUser aria-hidden="true" /></div>
+
+      {/* Identity header — a teacher's photo + subjects is exactly what institutions and students
+          see of them everywhere else (Find Teachers directory, course "Teacher:" byline), so this
+          page — where they actually set that photo and those subjects — should show it too,
+          instead of being a bare form with no sense of who's editing it. */}
+      <div className="flex items-center" style={{ gap: 16, marginBottom: 20, paddingBottom: 20, borderBottom: '1px solid var(--sand-line)' }}>
+        {user?.profilePhoto
+          ? <img src={user.profilePhoto} alt="" style={{ width: 72, height: 72, borderRadius: '50%', objectFit: 'cover', flexShrink: 0 }} />
+          : <div style={{ width: 72, height: 72, borderRadius: '50%', background: 'var(--forest)', color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 700, fontSize: '1.6rem', flexShrink: 0 }}>{(user?.fullName || '?')[0]}</div>}
+        <div>
+          <strong className="text-sm" style={{ display: 'block', fontSize: '1rem' }}>{user?.fullName}</strong>
+          {form.subjects && <p className="text-xs" style={{ color: 'var(--ink-soft)', marginTop: 2 }}>{form.subjects}</p>}
+          <label className="btn" style={{ padding: '5px 12px', fontSize: '0.72rem', cursor: 'pointer', marginTop: 8, display: 'inline-block' }}>
+            {uploadingPhoto ? 'Uploading...' : user?.profilePhoto ? 'Change Photo' : 'Add Photo'}
+            <input type="file" accept="image/*" onChange={handlePhoto} style={{ display: 'none' }} disabled={uploadingPhoto} />
+          </label>
+        </div>
+      </div>
+      {!user?.profilePhoto && (
+        <p className="text-xs" style={{ color: 'var(--rose)', marginBottom: 16, fontWeight: 600 }}>
+          A profile photo is required — students and institutions see your name without a face until you add one, and you won't appear in the "Find Teachers" directory without it.
+        </p>
+      )}
+
       <form onSubmit={submit} style={{ display: 'grid', gap: 16 }}>
         <div className="flex flex-wrap" style={{ gap: 14 }}>
           <label className="text-xs" style={{ color: 'var(--ink-soft)', fontWeight: 600, flex: '2 1 260px', minWidth: 0 }}>Subjects (comma separated)
@@ -7699,7 +7865,7 @@ function TeacherProfileDetailsPanel({ onFlash, onChanged }) {
           <input type="checkbox" checked={form.independent} onChange={(e) => setForm({ ...form, independent: e.target.checked })} /> I teach independently (without an institution)
         </label>
         <label className="flex items-center text-xs" style={{ color: 'var(--ink-soft)', gap: 8 }}>
-          <input type="checkbox" checked={form.visibleToInstitutions} onChange={(e) => setForm({ ...form, visibleToInstitutions: e.target.checked })} /> Show my profile in the institution "Find Teachers" directory (lets institutions discover and offer you a job)
+          <input type="checkbox" checked={form.visibleToInstitutions} disabled={!user?.profilePhoto} onChange={(e) => setForm({ ...form, visibleToInstitutions: e.target.checked })} /> Show my profile in the institution "Find Teachers" directory (lets institutions discover and offer you a job){!user?.profilePhoto && ' — add a photo above first'}
         </label>
 
         <div style={{ paddingTop: 4, borderTop: '1px solid var(--sand-line)' }}>
@@ -7892,7 +8058,7 @@ function TeacherEngagementPanel({ onFlash }) {
 function TeacherExaminationPanel({ onFlash }) {
   const { courses, courseId, setCourseId } = useTeacherCourses(onFlash);
   const [exams, setExams] = useState([]);
-  const [form, setForm] = useState({ title: '', type: 'quiz', scheduledDate: '', venue: '', instructions: '', questions: [] });
+  const [form, setForm] = useState({ title: '', type: 'quiz', academicSession: '', term: '', scheduledDate: '', closesAt: '', durationMinutes: 30, passingPercent: 50, venue: '', instructions: '', questions: [] });
   const [openExam, setOpenExam] = useState(null);
   const [submissions, setSubmissions] = useState([]);
 
@@ -7901,9 +8067,13 @@ function TeacherExaminationPanel({ onFlash }) {
     apiRequest(`/courses/${courseId}/exams`).then(setExams).catch((err) => onFlash(err.message));
   }
   useEffect(loadExams, [courseId]); // eslint-disable-line react-hooks/exhaustive-deps
+  const selectedCourse = courses.find((course) => course._id === courseId);
+  useEffect(() => {
+    if (selectedCourse?.classSection?.academicYear) setForm((current) => ({ ...current, academicSession: current.academicSession || selectedCourse.classSection.academicYear }));
+  }, [selectedCourse?._id, selectedCourse?.classSection?.academicYear]);
 
   function addQuestion(type) {
-    setForm((f) => ({ ...f, questions: [...f.questions, type === 'mcq' ? { text: '', type: 'mcq', options: ['', ''], correctOption: 0, marks: 1 } : { text: '', type: 'short', options: [], marks: 1 }] }));
+    setForm((f) => ({ ...f, questions: [...f.questions, type === 'mcq' ? { text: '', type: 'mcq', options: ['', ''], correctOption: 0, marks: 1 } : { text: '', type, options: [], marks: type === 'long' ? 10 : 1 }] }));
   }
   function updateQuestion(i, patch) {
     setForm((f) => ({ ...f, questions: f.questions.map((q, idx) => (idx === i ? { ...q, ...patch } : q)) }));
@@ -7916,9 +8086,9 @@ function TeacherExaminationPanel({ onFlash }) {
     e.preventDefault();
     if (form.questions.length === 0) return onFlash('Add at least one question.');
     try {
-      await apiRequest(`/courses/${courseId}/exams`, { method: 'POST', body: { ...form, scheduledDate: form.scheduledDate || null } });
+      await apiRequest(`/courses/${courseId}/exams`, { method: 'POST', body: { ...form, scheduledDate: form.scheduledDate || null, closesAt: form.closesAt || null } });
       onFlash('Exam created (unpublished).', 'success');
-      setForm({ title: '', type: 'quiz', scheduledDate: '', venue: '', instructions: '', questions: [] });
+      setForm({ title: '', type: 'quiz', academicSession: selectedCourse?.classSection?.academicYear || '', term: '', scheduledDate: '', closesAt: '', durationMinutes: 30, passingPercent: 50, venue: '', instructions: '', questions: [] });
       loadExams();
     } catch (err) { onFlash(err.message); }
   }
@@ -7932,9 +8102,9 @@ function TeacherExaminationPanel({ onFlash }) {
     apiRequest(`/courses/exams/${examId}/submissions`).then(setSubmissions).catch((err) => onFlash(err.message));
   }
 
-  async function gradeShortAnswers(submissionId, marksByIndex) {
+  async function gradeShortAnswers(submissionId, marksByIndex, grade) {
     try {
-      await apiRequest(`/courses/exam-submissions/${submissionId}/grade`, { method: 'PATCH', body: { manualMarks: Object.entries(marksByIndex).map(([questionIndex, marks]) => ({ questionIndex: Number(questionIndex), marks: Number(marks) })) } });
+      await apiRequest(`/courses/exam-submissions/${submissionId}/grade`, { method: 'PATCH', body: { manualMarks: Object.entries(marksByIndex).map(([questionIndex, marks]) => ({ questionIndex: Number(questionIndex), marks: Number(marks) })), grade } });
       onFlash('Exam graded.', 'success');
       openSubmissions(openExam);
     } catch (err) { onFlash(err.message); }
@@ -7947,6 +8117,13 @@ function TeacherExaminationPanel({ onFlash }) {
         <>
           <h3 className="font-semibold" style={{ marginBottom: 14 }}>Create an Exam</h3>
           <form onSubmit={createExam} className="card" style={{ padding: 20, marginBottom: 28, display: 'grid', gap: 16 }}>
+            <div className="admin-notice" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(170px, 1fr))', gap: 12 }}>
+              <span><small>Institution</small><br /><strong>{selectedCourse?.institution?.name || 'Independent course'}</strong></span>
+              <span><small>Class / Section</small><br /><strong>{selectedCourse?.classSection?.name || 'Not assigned'}</strong></span>
+              <span><small>Subject</small><br /><strong>{selectedCourse?.subject || 'Not configured'}</strong></span>
+              <span><small>Conducting teacher</small><br /><strong>{selectedCourse?.teacher?.fullName || 'You'}</strong></span>
+            </div>
+            {selectedCourse?.institution && (!selectedCourse?.classSection || !selectedCourse?.subject) && <div className="u-alert warning"><span className="u-alert-ic">!</span><div className="u-alert-body"><strong>Academic setup incomplete</strong><p>Ask the institution to assign this course to a class/section and subject before publishing an exam.</p></div></div>}
             <div className="flex flex-wrap" style={{ gap: 14 }}>
               <input className="form-input" placeholder="Exam title" value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })} required style={{ flex: '2 1 220px', minWidth: 0 }} />
               <select className="form-select" value={form.type} onChange={(e) => setForm({ ...form, type: e.target.value })} style={{ flex: '1 1 140px', minWidth: 0, textTransform: 'capitalize' }}>
@@ -7955,8 +8132,13 @@ function TeacherExaminationPanel({ onFlash }) {
               <label className="text-xs" style={{ color: 'var(--ink-soft)', fontWeight: 600, flex: '1 1 220px', minWidth: 0 }}>Scheduled date/time
                 <input type="datetime-local" className="form-input" value={form.scheduledDate} onChange={(e) => setForm({ ...form, scheduledDate: e.target.value })} style={{ marginTop: 6 }} />
               </label>
+              <label className="text-xs" style={{ color: 'var(--ink-soft)', fontWeight: 600, flex: '1 1 190px' }}>Closes at<input type="datetime-local" className="form-input" value={form.closesAt} onChange={(e) => setForm({ ...form, closesAt: e.target.value })} style={{ marginTop: 6 }} /></label>
             </div>
             <div className="flex flex-wrap" style={{ gap: 14 }}>
+              <label className="text-xs" style={{ color: 'var(--ink-soft)', fontWeight: 600, flex: '1 1 180px' }}>Academic session<input className="form-input" placeholder="e.g. 2026-2027" value={form.academicSession} onChange={(e) => setForm({ ...form, academicSession: e.target.value })} required={Boolean(selectedCourse?.institution)} style={{ marginTop: 6 }} /></label>
+              <label className="text-xs" style={{ color: 'var(--ink-soft)', fontWeight: 600, flex: '1 1 180px' }}>Term / Semester<input className="form-input" placeholder="e.g. Semester 1" value={form.term} onChange={(e) => setForm({ ...form, term: e.target.value })} required={Boolean(selectedCourse?.institution)} style={{ marginTop: 6 }} /></label>
+              <input className="form-input" type="number" min="0" placeholder="Duration minutes" value={form.durationMinutes} onChange={(e) => setForm({ ...form, durationMinutes: Number(e.target.value) })} style={{ flex: '0 1 170px' }} />
+              <input className="form-input" type="number" min="0" max="100" placeholder="Passing %" value={form.passingPercent} onChange={(e) => setForm({ ...form, passingPercent: Number(e.target.value) })} style={{ flex: '0 1 140px' }} />
               <input className="form-input" placeholder="Venue (room number or online link)" style={{ flex: '1 1 220px', minWidth: 0 }} value={form.venue} onChange={(e) => setForm({ ...form, venue: e.target.value })} />
               <input className="form-input" placeholder="Preparation instructions" style={{ flex: '1 1 220px', minWidth: 0 }} value={form.instructions} onChange={(e) => setForm({ ...form, instructions: e.target.value })} />
             </div>
@@ -7986,18 +8168,21 @@ function TeacherExaminationPanel({ onFlash }) {
               </div>
             )}
 
+            <div className="admin-notice"><strong>Paper summary:</strong> {form.questions.length} question(s) · {form.questions.reduce((sum, question) => sum + (Number(question.marks) || 0), 0)} total marks · Pass at {form.passingPercent}%</div>
+
             <div className="flex flex-wrap items-center" style={{ gap: 10 }}>
               <button type="button" className="btn" onClick={() => addQuestion('mcq')}>+ MCQ Question</button>
               <button type="button" className="btn" onClick={() => addQuestion('short')}>+ Short Answer Question</button>
+              <button type="button" className="btn" onClick={() => addQuestion('long')}>+ Long Answer Question</button>
               <button type="submit" className="btn btn-primary" style={{ marginLeft: 'auto' }}>Create Exam</button>
             </div>
           </form>
 
           <h3 className="font-semibold" style={{ marginBottom: 14 }}>My Exams</h3>
           <Table
-            headers={['Title', 'Type', 'Scheduled', 'Venue', 'Questions', 'Status', 'Action']}
+            headers={['Title', 'Subject / Class', 'Session / Term', 'Type', 'Scheduled', 'Paper', 'Status', 'Action']}
             rows={exams.map((ex) => [
-              ex.title, ex.type, ex.scheduledDate ? new Date(ex.scheduledDate).toLocaleString() : '—', ex.venue || '—', ex.questions.length, ex.published ? <Tag status="approved" /> : <Tag status="pending" />,
+              ex.title, <span className="text-xs"><strong>{ex.subject || selectedCourse?.subject || '—'}</strong><br />{ex.classSection?.name || selectedCourse?.classSection?.name || 'No section'}</span>, <span className="text-xs">{ex.academicSession || '—'}<br />{ex.term || '—'}</span>, ex.type, ex.scheduledDate ? new Date(ex.scheduledDate).toLocaleString() : '—', `${ex.questions.length} Q · ${ex.totalMarks} marks`, ex.published ? <Tag status="approved" /> : <Tag status="pending" />,
               <div className="flex" style={{ gap: 8 }}>
                 {!ex.published && <button className="btn btn-primary" style={{ padding: '6px 14px', fontSize: '0.78rem' }} onClick={() => publish(ex._id)}>Publish</button>}
                 <button className="btn" style={{ padding: '6px 14px', fontSize: '0.78rem' }} onClick={() => openSubmissions(ex._id)}>Submissions</button>
@@ -8015,6 +8200,7 @@ function TeacherExaminationPanel({ onFlash }) {
 
 function ExamSubmissionsView({ exam, submissions, onGrade }) {
   const [drafts, setDrafts] = useState({});
+  const [gradeDrafts, setGradeDrafts] = useState({});
 
   return (
     <div style={{ marginTop: 32 }}>
@@ -8026,31 +8212,58 @@ function ExamSubmissionsView({ exam, submissions, onGrade }) {
         </div>
       )}
       {submissions.map((s) => {
-        const shortAnswers = s.answers.filter((a) => exam?.questions?.[a.questionIndex]?.type === 'short');
+        const reviewAnswers = [...s.answers].sort((a, b) => a.questionIndex - b.questionIndex);
+        const totalMarks = Number(exam?.totalMarks) || reviewAnswers.reduce((sum, answer) => sum + (Number(exam?.questions?.[answer.questionIndex]?.marks) || 0), 0);
+        const obtainedMarks = s.status === 'graded' ? Number(s.score) || 0 : reviewAnswers.reduce((sum, answer) => sum + (Number(drafts[`${s._id}-${answer.questionIndex}`]) || 0), 0);
+        const percentage = totalMarks > 0 ? (obtainedMarks / totalMarks) * 100 : 0;
+        const needsFinalGrade = s.status !== 'graded' || !s.finalGrade;
+        const allMarksEntered = s.status === 'graded' || reviewAnswers.every((answer) => drafts[`${s._id}-${answer.questionIndex}`] !== undefined && drafts[`${s._id}-${answer.questionIndex}`] !== '');
         return (
           <div key={s._id} className="card" style={{ padding: 18, marginBottom: 14 }}>
             <div className="flex items-center justify-between">
               <strong>{s.student?.fullName}</strong>
-              <span className="text-sm">Score: {s.score} · <Tag status={s.status === 'graded' ? 'approved' : 'pending'} /></span>
+              <span className="text-sm">{s.status === 'graded' ? `Final score: ${s.score}/${exam?.totalMarks || '—'}` : 'Teacher review pending'} · <Tag status={s.status === 'graded' ? 'approved' : 'pending'} label={s.status === 'graded' ? 'graded' : 'pending'} /></span>
             </div>
-            {shortAnswers.map((a) => (
-              <div key={a.questionIndex} className="mt-2 text-sm">
-                <p><strong>Q{a.questionIndex + 1}:</strong> {exam.questions[a.questionIndex].text}</p>
-                <p className="text-[var(--ink-soft)]">{a.textAnswer || '(no answer)'}</p>
+            <p className="text-sm" style={{ color: 'var(--ink-soft)', marginTop: 8 }}>Review every MCQ, short answer and long answer, then enter marks for each question.</p>
+            <div className="admin-notice" style={{ display: 'flex', gap: 24, flexWrap: 'wrap', marginTop: 14 }}>
+              <span><small>Obtained marks</small><br /><strong>{obtainedMarks}/{totalMarks}</strong></span>
+              <span><small>Percentage</small><br /><strong>{percentage.toFixed(2)}%</strong></span>
+              <span><small>Final grade</small><br /><strong>{s.finalGrade || 'Not selected yet'}</strong></span>
+            </div>
+            {s.status === 'graded' && !s.finalGrade && <div className="u-alert warning" style={{ marginTop: 12 }}><span className="u-alert-ic">!</span><div className="u-alert-body"><strong>Final grade is missing</strong><p>This result came from the previous grading flow. Select the final grade below to complete and update the result.</p></div></div>}
+            {reviewAnswers.map((a) => {
+              const question = exam?.questions?.[a.questionIndex];
+              if (!question) return null;
+              const selectedOption = question.type === 'mcq' && Number.isInteger(a.selectedOption) ? question.options?.[a.selectedOption] : null;
+              const correctOption = question.type === 'mcq' ? question.options?.[question.correctOption] : null;
+              return (
+              <div key={a.questionIndex} className="mt-2 text-sm" style={{ padding: 14, border: '1px solid var(--sand-line)', borderRadius: 14 }}>
+                <p><strong>Q{a.questionIndex + 1} · {question.type === 'mcq' ? 'MCQ' : question.type === 'long' ? 'Long answer' : 'Short answer'}:</strong> {question.text}</p>
+                {question.type === 'mcq' ? <div style={{ marginTop: 8 }}><p><strong>Student selected:</strong> {selectedOption || 'No option selected'}</p><p style={{ color: 'var(--ink-soft)' }}><strong>Answer key:</strong> {correctOption || 'Not configured'}</p></div> : <p className="text-[var(--ink-soft)]" style={{ marginTop: 8 }}>{a.textAnswer || '(no answer)'}</p>}
+                <label className="text-xs" style={{ display: 'block', marginTop: 10, fontWeight: 700 }}>Marks awarded (maximum {question.marks})</label>
                 <input
-                  className="form-input" type="number" placeholder={`Marks (max ${exam.questions[a.questionIndex].marks})`} style={{ maxWidth: 160 }}
-                  value={drafts[`${s._id}-${a.questionIndex}`] ?? a.marksAwarded}
+                  className="form-input" type="number" min="0" max={question.marks} placeholder={`0–${question.marks}`} style={{ maxWidth: 160, marginTop: 5 }}
+                  value={s.status === 'graded' ? a.marksAwarded : (drafts[`${s._id}-${a.questionIndex}`] ?? '')}
                   onChange={(e) => setDrafts({ ...drafts, [`${s._id}-${a.questionIndex}`]: e.target.value })}
+                  disabled={s.status === 'graded'}
                 />
               </div>
-            ))}
-            {shortAnswers.length > 0 && s.status !== 'graded' && (
-              <button
-                type="button" className="btn btn-primary mt-2" style={{ padding: '5px 12px', fontSize: '0.78rem' }}
-                onClick={() => onGrade(s._id, Object.fromEntries(shortAnswers.map((a) => [a.questionIndex, drafts[`${s._id}-${a.questionIndex}`] ?? a.marksAwarded])))}
-              >
-                Save Grades
-              </button>
+            );})}
+            {reviewAnswers.length > 0 && needsFinalGrade && (
+              <div className="flex flex-wrap items-end mt-2" style={{ gap: 12 }}>
+                <label className="text-xs" style={{ fontWeight: 700 }}>Teacher-selected final grade
+                  <select className="form-select" value={gradeDrafts[s._id] || ''} onChange={(e) => setGradeDrafts({ ...gradeDrafts, [s._id]: e.target.value })} style={{ marginTop: 5, minWidth: 180 }}>
+                    <option value="">Select grade</option>
+                    {['A+', 'A', 'A-', 'B+', 'B', 'B-', 'C+', 'C', 'D', 'Pass', 'Fail'].map((grade) => <option key={grade} value={grade}>{grade}</option>)}
+                  </select>
+                </label>
+                <button
+                  type="button" className="btn btn-primary" style={{ padding: '10px 16px', fontSize: '0.78rem' }} disabled={!allMarksEntered || !gradeDrafts[s._id]}
+                  onClick={() => onGrade(s._id, Object.fromEntries(reviewAnswers.map((a) => [a.questionIndex, drafts[`${s._id}-${a.questionIndex}`] ?? a.marksAwarded])), gradeDrafts[s._id])}
+                >
+                  Complete Review &amp; Publish Result
+                </button>
+              </div>
             )}
           </div>
         );
@@ -8652,9 +8865,10 @@ function TeacherAttendancePanel({ onFlash }) {
 function TeacherHomeworkPanel({ onFlash }) {
   const { courses, courseId, setCourseId } = useTeacherCourses(onFlash);
   const [assignments, setAssignments] = useState([]);
-  const [form, setForm] = useState({ title: '', description: '', dueDate: '', maxMarks: 100 });
+  const [form, setForm] = useState({ title: '', type: 'assignment', description: '', dueDate: '', maxMarks: 100, submissionMode: 'either', allowLate: false, rubricText: '' });
+  const [attachment, setAttachment] = useState(null);
   const [openAssignment, setOpenAssignment] = useState(null);
-  const [submissions, setSubmissions] = useState([]);
+  const [submissions, setSubmissions] = useState(null);
 
   function loadAssignments() {
     if (!courseId) return;
@@ -8665,16 +8879,26 @@ function TeacherHomeworkPanel({ onFlash }) {
   async function create(e) {
     e.preventDefault();
     try {
-      await apiRequest(`/courses/${courseId}/assignments`, { method: 'POST', body: { ...form, maxMarks: Number(form.maxMarks) || 100 } });
+      const attachments = [];
+      if (attachment) {
+        if (!(await isPlatformUploadAvailable())) throw new Error('File storage is not configured.');
+        attachments.push({ name: attachment.name, url: await uploadToPlatformStorage(attachment, 'assignment-materials') });
+      }
+      const rubric = form.rubricText.split('\n').map((line) => { const [criterion, marks] = line.split('|'); return { criterion: criterion?.trim(), maxMarks: Number(marks) }; }).filter((row) => row.criterion && row.maxMarks > 0);
+      await apiRequest(`/courses/${courseId}/assignments`, { method: 'POST', body: { ...form, rubricText: undefined, rubric, attachments, maxMarks: Number(form.maxMarks) || 100 } });
       onFlash('Assignment created.', 'success');
-      setForm({ title: '', description: '', dueDate: '', maxMarks: 100 });
+      setForm({ title: '', type: 'assignment', description: '', dueDate: '', maxMarks: 100, submissionMode: 'either', allowLate: false, rubricText: '' }); setAttachment(null);
       loadAssignments();
     } catch (err) { onFlash(err.message); }
   }
 
   function openSubmissions(assignmentId) {
     setOpenAssignment(assignmentId);
-    apiRequest(`/courses/assignments/${assignmentId}/submissions`).then(setSubmissions).catch((err) => onFlash(err.message));
+    setSubmissions(null);
+    apiRequest(`/courses/assignments/${assignmentId}/submissions`).then((rows) => {
+      setSubmissions(rows);
+      setAssignments((current) => current.map((assignment) => assignment._id === assignmentId ? { ...assignment, submissionCount: rows.length, gradedCount: rows.filter((row) => row.status === 'graded').length } : assignment));
+    }).catch((err) => { onFlash(err.message); setSubmissions([]); });
   }
 
   async function grade(submissionId, marksObtained, feedback) {
@@ -8685,6 +8909,23 @@ function TeacherHomeworkPanel({ onFlash }) {
     } catch (err) { onFlash(err.message); }
   }
 
+  async function requestResubmit(submissionId) {
+    const feedback = await showPrompt('Tell the student exactly what must be corrected before submitting again.', { title: 'Request resubmission', placeholder: 'Revision instructions', confirmLabel: 'Send request', required: true });
+    if (feedback === null) return;
+    try { await apiRequest(`/courses/submissions/${submissionId}/resubmit`, { method: 'PATCH', body: { feedback } }); onFlash('Resubmission requested.', 'success'); openSubmissions(openAssignment); }
+    catch (err) { onFlash(err.message); }
+  }
+
+  async function deleteAssignment(assignment) {
+    if (!await showConfirm(`Delete “${assignment.title}” and all of its submissions? This action cannot be undone.`, { title: 'Delete assignment', confirmLabel: 'Delete assignment', danger: true })) return;
+    try {
+      await apiRequest(`/courses/assignments/${assignment._id}`, { method: 'DELETE' });
+      if (openAssignment === assignment._id) { setOpenAssignment(null); setSubmissions(null); }
+      onFlash('Assignment deleted.', 'success');
+      loadAssignments();
+    } catch (err) { onFlash(err.message); }
+  }
+
   return (
     <div>
       <CourseSelect courses={courses} value={courseId} onChange={setCourseId} />
@@ -8692,29 +8933,46 @@ function TeacherHomeworkPanel({ onFlash }) {
         <>
           <form onSubmit={create} className="space-y-3 mb-6 max-w-md">
             <input className="form-input" placeholder="Title" value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })} required />
+            <select className="form-select" value={form.type} onChange={(e) => setForm({ ...form, type: e.target.value })}>{['homework', 'assignment', 'project', 'worksheet', 'practical'].map((type) => <option key={type} value={type}>{type}</option>)}</select>
             <input className="form-input" placeholder="Description" value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} />
+            <div>
+              <label className="text-sm font-semibold" htmlFor="assignment-submission-mode">Student submission method</label>
+              <select id="assignment-submission-mode" className="form-select mt-2" value={form.submissionMode} onChange={(e) => setForm({ ...form, submissionMode: e.target.value })}>
+                <option value="either">Student chooses: write online or upload file</option>
+                <option value="text">Online written answer only</option>
+                <option value="file">Handwritten scan / file upload only</option>
+                <option value="both">Online answer and file both required</option>
+              </select>
+            </div>
             <div className="flex gap-3">
               <input className="form-input" type="date" value={form.dueDate} onChange={(e) => setForm({ ...form, dueDate: e.target.value })} />
-              <input className="form-input" type="number" placeholder="Max marks" value={form.maxMarks} onChange={(e) => setForm({ ...form, maxMarks: e.target.value })} />
+              {!['homework', 'worksheet'].includes(form.type) && <input className="form-input" type="number" placeholder="Total marks" value={form.maxMarks} onChange={(e) => setForm({ ...form, maxMarks: e.target.value })} />}
             </div>
+            {!['homework', 'worksheet'].includes(form.type) ? <textarea className="form-input" rows={3} placeholder={'Rubric (one per line): Criterion | marks'} value={form.rubricText} onChange={(e) => setForm({ ...form, rubricText: e.target.value })} /> : <p className="admin-notice text-xs">Homework and worksheets are completion-based. Review the work and give feedback; marks are used for assignments, projects, practicals and examinations.</p>}
+            <input type="file" className="form-input" onChange={(e) => setAttachment(e.target.files?.[0] || null)} />
+            <label className="text-sm flex items-center gap-2"><input type="checkbox" checked={form.allowLate} onChange={(e) => setForm({ ...form, allowLate: e.target.checked })} /> Allow submissions after deadline</label>
             <button type="submit" className="btn btn-primary">Create Assignment</button>
           </form>
           <Table
-            headers={['Title', 'Due', 'Max Marks', 'Action']}
-            rows={assignments.map((a) => [a.title, a.dueDate ? new Date(a.dueDate).toLocaleDateString() : '—', a.maxMarks, <button className="btn btn-primary" style={{ padding: '5px 12px', fontSize: '0.78rem' }} onClick={() => openSubmissions(a._id)}>Submissions</button>])}
+            headers={['Title', 'Due', 'Assessment', 'Received', 'Reviewed / Graded', 'Action']}
+            rows={assignments.map((a) => { const usesMarks = !['homework', 'worksheet'].includes(a.type); return [a.title, a.dueDate ? new Date(a.dueDate).toLocaleDateString() : '—', usesMarks ? `${a.maxMarks} marks` : 'Completion + feedback', <Tag status={a.submissionCount > 0 ? 'approved' : 'pending'} label={`${a.submissionCount || 0} submitted`} />, <Tag status={a.gradedCount > 0 ? 'approved' : 'pending'} label={`${a.gradedCount || 0}/${a.submissionCount || 0} ${usesMarks ? 'graded' : 'reviewed'}`} />, <div className="flex gap-2 flex-wrap"><button className="btn btn-primary" style={{ padding: '5px 12px', fontSize: '0.78rem' }} onClick={() => openSubmissions(a._id)}>Review submissions</button><button type="button" className="btn" style={{ padding: '5px 12px', fontSize: '0.78rem', color: 'var(--rose)' }} onClick={() => deleteAssignment(a)}>Delete</button></div>]; })}
             empty="No assignments yet."
           />
           {openAssignment && (
-            <div className="mt-6">
-              <h3 className="font-semibold mb-2">Submissions</h3>
-              <Table
-                headers={['Student', 'Status', 'Marks', 'Grade']}
-                rows={submissions.map((s) => [
-                  s.student?.fullName || s.student, <Tag status={s.status === 'graded' ? 'approved' : 'pending'} />, s.marksObtained ?? '—',
-                  <GradeForm onSubmit={(marks, fb) => grade(s._id, marks, fb)} />
-                ])}
-                empty="No submissions yet."
-              />
+            <div className="u-modal-overlay open" onMouseDown={(event) => { if (event.target === event.currentTarget) { setOpenAssignment(null); setSubmissions(null); } }}>
+              <section className="u-modal u-modal-lg" role="dialog" aria-modal="true" aria-labelledby="submission-review-title">
+                <div className="u-modal-head"><div><h3 id="submission-review-title">Review submissions</h3><p className="text-xs" style={{ color: 'var(--ink-soft)', marginTop: 3 }}>{assignments.find((item) => item._id === openAssignment)?.title} · {submissions?.length ?? '…'} received</p></div><button type="button" className="u-modal-close" aria-label="Close submissions" onClick={() => { setOpenAssignment(null); setSubmissions(null); }}><FaXmark aria-hidden="true" /></button></div>
+                <div className="u-modal-body" style={{ display: 'grid', gap: 14 }}>
+                  {submissions === null && <p role="status" className="admin-notice">Loading student submissions…</p>}
+                  {submissions?.length === 0 && <div className="admin-notice"><strong>No submissions received yet.</strong><p className="text-xs mt-2">The student may have submitted a different duplicate assignment. Keep one assignment and ask them to submit against this exact item.</p></div>}
+                  {(submissions || []).map((s) => <article key={s._id} className="card" style={{ padding: 18 }}>
+                    <div className="flex items-start justify-between flex-wrap" style={{ gap: 10 }}><div><h4>{s.student?.fullName || 'Student'}</h4><p className="text-xs" style={{ color: 'var(--ink-soft)' }}>{s.student?.email || ''} · Submitted {s.submittedAt ? new Date(s.submittedAt).toLocaleString() : 'recently'}</p></div><div className="flex gap-2"><Tag status={s.status === 'graded' ? 'approved' : s.status === 'resubmit_requested' ? 'rejected' : 'pending'} label={s.status.replace('_', ' ')} />{s.late ? <Tag status="rejected" label="Late" /> : <Tag status="approved" label="On time" />}</div></div>
+                    <div style={{ marginTop: 14, padding: 14, borderRadius: 10, background: 'var(--sand)' }}><strong className="text-sm">Student work</strong>{s.text ? <p className="text-sm mt-2" style={{ whiteSpace: 'pre-wrap', lineHeight: 1.6 }}>{s.text}</p> : <p className="text-xs mt-2" style={{ color: 'var(--ink-soft)' }}>Submitted as uploaded file.</p>}{(s.attachments || []).map((item, index) => <a key={index} href={item.url} target="_blank" rel="noreferrer" className="btn mt-2" style={{ display: 'inline-flex', marginRight: 8 }}>Open {item.name || 'attachment'} <FaArrowUpRightFromSquare aria-hidden="true" /></a>)}</div>
+                    {s.status === 'graded' ? <div className="admin-notice" style={{ marginTop: 12 }}><strong>{['homework', 'worksheet'].includes(assignments.find((item) => item._id === openAssignment)?.type) ? 'Homework reviewed' : `Graded: ${s.marksObtained}/${assignments.find((item) => item._id === openAssignment)?.maxMarks}`}</strong>{s.feedback && <p className="text-xs mt-1">Feedback: {s.feedback}</p>}</div> : <div className="flex gap-2 flex-wrap items-center mt-3"><GradeForm usesMarks={!['homework', 'worksheet'].includes(assignments.find((item) => item._id === openAssignment)?.type)} maxMarks={assignments.find((item) => item._id === openAssignment)?.maxMarks} onSubmit={(marks, fb) => grade(s._id, marks, fb)} /><button type="button" className="btn" onClick={() => requestResubmit(s._id)}>Request revision</button></div>}
+                  </article>)}
+                </div>
+                <div className="u-modal-foot"><button type="button" className="btn" onClick={() => { setOpenAssignment(null); setSubmissions(null); }}>Close</button></div>
+              </section>
             </div>
           )}
         </>
@@ -8723,14 +8981,14 @@ function TeacherHomeworkPanel({ onFlash }) {
   );
 }
 
-function GradeForm({ onSubmit }) {
+function GradeForm({ onSubmit, maxMarks, usesMarks = true }) {
   const [marks, setMarks] = useState('');
   const [feedback, setFeedback] = useState('');
   return (
     <form onSubmit={(e) => { e.preventDefault(); onSubmit(marks, feedback); }} className="flex gap-2 items-center">
-      <input className="form-input" style={{ width: 70 }} type="number" placeholder="Marks" value={marks} onChange={(e) => setMarks(e.target.value)} />
+      {usesMarks && <input className="form-input" style={{ width: 90 }} type="number" min="0" max={maxMarks} required placeholder={`Marks / ${maxMarks || 100}`} value={marks} onChange={(e) => setMarks(e.target.value)} />}
       <input className="form-input" style={{ width: 120 }} placeholder="Feedback" value={feedback} onChange={(e) => setFeedback(e.target.value)} />
-      <button type="submit" className="btn btn-primary" style={{ padding: '5px 12px', fontSize: '0.78rem' }}>Save</button>
+      <button type="submit" className="btn btn-primary" style={{ padding: '5px 12px', fontSize: '0.78rem' }}>{usesMarks ? 'Save grade' : 'Mark reviewed'}</button>
     </form>
   );
 }
@@ -8738,7 +8996,13 @@ function GradeForm({ onSubmit }) {
 function TeacherResultsPanel({ onFlash }) {
   const { courses, courseId, setCourseId } = useTeacherCourses(onFlash);
   const [enrollments, setEnrollments] = useState([]);
+  const [results, setResults] = useState([]);
   const [form, setForm] = useState({ student: '', term: '', subject: '', marksObtained: '', totalMarks: 100, grade: '' });
+
+  function loadResults(selectedCourseId = courseId) {
+    if (!selectedCourseId) return;
+    apiRequest(`/courses/${selectedCourseId}/results`).then(setResults).catch((err) => onFlash(err.message));
+  }
 
   useEffect(() => {
     if (!courseId) return;
@@ -8746,6 +9010,7 @@ function TeacherResultsPanel({ onFlash }) {
       setEnrollments(list);
       setForm((f) => ({ ...f, student: list[0]?.student?._id || '' }));
     }).catch((err) => onFlash(err.message));
+    loadResults(courseId);
   }, [courseId, onFlash]);
 
   async function submit(e) {
@@ -8757,13 +9022,26 @@ function TeacherResultsPanel({ onFlash }) {
       });
       onFlash('Result recorded.', 'success');
       setForm((f) => ({ ...f, term: '', subject: '', marksObtained: '', grade: '' }));
+      loadResults();
     } catch (err) { onFlash(err.message); }
   }
 
   return (
     <div>
       <CourseSelect courses={courses} value={courseId} onChange={setCourseId} />
-      {courseId && enrollments.length > 0 && (
+      {courseId && <>
+        <div className="admin-notice" style={{ marginBottom: 18 }}><strong>Online exam results appear automatically</strong><p className="text-xs mt-1">Grade an exam once in Examinations. The same final marks, percentage and teacher-selected grade are saved here automatically. Use the form below only for an offline or paper-based assessment.</p></div>
+        <h3 className="font-semibold mb-2">Result Register</h3>
+        <Table
+          headers={['Student', 'Assessment', 'Term', 'Marks', 'Percentage', 'Grade', 'Source']}
+          rows={results.map((result) => {
+            const percentage = Number(result.totalMarks) > 0 ? (Number(result.marksObtained) / Number(result.totalMarks)) * 100 : 0;
+            return [<span><strong>{result.student?.fullName || 'Student'}</strong><br /><small>{result.student?.email || ''}</small></span>, result.exam?.title || result.subject || 'Offline result', result.term || '—', `${result.marksObtained}/${result.totalMarks}`, `${percentage.toFixed(2)}%`, result.grade || '—', result.exam ? <Tag status="approved" label="Online exam" /> : <Tag status="pending" label="Offline / paper" />];
+          })}
+          empty="No graded results recorded for this course yet."
+        />
+        {enrollments.length > 0 && <>
+        <h3 className="font-semibold" style={{ marginTop: 26, marginBottom: 10 }}>Offline / Paper Result Entry</h3>
         <form onSubmit={submit} className="card" style={{ padding: 20, display: 'grid', gap: 16, maxWidth: 560 }}>
           <label className="text-xs" style={{ color: 'var(--ink-soft)', fontWeight: 600 }}>Student
             <div style={{ marginTop: 6 }}>
@@ -8785,7 +9063,8 @@ function TeacherResultsPanel({ onFlash }) {
           </div>
           <button type="submit" className="btn btn-primary" style={{ justifySelf: 'start', padding: '8px 20px' }}>Record Result</button>
         </form>
-      )}
+        </>}
+      </>}
     </div>
   );
 }
@@ -8918,36 +9197,132 @@ function TeacherSummary({ onNavigate, user }) {
   );
 }
 
-function TeacherLiveClassesPanel({ onFlash }) {
-  const [entries, setEntries] = useState(null);
-  useEffect(() => { apiRequest('/teachers/me/timetable').then(setEntries).catch((err) => onFlash(err.message)); }, [onFlash]);
+function StudentScheduledLiveClasses({ user, onFlash }) {
+  const [sessions, setSessions] = useState(null);
+  const [active, setActive] = useState(null);
+  function load() { apiRequest('/live-classes/student/mine').then(setSessions).catch((err) => { setSessions([]); onFlash(err.message); }); }
+  useEffect(() => {
+    load();
+    const refresh = window.setInterval(load, 3000);
+    return () => window.clearInterval(refresh);
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
-  function join(entry) {
-    if (entry.meetingLink) window.open(entry.meetingLink, '_blank', 'noopener,noreferrer');
-    else onFlash("No meeting link set for this class yet — your institution adds one from Classes → Timetable.", 'error');
+  async function join(session) {
+    if (session.status !== 'live') return onFlash('The teacher has not started this class yet.');
+    try {
+      await apiRequest(`/live-classes/${session._id}/join`, { method: 'POST' });
+      if (session.provider === 'external') { window.open(session.externalMeetingUrl, '_blank', 'noopener,noreferrer'); return; }
+      setActive(session);
+    }
+    catch (err) { onFlash(err.message); }
+  }
+  async function leave() {
+    const session = active;
+    setActive(null);
+    if (session) await apiRequest(`/live-classes/${session._id}/leave`, { method: 'POST' }).catch(() => {});
+    load();
+  }
+  if (active) return <CareerZLiveClassroom session={active} user={user} role="student" onLeave={leave} onError={(err) => onFlash(err.message)} />;
+  const visible = sessions || [];
+  return (
+    <div style={{ marginBottom: 22 }}>
+      <h3 className="font-semibold mb-2">CareerZ Live Classes</h3>
+      <p className="text-xs mb-3" style={{ color: 'var(--ink-soft)' }}>Your enrolled classes appear here automatically. When the teacher starts, join directly inside CareerZ.</p>
+      <Table loading={sessions === null} headers={['Class', 'Institution', 'Teacher', 'Schedule', 'Status', 'Action']} rows={visible.map((session) => [
+        <div><strong>{session.title}</strong><p className="text-xs">{session.course?.title}</p></div>, session.institution?.name, session.teacher?.fullName,
+        `${new Date(session.scheduledStart).toLocaleString()} – ${new Date(session.scheduledEnd).toLocaleTimeString()}`,
+        <Tag status={session.status === 'live' ? 'approved' : session.status === 'ended' ? 'completed' : 'pending'} label={session.status === 'live' ? 'Live now' : session.status} />,
+        session.status === 'live' ? <button type="button" className="btn btn-primary" onClick={() => join(session)}>Join Class</button> : '—'
+      ])} empty="No live classes scheduled for your enrolled courses." />
+    </div>
+  );
+}
+
+function TeacherLiveClassesPanel({ user, onFlash }) {
+  const [sessions, setSessions] = useState(null);
+  const [courses, setCourses] = useState([]);
+  const [active, setActive] = useState(null);
+  const [busyId, setBusyId] = useState('');
+  const [scheduleBusy, setScheduleBusy] = useState(false);
+  const [form, setForm] = useState({ course: '', title: '', scheduledStart: '', scheduledEnd: '', provider: 'careerz_jitsi', externalMeetingUrl: '' });
+  function load() { apiRequest('/live-classes/teacher/mine').then(setSessions).catch((err) => { setSessions([]); onFlash(err.message); }); }
+  useEffect(() => { load(); apiRequest('/courses/mine/list').then(setCourses).catch((err) => onFlash(err.message)); }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  async function schedule(e) {
+    e.preventDefault();
+    const course = courses.find((item) => item._id === form.course);
+    if (!course?.institution?._id) return onFlash('This course is not connected to an institution.');
+    if (!course.classSection) return onFlash('Ask the institution to assign this course to a class section first.');
+    setScheduleBusy(true);
+    try {
+      await apiRequest('/live-classes', { method: 'POST', body: { ...form, institution: course.institution._id } });
+      onFlash('Live class scheduled. Enrolled students have been notified.', 'success');
+      setForm({ course: '', title: '', scheduledStart: '', scheduledEnd: '', provider: 'careerz_jitsi', externalMeetingUrl: '' });
+      load();
+    } catch (err) { onFlash(err.message); } finally { setScheduleBusy(false); }
   }
 
-  if (entries === null) return <p role="status" className="admin-notice">Loading...</p>;
-  const withLink = entries.filter((e) => e.meetingLink);
-
+  async function start(session) {
+    setBusyId(session._id);
+    try {
+      const started = await apiRequest(`/live-classes/${session._id}/start`, { method: 'PATCH' });
+      if (started.provider === 'external') window.open(started.externalMeetingUrl, '_blank', 'noopener,noreferrer');
+      else setActive(started);
+      onFlash('Live class started. Enrolled students have been notified.', 'success'); load();
+    } catch (err) { onFlash(err.message); } finally { setBusyId(''); }
+  }
+  async function end(session) {
+    if (!await showConfirm('End this live class and record attendance for all enrolled students?', { title: 'End live class', confirmLabel: 'End class', danger: true })) return;
+    setBusyId(session._id);
+    try { await apiRequest(`/live-classes/${session._id}/end`, { method: 'PATCH' }); setActive(null); onFlash('Class ended and attendance recorded.', 'success'); load(); }
+    catch (err) { onFlash(err.message); } finally { setBusyId(''); }
+  }
+  if (active) return <div><div className="flex items-center justify-between mb-3"><div><h3 className="font-semibold">Class is live</h3><p className="text-xs" style={{ color: 'var(--ink-soft)' }}>Students can now join from My Classes.</p></div><button type="button" className="btn" style={{ color: 'var(--rose)' }} onClick={() => end(active)}>End Class & Record Attendance</button></div><CareerZLiveClassroom session={active} user={user} role="teacher" onLeave={() => setActive(null)} onError={(err) => onFlash(err.message)} /></div>;
   return (
     <div>
       <h3 className="font-semibold mb-2">Live Classes</h3>
-      <p className="text-xs mb-3" style={{ color: 'var(--ink-soft)' }}>Classes your institution has set an online meeting link for. CareerZ doesn't host video itself — Start Class opens whatever link was configured (Zoom/Meet/Teams).</p>
-      <Table
-        headers={['Day', 'Time', 'Subject', 'Class', 'Status', 'Action']}
-        rows={withLink.map((e) => {
-          const status = classStatusNow(e);
-          return [
-            DOW_LABEL[e.dayOfWeek], `${formatTime12h(e.startTime)}–${formatTime12h(e.endTime)}`, e.subject, e.classSection?.name || '—',
-            status === 'live' ? <span className="flex items-center" style={{ color: 'var(--rose)', fontWeight: 700, gap: 5 }}><FaCircle aria-hidden="true" style={{ fontSize: 8 }} /> Live</span> : status,
-            <button type="button" className={status === 'live' ? 'btn btn-primary' : 'btn'} style={{ padding: '4px 12px', fontSize: '0.75rem' }} onClick={() => join(e)}>Start Class</button>
-          ];
-        })}
-        empty="No classes have an online meeting link set yet."
-      />
+      <p className="text-xs mb-3" style={{ color: 'var(--ink-soft)' }}>Schedule and run live classes for courses assigned to you. The institution controls course, section and teacher assignments; enrolled students are notified automatically.</p>
+      <form onSubmit={schedule} className="card" style={{ padding: 18, display: 'grid', gap: 12, marginBottom: 20 }}>
+        <strong>Schedule a live class</strong>
+        <select className="form-select" required value={form.course} onChange={(e) => { const course = courses.find((item) => item._id === e.target.value); setForm({ ...form, course: e.target.value, title: course ? `${course.title} Live Class` : '' }); }}>
+          <option value="">Select your assigned course</option>
+          {courses.map((course) => <option key={course._id} value={course._id}>{course.subject || course.title} — {course.classSection?.name || 'Class section not assigned'} — {course.institution?.name || 'No institution'}</option>)}
+        </select>
+        <input className="form-input" required placeholder="Live class title" value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })} />
+        <div className="grid grid-cols-1 md:grid-cols-2" style={{ gap: 12 }}><label className="text-xs">Starts at<input className="form-input mt-1" type="datetime-local" required value={form.scheduledStart} onChange={(e) => setForm({ ...form, scheduledStart: e.target.value })} /></label><label className="text-xs">Ends at<input className="form-input mt-1" type="datetime-local" required value={form.scheduledEnd} onChange={(e) => setForm({ ...form, scheduledEnd: e.target.value })} /></label></div>
+        <label className="text-xs">Classroom provider<select className="form-select mt-1" value={form.provider} onChange={(e) => setForm({ ...form, provider: e.target.value })}><option value="careerz_jitsi">CareerZ Live Classroom</option><option value="external">External Zoom / Meet / Teams</option></select></label>
+        {form.provider === 'external' && <input className="form-input" type="url" required placeholder="https://... meeting link" value={form.externalMeetingUrl} onChange={(e) => setForm({ ...form, externalMeetingUrl: e.target.value })} />}
+        <button type="submit" className="btn btn-primary" disabled={scheduleBusy} style={{ justifySelf: 'start' }}>{scheduleBusy ? 'Scheduling…' : 'Schedule Live Class'}</button>
+      </form>
+      <Table loading={sessions === null} headers={['Title', 'Course / Subject', 'Class', 'Schedule', 'Status', 'Action']} rows={(sessions || []).map((session) => [
+        session.title, session.course?.subject || session.course?.title, session.classSection?.name || '—',
+        `${new Date(session.scheduledStart).toLocaleString()} – ${new Date(session.scheduledEnd).toLocaleTimeString()}`,
+        <Tag status={session.status === 'live' ? 'approved' : session.status === 'ended' ? 'completed' : session.status === 'cancelled' ? 'rejected' : 'pending'} label={session.status === 'live' ? 'Live now' : session.status} />,
+        session.status === 'scheduled' ? <button type="button" className="btn btn-primary" disabled={busyId === session._id} onClick={() => start(session)}>{busyId === session._id ? 'Starting…' : 'Start Class'}</button>
+          : session.status === 'live' ? <div className="flex gap-2"><button type="button" className="btn btn-primary" onClick={() => session.provider === 'external' ? window.open(session.externalMeetingUrl, '_blank', 'noopener,noreferrer') : setActive(session)}>Open Classroom</button><button type="button" className="btn" style={{ color: 'var(--rose)' }} onClick={() => end(session)}>End</button></div> : '—'
+      ])} empty="No live class has been scheduled for you yet." />
     </div>
   );
+}
+
+function InstitutionLiveClassesPanel({ onFlash }) {
+  const [institutions, setInstitutions] = useState([]);
+  const [institutionId, setInstitutionId] = useState('');
+  const [sessions, setSessions] = useState(null);
+  useEffect(() => { apiRequest('/institutions/mine/list').then((rows) => { setInstitutions(rows); setInstitutionId(rows[0]?._id || ''); }).catch((err) => onFlash(err.message)); }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  function load(id = institutionId) {
+    if (!id) return;
+    apiRequest(`/live-classes/institution/${id}`)
+      .then(setSessions)
+      .catch((err) => { setSessions([]); onFlash(err.message); });
+  }
+  useEffect(() => { if (institutionId) load(institutionId); }, [institutionId]); // eslint-disable-line react-hooks/exhaustive-deps
+  return <div>
+    <h3 className="font-semibold mb-2">Live Class Monitoring</h3>
+    <p className="text-xs mb-3" style={{ color: 'var(--ink-soft)' }}>Teachers schedule and run their own assigned classes. Institution management monitors the course, teacher, provider, timing and current status here.</p>
+    {institutions.length > 1 && <select className="form-select mb-3" value={institutionId} onChange={(e) => setInstitutionId(e.target.value)}>{institutions.map((item) => <option key={item._id} value={item._id}>{item.name}</option>)}</select>}
+    <Table loading={sessions === null} headers={['Class', 'Course', 'Teacher', 'Schedule', 'Provider', 'Status']} rows={(sessions || []).map((session) => [session.title, session.course?.title, session.teacher?.fullName, new Date(session.scheduledStart).toLocaleString(), session.provider === 'careerz_jitsi' ? 'CareerZ Classroom' : 'External', <Tag status={session.status === 'live' ? 'approved' : session.status === 'ended' ? 'completed' : 'pending'} label={session.status} />])} empty="No live classes scheduled yet." />
+  </div>;
 }
 
 function TeacherPerformancePanel({ onFlash }) {
@@ -10321,6 +10696,7 @@ function InstitutionWorkspace({ tab, user, onFlash, onChanged }) {
   if (tab === 'summary') return <InstitutionSummary />;
   if (tab === 'staff') return <InstitutionStaffPanel onFlash={onFlash} />;
   if (tab === 'classes') return <InstitutionClassesPanel onFlash={onFlash} />;
+  if (tab === 'liveClasses') return <InstitutionLiveClassesPanel onFlash={onFlash} />;
   if (tab === 'fees') return <InstitutionFeesPanel onFlash={onFlash} />;
   if (tab === 'communication') return <InstitutionBroadcastPanel onFlash={onFlash} />;
   if (tab === 'campusLife') return <InstitutionCampusLifePanel onFlash={onFlash} />;
@@ -11180,9 +11556,16 @@ function InstitutionExaminationPanel({ onFlash }) {
   return (
     <div>
       <h3 className="font-semibold mb-2">Examination Management</h3>
+      <p className="admin-notice">Institution-wide exam register. Teachers create papers only for their assigned course; subject, class/section and teacher are linked automatically. Configure missing class sections in Classes &amp; Timetable before publishing papers.</p>
+      <SummaryRow items={[
+        { label: 'Total Exams', value: (exams || []).length, icon: FaAward, detail: `${(exams || []).filter((exam) => exam.published).length} published` },
+        { label: 'Scheduled', value: (exams || []).filter((exam) => exam.scheduledDate && new Date(exam.scheduledDate) > new Date()).length, icon: FaCalendarCheck, detail: 'Upcoming papers' },
+        { label: 'Attempts', value: (exams || []).reduce((sum, exam) => sum + (exam.attemptedCount || 0), 0), icon: FaFileLines, detail: 'Student submissions' },
+        { label: 'Graded', value: (exams || []).reduce((sum, exam) => sum + (exam.gradedCount || 0), 0), icon: FaChartLine, detail: 'Finalized attempts' }
+      ]} />
       <Table
-        headers={['Exam', 'Course', 'Teacher', 'Type', 'Scheduled', 'Published']}
-        rows={(exams || []).map((e) => [e.title, e.courseTitle, e.teacher?.fullName || '—', e.type, e.scheduledDate ? new Date(e.scheduledDate).toLocaleDateString() : '—', <Tag status={e.published ? 'approved' : 'pending'} />])}
+        headers={['Exam', 'Subject / Class', 'Session / Term', 'Teacher', 'Schedule', 'Paper', 'Attempts', 'Status']}
+        rows={(exams || []).map((e) => [<span><strong>{e.title}</strong><br /><small>{e.type}</small></span>, <span className="text-xs"><strong>{e.subject || e.course?.subject || 'Subject missing'}</strong><br />{e.classSection?.name || 'Class/section missing'}</span>, <span className="text-xs">{e.academicSession || e.classSection?.academicYear || 'Session missing'}<br />{e.term || 'Term missing'}</span>, <span className="text-xs">{e.teacher?.fullName || '—'}<br />{e.teacher?.email || ''}</span>, <span className="text-xs">{e.scheduledDate ? new Date(e.scheduledDate).toLocaleString() : 'Not scheduled'}<br />{e.closesAt ? `Closes ${new Date(e.closesAt).toLocaleString()}` : ''}</span>, `${e.totalMarks} marks · ${e.durationMinutes || 0} min · Pass ${e.passingPercent}%`, `${e.gradedCount || 0}/${e.attemptedCount || 0} graded`, <Tag status={e.published ? 'approved' : 'pending'} label={e.published ? 'Published' : 'Draft'} />])}
         empty="No exams created for this institution's courses yet."
       />
     </div>
@@ -11695,13 +12078,17 @@ function InstitutionAttendancePanel({ onFlash }) {
 function InstitutionCertificatesPanel({ onFlash }) {
   const [institution, setInstitution] = useState(null);
   const [certificates, setCertificates] = useState([]);
-  const [form, setForm] = useState({ studentId: '', title: '' });
+  const [eligible, setEligible] = useState([]);
+  const [selection, setSelection] = useState('');
 
   function load() {
     apiRequest('/institutions/mine/list').then((list) => {
       const inst = list[0] || null;
       setInstitution(inst);
-      if (inst) apiRequest(`/institutions/${inst._id}/certificates`).then(setCertificates).catch((err) => onFlash(err.message));
+      if (inst) {
+        apiRequest(`/institutions/${inst._id}/certificates`).then(setCertificates).catch((err) => onFlash(err.message));
+        apiRequest(`/institutions/${inst._id}/certificates/eligible`).then(setEligible).catch((err) => onFlash(err.message));
+      }
     }).catch((err) => onFlash(err.message));
   }
   useEffect(load, []);
@@ -11709,9 +12096,11 @@ function InstitutionCertificatesPanel({ onFlash }) {
   async function issue(e) {
     e.preventDefault();
     try {
-      await apiRequest(`/institutions/${institution._id}/certificates`, { method: 'POST', body: { student: form.studentId.trim(), title: form.title } });
+      const row = eligible.find((item) => `${item.student?._id}:${item.course?._id}` === selection);
+      if (!row) return onFlash('Select an eligible completed course first.');
+      await apiRequest(`/institutions/${institution._id}/certificates`, { method: 'POST', body: { student: row.student._id, course: row.course._id } });
       onFlash('Certificate issued.', 'success');
-      setForm({ studentId: '', title: '' });
+      setSelection('');
       load();
     } catch (err) { onFlash(err.message); }
   }
@@ -11720,14 +12109,20 @@ function InstitutionCertificatesPanel({ onFlash }) {
 
   return (
     <div>
+      <div className="admin-notice" style={{ marginBottom: 16 }}><strong>Certificates follow academic completion</strong><p className="text-xs mt-1">A verified course certificate is generated only after course completion, a passed and teacher-graded exam, cleared due fees and institution verification. Manual User IDs and arbitrary titles are not accepted.</p></div>
       <form onSubmit={issue} className="flex gap-3 items-end mb-3 flex-wrap">
-        <input className="form-input" placeholder="Student's User ID" value={form.studentId} onChange={(e) => setForm({ ...form, studentId: e.target.value })} required />
-        <input className="form-input" placeholder="Certificate title (e.g. Certificate of Completion)" value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })} required style={{ minWidth: 0 }} />
-        <button type="submit" className="btn btn-primary">Issue Certificate</button>
+        <label className="text-xs" style={{ fontWeight: 700 }}>Eligible completion
+          <select className="form-select" value={selection} onChange={(e) => setSelection(e.target.value)} style={{ minWidth: 360, marginTop: 5 }} required>
+            <option value="">Select eligible student and course</option>
+            {eligible.filter((item) => item.eligible && !item.certificate).map((item) => <option key={`${item.student._id}:${item.course._id}`} value={`${item.student._id}:${item.course._id}`}>{item.student.fullName} — {item.course.title} — {item.percentage}% — {item.grade}</option>)}
+          </select>
+        </label>
+        <button type="submit" className="btn btn-primary" disabled={!selection}>Issue Verified Certificate</button>
       </form>
+      {eligible.length === 0 && <p className="admin-notice">No completed certificate-enabled course is waiting for issuance.</p>}
       <Table
-        headers={['Student', 'Title', 'Issued']}
-        rows={certificates.map((c) => [c.student?.fullName, c.title, new Date(c.issueDate).toLocaleDateString()])}
+        headers={['Student', 'Course', 'Title', 'Grade / Percentage', 'Status', 'Issued']}
+        rows={certificates.map((c) => [c.student?.fullName, c.course?.title || '—', c.title, `${c.finalGrade || '—'} · ${c.percentage ?? '—'}%`, <Tag status={c.status === 'active' ? 'approved' : 'rejected'} label={c.status} />, new Date(c.issueDate).toLocaleDateString()])}
         empty="No certificates issued yet."
       />
     </div>
@@ -12530,7 +12925,8 @@ function InstitutionTransportPanel({ onFlash }) {
   async function sendSos(vehicleId) {
     const journey = journeys[vehicleId];
     if (!journey) return onFlash('Start a journey first.');
-    const message = window.prompt('Emergency details:') || '';
+    const message = await showPrompt('Describe the emergency so parents and the institution owner receive useful information.', { title: 'Send emergency alert', placeholder: 'Emergency details', confirmLabel: 'Send SOS', required: true, danger: true });
+    if (message === null) return;
     try {
       await apiRequest(`/transport/journeys/${journey._id}/sos`, { method: 'POST', body: { message } });
       onFlash('Emergency alert sent to parents and the owner.', 'success');
@@ -13197,7 +13593,8 @@ function InstitutionHiringPanel({ institutionId, onFlash }) {
   }
 
   async function endEmployment(id) {
-    const reason = window.prompt('Reason for ending this employment (optional):') || '';
+    const reason = await showPrompt('Add a reason for ending this teacher employment, or continue without one.', { title: 'End teacher employment', placeholder: 'Reason (optional)', confirmLabel: 'End employment', danger: true });
+    if (reason === null) return;
     setBusyId(id);
     try {
       await apiRequest(`/teacher-employments/${id}/terminate`, { method: 'PATCH', body: { reason } });
@@ -13301,6 +13698,7 @@ function InstitutionClassesPanel({ onFlash }) {
   const [sections, setSections] = useState([]);
   const [teachers, setTeachers] = useState([]);
   const [courses, setCourses] = useState([]);
+  const [courseEdits, setCourseEdits] = useState({});
   const [campusForm, setCampusForm] = useState({ name: '', address: '' });
   const [sectionForm, setSectionForm] = useState({ name: '', academicYear: '', classTeacher: '' });
   const [sectionTeacherEdits, setSectionTeacherEdits] = useState({});
@@ -13320,7 +13718,7 @@ function InstitutionClassesPanel({ onFlash }) {
           if (list2[0] && !timetableSection) setTimetableSection(list2[0]._id);
         }).catch((err) => onFlash(err.message));
         apiRequest(`/institutions/${inst._id}/teachers`).then(setTeachers).catch((err) => onFlash(err.message));
-        apiRequest(`/courses?institution=${inst._id}`).then(setCourses).catch((err) => onFlash(err.message));
+        apiRequest(`/institutions/${inst._id}/courses`).then(setCourses).catch((err) => onFlash(err.message));
       }
     }).catch((err) => onFlash(err.message));
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -13341,6 +13739,23 @@ function InstitutionClassesPanel({ onFlash }) {
     apiRequest(`/institutions/${institution._id}/class-sections/${sectionId}/timetable`).then(setTimetable).catch((err) => onFlash(err.message));
   }
   useEffect(() => { loadTimetable(timetableSection); }, [timetableSection, institution]); // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => {
+    if (!courses.length || !sections.length) return;
+    const selectedHasCourses = courses.some((course) => (course.classSection?._id || course.classSection) === timetableSection);
+    if (!selectedHasCourses) {
+      const firstLinkedSection = sections.find((section) => courses.some((course) => (course.classSection?._id || course.classSection) === section._id));
+      if (firstLinkedSection) setTimetableSection(firstLinkedSection._id);
+    }
+  }, [courses, sections, timetableSection]);
+
+  async function saveCourseAssignment(course) {
+    const edit = courseEdits[course._id] || { subject: course.subject || '', classSection: course.classSection?._id || '', teacher: course.teacher?._id || '' };
+    try {
+      await apiRequest(`/institutions/${institution._id}/courses/${course._id}/academic-assignment`, { method: 'PATCH', body: edit });
+      onFlash('Course linked to subject, section and teacher.', 'success');
+      load();
+    } catch (err) { onFlash(err.message); }
+  }
 
   async function createCampus(e) {
     e.preventDefault();
@@ -13437,19 +13852,31 @@ function InstitutionClassesPanel({ onFlash }) {
         empty="No class sections yet."
       />
 
+      <h3 className="font-semibold mb-2 mt-6">Course Academic Assignments</h3>
+      <p className="admin-notice">Link every course to its real subject, class/section and teacher. Timetable and examinations use this assignment automatically.</p>
+      <Table
+        headers={['Course', 'Subject', 'Class / Section', 'Teacher', 'Action']}
+        rows={courses.map((course) => {
+          const edit = courseEdits[course._id] || { subject: course.subject || '', classSection: course.classSection?._id || '', teacher: course.teacher?._id || '' };
+          return [course.title, <input className="form-input" style={{ minWidth: 170 }} placeholder="Subject name" value={edit.subject} onChange={(e) => setCourseEdits({ ...courseEdits, [course._id]: { ...edit, subject: e.target.value } })} />, <select className="form-select" style={{ minWidth: 190 }} value={edit.classSection} onChange={(e) => setCourseEdits({ ...courseEdits, [course._id]: { ...edit, classSection: e.target.value } })}><option value="">Select class / section</option>{sections.map((section) => <option key={section._id} value={section._id}>{section.name} · {section.academicYear || 'No session'}</option>)}</select>, <select className="form-select" style={{ minWidth: 160 }} value={edit.teacher} onChange={(e) => setCourseEdits({ ...courseEdits, [course._id]: { ...edit, teacher: e.target.value } })}><option value="">Select teacher</option>{teachers.map((teacher) => <option key={teacher.user._id} value={teacher.user._id}>{teacher.user.fullName}</option>)}</select>, <button type="button" className="btn btn-primary" onClick={() => saveCourseAssignment(course)}>Save assignment</button>];
+        })}
+        empty="No institution courses found. Create an institution course first."
+      />
+
       {sections.length > 0 && (
         <>
           <h3 className="font-semibold mb-2 mt-6">Timetable</h3>
-          <select className="form-select" value={timetableSection} onChange={(e) => setTimetableSection(e.target.value)} style={{ maxWidth: 260, marginBottom: 16 }} aria-label="Select class section">
-            {sections.map((s) => <option key={s._id} value={s._id}>{s.name}</option>)}
+          <select className="form-select" value={timetableSection} onChange={(e) => { setTimetableSection(e.target.value); setEntryForm({ teacher: '', course: '', dayOfWeek: 'mon', startTime: '', endTime: '', room: '', meetingLink: '' }); }} style={{ maxWidth: 360, marginBottom: 16 }} aria-label="Select class section">
+            {sections.map((s) => <option key={s._id} value={s._id}>{s.name} ({courses.filter((course) => (course.classSection?._id || course.classSection) === s._id).length} course{courses.filter((course) => (course.classSection?._id || course.classSection) === s._id).length === 1 ? '' : 's'})</option>)}
           </select>
+          {courses.filter((course) => (course.classSection?._id || course.classSection) === timetableSection).length === 0 && <div className="u-alert warning mb-3"><span className="u-alert-ic">!</span><div className="u-alert-body"><strong>No course assigned to this section</strong><p>Use Course Academic Assignments above to link a course, subject and teacher to this class section. A timetable slot cannot be created until then.</p></div></div>}
           <form onSubmit={createEntry} className="flex gap-3 items-end mb-4 flex-wrap">
             <select className="form-select" value={entryForm.course} onChange={(e) => {
               const selected = courses.find((course) => course._id === e.target.value);
               setEntryForm({ ...entryForm, course: e.target.value, teacher: selected?.teacher?._id || selected?.teacher || '' });
             }} required style={{ maxWidth: 250 }} aria-label="Course">
-              <option value="">Select section course</option>
-              {courses.filter((course) => (course.classSection?._id || course.classSection) === timetableSection).map((course) => <option key={course._id} value={course._id}>{course.title}</option>)}
+              <option value="">Select course / subject for this section</option>
+              {courses.filter((course) => (course.classSection?._id || course.classSection) === timetableSection).map((course) => <option key={course._id} value={course._id}>{course.subject || course.title} — {course.title}</option>)}
             </select>
             <select className="form-select" value={entryForm.dayOfWeek} onChange={(e) => setEntryForm({ ...entryForm, dayOfWeek: e.target.value })}>
               {Object.entries(DOW_LABEL).map(([v, l]) => <option key={v} value={v}>{l}</option>)}
@@ -13583,7 +14010,8 @@ function EmployerEmploymentsPanel({ onFlash }) {
   useEffect(load, [onFlash]);
 
   async function endEmployment(id) {
-    const reason = window.prompt('Reason for ending this employment (optional):') || '';
+    const reason = await showPrompt('Add a reason for ending this employment, or continue without one.', { title: 'End employment', placeholder: 'Reason (optional)', confirmLabel: 'End employment', danger: true });
+    if (reason === null) return;
     setBusyId(id);
     try {
       await apiRequest(`/employment/${id}/terminate`, { method: 'PATCH', body: { reason } });
@@ -19065,7 +19493,7 @@ function TeacherSlideDeckManager({ lesson, onFlash, onChanged }) {
     } catch (err) { onFlash(err.message); } finally { setBusy(false); }
   }
   async function remove() {
-    if (!window.confirm(`Delete “${lesson.title}” permanently?`)) return;
+    if (!await showConfirm(`Delete “${lesson.title}” permanently? This action cannot be undone.`, { title: 'Delete slide deck', confirmLabel: 'Delete deck', danger: true })) return;
     setBusy(true);
     try { await apiRequest(`/courses/lessons/${lesson._id}`, { method: 'DELETE' }); onFlash('Slide deck deleted.', 'success'); onChanged(); }
     catch (err) { onFlash(err.message); setBusy(false); }
@@ -19104,6 +19532,7 @@ function TeacherSlideDeckManager({ lesson, onFlash, onChanged }) {
 function TeacherLessonsPanel({ courseId, onFlash, onClose }) {
   const [data, setData] = useState(null);
   const [form, setForm] = useState({ title: '', content: '', videoUrl: '', resourceName: '', resourceUrl: '' });
+  const [deletingLessonId, setDeletingLessonId] = useState(null);
 
   function load() {
     apiRequest(`/courses/${courseId}`).then(setData).catch((err) => onFlash(err.message));
@@ -19119,6 +19548,25 @@ function TeacherLessonsPanel({ courseId, onFlash, onClose }) {
       setForm({ title: '', content: '', videoUrl: '', resourceName: '', resourceUrl: '' });
       load();
     } catch (err) { onFlash(err.message); }
+  }
+
+  async function removeLesson(lesson) {
+    const confirmed = await showConfirm(
+      `Delete “${lesson.title}” permanently? Students will no longer be able to access it, and its completion record will be removed.`,
+      { title: 'Delete lesson', confirmLabel: 'Delete lesson', danger: true }
+    );
+    if (!confirmed) return;
+
+    setDeletingLessonId(lesson._id);
+    try {
+      await apiRequest(`/courses/lessons/${lesson._id}`, { method: 'DELETE' });
+      onFlash('Lesson deleted successfully.', 'success');
+      load();
+    } catch (err) {
+      onFlash(err.message);
+    } finally {
+      setDeletingLessonId(null);
+    }
   }
 
   return (
@@ -19144,7 +19592,20 @@ function TeacherLessonsPanel({ courseId, onFlash, onClose }) {
             <div key={l._id} className="hover-card card" style={{ padding: 18, display: 'flex', gap: 14, alignItems: 'flex-start' }}>
               <span style={{ width: 34, height: 34, borderRadius: 10, background: 'var(--sand)', color: 'var(--forest)', display: 'grid', placeItems: 'center', flexShrink: 0, fontWeight: 700, fontSize: 13 }}>{i + 1}</span>
               <div style={{ minWidth: 0, flex: 1 }}>
-                <strong className="text-sm">{l.title}</strong>
+                <div className="flex items-center justify-between" style={{ gap: 12 }}>
+                  <strong className="text-sm">{l.title}</strong>
+                  {l.kind !== 'slide_deck' && (
+                    <button
+                      type="button"
+                      className="btn"
+                      onClick={() => removeLesson(l)}
+                      disabled={deletingLessonId === l._id}
+                      style={{ padding: '5px 12px', fontSize: '0.76rem', color: 'var(--rose)', flexShrink: 0 }}
+                    >
+                      {deletingLessonId === l._id ? 'Deleting…' : 'Delete'}
+                    </button>
+                  )}
+                </div>
                 {l.kind === 'slide_deck' && l.deck?.slides?.length > 0 ? (
                   <>
                     <SlideDeckViewer title={l.title} slides={l.deck.slides} />
