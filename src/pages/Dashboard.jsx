@@ -685,18 +685,27 @@ function StudentTutoringPanel({ onFlash }) {
 function StudentCampusLifePanel({ onFlash }) {
   const [section, setSection] = useState('ask');
   const [myQuestions, setMyQuestions] = useState(null);
-  const [askForm, setAskForm] = useState({ subject: '', question: '' });
+  const [askForm, setAskForm] = useState({ course: '', question: '' });
+  const [enrolledCourses, setEnrolledCourses] = useState([]);
   const [polls, setPolls] = useState(null);
   const [newsletters, setNewsletters] = useState(null);
   const [magazine, setMagazine] = useState(null);
   const [mySubmissions, setMySubmissions] = useState(null);
   const [subForm, setSubForm] = useState({ title: '', type: 'article', content: '' });
+  const [resubmitDrafts, setResubmitDrafts] = useState({});
 
   function loadQuestions() { apiRequest('/anonymous-questions/mine').then(setMyQuestions).catch((err) => onFlash(err.message)); }
   function loadPolls() { apiRequest('/polls/available').then(setPolls).catch((err) => onFlash(err.message)); }
   function loadNewsletters() { apiRequest('/newsletters/published').then(setNewsletters).catch((err) => onFlash(err.message)); }
   function loadMagazine() { apiRequest('/magazine/published').then(setMagazine).catch((err) => onFlash(err.message)); }
   function loadMySubmissions() { apiRequest('/magazine/mine').then(setMySubmissions).catch((err) => onFlash(err.message)); }
+  useEffect(() => {
+    apiRequest('/students/me/enrollments').then((list) => {
+      const courses = (list || []).filter((e) => e.status !== 'dropped' && e.course).map((e) => e.course);
+      setEnrolledCourses(courses);
+      setAskForm((f) => ({ ...f, course: f.course || courses[0]?._id || '' }));
+    }).catch(() => {});
+  }, []);
 
   useEffect(() => {
     if (section === 'ask') loadQuestions();
@@ -707,10 +716,11 @@ function StudentCampusLifePanel({ onFlash }) {
 
   async function askQuestion(e) {
     e.preventDefault();
+    if (!askForm.course) return onFlash('Pick which class this question is about.');
     try {
       await apiRequest('/anonymous-questions', { method: 'POST', body: askForm });
       onFlash('Question sent anonymously.', 'success');
-      setAskForm({ subject: '', question: '' });
+      setAskForm((f) => ({ ...f, question: '' }));
       loadQuestions();
     } catch (err) { onFlash(err.message); }
   }
@@ -727,6 +737,16 @@ function StudentCampusLifePanel({ onFlash }) {
       await apiRequest('/magazine', { method: 'POST', body: subForm });
       onFlash('Submitted for review.', 'success');
       setSubForm({ title: '', type: 'article', content: '' });
+      loadMySubmissions();
+    } catch (err) { onFlash(err.message); }
+  }
+  async function resubmitToMagazine(id) {
+    const draft = resubmitDrafts[id];
+    if (!draft?.title?.trim() || !draft?.content?.trim()) return onFlash('Title and content are required.');
+    try {
+      await apiRequest(`/magazine/${id}/resubmit`, { method: 'PATCH', body: draft });
+      onFlash('Resubmitted for review.', 'success');
+      setResubmitDrafts((d) => { const next = { ...d }; delete next[id]; return next; });
       loadMySubmissions();
     } catch (err) { onFlash(err.message); }
   }
@@ -776,15 +796,21 @@ function StudentCampusLifePanel({ onFlash }) {
             <p style={{ fontSize: 13, color: 'var(--ink-soft)', margin: 0 }}>Your name is never shown to teachers or your institution — only your question.</p>
           </div>
           <form onSubmit={askQuestion} style={{ display: 'grid', gap: 10, maxWidth: 460, marginBottom: 28, padding: 18, border: '1px solid var(--sand-line)', borderRadius: 14 }}>
-            <input className="form-input" placeholder="Subject (optional)" value={askForm.subject} onChange={(e) => setAskForm({ ...askForm, subject: e.target.value })} />
+            <label className="text-xs" style={{ color: 'var(--ink-soft)', fontWeight: 600 }}>Which class is this about?
+              <select className="form-select" value={askForm.course} onChange={(e) => setAskForm({ ...askForm, course: e.target.value })} style={{ marginTop: 6 }} required>
+                <option value="">Select a class…</option>
+                {enrolledCourses.map((c) => <option key={c._id} value={c._id}>{c.title}</option>)}
+              </select>
+            </label>
             <textarea className="form-input" placeholder="Your question" rows={3} value={askForm.question} onChange={(e) => setAskForm({ ...askForm, question: e.target.value })} required />
-            <button type="submit" className="btn btn-primary" style={{ justifySelf: 'start', padding: '9px 20px' }}>Ask Anonymously</button>
+            <button type="submit" className="btn btn-primary" style={{ justifySelf: 'start', padding: '9px 20px' }} disabled={enrolledCourses.length === 0}>Ask Anonymously</button>
+            {enrolledCourses.length === 0 && <p className="text-xs" style={{ color: 'var(--ink-soft)' }}>Enroll in a class first — a question has to belong to one.</p>}
           </form>
           <h4 className="font-semibold mb-2" style={{ fontSize: '0.85rem' }}>My Questions</h4>
           <Table
             loading={myQuestions === null}
-            headers={['Subject', 'Question', 'Status', 'Answer']}
-            rows={(myQuestions || []).map((q) => [q.subject || '—', q.question, <Tag status={q.status === 'answered' ? 'approved' : 'pending'} />, q.answer || '—'])}
+            headers={['Class', 'Question', 'Status', 'Answer']}
+            rows={(myQuestions || []).map((q) => [q.course?.title || '—', q.question, <Tag status={q.status === 'answered' ? 'approved' : 'pending'} />, q.answer || '—'])}
             empty="You haven't asked any questions yet."
           />
         </div>
@@ -796,11 +822,20 @@ function StudentCampusLifePanel({ onFlash }) {
           {polls?.length === 0 && <p className="admin-notice">No open polls right now.</p>}
           {(polls || []).map((p) => (
             <div key={p._id} style={{ padding: 18, border: '1px solid var(--sand-line)', borderRadius: 14 }}>
-              <p className="font-medium" style={{ marginBottom: 12 }}>{p.question}</p>
+              <p className="font-medium" style={{ marginBottom: 4 }}>{p.question}</p>
+              <p className="text-xs" style={{ color: 'var(--ink-soft)', marginBottom: 12 }}>{p.course?.title || 'Institution-wide'}</p>
               {p.myVote !== null ? (
-                <p className="flex items-center text-sm" style={{ gap: 8, color: 'var(--forest)', fontWeight: 600, margin: 0 }}>
-                  <FaClipboardCheck aria-hidden="true" size={13} /> You voted: {p.options[p.myVote]?.text}
-                </p>
+                <div style={{ display: 'grid', gap: 6 }}>
+                  <p className="flex items-center text-sm" style={{ gap: 8, color: 'var(--forest)', fontWeight: 600, margin: 0 }}>
+                    <FaClipboardCheck aria-hidden="true" size={13} /> You voted: {p.options[p.myVote]?.text}
+                  </p>
+                  {p.options.map((o, i) => (
+                    <div key={i} style={{ fontSize: 12 }}>
+                      <div className="flex items-center justify-between"><span>{o.text}</span><span style={{ color: 'var(--ink-soft)' }}>{o.votes} · {o.percent}%</span></div>
+                      <div style={{ height: 6, background: 'var(--sand)', borderRadius: 999, marginTop: 3 }}><div style={{ height: '100%', width: `${o.percent}%`, background: i === p.myVote ? 'var(--forest)' : 'var(--sand-line)', borderRadius: 999 }} /></div>
+                    </div>
+                  ))}
+                </div>
               ) : (
                 <div className="flex gap-2 flex-wrap">
                   {p.options.map((o, i) => (
@@ -840,12 +875,40 @@ function StudentCampusLifePanel({ onFlash }) {
             <button type="submit" className="btn btn-primary" style={{ justifySelf: 'start', padding: '9px 20px' }}>Submit</button>
           </form>
           <h4 className="font-semibold mb-2" style={{ fontSize: '0.85rem' }}>My Submissions</h4>
-          <Table
-            loading={mySubmissions === null}
-            headers={['Title', 'Type', 'Status']}
-            rows={(mySubmissions || []).map((s) => [s.title, s.type, <Tag status={s.status === 'published' ? 'approved' : s.status === 'rejected' ? 'rejected' : s.status === 'selected' ? 'approved' : 'pending'} label={s.status} />])}
-            empty="You haven't submitted anything yet."
-          />
+          {mySubmissions === null && <p className="admin-notice">Loading...</p>}
+          {mySubmissions?.length === 0 && <p className="admin-notice">You haven't submitted anything yet.</p>}
+          <div style={{ display: 'grid', gap: 10, marginBottom: 28 }}>
+            {(mySubmissions || []).map((s) => {
+              const STATUS_TAG = { published: 'approved', rejected: 'rejected', selected: 'approved', changes_requested: 'pending', submitted: 'pending' };
+              const draft = resubmitDrafts[s._id];
+              return (
+                <div key={s._id} style={{ padding: 14, border: '1px solid var(--sand-line)', borderRadius: 12 }}>
+                  <div className="flex items-center justify-between">
+                    <strong className="text-sm">{s.title}</strong>
+                    <Tag status={STATUS_TAG[s.status]} label={s.status.replace('_', ' ')} />
+                  </div>
+                  <p className="text-xs" style={{ color: 'var(--ink-soft)', margin: '4px 0 0' }}>{s.type}</p>
+                  {s.status === 'changes_requested' && (
+                    <div style={{ marginTop: 10, paddingTop: 10, borderTop: '1px solid var(--sand-line)' }}>
+                      <p className="text-xs" style={{ color: 'var(--gold)', fontWeight: 600, marginBottom: 8 }}>Teacher's notes: {s.editorNotes}</p>
+                      {!draft ? (
+                        <button type="button" className="btn btn-primary" style={{ padding: '6px 14px', fontSize: '0.75rem' }} onClick={() => setResubmitDrafts((d) => ({ ...d, [s._id]: { title: s.title, type: s.type, content: s.content } }))}>Edit &amp; Resubmit</button>
+                      ) : (
+                        <div style={{ display: 'grid', gap: 8 }}>
+                          <input className="form-input" value={draft.title} onChange={(e) => setResubmitDrafts((d) => ({ ...d, [s._id]: { ...d[s._id], title: e.target.value } }))} />
+                          <textarea className="form-input" rows={4} value={draft.content} onChange={(e) => setResubmitDrafts((d) => ({ ...d, [s._id]: { ...d[s._id], content: e.target.value } }))} />
+                          <div className="flex gap-2">
+                            <button type="button" className="btn btn-primary" style={{ padding: '6px 14px', fontSize: '0.75rem' }} onClick={() => resubmitToMagazine(s._id)}>Resubmit</button>
+                            <button type="button" className="btn" style={{ padding: '6px 14px', fontSize: '0.75rem' }} onClick={() => setResubmitDrafts((d) => { const next = { ...d }; delete next[s._id]; return next; })}>Cancel</button>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+          </div>
           <h4 className="font-semibold mt-6 mb-2" style={{ fontSize: '0.85rem' }}>Latest Issue</h4>
           {magazine?.length === 0 && <p className="admin-notice">Nothing published yet.</p>}
           <div style={{ display: 'grid', gap: 12 }}>
@@ -1628,6 +1691,7 @@ function StudentGoalsAchievementsPanel({ onFlash }) {
   const tabs = [
     { key: 'goals', label: 'Goals' },
     { key: 'timeline', label: 'Achievement Timeline' },
+    { key: 'achievements', label: 'My Achievements' },
     { key: 'badges', label: 'Badges' }
   ];
   return (
@@ -1639,35 +1703,53 @@ function StudentGoalsAchievementsPanel({ onFlash }) {
       </nav>
       {sub === 'goals' && <StudentGoalsSubPanel onFlash={onFlash} />}
       {sub === 'timeline' && <StudentTimelineSubPanel onFlash={onFlash} />}
+      {sub === 'achievements' && <StudentAchievementsSubPanel onFlash={onFlash} />}
       {sub === 'badges' && <StudentBadgesSubPanel onFlash={onFlash} />}
     </div>
   );
 }
 
+const VERIFIED_GOAL_CATEGORIES = new Set(['academic', 'scholarship', 'job']);
+
 function StudentGoalsSubPanel({ onFlash }) {
   const [goals, setGoals] = useState(null);
-  const [form, setForm] = useState({ title: '', category: 'academic', targetDate: '' });
+  const [form, setForm] = useState({ title: '', category: 'academic', targetDate: '', milestoneInput: '', milestones: [] });
   const [adding, setAdding] = useState(false);
+  const [evidenceDrafts, setEvidenceDrafts] = useState({});
 
   function load() { apiRequest('/students/me/goals').then(setGoals).catch((err) => onFlash(err.message)); }
   useEffect(load, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  function addMilestoneField() {
+    if (!form.milestoneInput.trim()) return;
+    setForm((f) => ({ ...f, milestones: [...f.milestones, { title: f.milestoneInput.trim() }], milestoneInput: '' }));
+  }
 
   async function addGoal(e) {
     e.preventDefault();
     if (!form.title.trim()) return;
     setAdding(true);
     try {
-      await apiRequest('/students/me/goals', { method: 'POST', body: { ...form, targetDate: form.targetDate || undefined } });
+      await apiRequest('/students/me/goals', { method: 'POST', body: { title: form.title, category: form.category, targetDate: form.targetDate || undefined, milestones: form.milestones } });
       onFlash('Goal added.', 'success');
-      setForm({ title: '', category: 'academic', targetDate: '' });
+      setForm({ title: '', category: 'academic', targetDate: '', milestoneInput: '', milestones: [] });
       load();
     } catch (err) { onFlash(err.message); } finally { setAdding(false); }
   }
   async function setProgress(goal, progressPercent) {
+    if (progressPercent >= 100 && VERIFIED_GOAL_CATEGORIES.has(goal.category) && !goal.evidenceUrl && !evidenceDrafts[goal._id]) {
+      onFlash('This goal needs evidence before it can be marked 100% — paste a link below first (score report, offer letter, award letter).');
+      return;
+    }
     try {
-      await apiRequest(`/students/me/goals/${goal._id}`, { method: 'PATCH', body: { progressPercent, status: progressPercent >= 100 ? 'completed' : 'active' } });
+      const body = { progressPercent };
+      if (evidenceDrafts[goal._id]) body.evidenceUrl = evidenceDrafts[goal._id];
+      await apiRequest(`/students/me/goals/${goal._id}`, { method: 'PATCH', body });
       load();
     } catch (err) { onFlash(err.message); }
+  }
+  async function toggleMilestone(goal, milestoneId, done) {
+    try { await apiRequest(`/students/me/goals/${goal._id}/milestones/${milestoneId}`, { method: 'PATCH', body: { done } }); load(); } catch (err) { onFlash(err.message); }
   }
   async function abandonGoal(id) {
     try { await apiRequest(`/students/me/goals/${id}`, { method: 'PATCH', body: { status: 'abandoned' } }); load(); } catch (err) { onFlash(err.message); }
@@ -1677,7 +1759,8 @@ function StudentGoalsSubPanel({ onFlash }) {
   }
 
   const active = (goals || []).filter((g) => g.status === 'active');
-  const done = (goals || []).filter((g) => g.status !== 'active');
+  const pending = (goals || []).filter((g) => g.status === 'pending_verification');
+  const done = (goals || []).filter((g) => g.status === 'completed' || g.status === 'abandoned');
 
   return (
     <div>
@@ -1690,6 +1773,12 @@ function StudentGoalsSubPanel({ onFlash }) {
           </div>
           <input className="form-input" type="date" value={form.targetDate} onChange={(e) => setForm({ ...form, targetDate: e.target.value })} style={{ flex: '1 1 180px', minWidth: 0 }} />
         </div>
+        {VERIFIED_GOAL_CATEGORIES.has(form.category) && <p className="text-xs" style={{ color: 'var(--gold)' }}>Reaching 100% on this category needs evidence + your teacher/institution's sign-off before it counts as achieved.</p>}
+        <div className="flex items-center" style={{ gap: 8 }}>
+          <input className="form-input" placeholder="Add a milestone/subtask (optional)" value={form.milestoneInput} onChange={(e) => setForm({ ...form, milestoneInput: e.target.value })} style={{ flex: '1 1 auto' }} />
+          <button type="button" className="btn" style={{ flexShrink: 0 }} onClick={addMilestoneField}>+ Add</button>
+        </div>
+        {form.milestones.length > 0 && <ul className="text-xs" style={{ margin: 0, paddingLeft: 18, color: 'var(--ink-soft)' }}>{form.milestones.map((m, i) => <li key={i}>{m.title}</li>)}</ul>}
         <button type="submit" className="btn btn-primary" disabled={adding} style={{ padding: '8px 18px', fontSize: '0.8rem', justifySelf: 'start' }}>{adding ? 'Adding...' : 'Add Goal'}</button>
       </form>
 
@@ -1703,6 +1792,14 @@ function StudentGoalsSubPanel({ onFlash }) {
         </div>
       ) : (
         <>
+          {pending.length > 0 && (
+            <div className="card" style={{ padding: 20, marginBottom: 20, display: 'grid', gap: 12, borderColor: 'var(--gold)' }}>
+              <p style={{ fontSize: 11, fontWeight: 700, letterSpacing: '.04em', textTransform: 'uppercase', color: 'var(--gold)' }}>Awaiting Verification</p>
+              {pending.map((g) => (
+                <div key={g._id} className="text-sm">{g.title} <span className="text-xs" style={{ color: 'var(--ink-soft)' }}>— your teacher/institution needs to confirm the evidence you submitted.</span></div>
+              ))}
+            </div>
+          )}
           {active.length > 0 && (
             <div className="card" style={{ padding: 20, marginBottom: 20, display: 'grid', gap: 16 }}>
               <p style={{ fontSize: 11, fontWeight: 700, letterSpacing: '.04em', textTransform: 'uppercase', color: 'var(--ink-soft)' }}>Active Goals</p>
@@ -1710,9 +1807,22 @@ function StudentGoalsSubPanel({ onFlash }) {
                 <div key={g._id}>
                   <div className="student-progress-row">
                     <span className="text-xs">{g.title} <span style={{ fontSize: 10, fontWeight: 700, letterSpacing: '.03em', textTransform: 'uppercase', color: 'var(--ink-soft)', background: 'var(--sand)', padding: '2px 8px', borderRadius: 999, marginLeft: 4 }}>{GOAL_CATEGORIES.find((c) => c.value === g.category)?.label || 'Other'}</span></span>
-                    <strong className="text-xs">{g.progressPercent}%{g.targetDate ? ` · Due ${new Date(g.targetDate).toLocaleDateString()}` : ''}</strong>
+                    <strong className="text-xs">{g.progressPercent}%{g.targetDate ? ` · Due ${new Date(g.targetDate).toLocaleDateString()}` : ''}{g.targetDate && new Date(g.targetDate) < new Date() ? <span style={{ color: 'var(--rose, #c0392b)' }}> · Overdue</span> : ''}</strong>
                   </div>
                   <progress className="student-progress-bar" max="100" value={g.progressPercent} aria-label={`${g.title} progress`} />
+                  {g.milestones?.length > 0 && (
+                    <div style={{ marginTop: 8, display: 'grid', gap: 4 }}>
+                      {g.milestones.map((m) => (
+                        <label key={m._id} className="flex items-center text-xs" style={{ gap: 6 }}>
+                          <input type="checkbox" checked={m.done} onChange={(e) => toggleMilestone(g, m._id, e.target.checked)} /> {m.title}
+                        </label>
+                      ))}
+                    </div>
+                  )}
+                  {g.notes && <p className="text-xs" style={{ color: 'var(--ink-soft)', marginTop: 6 }}>{g.notes}</p>}
+                  {VERIFIED_GOAL_CATEGORIES.has(g.category) && g.progressPercent >= 75 && !g.evidenceUrl && (
+                    <input className="form-input" style={{ marginTop: 8, fontSize: 12 }} placeholder="Paste evidence link (score report, offer letter...)" value={evidenceDrafts[g._id] || ''} onChange={(e) => setEvidenceDrafts((d) => ({ ...d, [g._id]: e.target.value }))} />
+                  )}
                   <div className="flex items-center flex-wrap" style={{ gap: 8, marginTop: 8 }}>
                     {[25, 50, 75, 100].map((p) => (
                       <button key={p} type="button" className="btn" style={{ padding: '3px 10px', fontSize: '0.7rem' }} onClick={() => setProgress(g, p)}>{p}%</button>
@@ -1742,6 +1852,79 @@ function StudentGoalsSubPanel({ onFlash }) {
           )}
         </>
       )}
+    </div>
+  );
+}
+
+const ACHIEVEMENT_TYPES = [
+  { value: 'award', label: 'Award' }, { value: 'medal', label: 'Medal' }, { value: 'competition', label: 'Competition' },
+  { value: 'project', label: 'Project' }, { value: 'internship', label: 'Internship' }, { value: 'research', label: 'Research' },
+  { value: 'volunteer', label: 'Volunteer Work' }, { value: 'other', label: 'Other' }
+];
+const ACHIEVEMENT_STATUS_TAG = { pending: 'pending', verified: 'approved', rejected: 'rejected' };
+
+// Manual achievements the real Enrollment/Certificate/Result/Scholarship/Job/Goal models don't
+// cover (awards, medals, competitions, projects, internships, research, volunteer work) — self-
+// added with evidence, invisible on the real timeline until an institution/teacher verifies it.
+function StudentAchievementsSubPanel({ onFlash }) {
+  const [list, setList] = useState(null);
+  const [form, setForm] = useState({ type: 'award', title: '', description: '', evidenceUrl: '', visibility: 'private' });
+  const [adding, setAdding] = useState(false);
+
+  function load() { apiRequest('/students/me/achievements').then(setList).catch((err) => onFlash(err.message)); }
+  useEffect(load, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  async function add(e) {
+    e.preventDefault();
+    if (!form.title.trim()) return;
+    setAdding(true);
+    try {
+      await apiRequest('/students/me/achievements', { method: 'POST', body: form });
+      onFlash('Submitted — awaiting verification.', 'success');
+      setForm({ type: 'award', title: '', description: '', evidenceUrl: '', visibility: 'private' });
+      load();
+    } catch (err) { onFlash(err.message); } finally { setAdding(false); }
+  }
+  async function remove(id) {
+    try { await apiRequest(`/students/me/achievements/${id}`, { method: 'DELETE' }); load(); } catch (err) { onFlash(err.message); }
+  }
+
+  return (
+    <div>
+      <form onSubmit={add} className="card" style={{ padding: 20, marginBottom: 24, display: 'grid', gap: 14 }}>
+        <p style={{ fontSize: 11, fontWeight: 700, letterSpacing: '.04em', textTransform: 'uppercase', color: 'var(--ink-soft)' }}>Add an Achievement</p>
+        <div className="flex flex-wrap" style={{ gap: 14 }}>
+          <select className="form-input" style={{ flex: '1 1 160px' }} value={form.type} onChange={(e) => setForm({ ...form, type: e.target.value })}>
+            {ACHIEVEMENT_TYPES.map((t) => <option key={t.value} value={t.value}>{t.label}</option>)}
+          </select>
+          <select className="form-input" style={{ flex: '1 1 140px' }} value={form.visibility} onChange={(e) => setForm({ ...form, visibility: e.target.value })}>
+            <option value="private">Private</option>
+            <option value="public">Public (visible on your profile)</option>
+          </select>
+        </div>
+        <input className="form-input" placeholder="Title (e.g. Regional Science Fair Winner)" value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })} />
+        <textarea className="form-input" rows={2} placeholder="Description" value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} />
+        <input className="form-input" placeholder="Evidence link (certificate photo, article, letter...)" value={form.evidenceUrl} onChange={(e) => setForm({ ...form, evidenceUrl: e.target.value })} />
+        <button type="submit" className="btn btn-primary" disabled={adding} style={{ padding: '8px 18px', fontSize: '0.8rem', justifySelf: 'start' }}>{adding ? 'Submitting...' : 'Submit for Verification'}</button>
+      </form>
+
+      {list === null && <p role="status" className="admin-notice">Loading...</p>}
+      {list?.length === 0 && <p className="admin-notice">No manual achievements added yet.</p>}
+      <div style={{ display: 'grid', gap: 10 }}>
+        {(list || []).map((a) => (
+          <div key={a._id} className="card flex items-center justify-between flex-wrap" style={{ padding: 14, gap: 8 }}>
+            <div>
+              <strong className="text-sm">{a.title}</strong>
+              <p className="text-xs" style={{ color: 'var(--ink-soft)', marginTop: 2 }}>{ACHIEVEMENT_TYPES.find((t) => t.value === a.type)?.label} · {new Date(a.date).toLocaleDateString()}</p>
+              {a.verifierNotes && <p className="text-xs" style={{ color: 'var(--gold)', marginTop: 2 }}>{a.verifierNotes}</p>}
+            </div>
+            <div className="flex items-center" style={{ gap: 8 }}>
+              <Tag status={ACHIEVEMENT_STATUS_TAG[a.verificationStatus]} label={a.verificationStatus} />
+              {a.verificationStatus === 'pending' && <button type="button" className="btn" style={{ padding: '4px 10px', fontSize: '0.7rem' }} onClick={() => remove(a._id)}>Delete</button>}
+            </div>
+          </div>
+        ))}
+      </div>
     </div>
   );
 }
@@ -1803,6 +1986,7 @@ function StudentBadgesSubPanel({ onFlash }) {
             </span>
             <strong className="text-sm" style={{ display: 'block' }}>{b.label}</strong>
             <p className="text-xs" style={{ color: 'var(--ink-soft)', marginTop: 4, lineHeight: 1.5 }}>{b.desc}</p>
+            {b.earned && b.earnedAt && <p className="text-xs" style={{ color: 'var(--ink-soft)', marginTop: 6 }}>Earned {new Date(b.earnedAt).toLocaleDateString()}</p>}
           </div>
         ))}
       </div>
@@ -1811,38 +1995,61 @@ function StudentBadgesSubPanel({ onFlash }) {
 }
 
 // Student sidebar — Student Community (Part 10.20): Study Groups + Discussion Rooms.
+// Course-linked and institution-scoped — a student only ever sees groups for their own actively
+// enrolled courses (see /study-groups?courseId= on the backend).
 function StudentCommunityPanel({ onFlash, user }) {
   const [sub, setSub] = useState('browse');
+  const [courses, setCourses] = useState(null);
+  const [courseId, setCourseId] = useState('');
   const [groups, setGroups] = useState(null);
   const [myGroups, setMyGroups] = useState(null);
   const [activeGroup, setActiveGroup] = useState(null);
-  const [form, setForm] = useState({ name: '', description: '', subject: '' });
+  const [form, setForm] = useState({ name: '', description: '', subject: '', joinPolicy: 'open', maxMembers: 6 });
   const [creating, setCreating] = useState(false);
 
-  function load() {
-    apiRequest('/study-groups').then(setGroups).catch((err) => onFlash(err.message));
+  useEffect(() => {
+    apiRequest('/students/me/enrollments').then((list) => {
+      const active = list.filter((e) => e.course && e.status !== 'dropped').map((e) => e.course);
+      setCourses(active);
+      if (active.length && !courseId) setCourseId(active[0]._id);
+    }).catch((err) => onFlash(err.message));
     apiRequest('/study-groups/mine').then(setMyGroups).catch(() => setMyGroups([]));
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  function loadGroups() {
+    if (!courseId) return;
+    apiRequest(`/study-groups?courseId=${courseId}`).then(setGroups).catch((err) => onFlash(err.message));
   }
-  useEffect(load, []); // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(loadGroups, [courseId]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  function reloadAll() {
+    loadGroups();
+    apiRequest('/study-groups/mine').then(setMyGroups).catch(() => {});
+  }
 
   const myGroupIds = new Set((myGroups || []).map((g) => g._id));
 
   async function createGroup(e) {
     e.preventDefault();
-    if (!form.name.trim()) return;
+    if (!form.name.trim() || !courseId) return;
     setCreating(true);
     try {
-      await apiRequest('/study-groups', { method: 'POST', body: form });
+      await apiRequest('/study-groups', { method: 'POST', body: { ...form, courseId } });
       onFlash('Study group created.', 'success');
-      setForm({ name: '', description: '', subject: '' });
-      load();
+      setForm({ name: '', description: '', subject: '', joinPolicy: 'open', maxMembers: 6 });
+      setSub('browse');
+      reloadAll();
     } catch (err) { onFlash(err.message); } finally { setCreating(false); }
   }
   async function joinGroup(id) {
-    try { await apiRequest(`/study-groups/${id}/join`, { method: 'POST' }); onFlash('Joined study group.', 'success'); load(); } catch (err) { onFlash(err.message); }
+    try {
+      const res = await apiRequest(`/study-groups/${id}/join`, { method: 'POST' });
+      onFlash(res?.message || 'Joined study group.', 'success');
+      reloadAll();
+    } catch (err) { onFlash(err.message); }
   }
 
-  if (activeGroup) return <StudyGroupDetail group={activeGroup} user={user} onFlash={onFlash} onBack={() => { setActiveGroup(null); load(); }} />;
+  if (activeGroup) return <StudyGroupDetail groupId={activeGroup} user={user} onFlash={onFlash} onBack={() => { setActiveGroup(null); reloadAll(); }} />;
 
   const tabs = [{ key: 'browse', label: 'Browse Groups' }, { key: 'mine', label: 'My Groups' }, { key: 'create', label: 'Create Group' }];
 
@@ -1852,6 +2059,15 @@ function StudentCommunityPanel({ onFlash, user }) {
         <span style={{ width: 38, height: 38, borderRadius: 10, background: 'var(--sand)', color: 'var(--forest)', display: 'grid', placeItems: 'center', flexShrink: 0 }}><FaUsers aria-hidden="true" size={16} /></span>
         <h3 className="font-semibold" style={{ margin: 0 }}>Study Groups</h3>
       </div>
+
+      {courses && courses.length > 1 && (
+        <select className="form-input" style={{ maxWidth: 320, marginBottom: 16 }} value={courseId} onChange={(e) => setCourseId(e.target.value)}>
+          {courses.map((c) => <option key={c._id} value={c._id}>{c.title}</option>)}
+        </select>
+      )}
+      {courses && courses.length === 0 && (
+        <p className="admin-notice">You need to be enrolled in a course before you can create or join its study groups.</p>
+      )}
 
       <nav className="cz-tabbar" style={{ marginBottom: 20 }}>
         {tabs.map((t) => (
@@ -1864,7 +2080,18 @@ function StudentCommunityPanel({ onFlash, user }) {
           <input className="form-input" placeholder="Group name" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} />
           <input className="form-input" placeholder="Subject (e.g. Math, Physics)" value={form.subject} onChange={(e) => setForm({ ...form, subject: e.target.value })} />
           <textarea className="form-input" placeholder="What's this group about?" rows={3} value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} />
-          <button type="submit" className="btn btn-primary" disabled={creating} style={{ padding: '8px 18px', fontSize: '0.8rem', justifySelf: 'start' }}>{creating ? 'Creating...' : 'Create Group'}</button>
+          <div className="flex items-center" style={{ gap: 12, flexWrap: 'wrap' }}>
+            <label className="text-xs" style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>Join policy
+              <select className="form-input" value={form.joinPolicy} onChange={(e) => setForm({ ...form, joinPolicy: e.target.value })}>
+                <option value="open">Open — anyone enrolled can join instantly</option>
+                <option value="approval">Approval — you approve each join request</option>
+              </select>
+            </label>
+            <label className="text-xs" style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>Max members
+              <input type="number" min={2} max={50} className="form-input" style={{ width: 90 }} value={form.maxMembers} onChange={(e) => setForm({ ...form, maxMembers: Number(e.target.value) })} />
+            </label>
+          </div>
+          <button type="submit" className="btn btn-primary" disabled={creating || !courseId} style={{ padding: '8px 18px', fontSize: '0.8rem', justifySelf: 'start' }}>{creating ? 'Creating...' : 'Create Group'}</button>
         </form>
       )}
 
@@ -1875,27 +2102,30 @@ function StudentCommunityPanel({ onFlash, user }) {
           return (
             <div className="student-empty-state" style={{ border: '1px solid var(--sand-line)', borderRadius: 18 }}>
               <FaUsers aria-hidden="true" />
-              <p>{sub === 'mine' ? "You haven't joined any groups yet" : 'No study groups yet'}</p>
+              <p>{sub === 'mine' ? "You haven't joined any groups yet" : 'No study groups yet for this class'}</p>
               <span>{sub === 'mine' ? 'Browse groups or create your own.' : 'Be the first to create one!'}</span>
             </div>
           );
         }
         return (
           <div style={{ display: 'grid', gap: 10 }}>
-            {list.map((g) => (
-              <div key={g._id} className="hover-card card flex items-center justify-between flex-wrap" style={{ padding: 16, gap: 14 }}>
-                <div className="flex items-center" style={{ gap: 14, minWidth: 0, cursor: 'pointer' }} onClick={() => setActiveGroup(g)}>
-                  <span style={{ width: 40, height: 40, borderRadius: 12, background: 'var(--sand)', color: 'var(--forest)', display: 'grid', placeItems: 'center', flexShrink: 0, fontWeight: 700 }}>{g.name[0]}</span>
-                  <div style={{ minWidth: 0 }}>
-                    <strong className="text-sm">{g.name}</strong>
-                    <p className="text-xs" style={{ color: 'var(--ink-soft)', marginTop: 2 }}>{g.subject ? `${g.subject} · ` : ''}{g.memberCount} member{g.memberCount === 1 ? '' : 's'} · by {g.createdBy?.fullName || 'a student'}</p>
+            {list.map((g) => {
+              const full = g.memberCount >= g.maxMembers;
+              return (
+                <div key={g._id} className="hover-card card flex items-center justify-between flex-wrap" style={{ padding: 16, gap: 14 }}>
+                  <div className="flex items-center" style={{ gap: 14, minWidth: 0, cursor: 'pointer' }} onClick={() => setActiveGroup(g._id)}>
+                    <span style={{ width: 40, height: 40, borderRadius: 12, background: 'var(--sand)', color: 'var(--forest)', display: 'grid', placeItems: 'center', flexShrink: 0, fontWeight: 700 }}>{g.name[0]}</span>
+                    <div style={{ minWidth: 0 }}>
+                      <strong className="text-sm">{g.name}{g.aiGenerated && <span className="badge" style={{ marginLeft: 6, fontSize: 10 }}>AI Balanced</span>}</strong>
+                      <p className="text-xs" style={{ color: 'var(--ink-soft)', marginTop: 2 }}>{g.subject ? `${g.subject} · ` : ''}{g.memberCount}/{g.maxMembers} members · by {g.owner?.fullName || 'a student'}</p>
+                    </div>
                   </div>
+                  {myGroupIds.has(g._id)
+                    ? <button type="button" className="btn" style={{ padding: '6px 14px', fontSize: '0.75rem', flexShrink: 0 }} onClick={() => setActiveGroup(g._id)}>Open</button>
+                    : <button type="button" className="btn btn-primary" disabled={full && g.joinPolicy !== 'approval'} style={{ padding: '6px 14px', fontSize: '0.75rem', flexShrink: 0 }} onClick={() => joinGroup(g._id)}>{g.joinPolicy === 'approval' ? 'Request to Join' : full ? 'Full' : 'Join'}</button>}
                 </div>
-                {myGroupIds.has(g._id)
-                  ? <button type="button" className="btn" style={{ padding: '6px 14px', fontSize: '0.75rem', flexShrink: 0 }} onClick={() => setActiveGroup(g)}>Open</button>
-                  : <button type="button" className="btn btn-primary" style={{ padding: '6px 14px', fontSize: '0.75rem', flexShrink: 0 }} onClick={() => joinGroup(g._id)}>Join</button>}
-              </div>
-            ))}
+              );
+            })}
           </div>
         );
       })()}
@@ -1903,33 +2133,105 @@ function StudentCommunityPanel({ onFlash, user }) {
   );
 }
 
-function StudyGroupDetail({ group, user, onFlash, onBack }) {
+function StudyGroupDetail({ groupId, user, onFlash, onBack }) {
+  const { socket } = useRealtime();
+  const [group, setGroup] = useState(null);
   const [posts, setPosts] = useState(null);
   const [text, setText] = useState('');
-  const [members, setMembers] = useState(group.members || []);
+  const [sub, setSub] = useState('chat');
+  const [contributionNote, setContributionNote] = useState('');
+  const [resourceForm, setResourceForm] = useState({ name: '', file: null, busy: false });
+  const [taskForm, setTaskForm] = useState({ title: '', assignedTo: '', dueDate: '' });
+  const [submissionText, setSubmissionText] = useState('');
+  const chatEndRef = useRef(null);
 
   function load() {
-    apiRequest(`/study-groups/${group._id}/posts`).then(setPosts).catch((err) => onFlash(err.message));
-    apiRequest(`/study-groups/${group._id}`).then((g) => setMembers(g.members || [])).catch(() => {});
+    apiRequest(`/study-groups/${groupId}`).then((g) => { setGroup(g); setSubmissionText(g.submission?.text || ''); setContributionNote((g.contributions || []).find((c) => c.user?._id === user?.id || c.user === user?.id)?.note || ''); }).catch((err) => onFlash(err.message));
+    apiRequest(`/study-groups/${groupId}/posts`).then(setPosts).catch(() => {});
   }
-  useEffect(load, []); // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(load, [groupId]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  useEffect(() => {
+    if (!socket) return;
+    socket.emit('study-group:join', { groupId }, () => {});
+    function onMessage(post) { setPosts((prev) => (prev ? [...prev, post] : [post])); }
+    socket.on('study-group:message', onMessage);
+    return () => { socket.off('study-group:message', onMessage); socket.emit('study-group:leave', { groupId }, () => {}); };
+  }, [socket, groupId]);
+
+  useEffect(() => { chatEndRef.current?.scrollIntoView({ block: 'nearest' }); }, [posts]);
+
+  const isOwner = group && (group.owner?._id === user?.id || group.owner === user?.id);
+  const memberIds = new Set((group?.members || []).map((m) => m.user?._id || m.user));
 
   async function send(e) {
     e.preventDefault();
     if (!text.trim()) return;
+    try { await apiRequest(`/study-groups/${groupId}/posts`, { method: 'POST', body: { text: text.trim() } }); setText(''); } catch (err) { onFlash(err.message); }
+  }
+  async function leave() {
+    try { await apiRequest(`/study-groups/${groupId}/leave`, { method: 'POST' }); onFlash('Left the group.', 'success'); onBack(); } catch (err) { onFlash(err.message); }
+  }
+  async function decide(uid, action) {
+    try { await apiRequest(`/study-groups/${groupId}/requests/${uid}`, { method: 'PATCH', body: { action } }); load(); } catch (err) { onFlash(err.message); }
+  }
+  async function removeMember(uid) {
+    if (!confirm('Remove this member from the group?')) return;
+    try { await apiRequest(`/study-groups/${groupId}/members/${uid}/remove`, { method: 'PATCH' }); onFlash('Member removed.', 'success'); load(); } catch (err) { onFlash(err.message); }
+  }
+  async function transfer(uid) {
+    if (!confirm('Transfer group ownership to this member?')) return;
+    try { await apiRequest(`/study-groups/${groupId}/transfer-ownership`, { method: 'PATCH', body: { userId: uid } }); onFlash('Ownership transferred.', 'success'); load(); } catch (err) { onFlash(err.message); }
+  }
+  async function saveContribution() {
+    try { await apiRequest(`/study-groups/${groupId}/contribution`, { method: 'PATCH', body: { note: contributionNote } }); onFlash('Contribution note saved.', 'success'); } catch (err) { onFlash(err.message); }
+  }
+  async function addTask(e) {
+    e.preventDefault();
+    if (!taskForm.title.trim()) return;
     try {
-      await apiRequest(`/study-groups/${group._id}/posts`, { method: 'POST', body: { text: text.trim() } });
-      setText('');
+      await apiRequest(`/study-groups/${groupId}/tasks`, { method: 'POST', body: { title: taskForm.title, assignedTo: taskForm.assignedTo || null, dueDate: taskForm.dueDate || null } });
+      setTaskForm({ title: '', assignedTo: '', dueDate: '' });
       load();
     } catch (err) { onFlash(err.message); }
   }
-  async function leave() {
-    try {
-      await apiRequest(`/study-groups/${group._id}/leave`, { method: 'POST' });
-      onFlash('Left the group.', 'success');
-      onBack();
-    } catch (err) { onFlash(err.message); }
+  async function updateTaskStatus(taskId, status) {
+    try { await apiRequest(`/study-groups/${groupId}/tasks/${taskId}`, { method: 'PATCH', body: { status } }); load(); } catch (err) { onFlash(err.message); }
   }
+  async function uploadResource(e) {
+    e.preventDefault();
+    if (!resourceForm.file) return;
+    setResourceForm((f) => ({ ...f, busy: true }));
+    try {
+      const sig = await apiRequest('/media/platform/signature?folder=study-group-resources');
+      const fd = new FormData();
+      fd.append('file', resourceForm.file);
+      fd.append('api_key', sig.apiKey);
+      fd.append('timestamp', sig.timestamp);
+      fd.append('signature', sig.signature);
+      fd.append('folder', sig.folder);
+      const uploadRes = await fetch(`https://api.cloudinary.com/v1_1/${sig.cloudName}/auto/upload`, { method: 'POST', body: fd });
+      const uploaded = await uploadRes.json();
+      if (!uploaded.secure_url) throw new Error('Upload failed.');
+      await apiRequest(`/study-groups/${groupId}/resources`, { method: 'POST', body: { name: resourceForm.name || resourceForm.file.name, url: uploaded.secure_url } });
+      setResourceForm({ name: '', file: null, busy: false });
+      onFlash('Resource shared.', 'success');
+      load();
+    } catch (err) { onFlash(err.message); setResourceForm((f) => ({ ...f, busy: false })); }
+  }
+  async function submitAssignment() {
+    try { await apiRequest(`/study-groups/${groupId}/submission`, { method: 'PATCH', body: { text: submissionText } }); onFlash('Assignment submitted.', 'success'); load(); } catch (err) { onFlash(err.message); }
+  }
+
+  if (!group) return <p role="status" className="admin-notice">Loading...</p>;
+
+  const TABS = [
+    { key: 'chat', label: 'Discussion' },
+    { key: 'project', label: 'Project & Tasks' },
+    { key: 'resources', label: 'Resources' },
+    { key: 'members', label: 'Members' },
+    ...(group.groupMarks != null || (group.individualMarks || []).length ? [{ key: 'marks', label: 'Marks' }] : [])
+  ];
 
   return (
     <div>
@@ -1940,36 +2242,160 @@ function StudyGroupDetail({ group, user, onFlash, onBack }) {
           <span style={{ width: 44, height: 44, borderRadius: 12, background: 'var(--sand)', color: 'var(--forest)', display: 'grid', placeItems: 'center', flexShrink: 0, fontWeight: 700, fontSize: 18 }}>{group.name[0]}</span>
           <div style={{ minWidth: 0 }}>
             <strong className="text-sm">{group.name}</strong>
-            <p className="text-xs" style={{ color: 'var(--ink-soft)', marginTop: 2 }}>{group.subject ? `${group.subject} · ` : ''}{members.length} member{members.length === 1 ? '' : 's'}</p>
+            <p className="text-xs" style={{ color: 'var(--ink-soft)', marginTop: 2 }}>{group.subject ? `${group.subject} · ` : ''}{group.members.length}/{group.maxMembers} members{isOwner ? ' · you are the owner' : ''}</p>
             {group.description && <p className="text-xs" style={{ color: 'var(--ink-soft)', marginTop: 4 }}>{group.description}</p>}
           </div>
         </div>
-        <button type="button" className="btn" style={{ padding: '6px 14px', fontSize: '0.75rem', flexShrink: 0 }} onClick={leave}>Leave Group</button>
+        {!isOwner && <button type="button" className="btn" style={{ padding: '6px 14px', fontSize: '0.75rem', flexShrink: 0 }} onClick={leave}>Leave Group</button>}
       </div>
 
-      <div className="card" style={{ padding: '10px 14px', marginBottom: 14, maxHeight: 380, overflowY: 'auto' }}>
-        {posts === null && <p role="status" className="admin-notice">Loading...</p>}
-        {posts && posts.length === 0 && (
-          <div className="student-empty-state" style={{ minHeight: 100, padding: '16px 0' }}>
-            <p>No messages yet</p>
-            <span>Start the discussion below.</span>
+      {isOwner && group.pendingRequests?.length > 0 && (
+        <div className="card" style={{ padding: 16, marginBottom: 16, borderColor: 'var(--forest)' }}>
+          <strong className="text-xs">Join requests ({group.pendingRequests.length})</strong>
+          <div style={{ display: 'grid', gap: 8, marginTop: 8 }}>
+            {group.pendingRequests.map((p) => (
+              <div key={p.user._id} className="flex items-center justify-between" style={{ fontSize: 13 }}>
+                <span>{p.user.fullName}</span>
+                <span style={{ display: 'flex', gap: 6 }}>
+                  <button type="button" className="btn btn-primary" style={{ padding: '4px 10px', fontSize: '0.7rem' }} onClick={() => decide(p.user._id, 'approve')}>Approve</button>
+                  <button type="button" className="btn" style={{ padding: '4px 10px', fontSize: '0.7rem' }} onClick={() => decide(p.user._id, 'reject')}>Reject</button>
+                </span>
+              </div>
+            ))}
           </div>
-        )}
-        {(posts || []).map((p, idx) => (
-          <div key={p._id} style={{ padding: '10px 4px', borderBottom: idx < posts.length - 1 ? '1px solid var(--sand-line)' : 'none' }}>
-            <div className="flex items-center" style={{ gap: 8 }}>
-              <span style={{ width: 22, height: 22, borderRadius: '50%', background: 'var(--forest)', color: '#fff', display: 'grid', placeItems: 'center', fontSize: 10, fontWeight: 700, flexShrink: 0 }}>{(p.author?.fullName || '?')[0]}</span>
-              <strong className="text-xs">{p.author?.fullName}</strong>
-              <span className="text-xs" style={{ color: 'var(--ink-soft)' }}>{new Date(p.createdAt).toLocaleString()}</span>
+        </div>
+      )}
+
+      <nav className="cz-tabbar" style={{ marginBottom: 16 }}>
+        {TABS.map((t) => <button key={t.key} type="button" aria-pressed={sub === t.key} className={`cz-tab${sub === t.key ? ' active' : ''}`} onClick={() => setSub(t.key)}>{t.label}</button>)}
+      </nav>
+
+      {sub === 'chat' && (
+        <>
+          <div className="card" style={{ padding: '10px 14px', marginBottom: 14, maxHeight: 380, overflowY: 'auto' }}>
+            {posts === null && <p role="status" className="admin-notice">Loading...</p>}
+            {posts && posts.length === 0 && (
+              <div className="student-empty-state" style={{ minHeight: 100, padding: '16px 0' }}>
+                <p>No messages yet</p>
+                <span>Start the discussion below.</span>
+              </div>
+            )}
+            {(posts || []).map((p, idx) => (
+              <div key={p._id} style={{ padding: '10px 4px', borderBottom: idx < posts.length - 1 ? '1px solid var(--sand-line)' : 'none' }}>
+                <div className="flex items-center" style={{ gap: 8 }}>
+                  <span style={{ width: 22, height: 22, borderRadius: '50%', background: 'var(--forest)', color: '#fff', display: 'grid', placeItems: 'center', fontSize: 10, fontWeight: 700, flexShrink: 0 }}>{(p.author?.fullName || '?')[0]}</span>
+                  <strong className="text-xs">{p.author?.fullName}</strong>
+                  <span className="text-xs" style={{ color: 'var(--ink-soft)' }}>{new Date(p.createdAt).toLocaleString()}</span>
+                </div>
+                <div style={{ fontSize: 13, marginTop: 4, marginLeft: 30 }}>{p.text}</div>
+              </div>
+            ))}
+            <div ref={chatEndRef} />
+          </div>
+          <form onSubmit={send} className="flex items-end" style={{ gap: 12 }}>
+            <input className="form-input" placeholder="Message this group..." value={text} onChange={(e) => setText(e.target.value)} required style={{ flex: '1 1 auto', minWidth: 0 }} />
+            <button type="submit" className="btn btn-primary" style={{ flexShrink: 0 }}>Send</button>
+          </form>
+        </>
+      )}
+
+      {sub === 'project' && (
+        <div style={{ display: 'grid', gap: 16 }}>
+          <div className="card" style={{ padding: 16 }}>
+            <strong className="text-sm">{group.project?.title || 'No project set yet'}</strong>
+            {group.project?.deadline && <p className="text-xs" style={{ color: 'var(--ink-soft)', marginTop: 4 }}>Deadline: {new Date(group.project.deadline).toLocaleDateString()}</p>}
+            {group.project?.instructions && <p className="text-sm" style={{ marginTop: 8 }}>{group.project.instructions}</p>}
+          </div>
+
+          <div className="card" style={{ padding: 16 }}>
+            <strong className="text-xs">Tasks</strong>
+            <div style={{ display: 'grid', gap: 8, marginTop: 10 }}>
+              {(group.tasks || []).length === 0 && <p className="text-xs" style={{ color: 'var(--ink-soft)' }}>No tasks yet.</p>}
+              {(group.tasks || []).map((t) => (
+                <div key={t._id} className="flex items-center justify-between" style={{ fontSize: 13, gap: 8 }}>
+                  <span>{t.title}{t.assignedTo && <span className="text-xs" style={{ color: 'var(--ink-soft)' }}> — {(group.members.find((m) => (m.user?._id || m.user) === t.assignedTo)?.user?.fullName) || 'assigned'}</span>}</span>
+                  <select className="form-input" style={{ width: 130, padding: '3px 8px', fontSize: 12 }} value={t.status} onChange={(e) => updateTaskStatus(t._id, e.target.value)}>
+                    <option value="pending">Pending</option>
+                    <option value="in_progress">In Progress</option>
+                    <option value="done">Done</option>
+                  </select>
+                </div>
+              ))}
             </div>
-            <div style={{ fontSize: 13, marginTop: 4, marginLeft: 30 }}>{p.text}</div>
+            <form onSubmit={addTask} className="flex items-center flex-wrap" style={{ gap: 8, marginTop: 12 }}>
+              <input className="form-input" placeholder="New task" style={{ flex: '1 1 160px' }} value={taskForm.title} onChange={(e) => setTaskForm({ ...taskForm, title: e.target.value })} />
+              <select className="form-input" style={{ width: 150 }} value={taskForm.assignedTo} onChange={(e) => setTaskForm({ ...taskForm, assignedTo: e.target.value })}>
+                <option value="">Unassigned</option>
+                {(group.members || []).map((m) => <option key={m.user._id} value={m.user._id}>{m.user.fullName}</option>)}
+              </select>
+              <input type="date" className="form-input" style={{ width: 140 }} value={taskForm.dueDate} onChange={(e) => setTaskForm({ ...taskForm, dueDate: e.target.value })} />
+              <button type="submit" className="btn btn-primary" style={{ padding: '6px 14px', fontSize: '0.75rem' }}>Add</button>
+            </form>
           </div>
-        ))}
-      </div>
-      <form onSubmit={send} className="flex items-end" style={{ gap: 12 }}>
-        <input className="form-input" placeholder="Message this group..." value={text} onChange={(e) => setText(e.target.value)} required style={{ flex: '1 1 auto', minWidth: 0 }} />
-        <button type="submit" className="btn btn-primary" style={{ flexShrink: 0 }}>Send</button>
-      </form>
+
+          <div className="card" style={{ padding: 16 }}>
+            <strong className="text-xs">Group Assignment Submission</strong>
+            <textarea className="form-input" rows={4} style={{ marginTop: 8 }} placeholder="Write or paste the group's submission here..." value={submissionText} onChange={(e) => setSubmissionText(e.target.value)} />
+            <button type="button" className="btn btn-primary" style={{ padding: '6px 14px', fontSize: '0.75rem', marginTop: 8 }} onClick={submitAssignment}>{group.submission?.submittedAt ? 'Resubmit' : 'Submit'}</button>
+            {group.submission?.submittedAt && <p className="text-xs" style={{ color: 'var(--ink-soft)', marginTop: 6 }}>Last submitted {new Date(group.submission.submittedAt).toLocaleString()} by {group.submission.submittedBy?.fullName || 'a member'}.</p>}
+          </div>
+
+          <div className="card" style={{ padding: 16 }}>
+            <strong className="text-xs">Your Contribution Note</strong>
+            <p className="text-xs" style={{ color: 'var(--ink-soft)', marginTop: 4 }}>What did you personally do for this project? Your teacher sees this when grading individual contribution.</p>
+            <textarea className="form-input" rows={3} style={{ marginTop: 8 }} value={contributionNote} onChange={(e) => setContributionNote(e.target.value)} />
+            <button type="button" className="btn" style={{ padding: '6px 14px', fontSize: '0.75rem', marginTop: 8 }} onClick={saveContribution}>Save Note</button>
+          </div>
+        </div>
+      )}
+
+      {sub === 'resources' && (
+        <div style={{ display: 'grid', gap: 12 }}>
+          <form onSubmit={uploadResource} className="card flex items-center flex-wrap" style={{ padding: 16, gap: 10 }}>
+            <input className="form-input" placeholder="File name (optional)" style={{ flex: '1 1 160px' }} value={resourceForm.name} onChange={(e) => setResourceForm({ ...resourceForm, name: e.target.value })} />
+            <input type="file" onChange={(e) => setResourceForm({ ...resourceForm, file: e.target.files?.[0] || null })} />
+            <button type="submit" className="btn btn-primary" disabled={resourceForm.busy || !resourceForm.file} style={{ padding: '6px 14px', fontSize: '0.75rem' }}>{resourceForm.busy ? 'Uploading...' : 'Share'}</button>
+          </form>
+          {(group.resources || []).length === 0 && <p className="text-xs" style={{ color: 'var(--ink-soft)' }}>No files shared yet.</p>}
+          {(group.resources || []).map((r) => (
+            <a key={r._id} href={r.url} target="_blank" rel="noreferrer" className="card hover-card flex items-center justify-between" style={{ padding: 12, textDecoration: 'none' }}>
+              <span className="text-sm">{r.name}</span>
+              <span className="text-xs" style={{ color: 'var(--ink-soft)' }}>{r.uploadedBy?.fullName} · {new Date(r.uploadedAt).toLocaleDateString()}</span>
+            </a>
+          ))}
+        </div>
+      )}
+
+      {sub === 'members' && (
+        <div style={{ display: 'grid', gap: 8 }}>
+          {(group.members || []).map((m) => (
+            <div key={m.user._id} className="card flex items-center justify-between" style={{ padding: 12 }}>
+              <span className="text-sm">{m.user.fullName}{(group.owner?._id || group.owner) === m.user._id && <span className="badge" style={{ marginLeft: 6, fontSize: 10 }}>Owner</span>}</span>
+              {isOwner && (group.owner?._id || group.owner) !== m.user._id && (
+                <span style={{ display: 'flex', gap: 6 }}>
+                  <button type="button" className="btn" style={{ padding: '4px 10px', fontSize: '0.7rem' }} onClick={() => transfer(m.user._id)}>Make Owner</button>
+                  <button type="button" className="btn" style={{ padding: '4px 10px', fontSize: '0.7rem' }} onClick={() => removeMember(m.user._id)}>Remove</button>
+                </span>
+              )}
+            </div>
+          ))}
+        </div>
+      )}
+
+      {sub === 'marks' && (
+        <div className="card" style={{ padding: 16 }}>
+          {group.groupMarks != null && <p className="text-sm">Group marks: <strong>{group.groupMarks}/100</strong></p>}
+          <div style={{ display: 'grid', gap: 6, marginTop: 10 }}>
+            {(group.individualMarks || []).map((m) => (
+              <div key={m.user._id || m.user} className="flex items-center justify-between text-sm">
+                <span>{m.user.fullName || 'Member'}</span>
+                <strong>{m.marks}/100</strong>
+              </div>
+            ))}
+            {(group.individualMarks || []).length === 0 && group.groupMarks == null && <p className="text-xs" style={{ color: 'var(--ink-soft)' }}>Not graded yet.</p>}
+          </div>
+        </div>
+      )}
     </div>
   );
 }
@@ -7920,8 +8346,10 @@ function TeacherEngagementPanel({ onFlash }) {
   const [section, setSection] = useState('questions');
   const [questions, setQuestions] = useState(null);
   const [polls, setPolls] = useState(null);
-  const [pollForm, setPollForm] = useState({ question: '', options: ['', ''] });
+  const { courses: myCourses } = useTeacherCourses(onFlash);
+  const [pollForm, setPollForm] = useState({ course: '', question: '', options: ['', ''] });
   const [submissions, setSubmissions] = useState(null);
+  const [expandedSubmission, setExpandedSubmission] = useState(null);
   const [answerDrafts, setAnswerDrafts] = useState({});
 
   useEffect(() => {
@@ -7960,12 +8388,13 @@ function TeacherEngagementPanel({ onFlash }) {
   }
   async function createPoll(e) {
     e.preventDefault();
+    if (!pollForm.course) return onFlash('Pick which class this poll is for.');
     const options = pollForm.options.map((o) => o.trim()).filter(Boolean);
     if (options.length < 2) return onFlash('Add at least 2 options.');
     try {
-      await apiRequest('/polls', { method: 'POST', body: { institution: institution._id, question: pollForm.question, options } });
+      await apiRequest('/polls', { method: 'POST', body: { course: pollForm.course, question: pollForm.question, options } });
       onFlash('Poll created.', 'success');
-      setPollForm({ question: '', options: ['', ''] });
+      setPollForm((f) => ({ ...f, question: '', options: ['', ''] }));
       loadPolls();
     } catch (err) { onFlash(err.message); }
   }
@@ -7977,9 +8406,14 @@ function TeacherEngagementPanel({ onFlash }) {
     } catch (err) { onFlash(err.message); }
   }
   async function reviewSubmission(id, status) {
+    let editorNotes;
+    if (status === 'changes_requested') {
+      editorNotes = await showPrompt('Tell the student exactly what needs to change before you can accept this.', { title: 'Request changes', placeholder: 'e.g. Add a stronger conclusion, fix formatting…', confirmLabel: 'Send request', required: true });
+      if (editorNotes === null) return;
+    }
     try {
-      await apiRequest(`/magazine/${id}/review`, { method: 'PATCH', body: { status } });
-      onFlash(`Submission ${status}.`, 'success');
+      await apiRequest(`/magazine/${id}/review`, { method: 'PATCH', body: { status, editorNotes } });
+      onFlash(`Submission ${status.replace('_', ' ')}.`, 'success');
       loadSubmissions(institution._id);
     } catch (err) { onFlash(err.message); }
   }
@@ -7993,6 +8427,8 @@ function TeacherEngagementPanel({ onFlash }) {
         <button type="button" className={`btn ${section === 'questions' ? 'btn-primary' : ''}`} onClick={() => setSection('questions')}>Anonymous Questions</button>
         <button type="button" className={`btn ${section === 'polls' ? 'btn-primary' : ''}`} onClick={() => setSection('polls')}>Quick Polls</button>
         <button type="button" className={`btn ${section === 'magazine' ? 'btn-primary' : ''}`} onClick={() => setSection('magazine')}>Magazine Submissions</button>
+        <button type="button" className={`btn ${section === 'groups' ? 'btn-primary' : ''}`} onClick={() => setSection('groups')}>Study Groups</button>
+        <button type="button" className={`btn ${section === 'verify' ? 'btn-primary' : ''}`} onClick={() => setSection('verify')}>Verify Goals & Achievements</button>
       </div>
 
       {section === 'questions' && (
@@ -8001,7 +8437,7 @@ function TeacherEngagementPanel({ onFlash }) {
           {questions?.length === 0 && <p className="admin-notice">No questions yet.</p>}
           {(questions || []).map((q) => (
             <div key={q._id} className="border border-[var(--sand-line)] rounded-xl p-3">
-              <p className="text-xs" style={{ color: 'var(--ink-soft)' }}>{q.subject || 'General'} · {new Date(q.createdAt).toLocaleDateString()}</p>
+              <p className="text-xs" style={{ color: 'var(--ink-soft)' }}>{q.course?.title || 'General'} · {new Date(q.createdAt).toLocaleDateString()}</p>
               <p className="font-medium" style={{ margin: '4px 0' }}>{q.question}</p>
               {q.status === 'answered' ? (
                 <p className="text-sm" style={{ color: 'var(--forest)' }}>Your answer: {q.answer}</p>
@@ -8019,6 +8455,10 @@ function TeacherEngagementPanel({ onFlash }) {
       {section === 'polls' && (
         <div>
           <form onSubmit={createPoll} className="space-y-2 max-w-md mb-6 border border-[var(--sand-line)] rounded-xl p-3">
+            <select className="form-select" value={pollForm.course} onChange={(e) => setPollForm({ ...pollForm, course: e.target.value })} required>
+              <option value="">Select which class…</option>
+              {myCourses.map((c) => <option key={c._id} value={c._id}>{c.title}</option>)}
+            </select>
             <input className="form-input" placeholder="Poll question" value={pollForm.question} onChange={(e) => setPollForm({ ...pollForm, question: e.target.value })} required />
             {pollForm.options.map((o, i) => (
               <input key={i} className="form-input" placeholder={`Option ${i + 1}`} value={o} onChange={(e) => updateOption(i, e.target.value)} />
@@ -8030,9 +8470,12 @@ function TeacherEngagementPanel({ onFlash }) {
           </form>
           <Table
             loading={polls === null}
-            headers={['Question', 'Votes', 'Status', 'Action']}
+            headers={['Class', 'Question', 'Votes / %', 'Status', 'Action']}
             rows={(polls || []).map((p) => [
-              p.question, p.options.map((o) => `${o.text}: ${o.votes}`).join(' · '), <Tag status={p.status === 'closed' ? 'rejected' : 'approved'} label={p.status} />,
+              p.course?.title || 'Institution-wide',
+              p.question,
+              <div style={{ fontSize: 12 }}>{p.options.map((o, i) => <div key={i}>{o.text}: {o.votes} ({o.percent}%)</div>)}</div>,
+              <Tag status={p.status === 'closed' ? 'rejected' : 'approved'} label={p.status} />,
               p.status === 'open' ? <button className="btn" style={{ padding: '4px 10px', fontSize: '0.75rem' }} onClick={() => closePoll(p._id)}>Close</button> : '—'
             ])}
             empty="You haven't created any polls yet."
@@ -8041,21 +8484,330 @@ function TeacherEngagementPanel({ onFlash }) {
       )}
 
       {section === 'magazine' && (
-        <Table
-          loading={submissions === null}
-          headers={['Student', 'Title', 'Type', 'Status', 'Action']}
-          rows={(submissions || []).map((s) => [
-            s.student?.fullName || '—', s.title, s.type, <Tag status={s.status === 'published' ? 'approved' : s.status === 'rejected' ? 'rejected' : s.status === 'selected' ? 'approved' : 'pending'} label={s.status} />,
-            s.status === 'submitted' ? (
-              <div className="flex gap-1">
-                <button className="btn btn-primary" style={{ padding: '4px 10px', fontSize: '0.75rem' }} onClick={() => reviewSubmission(s._id, 'selected')}>Select</button>
-                <button className="btn" style={{ padding: '4px 10px', fontSize: '0.75rem', background: 'var(--sand-line)' }} onClick={() => reviewSubmission(s._id, 'rejected')}>Reject</button>
-              </div>
-            ) : '—'
-          ])}
-          empty="No submissions yet."
-        />
+        <div>
+          {submissions === null && <p className="admin-notice">Loading...</p>}
+          {submissions?.length === 0 && <p className="admin-notice">No submissions yet.</p>}
+          <div style={{ display: 'grid', gap: 10 }}>
+            {(submissions || []).map((s) => {
+              const STATUS_TAG = { published: 'approved', rejected: 'rejected', selected: 'approved', changes_requested: 'pending', submitted: 'pending' };
+              const open = expandedSubmission === s._id;
+              return (
+                <div key={s._id} className="border border-[var(--sand-line)] rounded-xl p-3">
+                  <div className="flex items-center justify-between flex-wrap" style={{ gap: 8 }}>
+                    <div>
+                      <strong className="text-sm">{s.title}</strong>
+                      <p className="text-xs" style={{ color: 'var(--ink-soft)', margin: '2px 0 0' }}>{s.student?.fullName || '—'} · {s.type}</p>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <Tag status={STATUS_TAG[s.status]} label={s.status.replace('_', ' ')} />
+                      <button type="button" className="btn" style={{ padding: '4px 10px', fontSize: '0.72rem' }} onClick={() => setExpandedSubmission(open ? null : s._id)}>{open ? 'Hide' : 'View'}</button>
+                    </div>
+                  </div>
+                  {open && (
+                    <div style={{ marginTop: 10, paddingTop: 10, borderTop: '1px solid var(--sand-line)' }}>
+                      {s.imageUrl && <img src={s.imageUrl} alt="" style={{ maxWidth: '100%', maxHeight: 240, borderRadius: 10, marginBottom: 10 }} />}
+                      <p className="text-sm" style={{ whiteSpace: 'pre-wrap', lineHeight: 1.6 }}>{s.content}</p>
+                      {s.editorNotes && <p className="text-xs" style={{ color: 'var(--gold)', marginTop: 8 }}>Notes: {s.editorNotes}</p>}
+                    </div>
+                  )}
+                  {s.status === 'submitted' && (
+                    <div className="flex gap-1 flex-wrap" style={{ marginTop: 10 }}>
+                      <button className="btn btn-primary" style={{ padding: '4px 10px', fontSize: '0.75rem' }} onClick={() => reviewSubmission(s._id, 'selected')}>Select</button>
+                      <button className="btn" style={{ padding: '4px 10px', fontSize: '0.75rem' }} onClick={() => reviewSubmission(s._id, 'changes_requested')}>Request Changes</button>
+                      <button className="btn" style={{ padding: '4px 10px', fontSize: '0.75rem', background: 'var(--sand-line)' }} onClick={() => reviewSubmission(s._id, 'rejected')}>Reject</button>
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        </div>
       )}
+
+      {section === 'groups' && <TeacherStudyGroupsSection onFlash={onFlash} myCourses={myCourses} />}
+      {section === 'verify' && <TeacherVerificationSection onFlash={onFlash} />}
+    </div>
+  );
+}
+
+// Institution/teacher review queue for a student's self-reported goal completion or manually
+// added achievement — nothing here is fabricated; the reviewer sees the evidence link and either
+// confirms it or sends it back with notes.
+function TeacherVerificationSection({ onFlash }) {
+  const [goals, setGoals] = useState(null);
+  const [achievements, setAchievements] = useState(null);
+
+  function load() {
+    apiRequest('/students/goals/review-queue').then(setGoals).catch((err) => onFlash(err.message));
+    apiRequest('/students/achievements/review-queue').then(setAchievements).catch((err) => onFlash(err.message));
+  }
+  useEffect(load, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  async function reviewGoal(id, approve) {
+    const notes = approve ? '' : (await showPrompt('What still needs to happen before this can be verified?', { title: 'Send back', required: true })) || '';
+    if (!approve && notes === null) return;
+    try { await apiRequest(`/students/goals/${id}/review`, { method: 'PATCH', body: { approve, notes } }); load(); } catch (err) { onFlash(err.message); }
+  }
+  async function reviewAchievement(id, approve) {
+    const notes = approve ? '' : (await showPrompt('What evidence is missing or unclear?', { title: 'Send back', required: true })) || '';
+    if (!approve && notes === null) return;
+    try { await apiRequest(`/students/achievements/${id}/review`, { method: 'PATCH', body: { approve, notes } }); load(); } catch (err) { onFlash(err.message); }
+  }
+
+  return (
+    <div style={{ display: 'grid', gap: 24 }}>
+      <div>
+        <strong className="text-xs" style={{ textTransform: 'uppercase', letterSpacing: '.04em', color: 'var(--ink-soft)' }}>Goals awaiting verification</strong>
+        {goals?.length === 0 && <p className="admin-notice" style={{ marginTop: 8 }}>Nothing pending.</p>}
+        <div style={{ display: 'grid', gap: 8, marginTop: 10 }}>
+          {(goals || []).map((g) => (
+            <div key={g._id} className="card" style={{ padding: 14 }}>
+              <div className="flex items-center justify-between flex-wrap" style={{ gap: 8 }}>
+                <div>
+                  <strong className="text-sm">{g.title}</strong>
+                  <p className="text-xs" style={{ color: 'var(--ink-soft)', marginTop: 2 }}>{g.student?.fullName} · {g.category}</p>
+                  {g.evidenceUrl && <a href={g.evidenceUrl} target="_blank" rel="noreferrer" className="text-xs">View evidence</a>}
+                </div>
+                <div style={{ display: 'flex', gap: 6 }}>
+                  <button type="button" className="btn btn-primary" style={{ padding: '4px 10px', fontSize: '0.72rem' }} onClick={() => reviewGoal(g._id, true)}>Verify</button>
+                  <button type="button" className="btn" style={{ padding: '4px 10px', fontSize: '0.72rem' }} onClick={() => reviewGoal(g._id, false)}>Send Back</button>
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      <div>
+        <strong className="text-xs" style={{ textTransform: 'uppercase', letterSpacing: '.04em', color: 'var(--ink-soft)' }}>Achievements awaiting verification</strong>
+        {achievements?.length === 0 && <p className="admin-notice" style={{ marginTop: 8 }}>Nothing pending.</p>}
+        <div style={{ display: 'grid', gap: 8, marginTop: 10 }}>
+          {(achievements || []).map((a) => (
+            <div key={a._id} className="card" style={{ padding: 14 }}>
+              <div className="flex items-center justify-between flex-wrap" style={{ gap: 8 }}>
+                <div>
+                  <strong className="text-sm">{a.title}</strong>
+                  <p className="text-xs" style={{ color: 'var(--ink-soft)', marginTop: 2 }}>{a.student?.fullName} · {a.type}</p>
+                  {a.description && <p className="text-xs" style={{ marginTop: 2 }}>{a.description}</p>}
+                  {a.evidenceUrl && <a href={a.evidenceUrl} target="_blank" rel="noreferrer" className="text-xs">View evidence</a>}
+                </div>
+                <div style={{ display: 'flex', gap: 6 }}>
+                  <button type="button" className="btn btn-primary" style={{ padding: '4px 10px', fontSize: '0.72rem' }} onClick={() => reviewAchievement(a._id, true)}>Verify</button>
+                  <button type="button" className="btn" style={{ padding: '4px 10px', fontSize: '0.72rem' }} onClick={() => reviewAchievement(a._id, false)}>Send Back</button>
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function TeacherStudyGroupsSection({ onFlash, myCourses }) {
+  const [courseId, setCourseId] = useState(myCourses[0]?._id || '');
+  const [groups, setGroups] = useState(null);
+  const [roster, setRoster] = useState([]);
+  const [enabled, setEnabled] = useState(true);
+  const [showCreate, setShowCreate] = useState(false);
+  const [manualForm, setManualForm] = useState({ name: '', memberIds: [] });
+  const [aiSize, setAiSize] = useState(4);
+  const [detail, setDetail] = useState(null);
+
+  useEffect(() => { if (!courseId && myCourses[0]) setCourseId(myCourses[0]._id); }, [myCourses]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  function load() {
+    if (!courseId) return;
+    apiRequest(`/study-groups/teacher/courses/${courseId}`).then(setGroups).catch((err) => onFlash(err.message));
+    apiRequest(`/study-groups/teacher/courses/${courseId}/roster`).then(setRoster).catch(() => {});
+    const c = myCourses.find((x) => x._id === courseId);
+    if (c) setEnabled(c.studyGroupsEnabled !== false);
+  }
+  useEffect(load, [courseId]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  async function toggleEnabled() {
+    try {
+      const res = await apiRequest(`/study-groups/teacher/courses/${courseId}/toggle-enabled`, { method: 'PATCH', body: { enabled: !enabled } });
+      setEnabled(res.studyGroupsEnabled);
+      onFlash(res.studyGroupsEnabled ? 'Study Groups enabled for this class.' : 'Study Groups disabled for this class.', 'success');
+    } catch (err) { onFlash(err.message); }
+  }
+  async function aiGenerate() {
+    try {
+      const res = await apiRequest('/study-groups/teacher/ai-generate', { method: 'POST', body: { courseId, groupSize: aiSize } });
+      onFlash(res.message || 'Groups generated.', 'success');
+      load();
+    } catch (err) { onFlash(err.message); }
+  }
+  async function createManual(e) {
+    e.preventDefault();
+    if (!manualForm.name.trim()) return;
+    try {
+      await apiRequest('/study-groups/teacher', { method: 'POST', body: { name: manualForm.name, courseId, memberIds: manualForm.memberIds } });
+      onFlash('Group created.', 'success');
+      setManualForm({ name: '', memberIds: [] });
+      setShowCreate(false);
+      load();
+    } catch (err) { onFlash(err.message); }
+  }
+  function toggleMember(id) {
+    setManualForm((f) => ({ ...f, memberIds: f.memberIds.includes(id) ? f.memberIds.filter((x) => x !== id) : [...f.memberIds, id] }));
+  }
+
+  if (detail) return <TeacherStudyGroupDetail groupId={detail} onFlash={onFlash} onBack={() => { setDetail(null); load(); }} />;
+
+  return (
+    <div>
+      {myCourses.length > 1 && (
+        <select className="form-input" style={{ maxWidth: 320, marginBottom: 14 }} value={courseId} onChange={(e) => setCourseId(e.target.value)}>
+          {myCourses.map((c) => <option key={c._id} value={c._id}>{c.title}</option>)}
+        </select>
+      )}
+      <div className="flex items-center flex-wrap" style={{ gap: 10, marginBottom: 16 }}>
+        <button type="button" className="btn" onClick={toggleEnabled}>{enabled ? 'Disable Study Groups for this class' : 'Enable Study Groups for this class'}</button>
+        <button type="button" className="btn" onClick={() => setShowCreate((s) => !s)}>+ Create Group Manually</button>
+        <input type="number" min={2} max={10} className="form-input" style={{ width: 70 }} value={aiSize} onChange={(e) => setAiSize(Number(e.target.value))} />
+        <button type="button" className="btn btn-primary" onClick={aiGenerate}>AI Group Maker (balance by performance)</button>
+      </div>
+
+      {showCreate && (
+        <form onSubmit={createManual} className="card" style={{ padding: 16, marginBottom: 16, display: 'grid', gap: 10, maxWidth: 480 }}>
+          <input className="form-input" placeholder="Group name" value={manualForm.name} onChange={(e) => setManualForm({ ...manualForm, name: e.target.value })} />
+          <div style={{ maxHeight: 220, overflowY: 'auto', display: 'grid', gap: 6 }}>
+            {roster.map((r) => (
+              <label key={r.user._id} className="flex items-center text-sm" style={{ gap: 8 }}>
+                <input type="checkbox" checked={manualForm.memberIds.includes(r.user._id)} onChange={() => toggleMember(r.user._id)} />
+                {r.user.fullName} <span className="text-xs" style={{ color: 'var(--ink-soft)' }}>(score: {r.overallScore || 0}%)</span>
+              </label>
+            ))}
+          </div>
+          <button type="submit" className="btn btn-primary" style={{ justifySelf: 'start' }}>Create</button>
+        </form>
+      )}
+
+      {groups === null && <p className="admin-notice">Loading...</p>}
+      {groups?.length === 0 && <p className="admin-notice">No study groups for this class yet.</p>}
+      <div style={{ display: 'grid', gap: 10 }}>
+        {(groups || []).map((g) => (
+          <div key={g._id} className="card hover-card flex items-center justify-between flex-wrap" style={{ padding: 14, gap: 10, cursor: 'pointer' }} onClick={() => setDetail(g._id)}>
+            <div>
+              <strong className="text-sm">{g.name}{g.aiGenerated && <span className="badge" style={{ marginLeft: 6, fontSize: 10 }}>AI Balanced</span>}</strong>
+              <p className="text-xs" style={{ color: 'var(--ink-soft)', marginTop: 2 }}>{g.memberCount}/{g.maxMembers} members · owner: {g.owner?.fullName || '—'}{g.groupMarks != null ? ` · graded: ${g.groupMarks}/100` : ''}</p>
+            </div>
+            <button type="button" className="btn" style={{ padding: '6px 14px', fontSize: '0.75rem' }} onClick={(e) => { e.stopPropagation(); setDetail(g._id); }}>Open</button>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+// Teacher view of a single group: oversight/moderation + project/task assignment + grading —
+// reuses the same endpoints as the student StudyGroupDetail, just with teacher-only actions shown.
+function TeacherStudyGroupDetail({ groupId, onFlash, onBack }) {
+  const [group, setGroup] = useState(null);
+  const [projectForm, setProjectForm] = useState({ title: '', instructions: '', deadline: '' });
+  const [marksForm, setMarksForm] = useState({ groupMarks: '', individual: {} });
+
+  function load() {
+    apiRequest(`/study-groups/${groupId}`).then((g) => {
+      setGroup(g);
+      setProjectForm({ title: g.project?.title || '', instructions: g.project?.instructions || '', deadline: g.project?.deadline ? g.project.deadline.slice(0, 10) : '' });
+      setMarksForm({ groupMarks: g.groupMarks ?? '', individual: Object.fromEntries((g.individualMarks || []).map((m) => [m.user._id || m.user, m.marks])) });
+    }).catch((err) => onFlash(err.message));
+  }
+  useEffect(load, [groupId]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  async function saveProject(e) {
+    e.preventDefault();
+    try { await apiRequest(`/study-groups/${groupId}/project`, { method: 'PATCH', body: projectForm }); onFlash('Project saved.', 'success'); load(); } catch (err) { onFlash(err.message); }
+  }
+  async function removeMember(uid) {
+    if (!confirm('Remove this member?')) return;
+    try { await apiRequest(`/study-groups/${groupId}/members/${uid}/remove`, { method: 'PATCH' }); load(); } catch (err) { onFlash(err.message); }
+  }
+  async function saveMarks() {
+    try {
+      await apiRequest(`/study-groups/${groupId}/marks`, {
+        method: 'PATCH',
+        body: { groupMarks: marksForm.groupMarks === '' ? undefined : Number(marksForm.groupMarks), individualMarks: Object.entries(marksForm.individual).map(([userId, marks]) => ({ userId, marks: Number(marks) })) }
+      });
+      onFlash('Marks saved.', 'success');
+      load();
+    } catch (err) { onFlash(err.message); }
+  }
+
+  if (!group) return <p className="admin-notice">Loading...</p>;
+
+  return (
+    <div>
+      <button type="button" className="btn flex items-center" style={{ padding: '6px 14px', fontSize: '0.75rem', marginBottom: 16, gap: 5 }} onClick={onBack}><FaArrowLeft aria-hidden="true" /> Back to Study Groups</button>
+      <h4 className="font-semibold" style={{ marginBottom: 4 }}>{group.name}</h4>
+      <p className="text-xs" style={{ color: 'var(--ink-soft)', marginBottom: 16 }}>{group.members.length}/{group.maxMembers} members</p>
+
+      <div className="card" style={{ padding: 16, marginBottom: 16 }}>
+        <strong className="text-xs">Members</strong>
+        <div style={{ display: 'grid', gap: 6, marginTop: 8 }}>
+          {group.members.map((m) => (
+            <div key={m.user._id} className="flex items-center justify-between text-sm">
+              <span>{m.user.fullName}{(group.owner?._id || group.owner) === m.user._id && <span className="badge" style={{ marginLeft: 6, fontSize: 10 }}>Owner</span>}</span>
+              <button type="button" className="btn" style={{ padding: '3px 10px', fontSize: '0.7rem' }} onClick={() => removeMember(m.user._id)}>Remove</button>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      <form onSubmit={saveProject} className="card" style={{ padding: 16, marginBottom: 16, display: 'grid', gap: 10 }}>
+        <strong className="text-xs">Project</strong>
+        <input className="form-input" placeholder="Project title" value={projectForm.title} onChange={(e) => setProjectForm({ ...projectForm, title: e.target.value })} />
+        <textarea className="form-input" rows={3} placeholder="Instructions" value={projectForm.instructions} onChange={(e) => setProjectForm({ ...projectForm, instructions: e.target.value })} />
+        <input type="date" className="form-input" style={{ width: 180 }} value={projectForm.deadline} onChange={(e) => setProjectForm({ ...projectForm, deadline: e.target.value })} />
+        <button type="submit" className="btn btn-primary" style={{ justifySelf: 'start' }}>Save Project</button>
+      </form>
+
+      {group.resources?.length > 0 && (
+        <div className="card" style={{ padding: 16, marginBottom: 16 }}>
+          <strong className="text-xs">Shared Resources</strong>
+          <div style={{ display: 'grid', gap: 6, marginTop: 8 }}>
+            {group.resources.map((r) => <a key={r._id} href={r.url} target="_blank" rel="noreferrer" className="text-sm">{r.name}</a>)}
+          </div>
+        </div>
+      )}
+
+      {group.submission?.submittedAt && (
+        <div className="card" style={{ padding: 16, marginBottom: 16 }}>
+          <strong className="text-xs">Group Submission</strong>
+          <p className="text-sm" style={{ marginTop: 8, whiteSpace: 'pre-wrap' }}>{group.submission.text}</p>
+        </div>
+      )}
+
+      {group.contributions?.length > 0 && (
+        <div className="card" style={{ padding: 16, marginBottom: 16 }}>
+          <strong className="text-xs">Individual Contribution Notes</strong>
+          <div style={{ display: 'grid', gap: 8, marginTop: 8 }}>
+            {group.contributions.map((c) => {
+              const member = group.members.find((m) => (m.user._id || m.user) === (c.user._id || c.user));
+              return <p key={c.user._id || c.user} className="text-sm"><strong>{member?.user?.fullName || 'Member'}:</strong> {c.note}</p>;
+            })}
+          </div>
+        </div>
+      )}
+
+      <div className="card" style={{ padding: 16 }}>
+        <strong className="text-xs">Grading</strong>
+        <label className="text-xs" style={{ display: 'block', marginTop: 10 }}>Group marks (/100)
+          <input type="number" min={0} max={100} className="form-input" style={{ width: 100, marginTop: 4 }} value={marksForm.groupMarks} onChange={(e) => setMarksForm({ ...marksForm, groupMarks: e.target.value })} />
+        </label>
+        <div style={{ display: 'grid', gap: 8, marginTop: 10 }}>
+          {group.members.map((m) => (
+            <label key={m.user._id} className="flex items-center justify-between text-sm">
+              {m.user.fullName}
+              <input type="number" min={0} max={100} className="form-input" style={{ width: 90 }} value={marksForm.individual[m.user._id] ?? ''} onChange={(e) => setMarksForm({ ...marksForm, individual: { ...marksForm.individual, [m.user._id]: e.target.value } })} />
+            </label>
+          ))}
+        </div>
+        <button type="button" className="btn btn-primary" style={{ marginTop: 12 }} onClick={saveMarks}>Save Marks</button>
+      </div>
     </div>
   );
 }
@@ -13375,6 +14127,9 @@ function InstitutionCampusLifePanel({ onFlash }) {
   const [newsletters, setNewsletters] = useState(null);
   const [nlForm, setNlForm] = useState({ title: '', content: '' });
   const [submissions, setSubmissions] = useState(null);
+  const [expandedSubmission, setExpandedSubmission] = useState(null);
+  const [polls, setPolls] = useState(null);
+  const [pollForm, setPollForm] = useState({ question: '', options: ['', ''] });
 
   useEffect(() => {
     apiRequest('/institutions/mine/list').then((list) => setInstitution(list[0] || null)).catch((err) => onFlash(err.message));
@@ -13386,10 +14141,14 @@ function InstitutionCampusLifePanel({ onFlash }) {
   function loadSubmissions(instId) {
     apiRequest(`/magazine/institution?institutionId=${instId}`).then(setSubmissions).catch((err) => onFlash(err.message));
   }
+  function loadPolls() {
+    apiRequest('/polls/mine').then(setPolls).catch((err) => onFlash(err.message));
+  }
   useEffect(() => {
     if (!institution) return;
     if (section === 'newsletter') loadNewsletters(institution._id);
     if (section === 'magazine') loadSubmissions(institution._id);
+    if (section === 'polls') loadPolls();
   }, [institution, section]);
 
   async function createNewsletter(e) {
@@ -13409,9 +14168,14 @@ function InstitutionCampusLifePanel({ onFlash }) {
     } catch (err) { onFlash(err.message); }
   }
   async function reviewSubmission(id, status) {
+    let editorNotes;
+    if (status === 'changes_requested') {
+      editorNotes = await showPrompt('Tell the student exactly what needs to change before you can accept this.', { title: 'Request changes', placeholder: 'e.g. Add a stronger conclusion, fix formatting…', confirmLabel: 'Send request', required: true });
+      if (editorNotes === null) return;
+    }
     try {
-      await apiRequest(`/magazine/${id}/review`, { method: 'PATCH', body: { status } });
-      onFlash(`Submission ${status}.`, 'success');
+      await apiRequest(`/magazine/${id}/review`, { method: 'PATCH', body: { status, editorNotes } });
+      onFlash(`Submission ${status.replace('_', ' ')}.`, 'success');
       loadSubmissions(institution._id);
     } catch (err) { onFlash(err.message); }
   }
@@ -13422,14 +14186,36 @@ function InstitutionCampusLifePanel({ onFlash }) {
       loadSubmissions(institution._id);
     } catch (err) { onFlash(err.message); }
   }
+  function updatePollOption(i, value) {
+    setPollForm((f) => ({ ...f, options: f.options.map((o, idx) => (idx === i ? value : o)) }));
+  }
+  async function createInstitutionPoll(e) {
+    e.preventDefault();
+    const options = pollForm.options.map((o) => o.trim()).filter(Boolean);
+    if (options.length < 2) return onFlash('Add at least 2 options.');
+    try {
+      await apiRequest('/polls', { method: 'POST', body: { institution: institution._id, question: pollForm.question, options } });
+      onFlash('Institution-wide poll created.', 'success');
+      setPollForm({ question: '', options: ['', ''] });
+      loadPolls();
+    } catch (err) { onFlash(err.message); }
+  }
+  async function closePoll(id) {
+    try {
+      await apiRequest(`/polls/${id}/close`, { method: 'PATCH' });
+      onFlash('Poll closed.', 'success');
+      loadPolls();
+    } catch (err) { onFlash(err.message); }
+  }
 
   if (!institution) return <p className="admin-notice">Register an institution first (My Institution tab).</p>;
 
   return (
     <div>
       <h3 className="font-semibold mb-2">Newsletter & Magazine</h3>
-      <div className="flex gap-2 mb-4">
+      <div className="flex gap-2 mb-4 flex-wrap">
         <button type="button" className={`btn ${section === 'newsletter' ? 'btn-primary' : ''}`} onClick={() => setSection('newsletter')}>Newsletter</button>
+        <button type="button" className={`btn ${section === 'polls' ? 'btn-primary' : ''}`} onClick={() => setSection('polls')}>Institution Polls</button>
         <button type="button" className={`btn ${section === 'magazine' ? 'btn-primary' : ''}`} onClick={() => setSection('magazine')}>Student Magazine</button>
       </div>
 
@@ -13452,25 +14238,76 @@ function InstitutionCampusLifePanel({ onFlash }) {
         </div>
       )}
 
-      {section === 'magazine' && (
-        <Table
-          loading={submissions === null}
-          headers={['Student', 'Title', 'Type', 'Status', 'Action']}
-          rows={(submissions || []).map((s) => [
-            s.student?.fullName || '—', s.title, s.type, <Tag status={s.status === 'published' ? 'approved' : s.status === 'rejected' ? 'rejected' : s.status === 'selected' ? 'approved' : 'pending'} label={s.status} />,
-            <div className="flex gap-1">
-              {s.status === 'submitted' && (
-                <>
-                  <button className="btn btn-primary" style={{ padding: '4px 10px', fontSize: '0.75rem' }} onClick={() => reviewSubmission(s._id, 'selected')}>Select</button>
-                  <button className="btn" style={{ padding: '4px 10px', fontSize: '0.75rem', background: 'var(--sand-line)' }} onClick={() => reviewSubmission(s._id, 'rejected')}>Reject</button>
-                </>
-              )}
-              {s.status === 'selected' && <button className="btn btn-primary" style={{ padding: '4px 10px', fontSize: '0.75rem' }} onClick={() => publishSubmission(s._id)}>Publish</button>}
-              {(s.status === 'published' || s.status === 'rejected') && '—'}
+      {section === 'polls' && (
+        <div>
+          <form onSubmit={createInstitutionPoll} className="space-y-2 max-w-md mb-6 border border-[var(--sand-line)] rounded-xl p-3">
+            <p className="text-xs" style={{ color: 'var(--ink-soft)' }}>Reaches every student across the whole institution (not just one class).</p>
+            <input className="form-input" placeholder="Poll question" value={pollForm.question} onChange={(e) => setPollForm({ ...pollForm, question: e.target.value })} required />
+            {pollForm.options.map((o, i) => (
+              <input key={i} className="form-input" placeholder={`Option ${i + 1}`} value={o} onChange={(e) => updatePollOption(i, e.target.value)} />
+            ))}
+            <div className="flex gap-2">
+              <button type="button" className="btn" style={{ fontSize: '0.75rem' }} onClick={() => setPollForm((f) => ({ ...f, options: [...f.options, ''] }))}>+ Add option</button>
+              <button type="submit" className="btn btn-primary">Create Institution-Wide Poll</button>
             </div>
-          ])}
-          empty="No submissions yet."
-        />
+          </form>
+          <Table
+            loading={polls === null}
+            headers={['Class', 'Question', 'Votes / %', 'Status', 'Action']}
+            rows={(polls || []).map((p) => [
+              p.course?.title || 'Institution-wide',
+              p.question,
+              <div style={{ fontSize: 12 }}>{p.options.map((o, i) => <div key={i}>{o.text}: {o.votes} ({o.percent}%)</div>)}</div>,
+              <Tag status={p.status === 'closed' ? 'rejected' : 'approved'} label={p.status} />,
+              p.status === 'open' ? <button className="btn" style={{ padding: '4px 10px', fontSize: '0.75rem' }} onClick={() => closePoll(p._id)}>Close</button> : '—'
+            ])}
+            empty="You haven't created any polls yet."
+          />
+        </div>
+      )}
+
+      {section === 'magazine' && (
+        <div>
+          {submissions === null && <p className="admin-notice">Loading...</p>}
+          {submissions?.length === 0 && <p className="admin-notice">No submissions yet.</p>}
+          <div style={{ display: 'grid', gap: 10 }}>
+            {(submissions || []).map((s) => {
+              const STATUS_TAG = { published: 'approved', rejected: 'rejected', selected: 'approved', changes_requested: 'pending', submitted: 'pending' };
+              const open = expandedSubmission === s._id;
+              return (
+                <div key={s._id} className="border border-[var(--sand-line)] rounded-xl p-3">
+                  <div className="flex items-center justify-between flex-wrap" style={{ gap: 8 }}>
+                    <div>
+                      <strong className="text-sm">{s.title}</strong>
+                      <p className="text-xs" style={{ color: 'var(--ink-soft)', margin: '2px 0 0' }}>{s.student?.fullName || '—'} · {s.type}</p>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <Tag status={STATUS_TAG[s.status]} label={s.status.replace('_', ' ')} />
+                      <button type="button" className="btn" style={{ padding: '4px 10px', fontSize: '0.72rem' }} onClick={() => setExpandedSubmission(open ? null : s._id)}>{open ? 'Hide' : 'View'}</button>
+                    </div>
+                  </div>
+                  {open && (
+                    <div style={{ marginTop: 10, paddingTop: 10, borderTop: '1px solid var(--sand-line)' }}>
+                      {s.imageUrl && <img src={s.imageUrl} alt="" style={{ maxWidth: '100%', maxHeight: 240, borderRadius: 10, marginBottom: 10 }} />}
+                      <p className="text-sm" style={{ whiteSpace: 'pre-wrap', lineHeight: 1.6 }}>{s.content}</p>
+                      {s.editorNotes && <p className="text-xs" style={{ color: 'var(--gold)', marginTop: 8 }}>Notes: {s.editorNotes}</p>}
+                    </div>
+                  )}
+                  <div className="flex gap-1 flex-wrap" style={{ marginTop: 10 }}>
+                    {s.status === 'submitted' && (
+                      <>
+                        <button className="btn btn-primary" style={{ padding: '4px 10px', fontSize: '0.75rem' }} onClick={() => reviewSubmission(s._id, 'selected')}>Select</button>
+                        <button className="btn" style={{ padding: '4px 10px', fontSize: '0.75rem' }} onClick={() => reviewSubmission(s._id, 'changes_requested')}>Request Changes</button>
+                        <button className="btn" style={{ padding: '4px 10px', fontSize: '0.75rem', background: 'var(--sand-line)' }} onClick={() => reviewSubmission(s._id, 'rejected')}>Reject</button>
+                      </>
+                    )}
+                    {s.status === 'selected' && <button className="btn btn-primary" style={{ padding: '4px 10px', fontSize: '0.75rem' }} onClick={() => publishSubmission(s._id)}>Publish</button>}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
       )}
     </div>
   );

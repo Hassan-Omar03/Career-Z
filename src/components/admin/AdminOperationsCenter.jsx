@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { apiRequest } from '../../api/client';
+import { showPrompt } from '../../utils/appDialog';
 
 const SETTINGS = ['branding', 'theme', 'seo', 'emergency', 'compliance', 'versions'];
 const RESOURCES = [
@@ -53,7 +54,7 @@ function BackupRestorePanel({ onFlash }) {
   async function restore(id) {
     try {
       const preview = await apiRequest(`/admin-ops/backups/${id}/restore`, { method: 'POST', body: {} });
-      const typed = window.prompt(`Validated ${preview.collections.length} collections. This replaces live data. Type exactly:\n${preview.confirmationRequired}`);
+      const typed = await showPrompt(`Validated ${preview.collections.length} collections. This replaces live data.\n\nType exactly: ${preview.confirmationRequired}`, { title: 'Restore production backup', placeholder: preview.confirmationRequired, confirmLabel: 'Restore backup', required: true, danger: true });
       if (typed !== preview.confirmationRequired) return;
       await apiRequest(`/admin-ops/backups/${id}/restore`, { method: 'POST', body: { confirm: typed } });
       onFlash('Backup restored. Verify platform health now.', 'success');
