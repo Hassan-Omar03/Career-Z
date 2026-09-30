@@ -77,6 +77,7 @@ const WORKSPACES = {
       { key: 'applications', label: 'Applications', icon: FaFileLines },
       { key: 'parentConnections', label: 'Parent Connections', icon: FaUsers },
       { key: 'scholarships', label: 'Scholarships', icon: FaGraduationCap },
+      { key: 'receivedDonations', label: 'Received Donations', icon: FaMoneyBillWave },
       { key: 'jobs', label: 'Jobs', icon: FaBriefcase },
       { key: 'marketplace', label: 'Marketplace', icon: FaStore },
       { key: 'wallet', label: 'Wallet', icon: FaWallet },
@@ -91,6 +92,7 @@ const WORKSPACES = {
     nav: [
       { key: 'summary', label: 'Dashboard', icon: FaGauge },
       { key: 'teacherProfile', label: 'Teacher Profile', icon: FaChalkboardUser },
+      { key: 'employmentOffers', label: 'Employment Offers', icon: FaBriefcase },
       { key: 'timetable', label: 'Timetable', icon: FaCalendarCheck },
       { key: 'courses', label: 'My Classes', icon: FaBookOpen },
       { key: 'students', label: 'Students List', icon: FaUsers },
@@ -153,6 +155,7 @@ const WORKSPACES = {
       { key: 'liveClasses', label: 'Live Classes', icon: FaChalkboardUser },
       { key: 'attendance', label: 'Attendance Management', icon: FaCalendarCheck },
       { key: 'fees', label: 'Fee Management', icon: FaSackDollar },
+      { key: 'receivedDonations', label: 'Received Donations', icon: FaMoneyBillWave },
       { key: 'payroll', label: 'Payroll', icon: FaMoneyBillWave },
       { key: 'examination', label: 'Examination Management', icon: FaAward },
       { key: 'certificates', label: 'Certificates & Degrees', icon: FaGraduationCap },
@@ -482,7 +485,7 @@ export default function Dashboard() {
       {msg && <div role="status" className={`dash-toast ${msg.type}`}>{msg.text}</div>}
 
       <div className={`workspace-content${activeWorkspace === 'student' ? ' student-page-content' : ''}`} data-page={activeTab} key={`${activeWorkspace}-${activeTab}`}>
-        {activeTab === 'messages' && <MessagesPanel onFlash={flash} initialUser={pendingMessageUser} onConsumedInitialUser={() => setPendingMessageUser(null)} />}
+        {activeTab === 'messages' && <MessagesPanel onFlash={flash} user={user} initialUser={pendingMessageUser} onConsumedInitialUser={() => setPendingMessageUser(null)} />}
         {activeTab === 'notifications' && <NotificationsPanel onFlash={flash} />}
         {activeTab === 'calendar' && <CalendarPanel onFlash={flash} />}
         {activeTab === 'settings' && (activeWorkspace !== 'admin' || isPlatformStaffOnly) && <SettingsPanel user={user} onFlash={flash} onChanged={refreshProfile} />}
@@ -526,6 +529,7 @@ function StudentWorkspace({ tab, user, onFlash, onChanged, onNavigate }) {
   if (tab === 'goals') return <StudentGoalsAchievementsPanel onFlash={onFlash} />;
   if (tab === 'community') return <StudentCommunityPanel onFlash={onFlash} user={user} />;
   if (tab === 'scholarships') return <ScholarshipsPanel onFlash={onFlash} user={user} />;
+  if (tab === 'receivedDonations') return <ReceivedDonationsPanel onFlash={onFlash} />;
   if (tab === 'marketplace') return <MarketplacePanel onFlash={onFlash} user={user} />;
   if (tab === 'institutions') return <StudentInstitutionsPanel onFlash={onFlash} />;
   if (tab === 'applications') return <StudentApplicationsPanel onFlash={onFlash} />;
@@ -1042,8 +1046,22 @@ function StudentInstitutionsPanel({ onFlash }) {
     if (!selected) return;
     try {
       await apiRequest('/students/me/connect-institution', { method: 'POST', body: { institutionId: selected } });
-      onFlash('Connected to institution.', 'success');
+      onFlash('Connection request sent. The institution must approve it.', 'success');
       load();
+    } catch (err) { onFlash(err.message); }
+  }
+
+  async function requestExit(membership, action) {
+    const reason = await showPrompt(`${action === 'transfer' ? 'Transfer' : 'Withdrawal'} reason`, { title: 'Institution request', required: true });
+    if (reason === null) return;
+    let targetInstitutionId = '';
+    if (action === 'transfer') {
+      targetInstitutionId = await showPrompt('Enter destination institution ID', { title: 'Transfer destination', required: true });
+      if (!targetInstitutionId) return;
+    }
+    try {
+      await apiRequest(`/students/me/institutions/${membership._id}/request-exit`, { method: 'POST', body: { action, reason, targetInstitutionId } });
+      onFlash(`${action} request sent for approval.`, 'success'); load();
     } catch (err) { onFlash(err.message); }
   }
 
@@ -1097,6 +1115,8 @@ function StudentInstitutionsPanel({ onFlash }) {
               <p className="text-xs mt-1" style={{ color: 'var(--ink-soft)' }}>
                 Joined {new Date(m.joinedAt).toLocaleDateString()}{m.leftAt ? ` · Left ${new Date(m.leftAt).toLocaleDateString()}` : ''}
               </p>
+              {m.status === 'active' && <div className="flex gap-2 mt-2"><button type="button" className="btn" onClick={() => requestExit(m, 'withdraw')}>Request Withdrawal</button><button type="button" className="btn" onClick={() => requestExit(m, 'transfer')}>Request Transfer</button></div>}
+              {m.targetInstitution?.name && <p className="text-xs mt-1">Transfer destination: {m.targetInstitution.name}</p>}
             </div>
           ))}
         </div>
@@ -1113,7 +1133,7 @@ function StudentInstitutionsPanel({ onFlash }) {
             <option value="">Select an institution</option>
             {options.map((i) => <option key={i._id} value={i._id}>{i.name} ({i.country})</option>)}
           </select>
-          <button type="button" className="btn btn-primary" onClick={connect} disabled={!selected} style={{ flexShrink: 0 }}>Connect</button>
+          <button type="button" className="btn btn-primary" onClick={connect} disabled={!selected} style={{ flexShrink: 0 }}>Request Connection</button>
         </div>
       </div>
 
@@ -2044,7 +2064,8 @@ function StudentCommunityPanel({ onFlash, user }) {
   async function joinGroup(id) {
     try {
       const res = await apiRequest(`/study-groups/${id}/join`, { method: 'POST' });
-      onFlash(res?.message || 'Joined study group.', 'success');
+      const iAmMember = (res?.members || []).some((m) => (m.user?._id || m.user) === user?._id);
+      onFlash(iAmMember ? 'Joined study group.' : 'Join request sent — waiting for the group owner to approve.', 'success');
       reloadAll();
     } catch (err) { onFlash(err.message); }
   }
@@ -2143,10 +2164,11 @@ function StudyGroupDetail({ groupId, user, onFlash, onBack }) {
   const [resourceForm, setResourceForm] = useState({ name: '', file: null, busy: false });
   const [taskForm, setTaskForm] = useState({ title: '', assignedTo: '', dueDate: '' });
   const [submissionText, setSubmissionText] = useState('');
+  const [expandedTaskId, setExpandedTaskId] = useState(null);
   const chatEndRef = useRef(null);
 
   function load() {
-    apiRequest(`/study-groups/${groupId}`).then((g) => { setGroup(g); setSubmissionText(g.submission?.text || ''); setContributionNote((g.contributions || []).find((c) => c.user?._id === user?.id || c.user === user?.id)?.note || ''); }).catch((err) => onFlash(err.message));
+    apiRequest(`/study-groups/${groupId}`).then((g) => { setGroup(g); setSubmissionText(g.submission?.text || ''); setContributionNote((g.contributions || []).find((c) => c.user?._id === user?._id || c.user === user?._id)?.note || ''); }).catch((err) => onFlash(err.message));
     apiRequest(`/study-groups/${groupId}/posts`).then(setPosts).catch(() => {});
   }
   useEffect(load, [groupId]); // eslint-disable-line react-hooks/exhaustive-deps
@@ -2155,14 +2177,32 @@ function StudyGroupDetail({ groupId, user, onFlash, onBack }) {
     if (!socket) return;
     socket.emit('study-group:join', { groupId }, () => {});
     function onMessage(post) { setPosts((prev) => (prev ? [...prev, post] : [post])); }
+    // Pushed to the owner's personal room (not the group room) the instant someone requests to
+    // join — reload so the "Join requests" card appears without needing a manual refresh.
+    function onJoinRequested({ groupId: gid }) { if (gid === groupId) load(); }
     socket.on('study-group:message', onMessage);
-    return () => { socket.off('study-group:message', onMessage); socket.emit('study-group:leave', { groupId }, () => {}); };
-  }, [socket, groupId]);
+    socket.on('study-group:join-requested', onJoinRequested);
+    return () => {
+      socket.off('study-group:message', onMessage);
+      socket.off('study-group:join-requested', onJoinRequested);
+      socket.emit('study-group:leave', { groupId }, () => {});
+    };
+  }, [socket, groupId]); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => { chatEndRef.current?.scrollIntoView({ block: 'nearest' }); }, [posts]);
 
-  const isOwner = group && (group.owner?._id === user?.id || group.owner === user?.id);
+  const isOwner = group && (group.owner?._id === user?._id || group.owner === user?._id);
   const memberIds = new Set((group?.members || []).map((m) => m.user?._id || m.user));
+  const taskStats = (group?.tasks || []).reduce((totals, task) => {
+    totals.total += 1;
+    // Older tasks could be marked done before owner verification existed. Treat those as
+    // awaiting review until the owner explicitly verifies them.
+    const progressStatus = task.status === 'done' && !task.verifiedAt ? 'awaiting_verification' : task.status;
+    totals[progressStatus] += 1;
+    return totals;
+  }, { total: 0, pending: 0, in_progress: 0, awaiting_verification: 0, done: 0 });
+  const taskProgress = taskStats.total ? Math.round((taskStats.done / taskStats.total) * 100) : 0;
+  const myIndividualMark = (group?.individualMarks || []).find((mark) => String(mark.user?._id || mark.user) === String(user?._id));
 
   async function send(e) {
     e.preventDefault();
@@ -2184,7 +2224,7 @@ function StudyGroupDetail({ groupId, user, onFlash, onBack }) {
     try { await apiRequest(`/study-groups/${groupId}/transfer-ownership`, { method: 'PATCH', body: { userId: uid } }); onFlash('Ownership transferred.', 'success'); load(); } catch (err) { onFlash(err.message); }
   }
   async function saveContribution() {
-    try { await apiRequest(`/study-groups/${groupId}/contribution`, { method: 'PATCH', body: { note: contributionNote } }); onFlash('Contribution note saved.', 'success'); } catch (err) { onFlash(err.message); }
+    try { await apiRequest(`/study-groups/${groupId}/contribution`, { method: 'PATCH', body: { note: contributionNote } }); setContributionNote(''); onFlash('Contribution note saved.', 'success'); load(); } catch (err) { onFlash(err.message); }
   }
   async function addTask(e) {
     e.preventDefault();
@@ -2196,31 +2236,40 @@ function StudyGroupDetail({ groupId, user, onFlash, onBack }) {
     } catch (err) { onFlash(err.message); }
   }
   async function updateTaskStatus(taskId, status) {
-    try { await apiRequest(`/study-groups/${groupId}/tasks/${taskId}`, { method: 'PATCH', body: { status } }); load(); } catch (err) { onFlash(err.message); }
+    try {
+      const result = await apiRequest(`/study-groups/${groupId}/tasks/${taskId}`, { method: 'PATCH', body: { status } });
+      onFlash(result?.message || (status === 'done' ? 'Task verified.' : status === 'in_progress' ? 'Task started.' : 'Task updated.'), 'success');
+      load();
+    } catch (err) { onFlash(err.message); }
+  }
+  async function reviewTask(taskId, approve) {
+    let reviewNote = '';
+    if (!approve) {
+      reviewNote = await showPrompt('Tell the member what needs to be corrected.', { title: 'Send task back', required: true });
+      if (reviewNote === null) return;
+    }
+    try {
+      const result = await apiRequest(`/study-groups/${groupId}/tasks/${taskId}`, { method: 'PATCH', body: { status: approve ? 'done' : 'in_progress', reviewNote } });
+      onFlash(result?.message || (approve ? 'Task verified.' : 'Task sent back.'), 'success');
+      load();
+    } catch (err) { onFlash(err.message); }
   }
   async function uploadResource(e) {
     e.preventDefault();
     if (!resourceForm.file) return;
+    const formElement = e.currentTarget;
     setResourceForm((f) => ({ ...f, busy: true }));
     try {
-      const sig = await apiRequest('/media/platform/signature?folder=study-group-resources');
-      const fd = new FormData();
-      fd.append('file', resourceForm.file);
-      fd.append('api_key', sig.apiKey);
-      fd.append('timestamp', sig.timestamp);
-      fd.append('signature', sig.signature);
-      fd.append('folder', sig.folder);
-      const uploadRes = await fetch(`https://api.cloudinary.com/v1_1/${sig.cloudName}/auto/upload`, { method: 'POST', body: fd });
-      const uploaded = await uploadRes.json();
-      if (!uploaded.secure_url) throw new Error('Upload failed.');
-      await apiRequest(`/study-groups/${groupId}/resources`, { method: 'POST', body: { name: resourceForm.name || resourceForm.file.name, url: uploaded.secure_url } });
+      const resourceUrl = await uploadToPlatformStorage(resourceForm.file, 'study-group-resources');
+      await apiRequest(`/study-groups/${groupId}/resources`, { method: 'POST', body: { name: resourceForm.name || resourceForm.file.name, url: resourceUrl } });
       setResourceForm({ name: '', file: null, busy: false });
+      formElement.reset();
       onFlash('Resource shared.', 'success');
       load();
     } catch (err) { onFlash(err.message); setResourceForm((f) => ({ ...f, busy: false })); }
   }
   async function submitAssignment() {
-    try { await apiRequest(`/study-groups/${groupId}/submission`, { method: 'PATCH', body: { text: submissionText } }); onFlash('Assignment submitted.', 'success'); load(); } catch (err) { onFlash(err.message); }
+    try { await apiRequest(`/study-groups/${groupId}/submission`, { method: 'PATCH', body: { text: submissionText } }); setSubmissionText(''); onFlash('Assignment submitted.', 'success'); load(); } catch (err) { onFlash(err.message); }
   }
 
   if (!group) return <p role="status" className="admin-notice">Loading...</p>;
@@ -2302,49 +2351,88 @@ function StudyGroupDetail({ groupId, user, onFlash, onBack }) {
       {sub === 'project' && (
         <div style={{ display: 'grid', gap: 16 }}>
           <div className="card" style={{ padding: 16 }}>
-            <strong className="text-sm">{group.project?.title || 'No project set yet'}</strong>
+            <div className="flex items-start justify-between flex-wrap" style={{ gap: 12 }}>
+              <div>
+                <p className="text-xs" style={{ color: 'var(--ink-soft)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '.05em' }}>Teacher-assigned group project</p>
+                <strong className="text-sm" style={{ display: 'block', marginTop: 5 }}>{group.project?.title || 'Waiting for the teacher to assign a project'}</strong>
+              </div>
+              {group.project?.title && <Tag status={group.submission?.submittedAt ? 'approved' : 'pending'} label={group.submission?.submittedAt ? 'Submitted' : 'Active'} />}
+            </div>
             {group.project?.deadline && <p className="text-xs" style={{ color: 'var(--ink-soft)', marginTop: 4 }}>Deadline: {new Date(group.project.deadline).toLocaleDateString()}</p>}
             {group.project?.instructions && <p className="text-sm" style={{ marginTop: 8 }}>{group.project.instructions}</p>}
+            {!group.project?.title && <p className="text-xs" style={{ color: 'var(--ink-soft)', marginTop: 8 }}>Tasks and final submission should start after the course teacher adds the project title, instructions and deadline.</p>}
           </div>
 
           <div className="card" style={{ padding: 16 }}>
-            <strong className="text-xs">Tasks</strong>
+            <div className="flex items-center justify-between flex-wrap" style={{ gap: 10 }}>
+              <div><strong className="text-sm">Team tasks</strong><p className="text-xs" style={{ color: 'var(--ink-soft)', marginTop: 2 }}>{taskStats.done} of {taskStats.total} verified{taskStats.awaiting_verification ? ` · ${taskStats.awaiting_verification} awaiting review` : ''}</p></div>
+              <strong className="text-sm" style={{ color: taskProgress === 100 && taskStats.total ? 'var(--emerald)' : 'var(--forest)' }}>{taskProgress}%</strong>
+            </div>
+            <progress className="student-progress-bar" max="100" value={taskProgress} aria-label="Group task progress" style={{ marginTop: 10 }} />
             <div style={{ display: 'grid', gap: 8, marginTop: 10 }}>
               {(group.tasks || []).length === 0 && <p className="text-xs" style={{ color: 'var(--ink-soft)' }}>No tasks yet.</p>}
-              {(group.tasks || []).map((t) => (
-                <div key={t._id} className="flex items-center justify-between" style={{ fontSize: 13, gap: 8 }}>
-                  <span>{t.title}{t.assignedTo && <span className="text-xs" style={{ color: 'var(--ink-soft)' }}> — {(group.members.find((m) => (m.user?._id || m.user) === t.assignedTo)?.user?.fullName) || 'assigned'}</span>}</span>
-                  <select className="form-input" style={{ width: 130, padding: '3px 8px', fontSize: 12 }} value={t.status} onChange={(e) => updateTaskStatus(t._id, e.target.value)}>
+              {(group.tasks || []).map((t) => {
+                const assignee = group.members.find((m) => String(m.user?._id || m.user) === String(t.assignedTo));
+                const assigneeId = String(t.assignedTo || '');
+                const assignedToMe = String(t.assignedTo || '') === String(user?._id || '');
+                const canUpdate = isOwner || assignedToMe;
+                const awaitingReview = t.status === 'awaiting_verification' || (t.status === 'done' && !t.verifiedAt);
+                const statusColor = t.status === 'done' && !awaitingReview ? 'var(--emerald)' : t.status === 'in_progress' || awaitingReview ? 'var(--gold)' : 'var(--ink-soft)';
+                const assigneeContribution = (group.contributions || []).find((c) => String(c.user?._id || c.user) === assigneeId);
+                const assigneeResources = (group.resources || []).filter((r) => String(r.uploadedBy?._id || r.uploadedBy) === assigneeId);
+                const isExpanded = expandedTaskId === t._id;
+                return (
+                <div key={t._id} style={{ fontSize: 13, padding: 12, border: `1px solid ${t.status === 'in_progress' || awaitingReview ? 'var(--gold)' : 'var(--sand-line)'}`, borderRadius: 12, background: t.status === 'done' && !awaitingReview ? 'rgba(16,185,129,.06)' : t.status === 'in_progress' || awaitingReview ? 'rgba(217,119,6,.06)' : '#fff' }}>
+                  <div className="flex items-center justify-between flex-wrap" style={{ gap: 12 }}>
+                    <div style={{ minWidth: 0 }}><strong className="text-sm">{t.title}</strong><p className="text-xs" style={{ color: 'var(--ink-soft)', marginTop: 3 }}>{assignee?.user?.fullName || 'Unassigned'}{assignedToMe ? ' · Assigned to you' : ''}{t.dueDate ? ` · Due ${new Date(t.dueDate).toLocaleDateString()}` : ''}</p>{t.reviewNote && <p className="text-xs" style={{ color: '#a3432f', marginTop: 5 }}><strong>Owner feedback:</strong> {t.reviewNote}</p>}</div>
+                    {isOwner && (awaitingReview || t.status === 'done') ? <button type="button" className="btn" style={{ padding: '7px 12px', fontSize: 12 }} onClick={() => setExpandedTaskId(isExpanded ? null : t._id)}>{isExpanded ? 'Close work' : 'View submitted work'}</button> : canUpdate && !awaitingReview ? <select className="form-input" style={{ width: 160, padding: '7px 10px', fontSize: 12, color: statusColor, fontWeight: 700 }} value={t.status} onChange={(e) => updateTaskStatus(t._id, e.target.value)}>
                     <option value="pending">Pending</option>
                     <option value="in_progress">In Progress</option>
-                    <option value="done">Done</option>
-                  </select>
+                    <option value="done">{isOwner ? 'Verify as Done' : 'Submit for Review'}</option>
+                  </select> : <Tag status={t.status === 'done' ? 'approved' : 'pending'} label={awaitingReview ? 'Awaiting owner verification' : t.status === 'in_progress' ? 'In progress' : t.status === 'done' ? 'Verified' : 'Pending'} />}
+                  </div>
+                  {isOwner && isExpanded && <div style={{ marginTop: 12, paddingTop: 12, borderTop: '1px solid var(--sand-line)', display: 'grid', gap: 10 }}>
+                    <div><strong className="text-xs">Member contribution</strong><p className="text-sm" style={{ marginTop: 4, whiteSpace: 'pre-wrap' }}>{assigneeContribution?.note || 'No contribution note was submitted.'}</p></div>
+                    <div><strong className="text-xs">Files shared by {assignee?.user?.fullName || 'member'}</strong>{assigneeResources.length ? <div className="flex flex-wrap" style={{ gap: 7, marginTop: 6 }}>{assigneeResources.map((resource) => <a key={resource._id} className="btn" style={{ padding: '6px 10px', fontSize: 12 }} href={resource.url} target="_blank" rel="noreferrer">Open {resource.name}</a>)}</div> : <p className="text-sm" style={{ marginTop: 4 }}>No file was shared by this member.</p>}</div>
+                    {t.submittedForReviewAt && <p className="text-xs" style={{ color: 'var(--ink-soft)' }}>Submitted for review: {new Date(t.submittedForReviewAt).toLocaleString()}</p>}
+                    {t.verifiedAt && <p className="text-xs" style={{ color: 'var(--emerald)' }}>Verified {new Date(t.verifiedAt).toLocaleString()}{t.verifiedBy?.fullName ? ` by ${t.verifiedBy.fullName}` : ''}</p>}
+                    {awaitingReview && <div className="flex items-center flex-wrap" style={{ gap: 7 }}><button type="button" className="btn btn-primary" style={{ padding: '7px 12px', fontSize: 12 }} onClick={() => reviewTask(t._id, true)}>Verify task</button><button type="button" className="btn" style={{ padding: '7px 12px', fontSize: 12 }} onClick={() => reviewTask(t._id, false)}>Send back with feedback</button></div>}
+                  </div>}
                 </div>
-              ))}
+              );})}
             </div>
-            <form onSubmit={addTask} className="flex items-center flex-wrap" style={{ gap: 8, marginTop: 12 }}>
+            {isOwner && <form onSubmit={addTask} className="flex items-center flex-wrap" style={{ gap: 8, marginTop: 14, paddingTop: 14, borderTop: '1px solid var(--sand-line)' }}>
+              <strong className="text-xs" style={{ flex: '1 0 100%' }}>Owner controls — assign a new task</strong>
               <input className="form-input" placeholder="New task" style={{ flex: '1 1 160px' }} value={taskForm.title} onChange={(e) => setTaskForm({ ...taskForm, title: e.target.value })} />
               <select className="form-input" style={{ width: 150 }} value={taskForm.assignedTo} onChange={(e) => setTaskForm({ ...taskForm, assignedTo: e.target.value })}>
                 <option value="">Unassigned</option>
                 {(group.members || []).map((m) => <option key={m.user._id} value={m.user._id}>{m.user.fullName}</option>)}
               </select>
               <input type="date" className="form-input" style={{ width: 140 }} value={taskForm.dueDate} onChange={(e) => setTaskForm({ ...taskForm, dueDate: e.target.value })} />
-              <button type="submit" className="btn btn-primary" style={{ padding: '6px 14px', fontSize: '0.75rem' }}>Add</button>
-            </form>
+              <button type="submit" className="btn btn-primary" style={{ padding: '6px 14px', fontSize: '0.75rem' }}>Assign Task</button>
+            </form>}
           </div>
 
           <div className="card" style={{ padding: 16 }}>
-            <strong className="text-xs">Group Assignment Submission</strong>
-            <textarea className="form-input" rows={4} style={{ marginTop: 8 }} placeholder="Write or paste the group's submission here..." value={submissionText} onChange={(e) => setSubmissionText(e.target.value)} />
-            <button type="button" className="btn btn-primary" style={{ padding: '6px 14px', fontSize: '0.75rem', marginTop: 8 }} onClick={submitAssignment}>{group.submission?.submittedAt ? 'Resubmit' : 'Submit'}</button>
+            <strong className="text-sm">Final group submission</strong>
+            <p className="text-xs" style={{ color: 'var(--ink-soft)', marginTop: 4 }}>{isOwner ? 'As group owner, review every member’s work before sending one final submission to the teacher.' : `Only the group owner (${group.owner?.fullName || 'owner'}) submits the combined final work.`}</p>
+            {group.submission?.submittedAt && group.submission.status !== 'changes_requested' && <div style={{ marginTop: 10, padding: 12, borderRadius: 12, background: group.submission.status === 'approved' ? 'rgba(16,185,129,.08)' : 'rgba(217,119,6,.08)' }}><Tag status={group.submission.status === 'approved' ? 'approved' : 'pending'} label={group.submission.status === 'approved' ? 'Approved by teacher' : 'Submitted · awaiting teacher review'} /><p className="text-sm" style={{ marginTop: 8, whiteSpace: 'pre-wrap' }}>{group.submission.text}</p><p className="text-xs" style={{ color: 'var(--ink-soft)', marginTop: 7 }}>Submission is locked. It can only be edited if the teacher requests changes.</p></div>}
+            {group.submission?.status === 'changes_requested' && <div className="admin-notice" style={{ marginTop: 10 }}><strong>Teacher requested changes</strong><p className="text-sm" style={{ marginTop: 4 }}>{group.submission.teacherFeedback}</p></div>}
+            {isOwner && (!group.submission?.submittedAt || group.submission.status === 'changes_requested') && <textarea className="form-input" rows={4} style={{ marginTop: 10 }} placeholder="Write or paste the group's final submission here..." value={submissionText} onChange={(e) => setSubmissionText(e.target.value)} />}
+            {isOwner && (!group.submission?.submittedAt || group.submission.status === 'changes_requested') && <button type="button" className="btn btn-primary" disabled={!group.project?.title || !submissionText.trim()} style={{ padding: '6px 14px', fontSize: '0.75rem', marginTop: 8 }} onClick={submitAssignment}>{group.submission?.status === 'changes_requested' ? 'Submit Revised Work' : 'Submit Final Work'}</button>}
             {group.submission?.submittedAt && <p className="text-xs" style={{ color: 'var(--ink-soft)', marginTop: 6 }}>Last submitted {new Date(group.submission.submittedAt).toLocaleString()} by {group.submission.submittedBy?.fullName || 'a member'}.</p>}
           </div>
 
+          {(group.gradingPublishedAt || group.groupMarks != null || myIndividualMark) && <div className="card" style={{ padding: 18, borderColor: 'var(--emerald)', background: 'rgba(16,185,129,.06)' }}>
+            <div className="flex items-center justify-between flex-wrap" style={{ gap: 10 }}><div><strong className="text-sm">Final result published</strong><p className="text-xs" style={{ color: 'var(--ink-soft)', marginTop: 3 }}>{group.project?.title || group.name}</p></div><Tag status="approved" label="Result available" /></div>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', gap: 10, marginTop: 14 }}><div className="admin-notice"><span className="text-xs">Group marks</span><br /><strong>{group.groupMarks ?? '—'}/100</strong></div><div className="admin-notice"><span className="text-xs">Your individual marks</span><br /><strong>{myIndividualMark?.marks ?? '—'}/100</strong></div><div className="admin-notice"><span className="text-xs">Your percentage</span><br /><strong>{myIndividualMark ? `${Number(myIndividualMark.marks).toFixed(0)}%` : '—'}</strong></div></div>
+          </div>}
+
           <div className="card" style={{ padding: 16 }}>
-            <strong className="text-xs">Your Contribution Note</strong>
-            <p className="text-xs" style={{ color: 'var(--ink-soft)', marginTop: 4 }}>What did you personally do for this project? Your teacher sees this when grading individual contribution.</p>
-            <textarea className="form-input" rows={3} style={{ marginTop: 8 }} value={contributionNote} onChange={(e) => setContributionNote(e.target.value)} />
-            <button type="button" className="btn" style={{ padding: '6px 14px', fontSize: '0.75rem', marginTop: 8 }} onClick={saveContribution}>Save Note</button>
+            <strong className="text-sm">My contribution</strong>
+            <p className="text-xs" style={{ color: 'var(--ink-soft)', marginTop: 4 }}>Describe the work you personally completed. The teacher uses this during individual grading.</p>
+            <textarea className="form-input" rows={3} style={{ marginTop: 8 }} placeholder="Example: I researched the topic and prepared slides 1–4." value={contributionNote} onChange={(e) => setContributionNote(e.target.value)} />
+            <button type="button" className="btn" disabled={!contributionNote.trim()} style={{ padding: '6px 14px', fontSize: '0.75rem', marginTop: 8 }} onClick={saveContribution}>Save My Contribution</button>
           </div>
         </div>
       )}
@@ -2384,16 +2472,10 @@ function StudyGroupDetail({ groupId, user, onFlash, onBack }) {
 
       {sub === 'marks' && (
         <div className="card" style={{ padding: 16 }}>
-          {group.groupMarks != null && <p className="text-sm">Group marks: <strong>{group.groupMarks}/100</strong></p>}
-          <div style={{ display: 'grid', gap: 6, marginTop: 10 }}>
-            {(group.individualMarks || []).map((m) => (
-              <div key={m.user._id || m.user} className="flex items-center justify-between text-sm">
-                <span>{m.user.fullName || 'Member'}</span>
-                <strong>{m.marks}/100</strong>
-              </div>
-            ))}
-            {(group.individualMarks || []).length === 0 && group.groupMarks == null && <p className="text-xs" style={{ color: 'var(--ink-soft)' }}>Not graded yet.</p>}
-          </div>
+          <strong className="text-sm">My study group result</strong>
+          {group.groupMarks != null && <p className="text-sm" style={{ marginTop: 10 }}>Group marks: <strong>{group.groupMarks}/100</strong></p>}
+          {myIndividualMark && <><p className="text-sm" style={{ marginTop: 6 }}>Your individual marks: <strong>{myIndividualMark.marks}/100</strong></p><p className="text-sm" style={{ marginTop: 6 }}>Percentage: <strong>{Number(myIndividualMark.marks).toFixed(0)}%</strong></p></>}
+          {!myIndividualMark && group.groupMarks == null && <p className="text-xs" style={{ color: 'var(--ink-soft)', marginTop: 8 }}>Not graded yet.</p>}
         </div>
       )}
     </div>
@@ -3861,6 +3943,7 @@ function AiFeatureCard({ feature, title, description, placeholder, aiEnabled, sh
     try {
       const { result: text } = await apiRequest('/ai/generate', { method: 'POST', body: { feature, prompt } });
       setResult(text);
+      setPrompt('');
     } catch (err) { setError(err.message); } finally { setLoading(false); }
   }
 
@@ -4083,6 +4166,7 @@ function SlideDeckGenerator({ aiEnabled, imageEnabled }) {
       if (parsed.length === 0) throw new Error("Couldn't parse slides from the response — try again.");
       setSlides(parsed);
       setCurrent(0);
+      setTopic('');
       if (imageEnabled) {
         let nextImageIndex = 0;
         async function imageWorker() {
@@ -4180,6 +4264,7 @@ function ImageGenerator({ aiEnabled, onFlash }) {
     try {
       const { imageDataUrl } = await apiRequest('/ai/image', { method: 'POST', body: { prompt } });
       setImage(imageDataUrl);
+      setPrompt('');
     } catch (err) { onFlash(err.message); } finally { setLoading(false); }
   }
 
@@ -4193,7 +4278,7 @@ function ImageGenerator({ aiEnabled, onFlash }) {
         <form onSubmit={generate} style={{ marginTop: 12 }}>
           <input className="form-input" placeholder="e.g. Diagram of the human heart with labeled chambers" value={prompt} onChange={(e) => setPrompt(e.target.value)} required />
           <button type="submit" className="btn btn-primary" style={{ padding: '6px 14px', fontSize: '0.78rem', marginTop: 8 }} disabled={loading}>{loading ? 'Generating (can take ~20s)...' : 'Generate Image'}</button>
-          {image && <img src={image} alt={prompt} style={{ marginTop: 12, borderRadius: 10, maxWidth: '100%' }} />}
+          {image && <img src={image} alt="AI generated classroom visual" style={{ marginTop: 12, borderRadius: 10, maxWidth: '100%' }} />}
         </form>
       )}
     </div>
@@ -4215,6 +4300,7 @@ function ThreeDModelGenerator({ aiEnabled, onFlash }) {
     try {
       const { taskId: id } = await apiRequest('/ai/3d-model', { method: 'POST', body: { prompt } });
       setTaskId(id);
+      setPrompt('');
     } catch (err) { onFlash(err.message); setStatus(null); }
   }
 
@@ -4295,6 +4381,8 @@ function AnimationGenerator({ aiEnabled, onFlash }) {
     try {
       const { taskId: id } = await apiRequest('/ai/animation', { method: 'POST', body: { promptText, promptImage: promptImage || undefined } });
       setTaskId(id);
+      setPromptText('');
+      setPromptImage('');
     } catch (err) { onFlash(err.message); setStatus(null); }
   }
 
@@ -4353,6 +4441,7 @@ function VoiceAndAvatarGenerator({ aiEnabled, onFlash }) {
     try {
       const { audioDataUrl } = await apiRequest('/ai/voice', { method: 'POST', body: { text: narrationText } });
       setAudio(audioDataUrl);
+      setNarrationText('');
     } catch (err) { onFlash(err.message); } finally { setNarrating(false); }
   }
 
@@ -4362,6 +4451,7 @@ function VoiceAndAvatarGenerator({ aiEnabled, onFlash }) {
     try {
       const { videoId: id } = await apiRequest('/ai/avatar-video', { method: 'POST', body: { script } });
       setVideoId(id);
+      setScript('');
     } catch (err) { onFlash(err.message); setVideoStatus(null); }
   }
 
@@ -5119,6 +5209,7 @@ const SELLER_WITHDRAWAL_STATUS = {
 function SellerWalletPanel({ onFlash }) {
   const [wallet, setWallet] = useState(null);
   const [withdrawals, setWithdrawals] = useState(null);
+  const [donorDeposits, setDonorDeposits] = useState(null);
   const [orders, setOrders] = useState(null);
   const [selectedCurrency, setSelectedCurrency] = useState(null);
 
@@ -5929,6 +6020,14 @@ function StudentLiveClassRoom({ session: initialSession, onLeave, onFlash }) {
   const [chatText, setChatText] = useState('');
   const [handRaised, setHandRaised] = useState(false);
   const [connected, setConnected] = useState(true);
+  const [poll, setPoll] = useState(null);
+  const [myVote, setMyVote] = useState(null);
+  const [energyOn, setEnergyOn] = useState(false);
+  const [myEnergy, setMyEnergy] = useState(null);
+  const [classEnergy, setClassEnergy] = useState(null);
+  const videoRef = useRef(null);
+  const streamRef = useRef(null);
+  const faceApiRef = useRef(null);
   const socketRef = useRef(null);
   useEffect(() => { socketRef.current = socket; }, [socket]);
   const sessionIdRef = useRef(session.id);
@@ -5944,21 +6043,75 @@ function StudentLiveClassRoom({ session: initialSession, onLeave, onFlash }) {
     // they'll see the class in the live-sessions list again and can rejoin with one click.
     function onConnect() { setConnected(true); socketRef.current?.emit('class:join', { sessionId: sessionIdRef.current }, () => {}); }
     function onDisconnect() { setConnected(false); }
+    function onPoll(p) { setPoll(p); if (p.status === 'open' && (!poll || poll.id !== p.id)) setMyVote(null); }
+    function onEnergy(e) { setClassEnergy(e); }
+    function onNudged({ teacherName }) { onFlash(`${teacherName || 'Your teacher'} noticed you might be distracted — try to refocus!`, 'success'); }
     socket.on('class:slide', onSlide);
     socket.on('class:message', onMessage);
     socket.on('class:ended', onEnded);
     socket.on('connect', onConnect);
     socket.on('disconnect', onDisconnect);
+    socket.on('class:poll', onPoll);
+    socket.on('class:energy', onEnergy);
+    socket.on('class:energy:nudged', onNudged);
     return () => {
       socket.off('class:slide', onSlide); socket.off('class:message', onMessage);
       socket.off('class:ended', onEnded); socket.off('connect', onConnect); socket.off('disconnect', onDisconnect);
+      socket.off('class:poll', onPoll); socket.off('class:energy', onEnergy); socket.off('class:energy:nudged', onNudged);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [socket]);
 
+  // Class Energy Meter (spec #17) — opt-in: student's own browser runs a lightweight face-
+  // presence check every few seconds and reports only a boolean + score, never any image/video,
+  // to the server. Camera access is requested only when the student turns this on.
+  useEffect(() => {
+    if (!energyOn) {
+      streamRef.current?.getTracks().forEach((t) => t.stop());
+      streamRef.current = null;
+      setMyEnergy(null);
+      return undefined;
+    }
+    let cancelled = false;
+    let timer = null;
+    (async () => {
+      try {
+        const stream = await navigator.mediaDevices.getUserMedia({ video: { width: 240, height: 180 } });
+        if (cancelled) { stream.getTracks().forEach((t) => t.stop()); return; }
+        streamRef.current = stream;
+        if (videoRef.current) { videoRef.current.srcObject = stream; await videoRef.current.play().catch(() => {}); }
+        const { loadFaceModels, faceapi } = await import('../utils/faceApi');
+        await loadFaceModels();
+        faceApiRef.current = faceapi;
+        const tick = async () => {
+          if (cancelled || !videoRef.current || !faceApiRef.current) return;
+          try {
+            const detection = await faceApiRef.current.detectSingleFace(videoRef.current, new faceApiRef.current.TinyFaceDetectorOptions());
+            const attentive = Boolean(detection);
+            const score = attentive ? 85 : 15;
+            setMyEnergy({ attentive, score });
+            socketRef.current?.emit('class:energy:report', { sessionId: sessionIdRef.current, attentive, score }, () => {});
+          } catch { /* one bad frame is not fatal */ }
+          timer = setTimeout(tick, 6000);
+        };
+        tick();
+      } catch {
+        onFlash('Camera access is needed for the Class Energy Meter.');
+        setEnergyOn(false);
+      }
+    })();
+    return () => { cancelled = true; clearTimeout(timer); streamRef.current?.getTracks().forEach((t) => t.stop()); streamRef.current = null; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [energyOn]);
+
   function leave() {
     socketRef.current?.emit('class:leave', { sessionId: sessionIdRef.current }, () => {});
+    setEnergyOn(false);
     onLeave();
+  }
+
+  function vote(optionIndex) {
+    socketRef.current?.emit('class:poll:vote', { sessionId: sessionIdRef.current, optionIndex }, (ack) => { if (ack?.ok) setMyVote(optionIndex); else onFlash(ack?.message || 'Vote failed.'); });
   }
 
   function toggleHand() {
@@ -6001,9 +6154,26 @@ function StudentLiveClassRoom({ session: initialSession, onLeave, onFlash }) {
         </div>
       )}
       {session.meetingLink && <a href={session.meetingLink} target="_blank" rel="noreferrer" className="text-xs" style={{ display: 'inline-block', marginTop: 8, color: 'var(--emerald)' }}>Open Video/Audio Call ↗</a>}
-      <div style={{ marginTop: 10 }}>
+      <div className="flex items-center flex-wrap" style={{ marginTop: 10, gap: 10 }}>
         <button type="button" className={handRaised ? 'btn btn-primary' : 'btn'} style={{ padding: '6px 14px', fontSize: '0.78rem' }} onClick={toggleHand}>✋ {handRaised ? 'Lower Hand' : 'Raise Hand'}</button>
+        <label className="text-xs flex items-center" style={{ gap: 5 }}>
+          <input type="checkbox" checked={energyOn} onChange={(e) => setEnergyOn(e.target.checked)} /> Class Energy Meter
+        </label>
+        {energyOn && myEnergy && <span className="text-xs" style={{ color: myEnergy.attentive ? 'var(--emerald)' : 'var(--rose)' }}>{myEnergy.attentive ? '● Focused' : '● Distracted'}</span>}
+        {classEnergy && <span className="text-xs" style={{ color: 'var(--ink-soft)' }}>Class average: {classEnergy.average}%</span>}
       </div>
+      {energyOn && <video ref={videoRef} muted playsInline style={{ width: 90, height: 68, borderRadius: 8, marginTop: 8, objectFit: 'cover', transform: 'scaleX(-1)' }} />}
+
+      {poll && (
+        <div style={{ marginTop: 10, padding: 10, borderRadius: 10, background: 'var(--sand)' }}>
+          <p className="text-xs" style={{ fontWeight: 700, marginBottom: 6 }}>{poll.question}</p>
+          {poll.options.map((o) => (
+            <button key={o.index} type="button" disabled={poll.status !== 'open' || myVote !== null} className={myVote === o.index ? 'btn btn-primary' : 'btn'} style={{ display: 'block', width: '100%', textAlign: 'left', padding: '5px 10px', fontSize: '0.75rem', marginBottom: 4 }} onClick={() => vote(o.index)}>
+              {o.text}{(myVote !== null || poll.status === 'closed') ? ` — ${o.votes} vote${o.votes === 1 ? '' : 's'}` : ''}
+            </button>
+          ))}
+        </div>
+      )}
       <div style={{ maxHeight: 140, overflowY: 'auto', margin: '10px 0', display: 'flex', flexDirection: 'column', gap: 4 }}>
         {messages.length === 0 && <p className="text-xs" style={{ color: 'var(--ink-soft)' }}>No questions yet — ask below.</p>}
         {messages.map((m) => <p key={m.id} className="text-xs"><strong>{m.name}{m.teacher ? ' (teacher)' : ''}:</strong> {m.text}</p>)}
@@ -6220,18 +6390,32 @@ function StripeCheckoutButton({ feeId, onFlash }) {
   );
 }
 
-function PayFeeButton({ fee, payUrl, onFlash, onPaid }) {
+function PayFeeButton({ fee, onFlash, onPaid }) {
   const [open, setOpen] = useState(false);
   const [method, setMethod] = useState('bank_transfer');
+  const [amount, setAmount] = useState(String(fee.outstandingAmount ?? fee.amount ?? ''));
+  const [reference, setReference] = useState('');
+  const [bankName, setBankName] = useState('');
+  const [paidOn, setPaidOn] = useState(new Date().toISOString().slice(0, 10));
+  const [notes, setNotes] = useState('');
+  const [proof, setProof] = useState(null);
   const [paying, setPaying] = useState(false);
 
   async function confirmPay(e) {
     e.preventDefault();
+    if (!reference.trim()) return onFlash('Enter the payment reference or receipt number.');
+    if (method !== 'cash' && !proof) return onFlash('Upload payment proof for this payment method.');
     setPaying(true);
     try {
-      const updated = await apiRequest(payUrl, { method: 'PATCH', body: { paymentMethod: method } });
+      let proofUrl = '';
+      if (proof) proofUrl = await uploadToPlatformStorage(proof, 'fee-payment-proofs');
+      const updated = await apiRequest(`/institution-fees/fees/${fee._id}/report-payment`, {
+        method: 'POST',
+        body: { amount: Number(amount), method, reference: reference.trim(), bankName: bankName.trim(), paidOn, notes: notes.trim(), proofUrl }
+      });
       onFlash('Payment reported. Awaiting institution confirmation.', 'success');
       setOpen(false);
+      setReference(''); setBankName(''); setNotes(''); setProof(null);
       onPaid?.(updated);
     } catch (err) { onFlash(err.message); } finally { setPaying(false); }
   }
@@ -6264,10 +6448,18 @@ function PayFeeButton({ fee, payUrl, onFlash, onPaid }) {
   }
 
   return (
-    <form onSubmit={confirmPay} className="flex items-center flex-wrap" style={{ gap: 6 }}>
-      <CustomSelect value={method} onChange={setMethod} ariaLabel="Payment method" minWidth={130} options={MANUAL_FEE_METHODS} />
-      <button type="submit" className="btn btn-primary" style={{ padding: '5px 12px', fontSize: '0.75rem' }} disabled={paying}>{paying ? '...' : 'Confirm'}</button>
-      <button type="button" className="btn" style={{ padding: '5px 10px', fontSize: '0.75rem' }} onClick={() => setOpen(false)} disabled={paying}>Cancel</button>
+    <form onSubmit={confirmPay} style={{ display: 'grid', gap: 7, minWidth: 280, maxWidth: 360 }}>
+      <CustomSelect value={method} onChange={setMethod} ariaLabel="Payment method" minWidth="100%" options={MANUAL_FEE_METHODS} />
+      <input className="form-input" type="number" min="0.01" step="0.01" max={fee.outstandingAmount ?? fee.amount} value={amount} onChange={(e) => setAmount(e.target.value)} placeholder="Amount paid" required />
+      <input className="form-input" value={reference} onChange={(e) => setReference(e.target.value)} placeholder={method === 'cash' ? 'Cash receipt/reference number' : 'Transaction/reference number'} required />
+      {(method === 'bank_transfer' || method === 'mobile_wallet') && <input className="form-input" value={bankName} onChange={(e) => setBankName(e.target.value)} placeholder={method === 'mobile_wallet' ? 'Wallet/provider name' : 'Bank name'} required />}
+      <label className="text-xs">Payment date<input className="form-input" type="date" value={paidOn} onChange={(e) => setPaidOn(e.target.value)} required /></label>
+      <textarea className="form-input" rows={2} value={notes} onChange={(e) => setNotes(e.target.value)} placeholder="Optional note" />
+      <label className="text-xs">Payment proof {method === 'cash' ? '(optional)' : '(required)'}<input className="form-input" type="file" accept="image/*,.pdf" onChange={(e) => setProof(e.target.files?.[0] || null)} required={method !== 'cash'} /></label>
+      <div className="flex gap-2">
+        <button type="submit" className="btn btn-primary" style={{ padding: '7px 12px', fontSize: '0.75rem' }} disabled={paying}>{paying ? 'Submitting...' : 'Submit for verification'}</button>
+        <button type="button" className="btn" style={{ padding: '7px 10px', fontSize: '0.75rem' }} onClick={() => setOpen(false)} disabled={paying}>Cancel</button>
+      </div>
     </form>
   );
 }
@@ -6340,21 +6532,155 @@ function PayMethodModalButton({ onSubmit, disabled, label, methods = PAYMENT_MET
   );
 }
 
+function SalaryPaymentButton({ payslip, onSubmit }) {
+  const [open, setOpen] = useState(false);
+  const [method, setMethod] = useState('platform_wallet');
+  const [reference, setReference] = useState('');
+  const [provider, setProvider] = useState('');
+  const [proof, setProof] = useState(null);
+  const [submitting, setSubmitting] = useState(false);
+  const manual = !['platform_wallet', 'stripe_transfer'].includes(method);
+  async function submit(e) {
+    e.preventDefault(); setSubmitting(true);
+    try {
+      let proofUrl = '';
+      if (proof) proofUrl = await uploadToPlatformStorage(proof, 'salary-payment-proofs');
+      await onSubmit(payslip._id, { paymentMethod: method, reference: reference.trim(), provider: provider.trim(), proofUrl });
+      setOpen(false);
+    } finally { setSubmitting(false); }
+  }
+  if (!open) return <button type="button" className="btn btn-primary" style={{ padding: '7px 14px', fontSize: '0.78rem' }} onClick={() => setOpen(true)}>Pay Salary</button>;
+  return <form onSubmit={submit} style={{ display: 'grid', gap: 6, minWidth: 250 }}>
+    <CustomSelect value={method} onChange={setMethod} ariaLabel="Salary payment method" minWidth="100%" options={[
+      { value: 'platform_wallet', label: 'CareerZ Wallet (instant)' }, { value: 'stripe_transfer', label: 'Stripe bank transfer' },
+      { value: 'bank_transfer', label: 'Bank Transfer (manual)' }, { value: 'mobile_wallet', label: 'Mobile Wallet (manual)' },
+      { value: 'cash', label: 'Cash (manual)' }, { value: 'other', label: 'Other (manual)' }
+    ]} />
+    {manual && <><input className="form-input" value={reference} onChange={(e) => setReference(e.target.value)} placeholder="Transaction / cash receipt reference" required />
+      <input className="form-input" value={provider} onChange={(e) => setProvider(e.target.value)} placeholder="Bank / wallet / payment details" />
+      <label className="text-xs">Proof {method === 'cash' ? '(optional)' : '(required)'}<input className="form-input" type="file" accept="image/*,.pdf" required={method !== 'cash'} onChange={(e) => setProof(e.target.files?.[0] || null)} /></label></>}
+    <div className="flex gap-2"><button className="btn btn-primary" disabled={submitting}>{submitting ? 'Submitting...' : manual ? 'Submit to teacher' : 'Pay now'}</button><button type="button" className="btn" onClick={() => setOpen(false)}>Cancel</button></div>
+  </form>;
+}
+
+// Real downloadable PDF invoice (unpaid) or receipt (paid) — same jsPDF pattern used for
+// payslips/tax reports elsewhere. Receipt includes the QR-verifiable code but never any internal
+// platform-commission figures (spec 15D.8).
+async function downloadFeePdf(fee) {
+  const { jsPDF } = await import('jspdf');
+  const QRCode = (await import('qrcode')).default;
+  const pdf = new jsPDF();
+  const isPaid = fee.status === 'paid';
+  const verifyUrl = fee.verifyCode ? `${window.location.origin}/verify-fee-receipt/${fee.verifyCode}` : '';
+  const lines = [
+    isPaid ? 'Payment Receipt' : 'Invoice', `Title: ${fee.title}`,
+    `Fee Type: ${fee.feeType || '—'}`, `Academic Year: ${fee.academicYear || '—'}`, `Term/Period: ${fee.term || fee.billingPeriod || '—'}`,
+    `Original Amount: ${fee.currency} ${fee.originalAmount ?? fee.amount}`,
+    ...(fee.discounts?.length ? fee.discounts.map((d) => `Discount (${d.kind}): -${fee.currency} ${d.amount} — ${d.reason || ''}`) : []),
+    ...(fee.lateFeeAmount ? [`Late Fee: +${fee.currency} ${fee.lateFeeAmount}`] : []),
+    `Payable Amount: ${fee.currency} ${fee.amount}`,
+    `Paid: ${fee.currency} ${fee.paidAmount || (isPaid ? fee.amount : 0)}`,
+    `Outstanding: ${fee.currency} ${fee.outstandingAmount ?? (isPaid ? 0 : fee.amount)}`,
+    `Due Date: ${fee.dueDate ? new Date(fee.dueDate).toLocaleDateString() : '—'}`,
+    `Status: ${fee.status}`,
+    ...(isPaid ? [`Receipt Number: ${fee.receiptNumber || '—'}`, `Payment Method: ${fee.paidVia || fee.paymentMethod || '—'}`, `Paid At: ${fee.paidAt ? new Date(fee.paidAt).toLocaleString() : '—'}`] : [`Payment Instructions: Pay via CareerZ Wallet, Stripe/Paddle checkout, or report a manual bank transfer/cash payment for institution verification.`]),
+    ...(verifyUrl ? [`Verify online: ${verifyUrl}`] : [])
+  ];
+  pdf.setFontSize(16); pdf.text(isPaid ? 'Payment Receipt' : 'Fee Invoice', 18, 18);
+  pdf.setFontSize(11);
+  lines.slice(1).forEach((line, index) => pdf.text(String(line), 18, 32 + index * 8));
+  if (isPaid && verifyUrl) {
+    const qr = await QRCode.toDataURL(verifyUrl, { errorCorrectionLevel: 'M', margin: 1, width: 320 });
+    pdf.addImage(qr, 'PNG', 154, 18, 38, 38);
+    pdf.setFontSize(8); pdf.text('Scan to verify receipt', 173, 60, { align: 'center' });
+    pdf.link(154, 18, 38, 42, { url: verifyUrl });
+  }
+  pdf.save(`${isPaid ? 'receipt' : 'invoice'}-${fee.title.replace(/\s+/g, '-')}.pdf`);
+}
+
+// Generic CSV export — `rows` is an array of flat objects; every report table below reuses this.
+function downloadCsv(filename, rows) {
+  if (!rows || rows.length === 0) return;
+  const headers = Object.keys(rows[0]);
+  const escape = (v) => { const s = v == null ? '' : String(v); return /[",\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s; };
+  const csv = [headers.join(','), ...rows.map((r) => headers.map((h) => escape(r[h])).join(','))].join('\n');
+  const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url; a.download = filename; a.click();
+  URL.revokeObjectURL(url);
+}
+
 function StudentFeesPanel({ onFlash }) {
   const [fees, setFees] = useState(null);
   function load() { apiRequest('/students/me/fees').then(setFees).catch((err) => onFlash(err.message)); }
   useEffect(load, [onFlash]);
 
+  async function requestFeeRefund(fee) {
+    const reason = await showPrompt('Why are you requesting this refund?', { title: 'Request Fee Refund', required: true });
+    if (!reason?.trim()) return;
+    const confirmed = await showConfirm(`Submit a refund request for ${fee.currency} ${fee.paidAmount || fee.amount}?`, { confirmLabel: 'Request refund' });
+    if (!confirmed) return;
+    try {
+      await apiRequest(`/institutions/fees/${fee._id}/refund/request`, { method: 'POST', body: { reason: reason.trim() } });
+      onFlash('Refund request sent to the institution.', 'success');
+      load();
+    } catch (err) { onFlash(err.message); }
+  }
+
+  // Group by institution then billing frequency (spec: "clearly group fees as monthly, semester,
+  // annual and one-time... for each institution separately").
+  const grouped = {};
+  (fees || []).forEach((f) => {
+    const instName = f.institution?.name || 'Independent';
+    const freq = f.schedule?.billingFrequency || (f.installment?.totalInstallments > 1 ? 'installment plan' : 'one_time');
+    grouped[instName] = grouped[instName] || {};
+    grouped[instName][freq] = grouped[instName][freq] || { count: 0, outstanding: 0, currency: f.currency };
+    grouped[instName][freq].count += 1;
+    grouped[instName][freq].outstanding += f.outstandingAmount ?? (f.status === 'paid' ? 0 : f.amount);
+  });
+
   return (
     <div>
       <h3 className="font-semibold mb-2">My Fees</h3>
+      {Object.keys(grouped).length > 0 && (
+        <div className="grid" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 12, marginBottom: 18 }}>
+          {Object.entries(grouped).map(([inst, freqs]) => (
+            <div key={inst} className="card" style={{ padding: 14 }}>
+              <strong className="text-sm">{inst}</strong>
+              <div style={{ marginTop: 6, display: 'grid', gap: 3 }}>
+                {Object.entries(freqs).map(([freq, v]) => (
+                  <p key={freq} className="text-xs" style={{ color: 'var(--ink-soft)' }}>{freq.replace('_', ' ')}: {v.count} fee{v.count === 1 ? '' : 's'}{v.outstanding > 0 ? ` · ${v.currency} ${v.outstanding} due` : ''}</p>
+                ))}
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
       <Table
         loading={fees === null}
-        headers={['Title', 'Amount', 'Due', 'Status', 'Payment']}
+        headers={['Title', 'Amount', 'Outstanding', 'Due', 'Status', 'Payment', 'Document']}
         rows={(fees || []).map((f) => [
-          f.title, `${f.currency} ${f.amount}`, f.dueDate ? new Date(f.dueDate).toLocaleDateString() : '—',
-          <Tag status={f.status === 'paid' ? 'approved' : f.status === 'overdue' ? 'rejected' : 'pending'} />,
-          <PayFeeButton fee={f} payUrl={`/students/me/fees/${f._id}/pay`} onFlash={onFlash} onPaid={load} />
+          <span>
+            {f.title}{f.installment?.totalInstallments > 1 ? <span className="text-xs" style={{ color: 'var(--ink-soft)' }}><br />Instalment {f.installment.number}/{f.installment.totalInstallments}</span> : null}
+            {f.paymentHistory?.length > 0 && (
+              <span className="text-xs" style={{ display: 'block', color: 'var(--ink-soft)', marginTop: 2 }}>
+                {f.paymentHistory.map((p, i) => <span key={i}>{p.verifiedAt ? '✓' : '⏳'} {f.currency} {p.amount} ({p.method}){i < f.paymentHistory.length - 1 ? ', ' : ''}</span>)}
+              </span>
+            )}
+          </span>,
+          `${f.currency} ${f.originalAmount != null && f.originalAmount !== f.amount ? `${f.originalAmount} → ${f.amount}` : f.amount}`,
+          `${f.currency} ${f.outstandingAmount ?? f.amount}`,
+          f.dueDate ? new Date(f.dueDate).toLocaleDateString() : '—',
+          <Tag status={f.status === 'paid' ? 'approved' : f.status === 'overdue' ? 'rejected' : 'pending'} label={f.status?.replace('_', ' ')} />,
+          <PayFeeButton fee={f} onFlash={onFlash} onPaid={load} />,
+          <div className="flex gap-1 flex-wrap">
+            <button type="button" className="btn" style={{ padding: '4px 10px', fontSize: '0.72rem' }} onClick={() => downloadFeePdf(f)}>{f.status === 'paid' ? 'Receipt' : 'Invoice'} PDF</button>
+            {f.status === 'paid' && (!f.refund?.status || ['none', 'rejected'].includes(f.refund.status)) && (
+              <button type="button" className="btn" style={{ padding: '4px 10px', fontSize: '0.72rem' }} onClick={() => requestFeeRefund(f)}>Request Refund</button>
+            )}
+            {f.refund?.status && !['none', 'rejected'].includes(f.refund.status) && <Tag status={f.refund.status === 'refunded' ? 'approved' : 'pending'} label={`Refund ${f.refund.status}`} />}
+          </div>
         ])}
         empty="No fee records yet."
       />
@@ -7217,7 +7543,8 @@ function StudentSummary({ onNavigate, user }) {
 
 function TeacherWorkspace({ tab, user, onFlash, onChanged, onNavigate, onMessageUser }) {
   if (tab === 'profile') return <><ProfilePanel user={user} onFlash={onFlash} onChanged={onChanged} /><RolesPanel onFlash={onFlash} onChanged={onChanged} /><SupportComplaintPanel onFlash={onFlash} /></>;
-  if (tab === 'teacherProfile') return <><TeacherProfileDetailsPanel user={user} onFlash={onFlash} onChanged={onChanged} /><TeacherEmploymentPanel onFlash={onFlash} /></>;
+  if (tab === 'teacherProfile') return <TeacherProfileDetailsPanel user={user} onFlash={onFlash} onChanged={onChanged} />;
+  if (tab === 'employmentOffers') return <TeacherEmploymentPanel onFlash={onFlash} />;
   if (tab === 'courses') return <TeacherPanel onFlash={onFlash} />;
   if (tab === 'summary') return <TeacherSummary onNavigate={onNavigate} user={user} />;
   if (tab === 'students') return <TeacherStudentsPanel onFlash={onFlash} />;
@@ -7238,6 +7565,7 @@ function TeacherWorkspace({ tab, user, onFlash, onChanged, onNavigate, onMessage
   if (tab === 'advancedControl') return <AdvancedClassControlPanel onFlash={onFlash} />;
   if (tab === 'engagement') return <TeacherEngagementPanel onFlash={onFlash} />;
   if (tab === 'ptm') return <TeacherPtmPanel onFlash={onFlash} />;
+  if (tab === 'wallet') return <WalletCard onFlash={onFlash} />;
   const labels = {};
   return <ComingSoon label={labels[tab] || tab} />;
 }
@@ -7327,8 +7655,9 @@ function matchVoiceCommand(transcript) {
 // Session state (participants/raisedHands) comes straight from the server (src/realtime/socket.js
 // tracks it per session), kept in sync here purely by listening to class:participant/class:hand —
 // see the effect in AdvancedClassControlPanel that updates the `session` prop this renders.
-function LiveClassControlBoard({ session, messages, chatText, onChatText, onSendChat, onEnd }) {
+function LiveClassControlBoard({ session, messages, chatText, onChatText, onSendChat, onEnd, energy, poll, pollForm, onPollForm, onStartPoll, onClosePoll, onNudge }) {
   const students = (session.participants || []).filter((p) => !p.teacher);
+  const totalVotes = poll ? poll.options.reduce((s, o) => s + o.votes, 0) : 0;
   return (
     <div className="card" style={{ padding: 14, background: 'var(--sand)' }}>
       <div className="flex items-center justify-between" style={{ marginBottom: 8 }}>
@@ -7340,6 +7669,54 @@ function LiveClassControlBoard({ session, messages, chatText, onChatText, onSend
       {(session.raisedHands || []).length > 0 && (
         <p className="text-xs" style={{ marginBottom: 8, color: 'var(--gold)', fontWeight: 700 }}>✋ Raised hands: {session.raisedHands.map((h) => h.name).join(', ')}</p>
       )}
+
+      {/* Class Energy Meter — spec #17: AI-derived attention reading, teacher-only roster view. */}
+      {energy && energy.total > 0 && (
+        <div style={{ marginBottom: 10, padding: 10, borderRadius: 10, background: 'var(--paper-raised)' }}>
+          <div className="flex items-center justify-between text-xs" style={{ fontWeight: 700 }}>
+            <span>Class Energy</span>
+            <span>{energy.average}% attentive on average · {energy.attentiveCount}/{energy.total} focused</span>
+          </div>
+          <div style={{ height: 6, borderRadius: 999, background: 'var(--sand-line)', marginTop: 6, overflow: 'hidden' }}>
+            <div style={{ width: `${energy.average}%`, height: '100%', background: energy.average >= 60 ? 'var(--emerald)' : energy.average >= 30 ? 'var(--gold)' : 'var(--rose)' }} />
+          </div>
+          {energy.roster?.length > 0 && (
+            <div style={{ marginTop: 6, display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+              {energy.roster.map((r) => (
+                <span key={r.userId} className="text-xs flex items-center" style={{ gap: 5, padding: '2px 4px 2px 8px', borderRadius: 999, background: r.attentive ? 'var(--emerald)' : 'var(--rose)', color: '#fff' }}>
+                  {r.name}
+                  {!r.attentive && onNudge && (
+                    <button type="button" onClick={() => onNudge(r.userId)} title="Send a gentle nudge" style={{ background: 'rgba(255,255,255,.25)', border: 'none', color: '#fff', borderRadius: 999, padding: '1px 7px', fontSize: 10, cursor: 'pointer' }}>Nudge</button>
+                  )}
+                </span>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Live in-class poll */}
+      <div style={{ marginBottom: 10, padding: 10, borderRadius: 10, background: 'var(--paper-raised)' }}>
+        {poll ? (
+          <div>
+            <p className="text-xs" style={{ fontWeight: 700, marginBottom: 6 }}>{poll.question} {poll.status === 'closed' && '(closed)'}</p>
+            {poll.options.map((o) => (
+              <div key={o.index} className="text-xs" style={{ marginBottom: 3 }}>{o.text}: {o.votes} ({totalVotes > 0 ? Math.round((o.votes / totalVotes) * 100) : 0}%)</div>
+            ))}
+            {poll.status === 'open' && <button type="button" className="btn" style={{ padding: '4px 10px', fontSize: '0.7rem', marginTop: 6 }} onClick={onClosePoll}>Close Poll</button>}
+          </div>
+        ) : (
+          <form onSubmit={onStartPoll} className="flex flex-wrap items-center" style={{ gap: 6 }}>
+            <input className="form-input" placeholder="Quick poll question" style={{ flex: '1 1 160px' }} value={pollForm.question} onChange={(e) => onPollForm({ ...pollForm, question: e.target.value })} />
+            {pollForm.options.map((o, i) => (
+              <input key={i} className="form-input" placeholder={`Option ${i + 1}`} style={{ width: 100 }} value={o} onChange={(e) => onPollForm({ ...pollForm, options: pollForm.options.map((x, idx) => (idx === i ? e.target.value : x)) })} />
+            ))}
+            <button type="button" className="btn" style={{ padding: '4px 8px', fontSize: '0.7rem' }} onClick={() => onPollForm({ ...pollForm, options: [...pollForm.options, ''] })}>+</button>
+            <button type="submit" className="btn btn-primary" style={{ padding: '4px 10px', fontSize: '0.7rem' }}>Launch Poll</button>
+          </form>
+        )}
+      </div>
+
       <div style={{ maxHeight: 160, overflowY: 'auto', marginBottom: 8, display: 'flex', flexDirection: 'column', gap: 4 }}>
         {messages.length === 0 && <p className="text-xs" style={{ color: 'var(--ink-soft)' }}>No questions yet.</p>}
         {messages.map((m) => (
@@ -7372,6 +7749,9 @@ function AdvancedClassControlPanel({ onFlash }) {
   const [liveMessages, setLiveMessages] = useState([]);
   const [liveChatText, setLiveChatText] = useState('');
   const [liveBusy, setLiveBusy] = useState(false);
+  const [classEnergy, setClassEnergy] = useState(null);
+  const [classPoll, setClassPoll] = useState(null);
+  const [pollForm, setPollForm] = useState({ question: '', options: ['', ''] });
   const socketRef = useRef(null);
   useEffect(() => { socketRef.current = socket; }, [socket]);
   const liveSessionIdRef = useRef(null);
@@ -7447,21 +7827,46 @@ function AdvancedClassControlPanel({ onFlash }) {
       });
     }
     function onMessage(msg) { setLiveMessages((m) => [...m, msg].slice(-200)); }
-    function onEnded() { setLiveSession(null); setLiveMessages([]); onFlash('Live class ended.'); }
+    function onEnded() { setLiveSession(null); setLiveMessages([]); setClassEnergy(null); setClassPoll(null); onFlash('Live class ended.'); }
+    function onEnergyDetail(detail) { if (detail.sessionId === liveSession.id) setClassEnergy(detail); }
+    function onPoll(poll) { setClassPoll(poll); }
     socket.on('class:slide', onSlide);
     socket.on('class:participant', onParticipant);
     socket.on('class:hand', onHand);
     socket.on('class:message', onMessage);
     socket.on('class:ended', onEnded);
+    socket.on('class:energy:detail', onEnergyDetail);
+    socket.on('class:poll', onPoll);
     return () => {
       socket.off('class:slide', onSlide); socket.off('class:participant', onParticipant);
       socket.off('class:hand', onHand); socket.off('class:message', onMessage); socket.off('class:ended', onEnded);
+      socket.off('class:energy:detail', onEnergyDetail); socket.off('class:poll', onPoll);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [socket, liveSession?.id]);
 
   function broadcastSlide(index) {
     if (socketRef.current && liveSessionIdRef.current) socketRef.current.emit('class:control', { sessionId: liveSessionIdRef.current, currentSlide: index });
+  }
+
+  function startClassPoll(e) {
+    e.preventDefault();
+    const options = pollForm.options.map((o) => o.trim()).filter(Boolean);
+    if (!pollForm.question.trim() || options.length < 2 || !socketRef.current || !liveSessionIdRef.current) return;
+    socketRef.current.emit('class:poll:start', { sessionId: liveSessionIdRef.current, question: pollForm.question.trim(), options }, (ack) => {
+      if (!ack?.ok) return onFlash(ack?.message || 'Could not start the poll.');
+      setPollForm({ question: '', options: ['', ''] });
+    });
+  }
+  function closeClassPoll() {
+    if (socketRef.current && liveSessionIdRef.current) socketRef.current.emit('class:poll:close', { sessionId: liveSessionIdRef.current }, () => {});
+  }
+
+  function nudgeStudent(studentId) {
+    if (!socketRef.current || !liveSessionIdRef.current) return;
+    socketRef.current.emit('class:energy:nudge', { sessionId: liveSessionIdRef.current, studentId }, (ack) => {
+      if (ack?.ok) onFlash('Nudge sent.', 'success'); else onFlash(ack?.message || 'Could not send nudge.');
+    });
   }
 
   const goNext = useRef(() => setCurrent((c) => { const next = Math.min((slidesRef.current?.length || 1) - 1, c + 1); broadcastSlide(next); return next; })).current;
@@ -7478,7 +7883,23 @@ function AdvancedClassControlPanel({ onFlash }) {
       if (parsed.length === 0) throw new Error("Couldn't parse slides from the response — try again.");
       setSlides(parsed);
       setCurrent(0);
+      setTopic('');
     } catch (err) { onFlash(err.message); } finally { setGenerating(false); }
+  }
+
+  // No-AI fallback — a plain, editable starter deck built from the topic alone. Useful whenever
+  // AI generation is unavailable (no BYOK key, platform key's quota/billing lapsed, etc.) so a
+  // teacher can still start a live class without waiting on that.
+  function createSimpleDeck(e) {
+    e.preventDefault();
+    if (!topic.trim()) return onFlash('Type a topic first.');
+    setSlides([
+      { title: topic.trim(), bullets: ['Add your first talking point here', 'Add another point'], background: '#fff8e7', accent: '#d97706', text: '#1f2937', imageUrl: '' },
+      { title: 'Slide 2', bullets: ['Edit this slide before going live'], background: '#fff8e7', accent: '#d97706', text: '#1f2937', imageUrl: '' }
+    ]);
+    setCurrent(0);
+    setTopic('');
+    onFlash('Simple deck created — edit the slides below before starting the class.', 'success');
   }
 
   // Manual keyboard navigation is always live, independent of every toggle below.
@@ -7752,7 +8173,10 @@ function AdvancedClassControlPanel({ onFlash }) {
           <p className="text-xs" style={{ color: 'var(--ink-soft)', marginTop: 6 }}>Generate a new slide deck, or load one you already saved to a class's Resources.</p>
           <form onSubmit={generateDeck} style={{ marginTop: 12 }}>
             <input className="form-input" placeholder="e.g. The Water Cycle, Grade 5" value={topic} onChange={(e) => setTopic(e.target.value)} required />
-            <button type="submit" className="btn btn-primary" style={{ padding: '6px 14px', fontSize: '0.78rem', marginTop: 8 }} disabled={generating}>{generating ? 'Generating...' : 'Generate & Start'}</button>
+            <div className="flex items-center flex-wrap" style={{ gap: 8, marginTop: 8 }}>
+              <button type="submit" className="btn btn-primary" style={{ padding: '6px 14px', fontSize: '0.78rem' }} disabled={generating}>{generating ? 'Generating...' : 'Generate with AI'}</button>
+              <button type="button" className="btn" style={{ padding: '6px 14px', fontSize: '0.78rem' }} onClick={createSimpleDeck}>Skip AI — Create Simple Deck</button>
+            </div>
           </form>
           <div style={{ marginTop: 16, paddingTop: 14, borderTop: '1px solid var(--sand-line)' }}>
             <label className="text-xs" style={{ color: 'var(--ink-soft)', display: 'block', marginBottom: 6 }}>Or load a saved deck from a class</label>
@@ -7803,7 +8227,11 @@ function AdvancedClassControlPanel({ onFlash }) {
                   </button>
                 </>
               ) : (
-                <LiveClassControlBoard session={liveSession} messages={liveMessages} chatText={liveChatText} onChatText={setLiveChatText} onSendChat={sendLiveChat} onEnd={endLiveClass} />
+                <LiveClassControlBoard
+                  session={liveSession} messages={liveMessages} chatText={liveChatText} onChatText={setLiveChatText} onSendChat={sendLiveChat} onEnd={endLiveClass}
+                  energy={classEnergy} poll={classPoll} pollForm={pollForm} onPollForm={setPollForm} onStartPoll={startClassPoll} onClosePoll={closeClassPoll}
+                  onNudge={nudgeStudent}
+                />
               )}
             </div>
           </div>
@@ -7922,6 +8350,7 @@ function AiVideoLessonCreator({ aiEnabled, onFlash }) {
       await apiRequest('/media/cloudinary/config', { method: 'PUT', body: cloudForm });
       onFlash('Video storage connected.', 'success');
       setStorageStatus({ configured: true, cloudName: cloudForm.cloudName });
+      setCloudForm({ cloudName: '', apiKey: '', apiSecret: '' });
     } catch (err) { onFlash(err.message); }
   }
 
@@ -8046,6 +8475,8 @@ function AiVideoLessonCreator({ aiEnabled, onFlash }) {
 
       setVideoUrl(uploadJson.secure_url);
       setStage('done');
+      setLessonTitle('');
+      setTopic('');
       onFlash('Video lesson created and saved!', 'success');
     } catch (err) {
       onFlash(err.message);
@@ -8125,6 +8556,13 @@ function TeacherEmploymentPanel({ onFlash }) {
   function load() { apiRequest('/teacher-employments/mine').then(setEmployments).catch((err) => onFlash(err.message)); }
   useEffect(load, []);
 
+  async function openContract(id) {
+    try {
+      const result = await apiRequest(`/teacher-employments/${id}/contract-link`);
+      window.open(result.url, '_blank', 'noopener,noreferrer');
+    } catch (err) { onFlash(err.message); }
+  }
+
   async function respond(id, decision) {
     setBusyId(id);
     try {
@@ -8145,6 +8583,16 @@ function TeacherEmploymentPanel({ onFlash }) {
     } catch (err) { onFlash(err.message); } finally { setBusyId(null); }
   }
 
+  async function requestLeave(id) {
+    const from = await showPrompt('Enter leave start date (YYYY-MM-DD).', { title: 'Request leave', required: true });
+    if (!from) return;
+    const to = await showPrompt('Enter leave end date (YYYY-MM-DD).', { title: 'Request leave', required: true });
+    if (!to) return;
+    const reason = await showPrompt('Reason for leave.', { title: 'Request leave', required: true });
+    if (reason === null) return;
+    try { await apiRequest(`/teacher-employments/${id}/manage`, { method: 'PATCH', body: { action: 'request_leave', from, to, reason } }); onFlash('Leave request sent.', 'success'); load(); } catch (err) { onFlash(err.message); }
+  }
+
   const STATUS_TAG = { offered: 'pending', active: 'approved', declined: 'rejected', resigned: 'pending', terminated: 'rejected' };
   const pending = (employments || []).filter((e) => e.status === 'offered');
   const history = (employments || []).filter((e) => e.status !== 'offered');
@@ -8161,6 +8609,11 @@ function TeacherEmploymentPanel({ onFlash }) {
               <div>
                 <strong className="text-sm">{e.institution?.name}</strong>
                 <p className="text-xs" style={{ color: 'var(--ink-soft)' }}>{e.role}{e.designation ? ` — ${e.designation}` : ''}{e.contractTerms ? ` · ${e.contractTerms}` : ''}</p>
+                <p className="text-xs" style={{ color: 'var(--ink-soft)', marginTop: 4 }}>
+                  Salary: <strong>{e.salaryCurrency || 'PKR'} {Number(e.monthlySalary || 0).toLocaleString()}</strong>
+                  {Number(e.taxPercent || 0) > 0 ? ` · Tax ${e.taxPercent}%` : ''}
+                </p>
+                {e.contractDocumentUrl && <button type="button" className="btn" onClick={() => openContract(e._id)} style={{ display: 'inline-flex', padding: '4px 10px', fontSize: '0.75rem', marginTop: 6 }}>View Contract</button>}
               </div>
               <div className="flex gap-2">
                 <button type="button" className="btn btn-primary" style={{ padding: '5px 12px', fontSize: '0.78rem' }} disabled={busyId === e._id} onClick={() => respond(e._id, 'accepted')}>Accept</button>
@@ -8179,7 +8632,7 @@ function TeacherEmploymentPanel({ onFlash }) {
           e.startedAt ? new Date(e.startedAt).toLocaleDateString() : '—',
           e.endedAt ? `${new Date(e.endedAt).toLocaleDateString()}${e.endReason ? ` (${e.endReason})` : ''}` : '—',
           e.status === 'active'
-            ? <button type="button" className="btn" style={{ padding: '4px 12px', fontSize: '0.78rem' }} disabled={busyId === e._id} onClick={() => resignFrom(e._id)}>Resign</button>
+            ? <div className="flex gap-1"><button type="button" className="btn" style={{ padding: '4px 12px', fontSize: '0.78rem' }} onClick={() => requestLeave(e._id)}>Request Leave</button><button type="button" className="btn" style={{ padding: '4px 12px', fontSize: '0.78rem' }} disabled={busyId === e._id} onClick={() => resignFrom(e._id)}>Resign</button></div>
             : '—'
         ])}
         empty="No employment history yet."
@@ -8322,18 +8775,61 @@ function TeacherProfileDetailsPanel({ user, onFlash, onChanged }) {
 
 function TeacherEarningsPanel({ onFlash }) {
   const [payslips, setPayslips] = useState(null);
+  const [payoutStatus, setPayoutStatus] = useState(null);
+  const [connecting, setConnecting] = useState(false);
   useEffect(() => { apiRequest('/teachers/me/payslips').then(setPayslips).catch((err) => onFlash(err.message)); }, [onFlash]);
+  useEffect(() => { apiRequest('/teachers/me/payout-status').then(setPayoutStatus).catch(() => setPayoutStatus(false)); }, []);
+
+  async function connectBank() {
+    setConnecting(true);
+    try {
+      const res = await apiRequest('/teachers/me/payout-onboarding', { method: 'POST' });
+      window.location.href = res.url;
+    } catch (err) { onFlash(err.message); setConnecting(false); }
+  }
+  async function reviewManualSalary(payslip, decision) {
+    let rejectionReason = '';
+    if (decision === 'reject') {
+      rejectionReason = await showPrompt('Why did you reject this payment report?', { title: 'Reject salary payment', required: true });
+      if (!rejectionReason) return;
+    } else {
+      const confirmed = await showConfirm('Confirm only after this salary has actually reached you.', { confirmLabel: 'Money received' });
+      if (!confirmed) return;
+    }
+    try {
+      await apiRequest(`/teachers/me/payslips/${payslip._id}/verify-payment`, { method: 'PATCH', body: { decision, rejectionReason } });
+      onFlash(decision === 'verify' ? 'Salary receipt confirmed.' : 'Payment report rejected.', 'success');
+      setPayslips(await apiRequest('/teachers/me/payslips'));
+    } catch (err) { onFlash(err.message); }
+  }
 
   return (
     <div>
       <h3 className="font-semibold mb-2">Salary & Earnings</h3>
+
+      <div className="card" style={{ padding: 14, marginBottom: 16 }}>
+        {payoutStatus === null && <p className="text-xs" style={{ color: 'var(--ink-soft)' }}>Checking bank connection...</p>}
+        {payoutStatus === false && <p className="text-xs" style={{ color: 'var(--ink-soft)' }}>Real bank transfer isn't available on this platform yet.</p>}
+        {payoutStatus && (
+          payoutStatus.payoutsEnabled ? (
+            <p className="text-xs" style={{ color: 'var(--emerald)', fontWeight: 700 }}>✓ Bank account connected — institutions can send you real transfers via Stripe.</p>
+          ) : (
+            <>
+              <p className="text-xs" style={{ marginBottom: 8 }}>{payoutStatus.connected ? 'Finish connecting your bank account to receive real Stripe transfers.' : 'Connect a bank account so institutions can pay your salary via a real bank transfer instead of just an internal ledger.'}</p>
+              <button type="button" className="btn btn-primary" style={{ padding: '6px 14px', fontSize: '0.78rem' }} disabled={connecting} onClick={connectBank}>{connecting ? 'Redirecting...' : payoutStatus.connected ? 'Finish Bank Setup' : 'Connect Bank Account (Stripe)'}</button>
+            </>
+          )
+        )}
+      </div>
+
       <Table
         loading={payslips === null}
-        headers={['Institution', 'Period', 'Basic', 'Bonuses', 'Deductions', 'Net', 'Status']}
+        headers={['Institution', 'Period', 'Basic', 'Bonuses', 'Deductions', 'Net', 'Status', 'Verification']}
         rows={(payslips || []).map((p) => [
           p.institution?.name || '—', `${p.month}/${p.year}`, `${p.currency} ${p.basicSalary}`,
           `${p.currency} ${p.bonuses}`, `${p.currency} ${p.deductions}`, `${p.currency} ${p.netAmount}`,
-          <Tag status={p.status === 'paid' ? 'approved' : 'pending'} />
+          <Tag status={p.status === 'paid' ? 'approved' : 'pending'} label={p.status === 'paid' && p.paymentMethod === 'stripe_transfer' ? 'paid (real transfer)' : p.status} />,
+          p.status === 'processing' ? <div style={{ display: 'grid', gap: 6 }}><span className="text-xs">{p.paymentMethod} · Ref {p.paymentReference}</span>{p.paymentProofUrl && <a className="btn" href={p.paymentProofUrl} target="_blank" rel="noreferrer">View proof</a>}<div className="flex gap-2"><button className="btn btn-primary" onClick={() => reviewManualSalary(p, 'verify')}>Confirm received</button><button className="btn" onClick={() => reviewManualSalary(p, 'reject')}>Reject</button></div></div> : '—'
         ])}
         empty="No payslips issued to you yet."
       />
@@ -8351,10 +8847,17 @@ function TeacherEngagementPanel({ onFlash }) {
   const [submissions, setSubmissions] = useState(null);
   const [expandedSubmission, setExpandedSubmission] = useState(null);
   const [answerDrafts, setAnswerDrafts] = useState({});
+  const [liveHistory, setLiveHistory] = useState(null);
 
   useEffect(() => {
     apiRequest('/teachers/me').then((p) => setInstitution(p.institutions?.[0] || null)).catch((err) => onFlash(err.message));
   }, [onFlash]);
+
+  useEffect(() => {
+    if (section === 'liveHistory' && liveHistory === null) {
+      apiRequest('/teachers/me/engagement-history').then(setLiveHistory).catch((err) => onFlash(err.message));
+    }
+  }, [section, liveHistory, onFlash]);
 
   function loadQuestions(instId) {
     apiRequest(`/anonymous-questions/institution?institutionId=${instId}`).then(setQuestions).catch((err) => onFlash(err.message));
@@ -8417,6 +8920,19 @@ function TeacherEngagementPanel({ onFlash }) {
       loadSubmissions(institution._id);
     } catch (err) { onFlash(err.message); }
   }
+  async function editSubmission(submission) {
+    const title = await showPrompt('Edit magazine title.', { title: 'Edit submission', initialValue: submission.title, required: true });
+    if (title === null) return;
+    const content = await showPrompt('Edit magazine content.', { title: 'Edit submission content', initialValue: submission.content, required: true });
+    if (content === null) return;
+    try { await apiRequest(`/magazine/${submission._id}/edit`, { method: 'PATCH', body: { title, content, type: submission.type } }); onFlash('Magazine content updated.', 'success'); loadSubmissions(institution._id); }
+    catch (err) { onFlash(err.message); }
+  }
+
+  const totalVotes = (polls || []).reduce((sum, poll) => sum + (poll.options || []).reduce((n, option) => n + Number(option.votes || 0), 0), 0);
+  const answeredQuestions = (questions || []).filter((question) => question.status === 'answered').length;
+  const engagementEvents = totalVotes + (questions || []).length;
+  const energyPercent = Math.min(100, Math.round((Math.min(totalVotes, 20) / 20 * 60) + (Math.min(answeredQuestions, 10) / 10 * 40)));
 
   if (!institution) return <p className="admin-notice">You're not linked to an institution yet.</p>;
 
@@ -8429,6 +8945,8 @@ function TeacherEngagementPanel({ onFlash }) {
         <button type="button" className={`btn ${section === 'magazine' ? 'btn-primary' : ''}`} onClick={() => setSection('magazine')}>Magazine Submissions</button>
         <button type="button" className={`btn ${section === 'groups' ? 'btn-primary' : ''}`} onClick={() => setSection('groups')}>Study Groups</button>
         <button type="button" className={`btn ${section === 'verify' ? 'btn-primary' : ''}`} onClick={() => setSection('verify')}>Verify Goals & Achievements</button>
+        <button type="button" className={`btn ${section === 'energy' ? 'btn-primary' : ''}`} onClick={() => { setSection('energy'); loadQuestions(institution._id); loadPolls(); }}>Class Energy Meter</button>
+        <button type="button" className={`btn ${section === 'liveHistory' ? 'btn-primary' : ''}`} onClick={() => setSection('liveHistory')}>Live Class History</button>
       </div>
 
       {section === 'questions' && (
@@ -8508,6 +9026,7 @@ function TeacherEngagementPanel({ onFlash }) {
                       {s.imageUrl && <img src={s.imageUrl} alt="" style={{ maxWidth: '100%', maxHeight: 240, borderRadius: 10, marginBottom: 10 }} />}
                       <p className="text-sm" style={{ whiteSpace: 'pre-wrap', lineHeight: 1.6 }}>{s.content}</p>
                       {s.editorNotes && <p className="text-xs" style={{ color: 'var(--gold)', marginTop: 8 }}>Notes: {s.editorNotes}</p>}
+                      {s.status !== 'published' && <button type="button" className="btn" style={{ marginTop: 10 }} onClick={() => editSubmission(s)}>Edit Content</button>}
                     </div>
                   )}
                   {s.status === 'submitted' && (
@@ -8526,6 +9045,32 @@ function TeacherEngagementPanel({ onFlash }) {
 
       {section === 'groups' && <TeacherStudyGroupsSection onFlash={onFlash} myCourses={myCourses} />}
       {section === 'verify' && <TeacherVerificationSection onFlash={onFlash} />}
+      {section === 'energy' && <div className="card" style={{ padding: 22 }}><h4 className="font-semibold">Class Energy Meter</h4><p className="text-sm" style={{ color: 'var(--ink-soft)' }}>Participation-based score from real poll votes and answered anonymous questions.</p><div style={{ height: 14, borderRadius: 10, background: 'var(--sand)', overflow: 'hidden', margin: '18px 0 8px' }}><div style={{ width: `${energyPercent}%`, height: '100%', background: 'var(--forest)' }} /></div><strong>{energyPercent}%</strong><p className="text-xs mt-2">{engagementEvents} engagement events · {totalVotes} poll votes · {answeredQuestions} questions answered</p></div>}
+
+      {section === 'liveHistory' && (
+        <div>
+          <p className="text-xs" style={{ color: 'var(--ink-soft)', marginBottom: 12 }}>Real Class Energy Meter + live-poll results from your own past live classes (Advanced Class Control), saved when each class ends.</p>
+          {liveHistory === null && <p className="admin-notice">Loading...</p>}
+          {liveHistory?.length === 0 && <p className="admin-notice">No live classes with participants yet.</p>}
+          <div style={{ display: 'grid', gap: 10 }}>
+            {(liveHistory || []).map((r) => (
+              <div key={r._id} className="card" style={{ padding: 14 }}>
+                <div className="flex items-center justify-between flex-wrap" style={{ gap: 8 }}>
+                  <strong className="text-sm">{r.course?.title || 'Class'}</strong>
+                  <span className="text-xs" style={{ color: 'var(--ink-soft)' }}>{new Date(r.startedAt).toLocaleString()} → {new Date(r.endedAt).toLocaleTimeString()}</span>
+                </div>
+                <p className="text-xs" style={{ marginTop: 6 }}>{r.participantCount} student{r.participantCount === 1 ? '' : 's'}{r.averageEnergy != null ? ` · ${r.averageEnergy}% avg attention · ${r.attentiveCount}/${(r.roster || []).length} focused` : ' · Energy Meter not used'}</p>
+                {r.poll?.question && (
+                  <div className="text-xs" style={{ marginTop: 8, padding: 8, background: 'var(--sand)', borderRadius: 8 }}>
+                    <strong>{r.poll.question}</strong>
+                    {r.poll.options.map((o, i) => <div key={i}>{o.text}: {o.votes}</div>)}
+                  </div>
+                )}
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
     </div>
   );
 }
@@ -8613,6 +9158,7 @@ function TeacherStudyGroupsSection({ onFlash, myCourses }) {
   const [manualForm, setManualForm] = useState({ name: '', memberIds: [] });
   const [aiSize, setAiSize] = useState(4);
   const [detail, setDetail] = useState(null);
+  const selectedCourse = myCourses.find((course) => course._id === courseId);
 
   useEffect(() => { if (!courseId && myCourses[0]) setCourseId(myCourses[0]._id); }, [myCourses]); // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -8657,22 +9203,51 @@ function TeacherStudyGroupsSection({ onFlash, myCourses }) {
   if (detail) return <TeacherStudyGroupDetail groupId={detail} onFlash={onFlash} onBack={() => { setDetail(null); load(); }} />;
 
   return (
-    <div>
-      {myCourses.length > 1 && (
-        <select className="form-input" style={{ maxWidth: 320, marginBottom: 14 }} value={courseId} onChange={(e) => setCourseId(e.target.value)}>
+    <div style={{ display: 'grid', gap: 18 }}>
+      <section className="card" style={{ padding: 20 }}>
+        <div className="flex items-start justify-between flex-wrap" style={{ gap: 16 }}>
+          <div>
+            <strong style={{ fontSize: '1.05rem' }}>Class study groups</strong>
+            <p className="text-sm" style={{ color: 'var(--ink-soft)', marginTop: 5 }}>Select a class, create its teams, then open a group to assign the project and review its work.</p>
+          </div>
+          <span className="badge" style={{ background: enabled ? '#d9f7e8' : '#f3e5dc', color: enabled ? '#086c50' : '#9a412f' }}>{enabled ? 'Study groups enabled' : 'Study groups disabled'}</span>
+        </div>
+        <label className="text-xs" style={{ display: 'block', fontWeight: 700, marginTop: 18, marginBottom: 6 }}>Course / class</label>
+        <select className="form-input" style={{ maxWidth: 520 }} value={courseId} onChange={(e) => setCourseId(e.target.value)} disabled={!myCourses.length}>
+          {!myCourses.length && <option value="">No assigned course</option>}
           {myCourses.map((c) => <option key={c._id} value={c._id}>{c.title}</option>)}
         </select>
-      )}
-      <div className="flex items-center flex-wrap" style={{ gap: 10, marginBottom: 16 }}>
-        <button type="button" className="btn" onClick={toggleEnabled}>{enabled ? 'Disable Study Groups for this class' : 'Enable Study Groups for this class'}</button>
-        <button type="button" className="btn" onClick={() => setShowCreate((s) => !s)}>+ Create Group Manually</button>
-        <input type="number" min={2} max={10} className="form-input" style={{ width: 70 }} value={aiSize} onChange={(e) => setAiSize(Number(e.target.value))} />
-        <button type="button" className="btn btn-primary" onClick={aiGenerate}>AI Group Maker (balance by performance)</button>
-      </div>
+        <div className="flex items-center justify-between flex-wrap" style={{ gap: 12, marginTop: 16, paddingTop: 14, borderTop: '1px solid var(--sand-line)' }}>
+          <p className="text-xs" style={{ color: 'var(--ink-soft)' }}>{enabled ? `Students in ${selectedCourse?.title || 'this class'} can access their assigned group.` : 'Students cannot use study groups for this class until you enable them.'}</p>
+          <button type="button" className="btn" onClick={toggleEnabled} disabled={!courseId}>{enabled ? 'Disable for this class' : 'Enable for this class'}</button>
+        </div>
+      </section>
+
+      <section className="card" style={{ padding: 20, opacity: enabled ? 1 : 0.65 }}>
+        <strong style={{ fontSize: '1.05rem' }}>Create groups</strong>
+        <p className="text-sm" style={{ color: 'var(--ink-soft)', marginTop: 5 }}>Create one team yourself, or let CareerZ distribute the full class into balanced teams.</p>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: 12, marginTop: 16 }}>
+          <div style={{ border: '1px solid var(--sand-line)', borderRadius: 16, padding: 16 }}>
+            <strong className="text-sm">Manual group</strong>
+            <p className="text-xs" style={{ color: 'var(--ink-soft)', margin: '5px 0 14px' }}>Choose a group name and select its members yourself.</p>
+            <button type="button" className="btn" onClick={() => setShowCreate((s) => !s)} disabled={!enabled || !courseId}>{showCreate ? 'Close manual setup' : 'Create manually'}</button>
+          </div>
+          <div style={{ border: '1px solid var(--sand-line)', borderRadius: 16, padding: 16 }}>
+            <strong className="text-sm">Balanced class groups</strong>
+            <p className="text-xs" style={{ color: 'var(--ink-soft)', margin: '5px 0 10px' }}>Create teams from the class roster using student performance balance.</p>
+            <label className="text-xs" style={{ display: 'block', fontWeight: 700, marginBottom: 5 }}>Students per group</label>
+            <div className="flex items-center flex-wrap" style={{ gap: 8 }}>
+              <input type="number" min={2} max={10} className="form-input" style={{ width: 88 }} value={aiSize} onChange={(e) => setAiSize(Number(e.target.value))} />
+              <button type="button" className="btn btn-primary" onClick={aiGenerate} disabled={!enabled || !courseId || roster.length < 2}>Create balanced groups</button>
+            </div>
+          </div>
+        </div>
+      </section>
 
       {showCreate && (
-        <form onSubmit={createManual} className="card" style={{ padding: 16, marginBottom: 16, display: 'grid', gap: 10, maxWidth: 480 }}>
-          <input className="form-input" placeholder="Group name" value={manualForm.name} onChange={(e) => setManualForm({ ...manualForm, name: e.target.value })} />
+        <form onSubmit={createManual} className="card" style={{ padding: 20, display: 'grid', gap: 12 }}>
+          <div><strong>New manual group</strong><p className="text-xs" style={{ color: 'var(--ink-soft)', marginTop: 3 }}>Select at least the students who will begin this group. You can manage members later.</p></div>
+          <input className="form-input" style={{ maxWidth: 520 }} placeholder="Group name, e.g. Computing Team A" value={manualForm.name} onChange={(e) => setManualForm({ ...manualForm, name: e.target.value })} />
           <div style={{ maxHeight: 220, overflowY: 'auto', display: 'grid', gap: 6 }}>
             {roster.map((r) => (
               <label key={r.user._id} className="flex items-center text-sm" style={{ gap: 8 }}>
@@ -8681,13 +9256,19 @@ function TeacherStudyGroupsSection({ onFlash, myCourses }) {
               </label>
             ))}
           </div>
-          <button type="submit" className="btn btn-primary" style={{ justifySelf: 'start' }}>Create</button>
+          {!roster.length && <p className="admin-notice">No enrolled students are available in this class.</p>}
+          <button type="submit" className="btn btn-primary" style={{ justifySelf: 'start' }} disabled={!manualForm.name.trim() || !manualForm.memberIds.length}>Create group</button>
         </form>
       )}
 
-      {groups === null && <p className="admin-notice">Loading...</p>}
-      {groups?.length === 0 && <p className="admin-notice">No study groups for this class yet.</p>}
-      <div style={{ display: 'grid', gap: 10 }}>
+      <section>
+        <div className="flex items-end justify-between flex-wrap" style={{ gap: 8, marginBottom: 10 }}>
+          <div><strong style={{ fontSize: '1.05rem' }}>Created groups</strong><p className="text-xs" style={{ color: 'var(--ink-soft)', marginTop: 3 }}>Open a group to set its project, view contributions and publish marks.</p></div>
+          {groups && <span className="text-xs" style={{ color: 'var(--ink-soft)' }}>{groups.length} group{groups.length === 1 ? '' : 's'}</span>}
+        </div>
+        {groups === null && <p className="admin-notice">Loading groups...</p>}
+        {groups?.length === 0 && <p className="admin-notice">No groups yet. Use one of the creation options above.</p>}
+        <div style={{ display: 'grid', gap: 10 }}>
         {(groups || []).map((g) => (
           <div key={g._id} className="card hover-card flex items-center justify-between flex-wrap" style={{ padding: 14, gap: 10, cursor: 'pointer' }} onClick={() => setDetail(g._id)}>
             <div>
@@ -8697,7 +9278,8 @@ function TeacherStudyGroupsSection({ onFlash, myCourses }) {
             <button type="button" className="btn" style={{ padding: '6px 14px', fontSize: '0.75rem' }} onClick={(e) => { e.stopPropagation(); setDetail(g._id); }}>Open</button>
           </div>
         ))}
-      </div>
+        </div>
+      </section>
     </div>
   );
 }
@@ -8707,6 +9289,7 @@ function TeacherStudyGroupsSection({ onFlash, myCourses }) {
 function TeacherStudyGroupDetail({ groupId, onFlash, onBack }) {
   const [group, setGroup] = useState(null);
   const [projectForm, setProjectForm] = useState({ title: '', instructions: '', deadline: '' });
+  const [editingProject, setEditingProject] = useState(false);
   const [marksForm, setMarksForm] = useState({ groupMarks: '', individual: {} });
 
   function load() {
@@ -8720,7 +9303,25 @@ function TeacherStudyGroupDetail({ groupId, onFlash, onBack }) {
 
   async function saveProject(e) {
     e.preventDefault();
-    try { await apiRequest(`/study-groups/${groupId}/project`, { method: 'PATCH', body: projectForm }); onFlash('Project saved.', 'success'); load(); } catch (err) { onFlash(err.message); }
+    try {
+      await apiRequest(`/study-groups/${groupId}/project`, { method: 'PATCH', body: projectForm });
+      onFlash('Project saved.', 'success');
+      setEditingProject(false);
+      setProjectForm({ title: '', instructions: '', deadline: '' });
+      load();
+    } catch (err) { onFlash(err.message); }
+  }
+  async function reviewGroupSubmission(action) {
+    let feedback = '';
+    if (action === 'request_changes') {
+      feedback = await showPrompt('Explain exactly what the group needs to correct.', { title: 'Request changes', required: true });
+      if (feedback === null) return;
+    }
+    try {
+      const result = await apiRequest(`/study-groups/${groupId}/submission/review`, { method: 'PATCH', body: { action, feedback } });
+      onFlash(result?.message || (action === 'approve' ? 'Submission approved.' : 'Changes requested.'), 'success');
+      load();
+    } catch (err) { onFlash(err.message); }
   }
   async function removeMember(uid) {
     if (!confirm('Remove this member?')) return;
@@ -8732,12 +9333,13 @@ function TeacherStudyGroupDetail({ groupId, onFlash, onBack }) {
         method: 'PATCH',
         body: { groupMarks: marksForm.groupMarks === '' ? undefined : Number(marksForm.groupMarks), individualMarks: Object.entries(marksForm.individual).map(([userId, marks]) => ({ userId, marks: Number(marks) })) }
       });
-      onFlash('Marks saved.', 'success');
+      onFlash('Marks published. This result is now final.', 'success');
       load();
     } catch (err) { onFlash(err.message); }
   }
 
   if (!group) return <p className="admin-notice">Loading...</p>;
+  const marksPublished = Boolean(group.gradingPublishedAt || group.groupMarks != null || group.individualMarks?.length);
 
   return (
     <div>
@@ -8757,13 +9359,15 @@ function TeacherStudyGroupDetail({ groupId, onFlash, onBack }) {
         </div>
       </div>
 
-      <form onSubmit={saveProject} className="card" style={{ padding: 16, marginBottom: 16, display: 'grid', gap: 10 }}>
-        <strong className="text-xs">Project</strong>
-        <input className="form-input" placeholder="Project title" value={projectForm.title} onChange={(e) => setProjectForm({ ...projectForm, title: e.target.value })} />
-        <textarea className="form-input" rows={3} placeholder="Instructions" value={projectForm.instructions} onChange={(e) => setProjectForm({ ...projectForm, instructions: e.target.value })} />
-        <input type="date" className="form-input" style={{ width: 180 }} value={projectForm.deadline} onChange={(e) => setProjectForm({ ...projectForm, deadline: e.target.value })} />
-        <button type="submit" className="btn btn-primary" style={{ justifySelf: 'start' }}>Save Project</button>
-      </form>
+      {!editingProject ? <div className="card" style={{ padding: 18, marginBottom: 16 }}>
+        <div className="flex items-start justify-between flex-wrap" style={{ gap: 12 }}><div><strong className="text-sm">Project</strong>{group.project?.title ? <><p className="text-sm" style={{ fontWeight: 700, marginTop: 9 }}>{group.project.title}</p><p className="text-sm" style={{ marginTop: 5, whiteSpace: 'pre-wrap' }}>{group.project.instructions}</p>{group.project.deadline && <p className="text-xs" style={{ color: 'var(--ink-soft)', marginTop: 7 }}>Deadline: {new Date(group.project.deadline).toLocaleDateString()}</p>}</> : <p className="text-xs" style={{ color: 'var(--ink-soft)', marginTop: 6 }}>No project has been assigned to this group.</p>}</div><button type="button" className="btn" onClick={() => { setProjectForm({ title: group.project?.title || '', instructions: group.project?.instructions || '', deadline: group.project?.deadline ? group.project.deadline.slice(0, 10) : '' }); setEditingProject(true); }}>{group.project?.title ? 'Edit project' : 'Set project'}</button></div>
+      </div> : <form onSubmit={saveProject} className="card" style={{ padding: 16, marginBottom: 16, display: 'grid', gap: 10 }}>
+        <strong className="text-xs">{group.project?.title ? 'Edit project' : 'Set project'}</strong>
+        <input className="form-input" placeholder="Project title" value={projectForm.title} onChange={(e) => setProjectForm({ ...projectForm, title: e.target.value })} required />
+        <textarea className="form-input" rows={3} placeholder="Instructions" value={projectForm.instructions} onChange={(e) => setProjectForm({ ...projectForm, instructions: e.target.value })} required />
+        <input type="date" className="form-input" style={{ width: 180 }} value={projectForm.deadline} onChange={(e) => setProjectForm({ ...projectForm, deadline: e.target.value })} required />
+        <div className="flex flex-wrap" style={{ gap: 8 }}><button type="submit" className="btn btn-primary">Save Project</button><button type="button" className="btn" onClick={() => { setEditingProject(false); setProjectForm({ title: '', instructions: '', deadline: '' }); }}>Cancel</button></div>
+      </form>}
 
       {group.resources?.length > 0 && (
         <div className="card" style={{ padding: 16, marginBottom: 16 }}>
@@ -8775,9 +9379,13 @@ function TeacherStudyGroupDetail({ groupId, onFlash, onBack }) {
       )}
 
       {group.submission?.submittedAt && (
-        <div className="card" style={{ padding: 16, marginBottom: 16 }}>
-          <strong className="text-xs">Group Submission</strong>
-          <p className="text-sm" style={{ marginTop: 8, whiteSpace: 'pre-wrap' }}>{group.submission.text}</p>
+        <div className="card" style={{ padding: 18, marginBottom: 16, borderColor: group.submission.status === 'approved' ? 'var(--emerald)' : group.submission.status === 'changes_requested' ? '#c85a45' : 'var(--gold)' }}>
+          <div className="flex items-center justify-between flex-wrap" style={{ gap: 10 }}><strong className="text-sm">Final group submission</strong><Tag status={group.submission.status === 'approved' ? 'approved' : 'pending'} label={group.submission.status === 'approved' ? 'Approved' : group.submission.status === 'changes_requested' ? 'Changes requested' : 'Awaiting review'} /></div>
+          <p className="text-xs" style={{ color: 'var(--ink-soft)', marginTop: 5 }}>Submitted {new Date(group.submission.submittedAt).toLocaleString()} by {group.submission.submittedBy?.fullName || group.owner?.fullName || 'group owner'}</p>
+          <div style={{ marginTop: 12, padding: 12, borderRadius: 12, background: 'var(--sand)' }}><p className="text-sm" style={{ whiteSpace: 'pre-wrap' }}>{group.submission.text || 'No written response attached.'}</p></div>
+          {group.resources?.length > 0 && <div style={{ marginTop: 12 }}><strong className="text-xs">Submitted supporting files</strong><div className="flex flex-wrap" style={{ gap: 7, marginTop: 6 }}>{group.resources.map((r) => <a key={r._id} href={r.url} target="_blank" rel="noreferrer" className="btn" style={{ padding: '6px 10px', fontSize: 12 }}>Open {r.name}</a>)}</div></div>}
+          {group.submission.teacherFeedback && <div className="admin-notice" style={{ marginTop: 12 }}><strong>Teacher feedback</strong><p className="text-sm" style={{ marginTop: 4 }}>{group.submission.teacherFeedback}</p></div>}
+          {group.submission.status !== 'approved' && group.submission.status !== 'changes_requested' && <div className="flex flex-wrap" style={{ gap: 8, marginTop: 14 }}><button type="button" className="btn btn-primary" onClick={() => reviewGroupSubmission('approve')}>Approve submission</button><button type="button" className="btn" onClick={() => reviewGroupSubmission('request_changes')}>Request changes</button></div>}
         </div>
       )}
 
@@ -8793,21 +9401,27 @@ function TeacherStudyGroupDetail({ groupId, onFlash, onBack }) {
         </div>
       )}
 
-      <div className="card" style={{ padding: 16 }}>
+      {marksPublished ? <div className="card" style={{ padding: 18, borderColor: 'var(--emerald)', background: 'rgba(16,185,129,.06)' }}>
+        <div className="flex items-center justify-between flex-wrap" style={{ gap: 10 }}><div><strong className="text-sm">Marks published</strong><p className="text-xs" style={{ color: 'var(--ink-soft)', marginTop: 3 }}>This result is final and can no longer be edited.</p></div><Tag status="approved" label="Final" /></div>
+        <p className="text-sm" style={{ marginTop: 14 }}>Group marks: <strong>{group.groupMarks}/100</strong></p>
+        <div style={{ display: 'grid', gap: 7, marginTop: 10 }}>{group.members.map((member) => { const result = (group.individualMarks || []).find((mark) => String(mark.user?._id || mark.user) === String(member.user._id)); return <div key={member.user._id} className="flex items-center justify-between text-sm"><span>{member.user.fullName}</span><strong>{result?.marks ?? '—'}/100</strong></div>; })}</div>
+        {group.gradingPublishedAt && <p className="text-xs" style={{ color: 'var(--ink-soft)', marginTop: 12 }}>Published {new Date(group.gradingPublishedAt).toLocaleString()}{group.gradingPublishedBy?.fullName ? ` by ${group.gradingPublishedBy.fullName}` : ''}</p>}
+      </div> : <div className="card" style={{ padding: 16 }}>
         <strong className="text-xs">Grading</strong>
+        {group.submission?.status !== 'approved' && <p className="admin-notice" style={{ marginTop: 10 }}>Approve the final group submission before publishing marks.</p>}
         <label className="text-xs" style={{ display: 'block', marginTop: 10 }}>Group marks (/100)
-          <input type="number" min={0} max={100} className="form-input" style={{ width: 100, marginTop: 4 }} value={marksForm.groupMarks} onChange={(e) => setMarksForm({ ...marksForm, groupMarks: e.target.value })} />
+          <input type="number" min={0} max={100} disabled={group.submission?.status !== 'approved'} className="form-input" style={{ width: 100, marginTop: 4 }} value={marksForm.groupMarks} onChange={(e) => setMarksForm({ ...marksForm, groupMarks: e.target.value })} />
         </label>
         <div style={{ display: 'grid', gap: 8, marginTop: 10 }}>
           {group.members.map((m) => (
             <label key={m.user._id} className="flex items-center justify-between text-sm">
               {m.user.fullName}
-              <input type="number" min={0} max={100} className="form-input" style={{ width: 90 }} value={marksForm.individual[m.user._id] ?? ''} onChange={(e) => setMarksForm({ ...marksForm, individual: { ...marksForm.individual, [m.user._id]: e.target.value } })} />
+              <input type="number" min={0} max={100} disabled={group.submission?.status !== 'approved'} className="form-input" style={{ width: 90 }} value={marksForm.individual[m.user._id] ?? ''} onChange={(e) => setMarksForm({ ...marksForm, individual: { ...marksForm.individual, [m.user._id]: e.target.value } })} />
             </label>
           ))}
         </div>
-        <button type="button" className="btn btn-primary" style={{ marginTop: 12 }} onClick={saveMarks}>Save Marks</button>
-      </div>
+        <button type="button" className="btn btn-primary" disabled={group.submission?.status !== 'approved'} style={{ marginTop: 12 }} onClick={saveMarks}>Publish Marks</button>
+      </div>}
     </div>
   );
 }
@@ -9116,11 +9730,19 @@ const COMPLETION_STATUS_LABEL = { in_progress: 'In progress', pending_approval: 
 function TeacherStudentsPanel({ onFlash }) {
   const { courses, courseId, setCourseId } = useTeacherCourses(onFlash);
   const [enrollments, setEnrollments] = useState([]);
+  const [profileView, setProfileView] = useState(null);
+  const [timeline, setTimeline] = useState(null);
   function load() {
     if (!courseId) return;
     apiRequest(`/courses/${courseId}/students`).then(setEnrollments).catch((err) => onFlash(err.message));
   }
   useEffect(load, [courseId, onFlash]);
+
+  function openProfile(e) {
+    setProfileView(e);
+    setTimeline(null);
+    apiRequest(`/teachers/students/${e.student._id}/timeline`).then(setTimeline).catch(() => setTimeline(false));
+  }
 
   async function approve(studentId) {
     try {
@@ -9139,12 +9761,40 @@ function TeacherStudentsPanel({ onFlash }) {
           rows={enrollments.map((e) => [
             e.student?.fullName, e.student?.email, `${e.progressPercent}%`, `${e.overallScore || 0}%`,
             <Tag status={COMPLETION_STATUS_TAG[e.completionStatus] || 'pending'} label={COMPLETION_STATUS_LABEL[e.completionStatus] || e.completionStatus} />,
-            e.completionStatus === 'pending_approval'
-              ? <button type="button" className="btn btn-primary" style={{ padding: '4px 12px', fontSize: '0.72rem' }} onClick={() => approve(e.student?._id)}>Approve</button>
-              : null
+            <div className="flex gap-2"><button type="button" className="btn" style={{ padding: '4px 12px', fontSize: '0.72rem' }} onClick={() => openProfile(e)}>Academic Profile</button>{e.completionStatus === 'pending_approval' && <button type="button" className="btn btn-primary" style={{ padding: '4px 12px', fontSize: '0.72rem' }} onClick={() => approve(e.student?._id)}>Approve</button>}</div>
           ])}
           empty="No students enrolled in this course yet."
         />
+      )}
+      {profileView && (
+        <div className="card" style={{ padding: 18, marginTop: 16 }}>
+          <div className="flex justify-between items-center"><h4 className="font-semibold">{profileView.student?.fullName} — Academic Profile</h4><button type="button" className="btn" onClick={() => setProfileView(null)}>Close</button></div>
+          <div className="grid grid-cols-2 gap-3 mt-3"><p>Email: <strong>{profileView.student?.email}</strong></p><p>Course: <strong>{courses.find((course) => course._id === courseId)?.title}</strong></p><p>Lesson progress: <strong>{profileView.progressPercent}%</strong></p><p>Overall score: <strong>{profileView.overallScore || 0}%</strong></p><p>Completion: <strong>{COMPLETION_STATUS_LABEL[profileView.completionStatus] || profileView.completionStatus}</strong></p><p>Enrolled: <strong>{profileView.createdAt ? new Date(profileView.createdAt).toLocaleDateString() : '—'}</strong></p></div>
+
+          <div style={{ marginTop: 16, paddingTop: 16, borderTop: '1px solid var(--sand-line)' }}>
+            <p style={{ fontSize: 11, fontWeight: 700, letterSpacing: '.04em', textTransform: 'uppercase', color: 'var(--ink-soft)', marginBottom: 10 }}>Consolidated Timeline (all classes you teach this student)</p>
+            {timeline === null && <p className="admin-notice">Loading...</p>}
+            {timeline === false && <p className="admin-notice">Couldn't load the consolidated timeline.</p>}
+            {timeline && (
+              <>
+                <div className="flex flex-wrap gap-3" style={{ marginBottom: 12 }}>
+                  <span className="text-xs">Attendance: <strong>{timeline.attendance.percent != null ? `${timeline.attendance.percent}%` : 'No records'}</strong></span>
+                  <span className="text-xs">Classes: <strong>{timeline.courses.map((c) => c.course?.title).join(', ')}</strong></span>
+                </div>
+                {timeline.timeline.length === 0 ? <p className="text-xs" style={{ color: 'var(--ink-soft)' }}>No results/assignments/certificates recorded yet.</p> : (
+                  <div style={{ display: 'grid', gap: 6 }}>
+                    {timeline.timeline.map((t, i) => (
+                      <div key={i} className="flex items-center justify-between text-xs" style={{ padding: '6px 0', borderBottom: '1px solid var(--sand-line)' }}>
+                        <span><strong>{t.type}:</strong> {t.title}{t.desc ? ` (${t.desc})` : ''}</span>
+                        <span style={{ color: 'var(--ink-soft)' }}>{new Date(t.date).toLocaleDateString()}</span>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </>
+            )}
+          </div>
+        </div>
       )}
       <p className="text-xs" style={{ color: 'var(--ink-soft)', marginTop: 8 }}>Lesson Progress = material gone through. Overall Score = lessons + assignments + tests + attendance combined, per this course's Completion Rules (Manage Lessons).</p>
       <IndependentTutoringPanel onFlash={onFlash} courses={courses} />
@@ -10254,6 +10904,7 @@ function ParentAiAssistantPanel({ onFlash }) {
       const res = await apiRequest(`/parents/children/${studentId}/ai-assistant`, { method: 'POST', body: { question: question.trim() } });
       setAnswer(res.answer);
       setDataSummary(res.dataSummary);
+      setQuestion('');
     } catch (err) { onFlash(err.message); } finally { setLoading(false); }
   }
 
@@ -10372,7 +11023,7 @@ function ParentChildDataPanel({ onFlash, kind }) {
           rows={rows.map((f) => [
             f.title, `${f.currency} ${f.amount}`, f.dueDate ? new Date(f.dueDate).toLocaleDateString() : '—',
             <Tag status={f.status === 'paid' ? 'approved' : f.status === 'overdue' ? 'rejected' : 'pending'} />,
-            <PayFeeButton fee={f} payUrl={`/parents/children/${studentId}/fees/${f._id}/pay`} onFlash={onFlash} onPaid={reload} />
+            <PayFeeButton fee={f} onFlash={onFlash} onPaid={reload} />
           ])}
           empty="No fee records yet."
         />
@@ -11455,6 +12106,7 @@ function InstitutionWorkspace({ tab, user, onFlash, onChanged }) {
   if (tab === 'classes') return <InstitutionClassesPanel onFlash={onFlash} />;
   if (tab === 'liveClasses') return <InstitutionLiveClassesPanel onFlash={onFlash} />;
   if (tab === 'fees') return <InstitutionFeesPanel onFlash={onFlash} />;
+  if (tab === 'receivedDonations') return <ReceivedDonationsPanel onFlash={onFlash} />;
   if (tab === 'communication') return <InstitutionBroadcastPanel onFlash={onFlash} />;
   if (tab === 'campusLife') return <InstitutionCampusLifePanel onFlash={onFlash} />;
   if (tab === 'certificates') return <InstitutionCertificatesPanel onFlash={onFlash} />;
@@ -11477,6 +12129,7 @@ function InstitutionWorkspace({ tab, user, onFlash, onChanged }) {
   if (tab === 'aiAssistant') return <InstitutionAiAssistantPanel onFlash={onFlash} />;
   if (tab === 'subscription') return <InstitutionSubscriptionPanel onFlash={onFlash} />;
   if (tab === 'placement') return <InstitutionPlacementPanel onFlash={onFlash} />;
+  if (tab === 'wallet') return <WalletCard onFlash={onFlash} />;
   return <ComingSoon label={tab} />;
 }
 
@@ -12369,13 +13022,41 @@ function InstitutionReportsPanel({ onFlash }) {
 function InstitutionPayrollPanel({ onFlash }) {
   const institution = useMyInstitution(onFlash);
   const [payslips, setPayslips] = useState(null);
+  const [staff, setStaff] = useState([]);
   const now = new Date();
-  const [form, setForm] = useState({ staffId: '', month: now.getMonth() + 1, year: now.getFullYear(), basicSalary: '', bonuses: 0, deductions: 0, currency: 'USD' });
+  const [form, setForm] = useState({ staffId: '', month: now.getMonth() + 1, year: now.getFullYear(), basicSalary: '', bonuses: 0, overtimeAmount: 0, allowances: 0, commissionAmount: 0, deductions: 0, taxAmount: 0, currency: 'PKR' });
 
   function load() {
     if (institution) apiRequest(`/institutions/${institution._id}/payroll`).then(setPayslips).catch((err) => onFlash(err.message));
   }
-  useEffect(load, [institution]);
+  useEffect(() => {
+    load();
+    if (institution) Promise.all([
+      apiRequest(`/institutions/${institution._id}/teachers`),
+      apiRequest(`/institutions/${institution._id}/teacher-employments`)
+    ]).then(([profiles, employments]) => {
+      const activeByTeacher = new Map((employments || []).filter((employment) => employment.status === 'active').map((employment) => [String(employment.teacher?._id), employment]));
+      setStaff((profiles || []).filter((profile) => profile.user).map((profile) => ({
+        ...profile,
+        employment: activeByTeacher.get(String(profile.user._id)) || null
+      })));
+    }).catch((err) => onFlash(err.message));
+  }, [institution]);
+
+  function selectTeacher(staffId) {
+    const selected = staff.find((profile) => profile.user?._id === staffId);
+    const employment = selected?.employment;
+    const basicSalary = Number(employment?.monthlySalary || 0);
+    const taxPercent = Number(employment?.taxPercent || 0);
+    setForm((current) => ({
+      ...current,
+      staffId,
+      basicSalary: employment ? basicSalary : '',
+      currency: employment?.salaryCurrency || 'PKR',
+      taxAmount: employment ? Math.round((basicSalary * taxPercent / 100) * 100) / 100 : 0,
+      commissionAmount: 0
+    }));
+  }
 
   async function generate(e) {
     e.preventDefault();
@@ -12384,24 +13065,55 @@ function InstitutionPayrollPanel({ onFlash }) {
         method: 'POST',
         body: {
           staff: form.staffId.trim(), month: Number(form.month), year: Number(form.year),
-          basicSalary: Number(form.basicSalary), bonuses: Number(form.bonuses), deductions: Number(form.deductions), currency: form.currency
+          basicSalary: Number(form.basicSalary), bonuses: Number(form.bonuses), overtimeAmount: Number(form.overtimeAmount), allowances: Number(form.allowances), commissionAmount: Number(form.commissionAmount), deductions: Number(form.deductions), taxAmount: Number(form.taxAmount), currency: form.currency
         }
       });
       onFlash('Payslip generated.', 'success');
-      setForm({ ...form, staffId: '', basicSalary: '', bonuses: 0, deductions: 0 });
+      setForm({ ...form, staffId: '', basicSalary: '', bonuses: 0, overtimeAmount: 0, allowances: 0, commissionAmount: 0, deductions: 0, taxAmount: 0 });
       load();
     } catch (err) { onFlash(err.message); }
   }
+  async function downloadPayslip(p) {
+    const { jsPDF } = await import('jspdf');
+    const pdf = new jsPDF();
+    const lines = [
+      institution.name, 'Official Salary Slip', `Employee: ${p.staff?.fullName || '—'}`, `Period: ${p.month}/${p.year}`,
+      `Basic salary: ${p.currency} ${p.basicSalary}`, `Bonus: ${p.currency} ${p.bonuses || 0}`,
+      `Overtime: ${p.currency} ${p.overtimeAmount || 0}`, `Allowances: ${p.currency} ${p.allowances || 0}`, `Commission: ${p.currency} ${p.commissionAmount || 0}`,
+      `Deductions: ${p.currency} ${p.deductions || 0}`, `Tax: ${p.currency} ${p.taxAmount || 0}`, `Net amount: ${p.currency} ${p.netAmount}`,
+      `Status: ${p.status}`, `Payment method: ${p.paymentMethod || 'Pending'}`, `Receipt: ${p.transactionId || 'Pending'}`
+    ];
+    lines.forEach((line, index) => pdf.text(String(line), 18, 22 + index * 10));
+    pdf.save(`salary-slip-${p.staff?.fullName || 'staff'}-${p.month}-${p.year}.pdf`);
+  }
 
-  async function markPaid(id, paymentMethod) {
+  async function markPaid(id, payment) {
     try {
-      await apiRequest(`/institutions/payroll/${id}/pay`, { method: 'PATCH', body: { paymentMethod } });
-      onFlash('Payslip marked as paid.', 'success');
+      const result = await apiRequest(`/institutions/payroll/${id}/pay`, { method: 'PATCH', body: payment });
+      onFlash(result.status === 'processing' ? 'Payment proof sent to teacher for confirmation.' : 'Salary paid.', 'success');
       load();
+    } catch (err) { onFlash(err.message); }
+  }
+  async function generateMonthly() {
+    try {
+      const result = await apiRequest(`/institutions/${institution._id}/payroll/generate-monthly`, { method: 'POST', body: { month: Number(form.month), year: Number(form.year) } });
+      onFlash(`Monthly payroll generated: ${result.created}; skipped: ${result.skipped}.`, 'success');
+      load();
+    } catch (err) { onFlash(err.message); }
+  }
+  async function downloadTaxReport() {
+    try {
+      const report = await apiRequest(`/institutions/${institution._id}/payroll-tax-report?year=${Number(form.year)}`);
+      const { jsPDF } = await import('jspdf'); const pdf = new jsPDF();
+      const lines = [institution.name, `Payroll & Tax Report — ${report.year}`, `Gross: ${report.totals.gross}`, `Tax withheld: ${report.totals.tax}`, `Other deductions: ${report.totals.deductions}`, `Net payroll: ${report.totals.net}`];
+      report.rows.forEach((p) => lines.push(`${p.month}/${p.year} · ${p.staff?.fullName || 'Staff'} · ${p.currency} ${p.netAmount} · Tax ${p.taxAmount || 0}`));
+      lines.forEach((line, index) => pdf.text(String(line), 16, 20 + index * 8)); pdf.save(`payroll-tax-report-${report.year}.pdf`);
     } catch (err) { onFlash(err.message); }
   }
   const PAYSLIP_METHODS = [
-    { value: 'bank_transfer', label: 'Bank Transfer' },
+    { value: 'platform_wallet', label: 'CareerZ Wallet (instant ledger transfer)' },
+    { value: 'stripe_transfer', label: 'Real Bank Transfer (Stripe)' },
+    { value: 'bank_transfer', label: 'Bank Transfer (manual)' },
     { value: 'mobile_wallet', label: 'Mobile Wallet' },
     { value: 'cash', label: 'Cash' },
     { value: 'other', label: 'Other' }
@@ -12410,27 +13122,54 @@ function InstitutionPayrollPanel({ onFlash }) {
   if (institution === undefined) return <p role="status" className="admin-notice">Loading...</p>;
   if (!institution) return <p className="admin-notice">Register an institution first (My Institution tab).</p>;
 
+  const selectedTeacher = staff.find((profile) => profile.user?._id === form.staffId);
+  const selectedEmployment = selectedTeacher?.employment;
+
   return (
     <div>
       <h3 className="font-semibold mb-2">Payroll</h3>
       <form onSubmit={generate} className="flex gap-2 items-end mb-4 flex-wrap">
-        <input className="form-input" placeholder="Staff User ID" required value={form.staffId} onChange={(e) => setForm({ ...form, staffId: e.target.value })} style={{ minWidth: 0 }} />
+        <select className="form-select" required value={form.staffId} onChange={(e) => selectTeacher(e.target.value)} style={{ minWidth: 320 }}>
+          <option value="">Select teacher…</option>
+          {staff.map((profile) => <option key={profile.user._id} value={profile.user._id}>{profile.user.fullName} · {profile.user.email} · {profile.qualifications?.[0]?.title || 'Qualification not added'}</option>)}
+        </select>
         <input className="form-input" type="number" min="1" max="12" placeholder="Month" value={form.month} onChange={(e) => setForm({ ...form, month: e.target.value })} style={{ maxWidth: 90 }} />
         <input className="form-input" type="number" placeholder="Year" value={form.year} onChange={(e) => setForm({ ...form, year: e.target.value })} style={{ maxWidth: 100 }} />
         <input className="form-input" type="number" placeholder="Basic Salary" required value={form.basicSalary} onChange={(e) => setForm({ ...form, basicSalary: e.target.value })} style={{ maxWidth: 140 }} />
         <input className="form-input" type="number" placeholder="Bonuses" value={form.bonuses} onChange={(e) => setForm({ ...form, bonuses: e.target.value })} style={{ maxWidth: 110 }} />
+        <input className="form-input" type="number" placeholder="Overtime" value={form.overtimeAmount} onChange={(e) => setForm({ ...form, overtimeAmount: e.target.value })} style={{ maxWidth: 110 }} />
+        <input className="form-input" type="number" placeholder="Allowances" value={form.allowances} onChange={(e) => setForm({ ...form, allowances: e.target.value })} style={{ maxWidth: 120 }} />
+        <input className="form-input" type="number" placeholder="Commission" value={form.commissionAmount} onChange={(e) => setForm({ ...form, commissionAmount: e.target.value })} style={{ maxWidth: 120 }} />
         <input className="form-input" type="number" placeholder="Deductions" value={form.deductions} onChange={(e) => setForm({ ...form, deductions: e.target.value })} style={{ maxWidth: 120 }} />
+        <input className="form-input" type="number" placeholder="Tax" value={form.taxAmount} onChange={(e) => setForm({ ...form, taxAmount: e.target.value })} style={{ maxWidth: 100 }} />
+        <select className="form-select" value={form.currency} onChange={(e) => setForm({ ...form, currency: e.target.value })} style={{ maxWidth: 100 }}>{['PKR', 'USD', 'GBP', 'SAR', 'AED'].map((currency) => <option key={currency}>{currency}</option>)}</select>
         <button type="submit" className="btn btn-primary">Generate Payslip</button>
+        <button type="button" className="btn" onClick={generateMonthly}>Generate Monthly Payroll</button>
+        <button type="button" className="btn" onClick={downloadTaxReport}>Download Tax Report</button>
       </form>
+      {selectedTeacher && (
+        <div className="card" style={{ padding: 14, marginBottom: 16 }}>
+          <strong>{selectedTeacher.user.fullName}</strong>
+          <span className="text-xs" style={{ color: 'var(--ink-soft)', marginLeft: 8 }}>{selectedTeacher.user.email}</span>
+          <div className="text-xs" style={{ marginTop: 6 }}>
+            <strong>Qualification:</strong> {selectedTeacher.qualifications?.[0]?.title || 'Not added'}
+            {selectedTeacher.qualifications?.[0]?.institutionName ? ` — ${selectedTeacher.qualifications[0].institutionName}` : ''}
+            {' · '}<strong>Subjects:</strong> {(selectedTeacher.subjects || []).join(', ') || 'Not added'}
+            {' · '}<strong>Experience:</strong> {selectedTeacher.experienceYears || 0} years
+          </div>
+          <div className="text-xs" style={{ marginTop: 4 }}>
+            <strong>Employment:</strong> {selectedEmployment ? `${selectedEmployment.designation || selectedEmployment.role} · ${selectedEmployment.department || 'Department not assigned'}` : 'No active salary contract'}
+            {selectedEmployment ? ` · Contract salary ${selectedEmployment.salaryCurrency || 'PKR'} ${Number(selectedEmployment.monthlySalary || 0).toLocaleString()} · Tax ${selectedEmployment.taxPercent || 0}%` : ''}
+          </div>
+        </div>
+      )}
       <Table
         loading={payslips === null}
-        headers={['Staff', 'Period', 'Net Amount', 'Status', 'Action']}
+        headers={['Staff', 'Period', 'Salary breakdown', 'Net Amount', 'Status', 'Action']}
         rows={(payslips || []).map((p) => [
-          p.staff?.fullName, `${p.month}/${p.year}`, `${p.currency} ${p.netAmount}`,
+          p.staff?.fullName, `${p.month}/${p.year}`, <span className="text-xs">Basic {p.basicSalary} + Bonus {p.bonuses || 0} + OT {p.overtimeAmount || 0} + Allowance {p.allowances || 0} + Commission {p.commissionAmount || 0} − Deduction {p.deductions || 0} − Tax {p.taxAmount || 0}</span>, `${p.currency} ${p.netAmount}`,
           <Tag status={p.status === 'paid' ? 'approved' : 'pending'} />,
-          p.status === 'pending'
-            ? <PayMethodModalButton onSubmit={(method) => markPaid(p._id, method)} label="Mark Paid" methods={PAYSLIP_METHODS} confirmLabel="Confirm" />
-            : (p.transactionId ? <span className="text-xs" style={{ color: 'var(--ink-soft)' }}>Receipt {p.transactionId}</span> : '—')
+          <div className="flex gap-1 flex-wrap">{p.status === 'pending' || p.status === 'rejected' ? <SalaryPaymentButton payslip={p} onSubmit={markPaid} /> : p.status === 'processing' ? <span className="text-xs" style={{ color: 'var(--gold)' }}>Awaiting teacher confirmation</span> : (p.transactionId ? <span className="text-xs" style={{ color: 'var(--ink-soft)' }}>Receipt {p.transactionId}</span> : null)}<button type="button" className="btn" style={{ padding: '4px 9px', fontSize: 11 }} onClick={() => downloadPayslip(p)}>PDF</button></div>
         ])}
         empty="No payslips generated yet."
       />
@@ -12480,12 +13219,14 @@ function InstitutionStudentsPanel({ onFlash }) {
   const institution = useMyInstitution(onFlash);
   const [students, setStudents] = useState(null);
   const [sections, setSections] = useState([]);
+  const [membershipRequests, setMembershipRequests] = useState([]);
   const [edits, setEdits] = useState({});
 
   function load() {
     if (institution) {
       apiRequest(`/institutions/${institution._id}/students`).then(setStudents).catch((err) => onFlash(err.message));
       apiRequest(`/institutions/${institution._id}/class-sections`).then(setSections).catch(() => {});
+      apiRequest(`/institutions/${institution._id}/membership-requests`).then(setMembershipRequests).catch(() => setMembershipRequests([]));
     }
   }
   useEffect(load, [institution]);
@@ -12507,12 +13248,18 @@ function InstitutionStudentsPanel({ onFlash }) {
     } catch (err) { onFlash(err.message); }
   }
 
+  async function reviewMembership(id, decision) {
+    try { await apiRequest(`/institutions/${institution._id}/membership-requests/${id}`, { method: 'PATCH', body: { decision } }); onFlash(`Request ${decision}d.`, 'success'); load(); }
+    catch (err) { onFlash(err.message); }
+  }
+
   if (institution === undefined || (institution && students === null)) return <p role="status" className="admin-notice">Loading...</p>;
   if (!institution) return <p className="admin-notice">Register an institution first (My Institution tab).</p>;
 
   return (
     <div>
       <h3 className="font-semibold mb-2">Student Management</h3>
+      {membershipRequests.length > 0 && <div className="card" style={{ padding: 16, marginBottom: 18 }}><h4 className="font-semibold mb-2">Membership Requests</h4>{membershipRequests.map((request) => <div key={request._id} className="flex items-center justify-between flex-wrap" style={{ gap: 10, padding: '9px 0', borderBottom: '1px solid var(--sand-line)' }}><span><strong>{request.student?.fullName}</strong> · {request.requestedAction || request.status}{request.targetInstitution?.name ? ` → ${request.targetInstitution.name}` : ''}{request.reason ? ` · ${request.reason}` : ''}</span><span className="flex gap-2"><button type="button" className="btn btn-primary" onClick={() => reviewMembership(request._id, 'approve')}>Approve</button><button type="button" className="btn" onClick={() => reviewMembership(request._id, 'reject')}>Reject</button></span></div>)}</div>}
       <Table
         headers={['Name', 'Email', 'Roll No.', 'Class', 'Status', 'Action']}
         rows={(students || []).map((s) => {
@@ -12891,22 +13638,46 @@ const FEE_TYPES = ['tuition', 'admission', 'exam', 'hostel', 'transport', 'libra
 function InstitutionFeesPanel({ onFlash }) {
   const [institution, setInstitution] = useState(null);
   const [fees, setFees] = useState([]);
+  const [section, setSection] = useState('overview');
+  const [filters, setFilters] = useState({ student: '', status: '', feeType: '', academicYear: '', term: '', from: '', to: '' });
+  const [allFees, setAllFees] = useState([]);
 
   function load() {
     apiRequest('/institutions/mine/list').then((list) => {
       const inst = list[0] || null;
       setInstitution(inst);
-      if (inst) apiRequest(`/institutions/${inst._id}/fees`).then(setFees).catch((err) => onFlash(err.message));
+      if (inst) apiRequest(`/institutions/${inst._id}/fees`).then((rows) => { setFees(rows); setAllFees(rows); }).catch((err) => onFlash(err.message));
     }).catch((err) => onFlash(err.message));
   }
   useEffect(load, []);
 
+  // Student options for the filter dropdown, derived from real fee records already loaded —
+  // shows real names/emails, never asks staff to paste a User ID.
+  const studentOptions = [...new Map(allFees.filter((f) => f.student).map((f) => [f.student._id, f.student])).values()];
+
+  async function applyFilters() {
+    if (!institution) return;
+    const params = new URLSearchParams();
+    Object.entries(filters).forEach(([k, v]) => { if (v) params.set(k, v); });
+    try { setFees(await apiRequest(`/institution-fees/${institution._id}/invoices?${params.toString()}`)); }
+    catch (err) { onFlash(err.message); }
+  }
+  function clearFilters() {
+    setFilters({ student: '', status: '', feeType: '', academicYear: '', term: '', from: '', to: '' });
+    setFees(allFees);
+  }
+
   const [payVia, setPayVia] = useState({});
 
   async function markPaid(feeId) {
+    const method = payVia[feeId] || 'Cash';
+    const reference = await showPrompt('Enter the institution cash receipt/reference number:', { title: 'Record received payment', required: true });
+    if (!reference) return;
+    const confirmed = await showConfirm(`Confirm that the institution has actually received this payment via ${method}?`, { confirmLabel: 'Confirm received' });
+    if (!confirmed) return;
     try {
-      await apiRequest(`/institutions/fees/${feeId}/pay`, { method: 'PATCH', body: { paidVia: payVia[feeId] || 'Cash' } });
-      onFlash('Fee marked as paid.', 'success');
+      await apiRequest(`/institutions/fees/${feeId}/pay`, { method: 'PATCH', body: { paidVia: method, reference: reference.trim() } });
+      onFlash('Received payment recorded and fee marked paid.', 'success');
       load();
     } catch (err) { onFlash(err.message); }
   }
@@ -12935,18 +13706,136 @@ function InstitutionFeesPanel({ onFlash }) {
     } catch (err) { onFlash(err.message); }
   }
 
+  async function grantDiscount(feeId) {
+    const kind = await showPrompt('Type: percentage, fixed, sibling, merit_scholarship, need_based_scholarship, staff_child, custom', { title: 'Discount / Concession Type', required: true, defaultValue: 'custom' });
+    if (!kind) return;
+    const validKinds = ['percentage', 'fixed', 'sibling', 'merit_scholarship', 'need_based_scholarship', 'staff_child', 'custom'];
+    if (!validKinds.includes(kind.trim())) return onFlash('Choose a valid discount type.');
+    const percentStr = await showPrompt('Discount percentage (leave blank for fixed amount):', { title: 'Discount Value', placeholder: 'e.g. 20' });
+    if (percentStr === null) return;
+    let body;
+    if (percentStr.trim()) {
+      body = { kind: kind.trim(), percent: Number(percentStr) };
+    } else {
+      const amountStr = await showPrompt('Fixed discount amount:', { title: 'Grant Discount', required: true });
+      if (!amountStr) return;
+      body = { kind: kind.trim(), amount: Number(amountStr) };
+    }
+    const reason = await showPrompt('Reason for this discount (shown to the student):', { title: 'Grant Discount' });
+    const expiry = await showPrompt('Optional expiry date (YYYY-MM-DD), or leave blank:', { title: 'Discount Expiry' });
+    try {
+      await apiRequest(`/institution-fees/fees/${feeId}/discount`, { method: 'PATCH', body: { ...body, reason: reason || '', expiresAt: expiry || null } });
+      onFlash('Discount applied.', 'success');
+      load();
+    } catch (err) { onFlash(err.message); }
+  }
+
+  async function waive(feeId) {
+    const reason = await showPrompt('Reason for waiving this fee:', { title: 'Waive Fee' });
+    const confirmed = await showConfirm('Waive this fee completely? This cannot be undone.', { danger: true, confirmLabel: 'Waive' });
+    if (!confirmed) return;
+    try {
+      await apiRequest(`/institution-fees/fees/${feeId}/waive`, { method: 'PATCH', body: { reason: reason || '' } });
+      onFlash('Fee waived.', 'success');
+      load();
+    } catch (err) { onFlash(err.message); }
+  }
+
+  async function cancelInvoice(feeId) {
+    const reason = await showPrompt('Why was this invoice generated by mistake?', { title: 'Cancel Invoice', required: true });
+    if (!reason?.trim()) return;
+    const confirmed = await showConfirm('Cancel this unpaid invoice? It will remain in the audit history with zero outstanding balance.', { danger: true, confirmLabel: 'Cancel invoice' });
+    if (!confirmed) return;
+    try {
+      await apiRequest(`/institution-fees/fees/${feeId}/cancel`, { method: 'PATCH', body: { reason: reason.trim() } });
+      onFlash('Invoice cancelled and retained in audit history.', 'success');
+      load();
+    } catch (err) { onFlash(err.message); }
+  }
+
+  async function paymentArrangement(feeId) {
+    const revisedDueDate = await showPrompt('Revised due date (YYYY-MM-DD):', { title: 'Payment Arrangement', required: true });
+    if (!revisedDueDate) return;
+    const reason = await showPrompt('Arrangement reason/terms:', { title: 'Payment Arrangement', required: true });
+    if (!reason) return;
+    const scheduleText = await showPrompt('Optional agreed installments as amount@YYYY-MM-DD, comma separated:', { title: 'Agreed Installments', placeholder: '10000@2026-10-15,10000@2026-11-15' });
+    const installments = (scheduleText || '').split(',').filter(Boolean).map((entry) => { const [amount, dueDate] = entry.trim().split('@'); return { amount: Number(amount), dueDate }; }).filter((entry) => entry.amount > 0 && entry.dueDate);
+    try {
+      await apiRequest(`/institution-fees/fees/${feeId}/payment-arrangement`, { method: 'PATCH', body: { revisedDueDate, reason, installments } });
+      onFlash('Payment arrangement approved.', 'success'); load();
+    } catch (err) { onFlash(err.message); }
+  }
+
   if (!institution) return <p className="admin-notice">Register an institution first (My Institution tab).</p>;
+
+  const SECTIONS = [
+    { key: 'overview', label: 'Overview' },
+    { key: 'plans', label: 'Fee Plans' },
+    { key: 'generate', label: 'Generate Fees' },
+    { key: 'invoices', label: 'Invoices' },
+    { key: 'verification', label: 'Awaiting Verification' },
+    { key: 'defaulters', label: 'Defaulters' },
+    { key: 'discounts', label: 'Discounts/Concessions' },
+    { key: 'refunds', label: 'Refunds' },
+    { key: 'reports', label: 'Reports' }
+  ];
 
   return (
     <div>
-      <div className="admin-notice">Fees are generated automatically from the accepted student's program rules. Configure tuition, installments, and Yes/No additional charges in Admission Management. This screen is for payment verification, reminders, receipts, escrow, and refunds.</div>
+      <nav className="cz-tabbar" style={{ marginBottom: 18 }}>
+        {SECTIONS.map((s) => <button key={s.key} type="button" aria-pressed={section === s.key} className={`cz-tab${section === s.key ? ' active' : ''}`} onClick={() => setSection(s.key)}>{s.label}</button>)}
+      </nav>
+
+      {section === 'overview' && <FeeOverviewSection institutionId={institution._id} onFlash={onFlash} />}
+      {section === 'plans' && <FeePlansSection institutionId={institution._id} onFlash={onFlash} />}
+      {section === 'generate' && <FeeGenerateSection institutionId={institution._id} onFlash={onFlash} />}
+      {section === 'verification' && <FeeVerificationSection institutionId={institution._id} onFlash={onFlash} />}
+      {section === 'defaulters' && <FeeDefaultersSection institutionId={institution._id} onFlash={onFlash} />}
+      {section === 'discounts' && <FeeReportsSection institutionId={institution._id} onFlash={onFlash} initialType="discounts" locked />}
+      {section === 'refunds' && <FeeReportsSection institutionId={institution._id} onFlash={onFlash} initialType="refunds" locked />}
+      {section === 'reports' && <FeeReportsSection institutionId={institution._id} onFlash={onFlash} />}
+
+      {section === 'invoices' && (
+      <div>
+      <div className="admin-notice">Fees are generated automatically from the accepted student's program rules (Admission Management), or via the Generate Fees tab for recurring billing cycles. This screen is for payment verification, reminders, discounts, receipts, escrow and refunds.</div>
+
+      <div className="card" style={{ padding: 14, marginBottom: 14, display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'flex-end' }}>
+        <label className="text-xs">Student
+          <select className="form-select" style={{ marginTop: 4, minWidth: 160 }} value={filters.student} onChange={(e) => setFilters({ ...filters, student: e.target.value })}>
+            <option value="">All students</option>
+            {studentOptions.map((s) => <option key={s._id} value={s._id}>{s.fullName}</option>)}
+          </select>
+        </label>
+        <label className="text-xs">Status
+          <select className="form-select" style={{ marginTop: 4 }} value={filters.status} onChange={(e) => setFilters({ ...filters, status: e.target.value })}>
+            <option value="">All</option>
+            {['scheduled', 'pending', 'processing', 'partially_paid', 'paid', 'overdue', 'waived', 'cancelled', 'refunded'].map((s) => <option key={s} value={s}>{s}</option>)}
+          </select>
+        </label>
+        <label className="text-xs">Fee Type
+          <select className="form-select" style={{ marginTop: 4 }} value={filters.feeType} onChange={(e) => setFilters({ ...filters, feeType: e.target.value })}>
+            <option value="">All</option>
+            {['tuition', 'admission', 'exam', 'hostel', 'transport', 'library', 'activity', 'other'].map((t) => <option key={t} value={t}>{t}</option>)}
+          </select>
+        </label>
+        <label className="text-xs">Academic Year<input className="form-input" style={{ marginTop: 4, width: 100 }} placeholder="2026" value={filters.academicYear} onChange={(e) => setFilters({ ...filters, academicYear: e.target.value })} /></label>
+        <label className="text-xs">Term/Semester<input className="form-input" style={{ marginTop: 4, width: 120 }} placeholder="Term1" value={filters.term} onChange={(e) => setFilters({ ...filters, term: e.target.value })} /></label>
+        <label className="text-xs">Due From<input type="date" className="form-input" style={{ marginTop: 4 }} value={filters.from} onChange={(e) => setFilters({ ...filters, from: e.target.value })} /></label>
+        <label className="text-xs">Due To<input type="date" className="form-input" style={{ marginTop: 4 }} value={filters.to} onChange={(e) => setFilters({ ...filters, to: e.target.value })} /></label>
+        <button type="button" className="btn btn-primary" style={{ padding: '6px 14px', fontSize: '0.75rem' }} onClick={applyFilters}>Apply Filters</button>
+        <button type="button" className="btn" style={{ padding: '6px 14px', fontSize: '0.75rem' }} onClick={clearFilters}>Clear</button>
+      </div>
+
       <Table
-        headers={['Student', 'Title', 'Amount', 'Receipt', 'Due', 'Status', 'Escrow', 'Refund', 'Action']}
+        headers={['Student', 'Student Details', 'Title', 'Amount', 'Outstanding', 'Receipt', 'Due', 'Status', 'Escrow', 'Refund', 'Action', 'PDF']}
         rows={fees.map((f) => [
-          f.student?.fullName, f.installment?.totalInstallments ? `${f.title} (${f.installment.number}/${f.installment.totalInstallments})` : f.title, `${f.currency} ${f.amount}`,
+          <span><strong>{f.student?.fullName}</strong><br/><small>{f.student?.email}</small></span>,
+          <span className="text-xs">ID: {f.studentIdentity?.studentId || '—'}<br/>Roll: {f.studentIdentity?.rollNumber || '—'}<br/>Program: {f.studentIdentity?.program || '—'}<br/>Class: {f.studentIdentity?.classSection || '—'}</span>,
+          f.installment?.totalInstallments ? `${f.title} (${f.installment.number}/${f.installment.totalInstallments})` : f.title, `${f.currency} ${f.amount}`,
+          `${f.currency} ${f.outstandingAmount ?? f.amount}`,
           f.receiptNumber || '—',
           f.dueDate ? new Date(f.dueDate).toLocaleDateString() : '—',
-          <Tag status={f.status === 'paid' ? 'approved' : f.status === 'refunded' ? 'rejected' : 'pending'} label={f.status} />,
+          <Tag status={f.status === 'paid' ? 'approved' : f.status === 'refunded' || f.status === 'overdue' ? 'rejected' : 'pending'} label={f.status} />,
           f.status === 'paid' ? <Tag status={f.escrowStatus === 'released' ? 'approved' : 'pending'} label={f.escrowStatus === 'released' ? 'Released' : 'Held'} /> : '—',
           f.refund?.status && f.refund.status !== 'none' ? (
             f.refund.status === 'requested' ? (
@@ -12959,19 +13848,477 @@ function InstitutionFeesPanel({ onFlash }) {
             ) : <Tag status={f.refund.status === 'refunded' ? 'approved' : 'rejected'} label={f.refund.status} />
           ) : '—',
           f.status !== 'paid' ? (
-            <div className="flex gap-2 items-center">
+            <div className="flex gap-2 items-center flex-wrap">
               <select className="form-select" style={{ padding: '4px 8px', fontSize: '0.75rem' }} value={payVia[f._id] || 'Cash'} onChange={(e) => setPayVia({ ...payVia, [f._id]: e.target.value })}>
-                {['Cash', 'Bank Transfer', 'External Link'].map((v) => <option key={v} value={v}>{v}</option>)}
+                <option value="Cash">Cash received at institution</option>
               </select>
-              <button className="btn btn-primary" style={{ padding: '5px 12px', fontSize: '0.78rem' }} onClick={() => markPaid(f._id)}>Mark Paid</button>
+              <button className="btn btn-primary" style={{ padding: '5px 12px', fontSize: '0.78rem' }} onClick={() => markPaid(f._id)}>Record Received Payment</button>
               <button className="btn" style={{ padding: '5px 12px', fontSize: '0.78rem' }} onClick={() => remind(f._id)}>Remind</button>
+              <button className="btn" style={{ padding: '5px 12px', fontSize: '0.78rem' }} onClick={() => grantDiscount(f._id)}>Discount</button>
+              <button className="btn" style={{ padding: '5px 12px', fontSize: '0.78rem' }} onClick={() => waive(f._id)}>Waive</button>
+              {['pending', 'partially_paid', 'overdue'].includes(f.status) && <button className="btn" style={{ padding: '5px 12px', fontSize: '0.78rem' }} onClick={() => paymentArrangement(f._id)}>Arrangement</button>}
+              {['scheduled', 'pending', 'overdue'].includes(f.status) && (
+                <button className="btn" style={{ padding: '5px 12px', fontSize: '0.78rem' }} onClick={() => cancelInvoice(f._id)}>Cancel Invoice</button>
+              )}
             </div>
           ) : f.escrowStatus === 'held' ? (
             <button className="btn btn-primary" style={{ padding: '5px 12px', fontSize: '0.78rem' }} onClick={() => releaseEscrow(f._id)}>Release Funds</button>
-          ) : (f.paidVia || '—')
+          ) : (f.paidVia || '—'),
+          <button type="button" className="btn" style={{ padding: '4px 10px', fontSize: '0.72rem' }} onClick={() => downloadFeePdf(f)}>{f.status === 'paid' ? 'Receipt' : 'Invoice'}</button>
         ])}
         empty="No fee records yet."
       />
+      </div>
+      )}
+    </div>
+  );
+}
+
+const BILLING_FREQUENCIES = ['monthly', 'term', 'semester', 'quarterly', 'biannual', 'annual', 'one_time', 'custom'];
+const RESTRICTION_POLICIES = ['none', 'warning', 'block_materials', 'block_assignments', 'block_exams', 'block_live_classes', 'block_certificates', 'block_all'];
+
+// Fee Plans (spec item 1/9) — configure each program's billing schedule. Not hard-coded to any
+// institution type: a school picks 'monthly', a university 'semester', a college 'annual', an
+// academy whatever custom cadence it wants — the institution always chooses.
+function FeePlansSection({ institutionId, onFlash }) {
+  const [programs, setPrograms] = useState(null);
+  const [editing, setEditing] = useState(null);
+  const [form, setForm] = useState(null);
+  const [saving, setSaving] = useState(false);
+
+  function load() { apiRequest(`/institutions/${institutionId}/programs`).then(setPrograms).catch((err) => onFlash(err.message)); }
+  useEffect(load, [institutionId]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  function edit(program) {
+    setEditing(program._id);
+    setForm({
+      billingFrequency: program.billingFrequency || 'monthly', billingIntervalCount: program.billingIntervalCount || 1,
+      academicYearStart: program.academicYearStart ? program.academicYearStart.slice(0, 10) : '', academicYearEnd: program.academicYearEnd ? program.academicYearEnd.slice(0, 10) : '',
+      firstDueDate: program.firstDueDate ? program.firstDueDate.slice(0, 10) : '', invoiceGenerationDay: program.invoiceGenerationDay || 1,
+      dueDay: program.dueDay || 10, gracePeriodDays: program.gracePeriodDays || 0, numberOfTerms: program.numberOfTerms || 1,
+      installmentsPerBillingCycle: program.installmentsPerBillingCycle || 1, autoGenerateInvoices: program.autoGenerateInvoices !== false,
+      autoSendReminders: program.autoSendReminders !== false, lateFeeEnabled: program.lateFeeEnabled || false,
+      lateFeeType: program.lateFeeType || 'fixed', lateFeeValue: program.lateFeeValue || 0, maximumLateFee: program.maximumLateFee ?? '',
+      minimumPartialPayment: program.minimumPartialPayment || 0,
+      accessRestrictionPolicy: program.accessRestrictionPolicy || 'block_all',
+      reminderDays: (program.reminderRules?.daysBeforeDue || [3]).join(','),
+      reminderOnDue: program.reminderRules?.onDueDate !== false,
+      reminderAfterGrace: program.reminderRules?.afterGracePeriod !== false
+    });
+  }
+
+  async function save(programId) {
+    setSaving(true);
+    try {
+      const body = { ...form, maximumLateFee: form.maximumLateFee === '' ? null : Number(form.maximumLateFee), reminderRules: { daysBeforeDue: form.reminderDays.split(',').map(Number).filter((n) => Number.isInteger(n) && n >= 0), onDueDate: form.reminderOnDue, afterGracePeriod: form.reminderAfterGrace } };
+      delete body.reminderDays; delete body.reminderOnDue; delete body.reminderAfterGrace;
+      await apiRequest(`/institution-fees/${institutionId}/programs/${programId}/billing`, { method: 'PATCH', body });
+      onFlash('Billing configuration saved.', 'success');
+      setEditing(null); setForm(null);
+      load();
+    } catch (err) { onFlash(err.message); } finally { setSaving(false); }
+  }
+
+  if (programs === null) return <p className="admin-notice">Loading...</p>;
+  if (programs.length === 0) return <p className="admin-notice">No programs yet — create one in Admission Management first.</p>;
+
+  return (
+    <div style={{ display: 'grid', gap: 12 }}>
+      {programs.map((p) => (
+        <div key={p._id} className="card" style={{ padding: 16 }}>
+          <div className="flex items-center justify-between flex-wrap" style={{ gap: 8 }}>
+            <div>
+              <strong className="text-sm">{p.name}</strong>
+              <p className="text-xs" style={{ color: 'var(--ink-soft)' }}>{p.department} · {p.currency} {p.totalTuitionFee} · billing: {p.billingFrequency || 'monthly'}</p>
+            </div>
+            {editing !== p._id && <button type="button" className="btn" style={{ padding: '5px 12px', fontSize: '0.75rem' }} onClick={() => edit(p)}>Configure Billing</button>}
+          </div>
+          {editing === p._id && form && (
+            <div style={{ marginTop: 12, paddingTop: 12, borderTop: '1px solid var(--sand-line)', display: 'grid', gap: 10 }}>
+              <div className="flex flex-wrap" style={{ gap: 10 }}>
+                <label className="text-xs">Billing Frequency
+                  <select className="form-select" value={form.billingFrequency} onChange={(e) => setForm({ ...form, billingFrequency: e.target.value })} style={{ marginTop: 4 }}>
+                    {BILLING_FREQUENCIES.map((f) => <option key={f} value={f}>{f.replace('_', ' ')}</option>)}
+                  </select>
+                </label>
+                {form.billingFrequency === 'custom' && (
+                  <label className="text-xs">Every N Months<input type="number" min={1} className="form-input" style={{ width: 90, marginTop: 4 }} value={form.billingIntervalCount} onChange={(e) => setForm({ ...form, billingIntervalCount: Number(e.target.value) })} /></label>
+                )}
+                {['term', 'semester'].includes(form.billingFrequency) && (
+                  <label className="text-xs">Number of Terms<input type="number" min={1} className="form-input" style={{ width: 90, marginTop: 4 }} value={form.numberOfTerms} onChange={(e) => setForm({ ...form, numberOfTerms: Number(e.target.value) })} /></label>
+                )}
+                <label className="text-xs">Instalments per Cycle<input type="number" min={1} className="form-input" style={{ width: 90, marginTop: 4 }} value={form.installmentsPerBillingCycle} onChange={(e) => setForm({ ...form, installmentsPerBillingCycle: Number(e.target.value) })} /></label>
+              </div>
+              <div className="flex flex-wrap" style={{ gap: 10 }}>
+                <label className="text-xs">Academic Year Start<input type="date" className="form-input" style={{ marginTop: 4 }} value={form.academicYearStart} onChange={(e) => setForm({ ...form, academicYearStart: e.target.value })} /></label>
+                <label className="text-xs">Academic Year End<input type="date" className="form-input" style={{ marginTop: 4 }} value={form.academicYearEnd} onChange={(e) => setForm({ ...form, academicYearEnd: e.target.value })} /></label>
+                <label className="text-xs">First Due Date<input type="date" className="form-input" style={{ marginTop: 4 }} value={form.firstDueDate} onChange={(e) => setForm({ ...form, firstDueDate: e.target.value })} /></label>
+              </div>
+              <div className="flex flex-wrap" style={{ gap: 10 }}>
+                <label className="text-xs">Invoice Generation Day<input type="number" min={1} max={28} className="form-input" style={{ width: 80, marginTop: 4 }} value={form.invoiceGenerationDay} onChange={(e) => setForm({ ...form, invoiceGenerationDay: Number(e.target.value) })} /></label>
+                <label className="text-xs">Due Day<input type="number" min={1} max={28} className="form-input" style={{ width: 80, marginTop: 4 }} value={form.dueDay} onChange={(e) => setForm({ ...form, dueDay: Number(e.target.value) })} /></label>
+                <label className="text-xs">Grace Period (days)<input type="number" min={0} className="form-input" style={{ width: 80, marginTop: 4 }} value={form.gracePeriodDays} onChange={(e) => setForm({ ...form, gracePeriodDays: Number(e.target.value) })} /></label>
+              </div>
+              <div className="flex flex-wrap items-center" style={{ gap: 14 }}>
+                <label className="text-xs flex items-center" style={{ gap: 6 }}><input type="checkbox" checked={form.autoGenerateInvoices} onChange={(e) => setForm({ ...form, autoGenerateInvoices: e.target.checked })} /> Auto-generate invoices</label>
+                <label className="text-xs flex items-center" style={{ gap: 6 }}><input type="checkbox" checked={form.autoSendReminders} onChange={(e) => setForm({ ...form, autoSendReminders: e.target.checked })} /> Auto-send reminders</label>
+                <label className="text-xs flex items-center" style={{ gap: 6 }}><input type="checkbox" checked={form.lateFeeEnabled} onChange={(e) => setForm({ ...form, lateFeeEnabled: e.target.checked })} /> Late fee enabled</label>
+              </div>
+              {form.lateFeeEnabled && (
+                <div className="flex flex-wrap" style={{ gap: 10 }}>
+                  <select className="form-select" value={form.lateFeeType} onChange={(e) => setForm({ ...form, lateFeeType: e.target.value })}>
+                    <option value="fixed">Fixed amount</option>
+                    <option value="percentage">Percentage of outstanding</option>
+                  </select>
+                  <label className="text-xs">Value<input type="number" min={0} className="form-input" style={{ width: 90, marginTop: 4 }} value={form.lateFeeValue} onChange={(e) => setForm({ ...form, lateFeeValue: Number(e.target.value) })} /></label>
+                  <label className="text-xs">Maximum Late Fee (optional)<input type="number" min={0} className="form-input" style={{ width: 110, marginTop: 4 }} value={form.maximumLateFee} onChange={(e) => setForm({ ...form, maximumLateFee: e.target.value })} /></label>
+                </div>
+              )}
+              <label className="text-xs">Minimum Partial Payment (0 = no minimum)<input type="number" min={0} className="form-input" style={{ width: 130, marginTop: 4, display: 'block' }} value={form.minimumPartialPayment} onChange={(e) => setForm({ ...form, minimumPartialPayment: Number(e.target.value) })} /></label>
+              <div className="flex flex-wrap items-center" style={{ gap: 12 }}>
+                <label className="text-xs">Reminder days before due (comma separated)<input className="form-input" style={{ width: 180, marginTop: 4 }} value={form.reminderDays} onChange={(e) => setForm({ ...form, reminderDays: e.target.value })} placeholder="7,3,1" /></label>
+                <label className="text-xs flex items-center" style={{ gap: 6 }}><input type="checkbox" checked={form.reminderOnDue} onChange={(e) => setForm({ ...form, reminderOnDue: e.target.checked })} /> On due date</label>
+                <label className="text-xs flex items-center" style={{ gap: 6 }}><input type="checkbox" checked={form.reminderAfterGrace} onChange={(e) => setForm({ ...form, reminderAfterGrace: e.target.checked })} /> After grace period</label>
+              </div>
+              <label className="text-xs">Access Restriction Policy (once overdue)
+                <select className="form-select" value={form.accessRestrictionPolicy} onChange={(e) => setForm({ ...form, accessRestrictionPolicy: e.target.value })} style={{ marginTop: 4, display: 'block' }}>
+                  {RESTRICTION_POLICIES.map((p) => <option key={p} value={p}>{p.replace('_', ' ')}</option>)}
+                </select>
+              </label>
+              <div className="flex gap-2">
+                <button type="button" className="btn btn-primary" style={{ padding: '6px 14px', fontSize: '0.78rem' }} disabled={saving} onClick={() => save(p._id)}>{saving ? 'Saving...' : 'Save Billing Configuration'}</button>
+                <button type="button" className="btn" style={{ padding: '6px 14px', fontSize: '0.78rem' }} onClick={() => { setEditing(null); setForm(null); }}>Cancel</button>
+              </div>
+            </div>
+          )}
+        </div>
+      ))}
+    </div>
+  );
+}
+
+// Lightweight, dependency-free SVG bar chart — no charting library in this project, so a small
+// hand-rolled one avoids adding a new dependency just for 3 bar charts.
+function SimpleBarChart({ data, labelKey, valueKey, color = 'var(--forest)', height = 160 }) {
+  if (!data || data.length === 0) return <p className="text-xs" style={{ color: 'var(--ink-soft)' }}>No data yet.</p>;
+  const max = Math.max(1, ...data.map((d) => Number(d[valueKey]) || 0));
+  return (
+    <div style={{ display: 'flex', alignItems: 'flex-end', gap: 8, height, overflowX: 'auto', padding: '4px 0' }}>
+      {data.map((d, i) => (
+        <div key={i} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', minWidth: 44 }}>
+          <span className="text-xs" style={{ marginBottom: 4 }}>{d[valueKey]}</span>
+          <div style={{ width: 26, height: Math.max(4, ((Number(d[valueKey]) || 0) / max) * (height - 40)), background: color, borderRadius: '4px 4px 0 0' }} />
+          <span className="text-xs" style={{ marginTop: 4, color: 'var(--ink-soft)', textAlign: 'center', maxWidth: 60, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={d[labelKey]}>{d[labelKey]}</span>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+// Fee dashboard charts (spec: monthly income graph, class-wise outstanding fee graph, monthly
+// fee collection comparison graph) — shown both inside Fee Management -> Overview and on the
+// institution's main dashboard.
+function FeeCollectionCharts({ institutionId, onFlash }) {
+  const [collection, setCollection] = useState(null);
+  const [classWise, setClassWise] = useState(null);
+  useEffect(() => {
+    apiRequest(`/institution-fees/${institutionId}/reports/collection?groupBy=month`).then(setCollection).catch((err) => onFlash?.(err.message));
+    apiRequest(`/institution-fees/${institutionId}/reports/class-wise`).then(setClassWise).catch((err) => onFlash?.(err.message));
+  }, [institutionId]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  return (
+    <div className="grid" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: 16, marginTop: 16 }}>
+      <div className="card" style={{ padding: 16 }}>
+        <strong className="text-sm">Monthly Income</strong>
+        <SimpleBarChart data={collection} labelKey="period" valueKey="collected" />
+      </div>
+      <div className="card" style={{ padding: 16 }}>
+        <strong className="text-sm">Month-to-Month Collection Comparison</strong>
+        <SimpleBarChart data={collection} labelKey="period" valueKey="count" color="var(--gold)" />
+      </div>
+      <div className="card" style={{ padding: 16 }}>
+        <strong className="text-sm">Class-wise Outstanding Fees</strong>
+        <SimpleBarChart data={classWise} labelKey="classSection" valueKey="outstanding" color="var(--rose, #c0392b)" />
+      </div>
+    </div>
+  );
+}
+
+function FeeOverviewSection({ institutionId, onFlash }) {
+  const [data, setData] = useState(null);
+  useEffect(() => { apiRequest(`/institution-fees/${institutionId}/reports/overview`).then(setData).catch((err) => onFlash(err.message)); }, [institutionId]); // eslint-disable-line react-hooks/exhaustive-deps
+  if (!data) return <p className="admin-notice">Loading...</p>;
+  const cards = [
+    ['Expected Collection', data.expectedCollection], ['Collected', data.collected], ['Outstanding', data.outstanding],
+    ['Overdue Invoices', data.overdueCount], ['Awaiting Verification', data.processingCount], ['Refunded', data.refunded],
+    ['Collection Rate', `${data.collectionRate}%`], ['Defaulters', data.defaulterCount]
+  ];
+  return (
+    <div>
+      <div className="grid" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: 12 }}>
+        {cards.map(([label, value]) => (
+          <div key={label} className="card" style={{ padding: 16 }}>
+            <p className="text-xs" style={{ color: 'var(--ink-soft)' }}>{label}</p>
+            <strong style={{ fontSize: 22 }}>{value}</strong>
+          </div>
+        ))}
+      </div>
+      <FeeCollectionCharts institutionId={institutionId} onFlash={onFlash} />
+    </div>
+  );
+}
+
+function FeeGenerateSection({ institutionId, onFlash }) {
+  const [schedules, setSchedules] = useState(null);
+  const [previews, setPreviews] = useState({});
+
+  function load() { apiRequest(`/institution-fees/${institutionId}/schedules`).then(setSchedules).catch((err) => onFlash(err.message)); }
+  useEffect(load, [institutionId]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  async function preview(scheduleId, which) {
+    try {
+      const res = await apiRequest(`/institution-fees/${institutionId}/schedules/${scheduleId}/preview?which=${which}`);
+      setPreviews((p) => ({ ...p, [scheduleId]: { which, ...res } }));
+    } catch (err) { onFlash(err.message); }
+  }
+
+  async function generate(scheduleId, which) {
+    try {
+      const res = await apiRequest(`/institution-fees/${institutionId}/schedules/${scheduleId}/generate`, { method: 'POST', body: { which } });
+      onFlash(res.message || 'Generated.', 'success');
+      setPreviews((p) => { const n = { ...p }; delete n[scheduleId]; return n; });
+      load();
+    } catch (err) { onFlash(err.message); }
+  }
+
+  async function generateAll(which) {
+    try {
+      const res = await apiRequest(`/institution-fees/${institutionId}/generate-all`, { method: 'POST', body: { which } });
+      onFlash(`${res.invoicesCreated} invoice(s) created for ${res.studentsBilled} student(s).`, 'success');
+      load();
+    } catch (err) { onFlash(err.message); }
+  }
+
+  if (schedules === null) return <p className="admin-notice">Loading...</p>;
+
+  return (
+    <div>
+      <div className="flex gap-2 mb-4 flex-wrap">
+        <button type="button" className="btn btn-primary" onClick={() => generateAll('current')}>Generate Current Billing Cycle — All Eligible Students</button>
+        <button type="button" className="btn" onClick={() => generateAll('next')}>Generate Next Billing Cycle — All Eligible Students</button>
+      </div>
+      {schedules.length === 0 && <p className="admin-notice">No fee schedules yet — accepting an admission application creates one automatically.</p>}
+      <div style={{ display: 'grid', gap: 10 }}>
+        {schedules.map((s) => {
+          const p = previews[s._id];
+          return (
+            <div key={s._id} className="card" style={{ padding: 14 }}>
+              <div className="flex items-center justify-between flex-wrap" style={{ gap: 8 }}>
+                <div>
+                  <strong className="text-sm">{s.student?.fullName}</strong>
+                  <p className="text-xs" style={{ color: 'var(--ink-soft)' }}>{s.programName} · {s.billingFrequency} · {s.currency} {s.totalProgramFee} total</p>
+                </div>
+                <div className="flex gap-2 flex-wrap">
+                  <button type="button" className="btn" style={{ padding: '4px 10px', fontSize: '0.72rem' }} onClick={() => preview(s._id, 'current')}>Preview Current</button>
+                  <button type="button" className="btn" style={{ padding: '4px 10px', fontSize: '0.72rem' }} onClick={() => preview(s._id, 'next')}>Preview Next</button>
+                  <button type="button" className="btn btn-primary" style={{ padding: '4px 10px', fontSize: '0.72rem' }} onClick={() => generate(s._id, 'current')}>Generate Current</button>
+                  <button type="button" className="btn btn-primary" style={{ padding: '4px 10px', fontSize: '0.72rem' }} onClick={() => generate(s._id, 'next')}>Generate Next</button>
+                </div>
+              </div>
+              {p && (
+                <div className="text-xs" style={{ marginTop: 8, padding: 8, background: 'var(--sand)', borderRadius: 8 }}>
+                  {p.period ? (
+                    <>Period: <strong>{p.label}</strong> · Amount: <strong>{p.currency} {p.amount}</strong> · Due: <strong>{new Date(p.dueDate).toLocaleDateString()}</strong> · Instalments: {p.installments}{p.alreadyGenerated ? ' · Already generated' : ''}</>
+                  ) : 'No further billing period for this plan.'}
+                </div>
+              )}
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+function FeeVerificationSection({ institutionId, onFlash }) {
+  const [fees, setFees] = useState(null);
+  function load() { apiRequest(`/institution-fees/${institutionId}/payments-awaiting-verification`).then(setFees).catch((err) => onFlash(err.message)); }
+  useEffect(load, [institutionId]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  async function decide(feeId, decision) {
+    let rejectionReason = '';
+    if (decision === 'reject') {
+      rejectionReason = await showPrompt('Why was this payment rejected?', { title: 'Reject payment', required: true });
+      if (!rejectionReason) return;
+    } else {
+      const confirmed = await showConfirm('Confirm that the money has actually been received in the institution account/cash desk?', { confirmLabel: 'Verify received' });
+      if (!confirmed) return;
+    }
+    try { await apiRequest(`/institution-fees/fees/${feeId}/verify-payment`, { method: 'PATCH', body: { decision, rejectionReason } }); onFlash(`Payment ${decision === 'verify' ? 'verified' : 'rejected'}.`, 'success'); load(); } catch (err) { onFlash(err.message); }
+  }
+
+  if (fees === null) return <p className="admin-notice">Loading...</p>;
+  if (fees.length === 0) return <p className="admin-notice">No payments awaiting verification.</p>;
+  return (
+    <div style={{ display: 'grid', gap: 10 }}>
+      {fees.map((f) => {
+        const pending = [...(f.paymentHistory || [])].reverse().find((p) => (p.verificationStatus || (!p.verifiedAt ? 'pending' : 'verified')) === 'pending');
+        return (
+          <div key={f._id} className="card" style={{ padding: 14 }}>
+            <div className="flex items-center justify-between flex-wrap" style={{ gap: 8 }}>
+              <div>
+                <strong className="text-sm">{f.student?.fullName}</strong>
+                <p className="text-xs" style={{ color: 'var(--ink-soft)' }}>{f.title} · Reported {f.currency} {pending?.amount} via {pending?.method}</p>
+                <p className="text-xs" style={{ color: 'var(--ink-soft)' }}>
+                  Ref: {pending?.reference || pending?.transactionId || '—'} · Paid on: {pending?.paidOn ? new Date(pending.paidOn).toLocaleDateString() : '—'}
+                  {pending?.bankName ? ` · Bank/provider: ${pending.bankName}` : ''}
+                </p>
+                {pending?.notes && <p className="text-xs">Note: {pending.notes}</p>}
+                {pending?.proofUrl && <a className="btn" style={{ display: 'inline-block', padding: '4px 10px', fontSize: '0.72rem', marginTop: 6 }} href={pending.proofUrl} target="_blank" rel="noreferrer">View payment proof</a>}
+              </div>
+              <div className="flex gap-2">
+                <button type="button" className="btn btn-primary" style={{ padding: '5px 12px', fontSize: '0.75rem' }} onClick={() => decide(f._id, 'verify')}>Verify Received</button>
+                <button type="button" className="btn" style={{ padding: '5px 12px', fontSize: '0.75rem' }} onClick={() => decide(f._id, 'reject')}>Reject</button>
+              </div>
+            </div>
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+function FeeDefaultersSection({ institutionId, onFlash }) {
+  const [fees, setFees] = useState(null);
+  useEffect(() => { apiRequest(`/institution-fees/${institutionId}/defaulters`).then(setFees).catch((err) => onFlash(err.message)); }, [institutionId]); // eslint-disable-line react-hooks/exhaustive-deps
+  if (fees === null) return <p className="admin-notice">Loading...</p>;
+  if (fees.length === 0) return <p className="admin-notice">No overdue fees — no defaulters.</p>;
+  return (
+    <Table
+      headers={['Student', 'Fee', 'Outstanding', 'Due Date', 'Late Fee']}
+      rows={fees.map((f) => [f.student?.fullName, f.title, `${f.currency} ${f.outstandingAmount ?? f.amount}`, new Date(f.dueDate).toLocaleDateString(), f.lateFeeAmount ? `${f.currency} ${f.lateFeeAmount}` : '—'])}
+      empty="No defaulters."
+    />
+  );
+}
+
+const REPORT_TYPES = [
+  { key: 'ledger', label: 'Student Ledger' },
+  { key: 'aging', label: 'Outstanding Aging' },
+  { key: 'class-wise', label: 'Class-wise Collection' },
+  { key: 'program-wise', label: 'Program-wise' },
+  { key: 'fee-type', label: 'Fee-Type' },
+  { key: 'payment-method', label: 'Payment Method' },
+  { key: 'discounts', label: 'Discounts/Concessions' },
+  { key: 'refunds', label: 'Refunds' },
+  { key: 'collection?groupBy=day', label: 'Collection (Daily)' },
+  { key: 'collection?groupBy=month', label: 'Collection (Monthly)' },
+  { key: 'collection?groupBy=year', label: 'Collection (Annual)' }
+];
+
+function reportRowsForPdf(reportType, data) {
+  if (reportType === 'aging') return ['1-30', '31-60', '61-90', '90+'].flatMap((bucket) => (data[bucket] || []).map((row) => ({ bucket, student: row.student?.fullName, amount: `${row.currency} ${row.amount}`, daysOverdue: row.daysOverdue })));
+  if (reportType === 'discounts') return data.map((r) => ({ student: r.student?.fullName, kind: r.kind, reason: r.reason, amount: `${r.currency} ${r.amount}`, approvedBy: r.approvedBy }));
+  if (reportType === 'refunds') return data.map((r) => ({ student: r.student?.fullName, title: r.title, status: r.refund?.status, amount: `${r.currency} ${r.refund?.amount}` }));
+  return data.map((r) => Object.fromEntries(Object.entries(r).map(([k, v]) => [k, typeof v === 'object' && v !== null ? JSON.stringify(v) : v])));
+}
+
+async function downloadReportPdf(reportType, label, rows) {
+  const { jsPDF } = await import('jspdf');
+  const pdf = new jsPDF({ orientation: 'landscape' });
+  pdf.setFontSize(14); pdf.text(label, 14, 16);
+  pdf.setFontSize(9);
+  if (rows.length === 0) { pdf.text('No data.', 14, 28); pdf.save(`${reportType}-report.pdf`); return; }
+  const headers = Object.keys(rows[0]);
+  let y = 26;
+  pdf.text(headers.join(' | '), 14, y);
+  rows.forEach((row) => {
+    y += 7;
+    if (y > 190) { pdf.addPage(); y = 20; }
+    pdf.text(headers.map((h) => String(row[h] ?? '')).join(' | '), 14, y);
+  });
+  pdf.save(`${reportType}-report.pdf`);
+}
+
+function FeeReportsSection({ institutionId, onFlash, initialType, locked }) {
+  const [reportType, setReportType] = useState(initialType || 'aging');
+  const [data, setData] = useState(null);
+
+  useEffect(() => {
+    setData(null);
+    if (reportType === 'ledger') { setData([]); return; }
+    apiRequest(`/institution-fees/${institutionId}/reports/${reportType}`).then(setData).catch((err) => onFlash(err.message));
+  }, [institutionId, reportType]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  function exportCsv() {
+    if (reportType === 'aging') {
+      const flat = ['1-30', '31-60', '61-90', '90+'].flatMap((bucket) => (data[bucket] || []).map((row) => ({ bucket, student: row.student?.fullName, amount: row.amount, currency: row.currency, daysOverdue: row.daysOverdue })));
+      downloadCsv('aging-report.csv', flat);
+    } else if (reportType === 'discounts' || reportType === 'refunds') {
+      downloadCsv(`${reportType}-report.csv`, data.map((r) => ({ student: r.student?.fullName, ...('kind' in r ? { kind: r.kind, reason: r.reason, amount: r.amount, approvedBy: r.approvedBy } : { status: r.refund?.status, amount: r.refund?.amount, reason: r.refund?.reason }) })));
+    } else {
+      downloadCsv(`${reportType}-report.csv`, data);
+    }
+  }
+
+  const reportLabel = REPORT_TYPES.find((r) => r.key === reportType)?.label || reportType;
+
+  async function loadLedger() {
+    const studentId = await showPrompt('Student ID for ledger:', { title: 'Student Ledger', required: true });
+    if (!studentId) return;
+    try { setData(await apiRequest(`/institution-fees/${institutionId}/reports/ledger?studentId=${encodeURIComponent(studentId)}`)); } catch (err) { onFlash(err.message); }
+  }
+
+  return (
+    <div>
+      <div className="flex items-center justify-between flex-wrap" style={{ gap: 10, marginBottom: 14 }}>
+        {!locked ? (
+          <div className="flex gap-2 flex-wrap">
+            {REPORT_TYPES.map((r) => <button key={r.key} type="button" className={`btn ${reportType === r.key ? 'btn-primary' : ''}`} style={{ padding: '5px 12px', fontSize: '0.75rem' }} onClick={() => setReportType(r.key)}>{r.label}</button>)}
+          </div>
+        ) : <h4 className="font-semibold" style={{ margin: 0 }}>{reportLabel}</h4>}
+        <span className="flex gap-2">
+          {reportType === 'ledger' && <button type="button" className="btn btn-primary" onClick={loadLedger}>Load Student Ledger</button>}
+          <button type="button" className="btn" style={{ padding: '5px 12px', fontSize: '0.75rem' }} disabled={!data} onClick={exportCsv}>Export CSV</button>
+          <button type="button" className="btn" style={{ padding: '5px 12px', fontSize: '0.75rem' }} disabled={!data} onClick={() => downloadReportPdf(reportType, reportLabel, reportRowsForPdf(reportType, data))}>Export PDF</button>
+        </span>
+      </div>
+
+      {data === null && <p className="admin-notice">Loading...</p>}
+
+      {data && reportType === 'aging' && (
+        <div className="grid" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 12 }}>
+          {['1-30', '31-60', '61-90', '90+'].map((bucket) => (
+            <div key={bucket} className="card" style={{ padding: 14 }}>
+              <strong className="text-sm">{bucket} days ({data[bucket].length})</strong>
+              <div style={{ marginTop: 8, display: 'grid', gap: 4 }}>
+                {data[bucket].map((row, i) => <p key={i} className="text-xs">{row.student?.fullName} — {row.currency} {row.amount} ({row.daysOverdue}d)</p>)}
+                {data[bucket].length === 0 && <p className="text-xs" style={{ color: 'var(--ink-soft)' }}>None</p>}
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {data && (['class-wise', 'program-wise', 'fee-type', 'payment-method', 'ledger'].includes(reportType) || reportType.startsWith('collection')) && (
+        <Table
+          headers={Object.keys(data[0] || { info: 'No data' })}
+          rows={data.map((row) => Object.values(row).map((v) => (typeof v === 'number' ? v : String(v))))}
+          empty="No data for this report yet."
+        />
+      )}
+
+      {data && reportType === 'discounts' && (
+        <Table headers={['Student', 'Fee', 'Kind', 'Reason', 'Amount', 'Approved By', 'Date']}
+          rows={data.map((r) => [r.student?.fullName, r.feeTitle, r.kind, r.reason, `${r.currency} ${r.amount}`, r.approvedBy, r.approvedAt ? new Date(r.approvedAt).toLocaleDateString() : '—'])}
+          empty="No discounts granted yet." />
+      )}
+
+      {data && reportType === 'refunds' && (
+        <Table headers={['Student', 'Fee', 'Refund Status', 'Amount', 'Reason']}
+          rows={data.map((r) => [r.student?.fullName, r.title, r.refund?.status, `${r.currency} ${r.refund?.amount}`, r.refund?.reason])}
+          empty="No refunds yet." />
+      )}
     </div>
   );
 }
@@ -14401,11 +15748,27 @@ function InstitutionStaffPanel({ onFlash }) {
 // before anything changes on either side.
 function InstitutionHiringPanel({ institutionId, onFlash }) {
   const [employments, setEmployments] = useState(null);
-  const [form, setForm] = useState({ teacherUserId: '', role: 'teacher', designation: '', department: '', contractTerms: '' });
+  const [form, setForm] = useState({ teacherUserId: '', role: 'teacher', designation: '', department: '', contractTerms: '', contractDocumentUrl: '', salaryType: 'monthly', commissionPercent: 0, monthlySalary: 0, salaryCurrency: 'PKR', taxPercent: 0 });
   const [busyId, setBusyId] = useState(null);
   const [directory, setDirectory] = useState(null);
   const [directoryQuery, setDirectoryQuery] = useState('');
+  const [uploadingContract, setUploadingContract] = useState(false);
   const offerFormRef = useRef(null);
+
+  // Real signed upload to CareerZ's own Cloudinary storage (same flow as Study Group resources)
+  // instead of asking the institution to paste a URL to a file hosted somewhere else.
+  async function uploadContractFile(file) {
+    if (!file) return;
+    setUploadingContract(true);
+    try {
+      // PDFs/docs must be uploaded as Cloudinary `raw` resources. The previous `auto`
+      // endpoint classified PDFs as images, whose public delivery is disabled on many
+      // Cloudinary accounts and produced a 401 "deny or ACL failure" when opened.
+      const contractDocumentUrl = await uploadToPlatformStorage(file, 'contracts');
+      setForm((f) => ({ ...f, contractDocumentUrl }));
+      onFlash('Contract document uploaded.', 'success');
+    } catch (err) { onFlash(err.message); } finally { setUploadingContract(false); }
+  }
 
   function load() {
     apiRequest(`/institutions/${institutionId}/teacher-employments`).then(setEmployments).catch((err) => onFlash(err.message));
@@ -14429,7 +15792,7 @@ function InstitutionHiringPanel({ institutionId, onFlash }) {
     try {
       await apiRequest(`/institutions/${institutionId}/teacher-offers`, { method: 'POST', body: { ...form, teacherUserId: form.teacherUserId.trim() } });
       onFlash('Offer sent.', 'success');
-      setForm({ teacherUserId: '', role: 'teacher', designation: '', department: '', contractTerms: '' });
+      setForm({ teacherUserId: '', role: 'teacher', designation: '', department: '', contractTerms: '', contractDocumentUrl: '', salaryType: 'monthly', commissionPercent: 0, monthlySalary: 0, salaryCurrency: 'PKR', taxPercent: 0 });
       load();
     } catch (err) { onFlash(err.message); }
   }
@@ -14443,6 +15806,17 @@ function InstitutionHiringPanel({ institutionId, onFlash }) {
       onFlash('Employment ended.', 'success');
       load();
     } catch (err) { onFlash(err.message); } finally { setBusyId(null); }
+  }
+
+  async function changeEmployment(id, action) {
+    const label = action === 'promote' ? 'new designation' : 'new department';
+    const value = await showPrompt(`Enter ${label}.`, { title: action === 'promote' ? 'Promote teacher' : 'Transfer teacher', required: true });
+    if (!value) return;
+    try { await apiRequest(`/teacher-employments/${id}/manage`, { method: 'PATCH', body: { action, [action === 'promote' ? 'designation' : 'department']: value } }); onFlash('Employment updated.', 'success'); load(); } catch (err) { onFlash(err.message); }
+  }
+
+  async function reviewLeave(id, leaveId, decision) {
+    try { await apiRequest(`/teacher-employments/${id}/manage`, { method: 'PATCH', body: { action: 'review_leave', leaveId, decision } }); onFlash(`Leave ${decision}.`, 'success'); load(); } catch (err) { onFlash(err.message); }
   }
 
   const STATUS_TAG = { offered: 'pending', active: 'approved', accepted: 'approved', declined: 'rejected', resigned: 'pending', terminated: 'rejected' };
@@ -14485,18 +15859,29 @@ function InstitutionHiringPanel({ institutionId, onFlash }) {
         <input className="form-input" placeholder="Designation" value={form.designation} onChange={(e) => setForm({ ...form, designation: e.target.value })} style={{ maxWidth: 180 }} />
         <input className="form-input" placeholder="Department" value={form.department} onChange={(e) => setForm({ ...form, department: e.target.value })} style={{ maxWidth: 150 }} />
         <input className="form-input" placeholder="Contract terms (salary, hours...)" value={form.contractTerms} onChange={(e) => setForm({ ...form, contractTerms: e.target.value })} style={{ minWidth: 220, flex: 1 }} />
+        <label className="text-xs flex items-center" style={{ gap: 8, minWidth: 220 }}>
+          {form.contractDocumentUrl ? <a href={form.contractDocumentUrl} target="_blank" rel="noreferrer">Contract uploaded — view</a> : 'Signed contract document'}
+          <input type="file" accept=".pdf,.doc,.docx,image/*" disabled={uploadingContract} onChange={(e) => uploadContractFile(e.target.files?.[0])} style={{ fontSize: 11 }} />
+        </label>
+        <select className="form-select" value={form.salaryType} onChange={(e) => setForm({ ...form, salaryType: e.target.value })}><option value="monthly">Monthly salary</option><option value="commission">Commission</option><option value="hybrid">Monthly + commission</option></select>
+        {form.salaryType !== 'commission' && <input className="form-input" type="number" min="0" placeholder="Monthly salary" value={form.monthlySalary} onChange={(e) => setForm({ ...form, monthlySalary: e.target.value })} style={{ maxWidth: 150 }} />}
+        <select className="form-select" value={form.salaryCurrency} onChange={(e) => setForm({ ...form, salaryCurrency: e.target.value })} style={{ maxWidth: 100 }}>{['PKR', 'USD', 'GBP', 'SAR', 'AED'].map((currency) => <option key={currency}>{currency}</option>)}</select>
+        <input className="form-input" type="number" min="0" max="100" placeholder="Tax %" value={form.taxPercent} onChange={(e) => setForm({ ...form, taxPercent: e.target.value })} style={{ maxWidth: 100 }} />
+        {form.salaryType !== 'monthly' && <input className="form-input" type="number" min="0" max="100" placeholder="Commission %" value={form.commissionPercent} onChange={(e) => setForm({ ...form, commissionPercent: e.target.value })} style={{ maxWidth: 140 }} />}
         <button type="submit" className="btn btn-primary">Send Offer</button>
       </form>
       <Table
         loading={employments === null}
-        headers={['Teacher', 'Role', 'Status', 'Offered', 'Ended', 'Action']}
+        headers={['Teacher', 'Qualification / Subjects', 'Employment', 'Salary', 'Status', 'Offered', 'Action']}
         rows={(employments || []).map((e) => [
-          e.teacher?.fullName || e.teacher?.email, e.role,
+          <div><strong>{e.teacher?.fullName || 'Unknown teacher'}</strong><div className="text-xs" style={{ color: 'var(--ink-soft)' }}>{e.teacher?.email || ''}</div></div>,
+          <div><strong>{e.teacherProfile?.qualifications?.[0]?.title || 'Qualification not added'}</strong><div className="text-xs" style={{ color: 'var(--ink-soft)' }}>{(e.teacherProfile?.subjects || []).join(', ') || 'Subjects not added'}{e.teacherProfile?.experienceYears != null ? ` · ${e.teacherProfile.experienceYears} yrs` : ''}</div></div>,
+          <div><strong>{e.designation || e.role}</strong><div className="text-xs" style={{ color: 'var(--ink-soft)' }}>{e.department || 'Department not assigned'}</div></div>,
+          <div><strong>{e.salaryCurrency || 'PKR'} {Number(e.monthlySalary || 0).toLocaleString()}</strong><div className="text-xs" style={{ color: 'var(--ink-soft)' }}>{e.salaryType || 'monthly'}{Number(e.taxPercent || 0) > 0 ? ` · Tax ${e.taxPercent}%` : ''}{Number(e.commissionPercent || 0) > 0 ? ` · Commission ${e.commissionPercent}%` : ''}</div></div>,
           <Tag status={STATUS_TAG[e.status] || 'pending'} label={e.status} />,
           new Date(e.offeredAt).toLocaleDateString(),
-          e.endedAt ? `${new Date(e.endedAt).toLocaleDateString()}${e.endReason ? ` (${e.endReason})` : ''}` : '—',
           e.status === 'active'
-            ? <button type="button" className="btn" style={{ padding: '4px 12px', fontSize: '0.78rem' }} disabled={busyId === e._id} onClick={() => endEmployment(e._id)}>End employment</button>
+            ? <div className="flex gap-1 flex-wrap"><button type="button" className="btn" onClick={() => changeEmployment(e._id, 'promote')}>Promote</button><button type="button" className="btn" onClick={() => changeEmployment(e._id, 'transfer')}>Transfer</button>{(e.leaveRequests || []).filter((leave) => leave.status === 'pending').map((leave) => <span key={leave._id} className="flex gap-1"><button type="button" className="btn btn-primary" onClick={() => reviewLeave(e._id, leave._id, 'approved')}>Approve leave</button><button type="button" className="btn" onClick={() => reviewLeave(e._id, leave._id, 'rejected')}>Reject</button></span>)}<button type="button" className="btn" disabled={busyId === e._id} onClick={() => endEmployment(e._id)}>End</button></div>
             : '—'
         ])}
         empty="No offers sent yet."
@@ -14763,21 +16148,24 @@ function InstitutionSummary() {
   }, [list]);
   const primary = list?.[0];
   return (
-    <SummaryRow items={[
-      { label: 'My Institutions', value: list?.length, icon: FaSchool, detail: 'Registered by you' },
-      { label: 'Verification', value: primary ? primary.verificationStatus : '—', icon: FaClipboardCheck, detail: primary ? primary.name : 'Register an institution' },
-      { label: 'Students', value: report?.studentsCount ?? null, icon: FaUsers, detail: report ? 'Enrolled' : 'Register an institution' },
-      { label: 'Teachers', value: report?.teachersCount ?? null, icon: FaChalkboardUser, detail: report ? 'Active' : 'Register an institution' },
-      { label: 'Staff', value: report?.staffCount ?? null, icon: FaUserGear, detail: 'Total staff' },
-      { label: "Today's Attendance", value: report?.todayAttendanceRate != null ? `${report.todayAttendanceRate}%` : '—', icon: FaCalendarCheck, detail: 'Present today' },
-      { label: 'Active Classes', value: report?.classSectionsCount ?? null, icon: FaClipboardList, detail: 'Class sections' },
-      { label: 'Fees Collected', value: report ? `${report.fees.collected}` : null, icon: FaSackDollar, detail: 'Total collected' },
-      { label: 'Pending Fees', value: report ? `${report.fees.pending}` : null, icon: FaMoneyBillWave, detail: 'Awaiting payment' },
-      { label: 'Salary Status', value: report?.pendingPayroll ?? null, icon: FaWallet, detail: 'Unpaid payslips' },
-      { label: 'New Admissions', value: report?.newAdmissions ?? null, icon: FaUserGraduate, detail: 'Last 30 days' },
-      { label: 'Complaints', value: report?.openComplaints ?? null, icon: FaHeadset, detail: 'Open tickets' },
-      { label: 'Events', value: report?.upcomingEvents ?? null, icon: FaCalendarDays, detail: 'Upcoming' }
-    ]} />
+    <div>
+      <SummaryRow items={[
+        { label: 'My Institutions', value: list?.length, icon: FaSchool, detail: 'Registered by you' },
+        { label: 'Verification', value: primary ? primary.verificationStatus : '—', icon: FaClipboardCheck, detail: primary ? primary.name : 'Register an institution' },
+        { label: 'Students', value: report?.studentsCount ?? null, icon: FaUsers, detail: report ? 'Enrolled' : 'Register an institution' },
+        { label: 'Teachers', value: report?.teachersCount ?? null, icon: FaChalkboardUser, detail: report ? 'Active' : 'Register an institution' },
+        { label: 'Staff', value: report?.staffCount ?? null, icon: FaUserGear, detail: 'Total staff' },
+        { label: "Today's Attendance", value: report?.todayAttendanceRate != null ? `${report.todayAttendanceRate}%` : '—', icon: FaCalendarCheck, detail: 'Present today' },
+        { label: 'Active Classes', value: report?.classSectionsCount ?? null, icon: FaClipboardList, detail: 'Class sections' },
+        { label: 'Fees Collected', value: report ? `${report.fees.collected}` : null, icon: FaSackDollar, detail: 'Total collected' },
+        { label: 'Pending Fees', value: report ? `${report.fees.pending}` : null, icon: FaMoneyBillWave, detail: 'Awaiting payment' },
+        { label: 'Salary Status', value: report?.pendingPayroll ?? null, icon: FaWallet, detail: 'Unpaid payslips' },
+        { label: 'New Admissions', value: report?.newAdmissions ?? null, icon: FaUserGraduate, detail: 'Last 30 days' },
+        { label: 'Complaints', value: report?.openComplaints ?? null, icon: FaHeadset, detail: 'Open tickets' },
+        { label: 'Events', value: report?.upcomingEvents ?? null, icon: FaCalendarDays, detail: 'Upcoming' }
+      ]} />
+      {primary && <FeeCollectionCharts institutionId={primary._id} onFlash={() => {}} />}
+    </div>
   );
 }
 
@@ -15285,6 +16673,50 @@ function FundingRequestDetailModal({ request, onClose, onDonate, onSponsor, onSa
   );
 }
 
+function ReceivedDonationsPanel({ onFlash }) {
+  const [donations, setDonations] = useState(null);
+  const [sponsorships, setSponsorships] = useState(null);
+  function load() {
+    apiRequest('/funding-requests/mine/received-donations').then(setDonations).catch((err) => onFlash(err.message));
+    apiRequest('/scholarships/received/sponsorship-payments').then(setSponsorships).catch((err) => onFlash(err.message));
+  }
+  useEffect(load, []); // eslint-disable-line react-hooks/exhaustive-deps
+  async function decide(donation, decision) {
+    let rejectionReason = '';
+    if (decision === 'reject') {
+      rejectionReason = await showPrompt('Why was this payment rejected?', { title: 'Reject donation payment', required: true });
+      if (!rejectionReason) return;
+    } else {
+      const confirmed = await showConfirm('Confirm only after this money has actually reached you.', { confirmLabel: 'Money received' });
+      if (!confirmed) return;
+    }
+    try {
+      await apiRequest(`/funding-requests/donations/${donation._id}/verify-payment`, { method: 'PATCH', body: { decision, rejectionReason } });
+      onFlash(decision === 'verify' ? 'Donation received and verified.' : 'Donation payment rejected.', 'success'); load();
+    } catch (err) { onFlash(err.message); }
+  }
+  async function decideSponsorship(sponsorship, payment, decision) {
+    let rejectionReason = '';
+    if (decision === 'reject') { rejectionReason = await showPrompt('Why was this payment rejected?', { title: 'Reject sponsorship payment', required: true }); if (!rejectionReason) return; }
+    else { const confirmed = await showConfirm('Confirm only after this money has actually reached you.', { confirmLabel: 'Money received' }); if (!confirmed) return; }
+    try { await apiRequest(`/scholarships/received/sponsorships/${sponsorship._id}/payments/${payment._id}`, { method: 'PATCH', body: { decision, rejectionReason } }); onFlash(`Sponsorship payment ${decision === 'verify' ? 'verified' : 'rejected'}.`, 'success'); load(); } catch (err) { onFlash(err.message); }
+  }
+  if (donations === null || sponsorships === null) return <p className="admin-notice">Loading...</p>;
+  return <div><h3 className="font-semibold mb-2">Received Donations</h3><p className="text-xs mb-3" style={{ color: 'var(--ink-soft)' }}>A reported payment is counted only after you verify that the money reached you.</p>
+    <Table headers={['Donor', 'Request', 'Amount', 'Method / Reference', 'Proof', 'Status', 'Action']} rows={donations.map((d) => [
+      d.donor?.fullName || 'Donor', d.fundingRequest?.title || '—', `${d.currency} ${d.amount}`, `${d.paymentMethod} · ${d.paymentReference || '—'}`,
+      d.paymentProofUrl ? <a className="btn" href={d.paymentProofUrl} target="_blank" rel="noreferrer">View proof</a> : '—',
+      <Tag status={d.status === 'successful' ? 'approved' : d.status === 'rejected' || d.status === 'failed' ? 'rejected' : 'pending'} label={d.status} />,
+      d.status === 'pending' ? <div className="flex gap-2"><button className="btn btn-primary" onClick={() => decide(d, 'verify')}>Confirm received</button><button className="btn" onClick={() => decide(d, 'reject')}>Reject</button></div> : '—'
+    ])} empty="No received donation payments." />
+    <h4 className="font-semibold" style={{ margin: '22px 0 10px' }}>Sponsorship Payments Awaiting Verification</h4>
+    <Table headers={['Donor', 'Scholarship', 'Amount', 'Method / Reference', 'Proof', 'Action']} rows={sponsorships.flatMap((s) => (s.paymentHistory || []).filter((p) => p.status === 'pending').map((p) => [
+      s.donor?.fullName || 'Donor', s.scholarship?.title || '—', `${s.currency} ${p.amount}`, `${p.paymentMethod} · ${p.reference}`,
+      p.proofUrl ? <a className="btn" href={p.proofUrl} target="_blank" rel="noreferrer">View proof</a> : '—',
+      <div className="flex gap-2"><button className="btn btn-primary" onClick={() => decideSponsorship(s, p, 'verify')}>Confirm received</button><button className="btn" onClick={() => decideSponsorship(s, p, 'reject')}>Reject</button></div>
+    ]))} empty="No sponsorship payments awaiting verification." /></div>;
+}
+
 function RecommendedFundingRequestsPanel({ onFlash }) {
   const [requests, setRequests] = useState(null);
   const [savedIds, setSavedIds] = useState([]);
@@ -15292,6 +16724,9 @@ function RecommendedFundingRequestsPanel({ onFlash }) {
   const [donateFor, setDonateFor] = useState(null);
   const [donateAmount, setDonateAmount] = useState('');
   const [donatePaymentMethod, setDonatePaymentMethod] = useState('bank_transfer');
+  const [donateReference, setDonateReference] = useState('');
+  const [donateProvider, setDonateProvider] = useState('');
+  const [donateProof, setDonateProof] = useState(null);
 
   function load() {
     apiRequest('/funding-requests/recommended').then(setRequests).catch((err) => onFlash(err.message));
@@ -15315,9 +16750,12 @@ function RecommendedFundingRequestsPanel({ onFlash }) {
 
   async function confirmDonate() {
     if (!donateAmount || Number(donateAmount) <= 0) return onFlash('Enter a valid amount.');
+    if (!donateReference.trim()) return onFlash('Enter the payment reference.');
+    if (donatePaymentMethod !== 'cash' && !donateProof) return onFlash('Upload payment proof.');
     try {
-      await apiRequest(`/funding-requests/${donateFor.request._id}/donate`, { method: 'POST', body: { amount: Number(donateAmount), type: donateFor.type, paymentMethod: donatePaymentMethod } });
-      onFlash(donateFor.type === 'sponsorship' ? 'Sponsorship recorded.' : 'Donation recorded.', 'success');
+      const proofUrl = donateProof ? await uploadToPlatformStorage(donateProof, 'donation-payment-proofs') : '';
+      await apiRequest(`/funding-requests/${donateFor.request._id}/donate`, { method: 'POST', body: { amount: Number(donateAmount), type: donateFor.type, paymentMethod: donatePaymentMethod, reference: donateReference.trim(), provider: donateProvider.trim(), proofUrl } });
+      onFlash('Payment submitted. It will count after the receiver verifies receipt.', 'success');
       setDonateFor(null);
       load();
     } catch (err) { onFlash(err.message); }
@@ -15373,11 +16811,13 @@ function RecommendedFundingRequestsPanel({ onFlash }) {
               <input className="form-input" type="number" placeholder={`Amount (${donateFor.request.currency})`} value={donateAmount} onChange={(e) => setDonateAmount(e.target.value)} />
               <select className="form-select mt-2" value={donatePaymentMethod} onChange={(e) => setDonatePaymentMethod(e.target.value)}>
                 <option value="bank_transfer">Bank Transfer</option>
-                <option value="card">Card</option>
                 <option value="mobile_wallet">Mobile Wallet</option>
                 <option value="cash">Cash</option>
                 <option value="other">Other</option>
               </select>
+              <input className="form-input mt-2" placeholder="Transaction / cash receipt reference" value={donateReference} onChange={(e) => setDonateReference(e.target.value)} />
+              <input className="form-input mt-2" placeholder="Bank / wallet / payment details" value={donateProvider} onChange={(e) => setDonateProvider(e.target.value)} />
+              <label className="text-xs" style={{ display: 'block', marginTop: 8 }}>Payment proof {donatePaymentMethod === 'cash' ? '(optional)' : '(required)'}<input className="form-input" type="file" accept="image/*,.pdf" onChange={(e) => setDonateProof(e.target.files?.[0] || null)} /></label>
             </div>
             <div className="u-modal-foot">
               <button type="button" className="btn btn-primary" onClick={confirmDonate}>Confirm {donateFor.type === 'sponsorship' ? 'Sponsorship' : 'Donation'}</button>
@@ -15409,6 +16849,9 @@ function DonationOpportunitiesPanel({ onFlash }) {
   const [donateFor, setDonateFor] = useState(null);
   const [donateAmount, setDonateAmount] = useState('');
   const [donatePaymentMethod, setDonatePaymentMethod] = useState('bank_transfer');
+  const [donateReference, setDonateReference] = useState('');
+  const [donateProvider, setDonateProvider] = useState('');
+  const [donateProof, setDonateProof] = useState(null);
   const [filters, setFilters] = useState({ country: '', institution: '', educationLevel: '', category: '', minAmount: '', maxAmount: '', verifiedOnly: false });
 
   useEffect(() => { apiRequest('/institutions').then(setInstitutions).catch(() => {}); }, []);
@@ -15437,9 +16880,12 @@ function DonationOpportunitiesPanel({ onFlash }) {
 
   async function confirmDonate() {
     if (!donateAmount || Number(donateAmount) <= 0) return onFlash('Enter a valid amount.');
+    if (!donateReference.trim()) return onFlash('Enter the payment reference.');
+    if (donatePaymentMethod !== 'cash' && !donateProof) return onFlash('Upload payment proof.');
     try {
-      await apiRequest(`/funding-requests/${donateFor.request._id}/donate`, { method: 'POST', body: { amount: Number(donateAmount), type: donateFor.type, paymentMethod: donatePaymentMethod } });
-      onFlash(donateFor.type === 'sponsorship' ? 'Sponsorship recorded.' : 'Donation recorded.', 'success');
+      const proofUrl = donateProof ? await uploadToPlatformStorage(donateProof, 'donation-payment-proofs') : '';
+      await apiRequest(`/funding-requests/${donateFor.request._id}/donate`, { method: 'POST', body: { amount: Number(donateAmount), type: donateFor.type, paymentMethod: donatePaymentMethod, reference: donateReference.trim(), provider: donateProvider.trim(), proofUrl } });
+      onFlash('Payment submitted. It will count after the receiver verifies receipt.', 'success');
       setDonateFor(null);
       load();
     } catch (err) { onFlash(err.message); }
@@ -15517,11 +16963,13 @@ function DonationOpportunitiesPanel({ onFlash }) {
               <input className="form-input" type="number" placeholder={`Amount (${donateFor.request.currency})`} value={donateAmount} onChange={(e) => setDonateAmount(e.target.value)} />
               <select className="form-select mt-2" value={donatePaymentMethod} onChange={(e) => setDonatePaymentMethod(e.target.value)}>
                 <option value="bank_transfer">Bank Transfer</option>
-                <option value="card">Card</option>
                 <option value="mobile_wallet">Mobile Wallet</option>
                 <option value="cash">Cash</option>
                 <option value="other">Other</option>
               </select>
+              <input className="form-input mt-2" placeholder="Transaction / cash receipt reference" value={donateReference} onChange={(e) => setDonateReference(e.target.value)} />
+              <input className="form-input mt-2" placeholder="Bank / wallet / payment details" value={donateProvider} onChange={(e) => setDonateProvider(e.target.value)} />
+              <label className="text-xs" style={{ display: 'block', marginTop: 8 }}>Payment proof {donatePaymentMethod === 'cash' ? '(optional)' : '(required)'}<input className="form-input" type="file" accept="image/*,.pdf" onChange={(e) => setDonateProof(e.target.files?.[0] || null)} /></label>
             </div>
             <div className="u-modal-foot">
               <button type="button" className="btn btn-primary" onClick={confirmDonate}>Confirm {donateFor.type === 'sponsorship' ? 'Sponsorship' : 'Donation'}</button>
@@ -15548,6 +16996,10 @@ function ActiveSponsorshipsPanel({ onFlash }) {
   const [paymentFor, setPaymentFor] = useState(null);
   const [paidAmount, setPaidAmount] = useState('');
   const [nextPaymentDate, setNextPaymentDate] = useState('');
+  const [paymentMethod, setPaymentMethod] = useState('bank_transfer');
+  const [paymentReference, setPaymentReference] = useState('');
+  const [paymentProvider, setPaymentProvider] = useState('');
+  const [paymentProof, setPaymentProof] = useState(null);
 
   function load() {
     apiRequest('/scholarships/mine/sponsorships').then(setSponsorships).catch((err) => onFlash(err.message));
@@ -15564,19 +17016,22 @@ function ActiveSponsorshipsPanel({ onFlash }) {
 
   function startPayment(s) {
     setPaymentFor(s._id);
-    setPaidAmount(String(s.paidAmount ?? 0));
+    setPaidAmount(String(s.remainingAmount ?? (s.amount - s.paidAmount)));
     setNextPaymentDate(s.nextPaymentDate ? s.nextPaymentDate.slice(0, 10) : '');
   }
 
   async function submitPayment(s) {
     const amt = Number(paidAmount);
-    if (Number.isNaN(amt) || amt < 0) return onFlash('Enter a valid paid amount.');
+    if (!(amt > 0)) return onFlash('Enter a valid payment amount.');
+    if (!paymentReference.trim()) return onFlash('Enter the payment reference.');
+    if (paymentMethod !== 'cash' && !paymentProof) return onFlash('Upload payment proof.');
     try {
+      const proofUrl = paymentProof ? await uploadToPlatformStorage(paymentProof, 'sponsorship-payment-proofs') : '';
       await apiRequest(`/scholarships/sponsorships/${s._id}/payment`, {
         method: 'PATCH',
-        body: { paidAmount: amt, nextPaymentDate: nextPaymentDate || null }
+        body: { amount: amt, paymentMethod, reference: paymentReference.trim(), provider: paymentProvider.trim(), proofUrl, nextPaymentDate: nextPaymentDate || null }
       });
-      onFlash('Payment recorded.', 'success');
+      onFlash('Payment submitted for student verification.', 'success');
       setPaymentFor(null);
       load();
     } catch (err) { onFlash(err.message); }
@@ -15630,9 +17085,13 @@ function ActiveSponsorshipsPanel({ onFlash }) {
             </div>
             {paymentFor === s._id && (
               <div className="flex items-end flex-wrap" style={{ gap: 14, borderTop: '1px solid var(--sand-line)', paddingTop: 16, marginTop: 16 }}>
-                <label className="text-xs" style={{ color: 'var(--ink-soft)', fontWeight: 600 }}>Paid amount so far ({s.currency})
+                <label className="text-xs" style={{ color: 'var(--ink-soft)', fontWeight: 600 }}>Payment amount ({s.currency})
                   <input type="number" min="0" className="form-input" value={paidAmount} onChange={(e) => setPaidAmount(e.target.value)} style={{ marginTop: 6 }} />
                 </label>
+                <CustomSelect value={paymentMethod} onChange={setPaymentMethod} ariaLabel="Sponsorship payment method" minWidth={160} options={MANUAL_FEE_METHODS} />
+                <input className="form-input" placeholder="Transaction / cash receipt reference" value={paymentReference} onChange={(e) => setPaymentReference(e.target.value)} />
+                <input className="form-input" placeholder="Bank / wallet details" value={paymentProvider} onChange={(e) => setPaymentProvider(e.target.value)} />
+                <label className="text-xs">Proof {paymentMethod === 'cash' ? '(optional)' : '(required)'}<input className="form-input" type="file" accept="image/*,.pdf" onChange={(e) => setPaymentProof(e.target.files?.[0] || null)} /></label>
                 <label className="text-xs" style={{ color: 'var(--ink-soft)', fontWeight: 600 }}>Next payment date
                   <input type="date" className="form-input" value={nextPaymentDate} onChange={(e) => setNextPaymentDate(e.target.value)} style={{ marginTop: 6 }} />
                 </label>
@@ -16068,6 +17527,9 @@ function DonorWalletPanel({ onFlash }) {
   const [addFundsFor, setAddFundsFor] = useState(null);
   const [addFundsAmount, setAddFundsAmount] = useState('');
   const [addFundsMethod, setAddFundsMethod] = useState('bank_transfer');
+  const [addFundsReference, setAddFundsReference] = useState('');
+  const [addFundsProvider, setAddFundsProvider] = useState('');
+  const [addFundsProof, setAddFundsProof] = useState(null);
   const [newCurrency, setNewCurrency] = useState('USD');
 
   function load() {
@@ -16101,8 +17563,11 @@ function DonorWalletPanel({ onFlash }) {
   async function submitAddFunds() {
     const amt = Number(addFundsAmount);
     if (!amt || amt <= 0) return onFlash('Enter a valid amount.');
+    if (!addFundsReference.trim()) return onFlash('Enter the payment reference.');
+    if (addFundsMethod !== 'cash' && !addFundsProof) return onFlash('Upload payment proof.');
     try {
-      await apiRequest('/scholarships/donor/deposit', { method: 'POST', body: { amount: amt, currency: addFundsFor || newCurrency, paymentMethod: addFundsMethod } });
+      const proofUrl = addFundsProof ? await uploadToPlatformStorage(addFundsProof, 'donor-deposit-proofs') : '';
+      await apiRequest('/scholarships/donor/deposit', { method: 'POST', body: { amount: amt, currency: addFundsFor || newCurrency, paymentMethod: addFundsMethod, reference: addFundsReference.trim(), provider: addFundsProvider.trim(), proofUrl } });
       onFlash('Deposit requested — pending admin confirmation.', 'success');
       setAddFundsFor(null); setAddFundsAmount('');
       load();
@@ -16166,7 +17631,10 @@ function DonorWalletPanel({ onFlash }) {
                 <input className="form-input mb-2" placeholder="Currency (e.g. USD, EUR, PKR)" value={newCurrency} onChange={(e) => setNewCurrency(e.target.value.toUpperCase())} />
               )}
               <input className="form-input mb-2" type="number" min="0" placeholder={`Amount (${addFundsFor || newCurrency})`} value={addFundsAmount} onChange={(e) => setAddFundsAmount(e.target.value)} />
-              <CustomSelect value={addFundsMethod} onChange={setAddFundsMethod} ariaLabel="Payment method" minWidth="100%" options={PAYMENT_METHODS} />
+              <CustomSelect value={addFundsMethod} onChange={setAddFundsMethod} ariaLabel="Payment method" minWidth="100%" options={MANUAL_FEE_METHODS} />
+              <input className="form-input mt-2" placeholder="Transaction / cash receipt reference" value={addFundsReference} onChange={(e) => setAddFundsReference(e.target.value)} />
+              <input className="form-input mt-2" placeholder="Bank / wallet / payment details" value={addFundsProvider} onChange={(e) => setAddFundsProvider(e.target.value)} />
+              <label className="text-xs" style={{ display: 'block', marginTop: 8 }}>Payment proof {addFundsMethod === 'cash' ? '(optional)' : '(required)'}<input className="form-input" type="file" accept="image/*,.pdf" onChange={(e) => setAddFundsProof(e.target.files?.[0] || null)} /></label>
             </div>
             <div className="u-modal-foot">
               <button type="button" className="btn btn-primary" onClick={submitAddFunds}>Request Deposit</button>
@@ -18693,6 +20161,7 @@ function AdminFinancePanel({ onFlash, isSuperAdmin }) {
     apiRequest('/admin/finance').then((d) => { setData(d); setFeeRateInput(String(d.platformRevenue.institutionFeeCommission.rate)); }).catch((err) => onFlash(err.message));
     apiRequest('/jobs/featured-fee').then((d) => { setFeaturedFee(d); setFeaturedFeeInput(String(d.fee)); }).catch(() => {});
     apiRequest('/wallet/withdrawals/pending').then(setWithdrawals).catch(() => setWithdrawals([]));
+    apiRequest('/scholarships/admin/deposits').then(setDonorDeposits).catch(() => setDonorDeposits([]));
     apiRequest('/admin/subscription-plans').then((d) => {
       setPlanConfig(d);
       setPlanPriceInputs(Object.fromEntries(Object.entries(d.effective).map(([k, p]) => [k, String(p.monthlyPriceUSD)])));
@@ -18716,6 +20185,17 @@ function AdminFinancePanel({ onFlash, isSuperAdmin }) {
       onFlash(`Withdrawal ${decision}.`, 'success');
       load();
     } catch (err) { onFlash(err.message); }
+  }
+  async function reviewDonorDeposit(id, status) {
+    let rejectionReason = '';
+    if (status === 'rejected') {
+      rejectionReason = await showPrompt('Why was this deposit rejected?', { title: 'Reject deposit', required: true });
+      if (!rejectionReason) return;
+    } else {
+      const confirmed = await showConfirm('Confirm only after the platform account/cash desk has actually received this money.', { confirmLabel: 'Money received' });
+      if (!confirmed) return;
+    }
+    try { await apiRequest(`/scholarships/deposits/${id}/status`, { method: 'PATCH', body: { status, rejectionReason } }); onFlash(`Deposit ${status}.`, 'success'); load(); } catch (err) { onFlash(err.message); }
   }
 
   async function saveFeeRate(e) {
@@ -18772,6 +20252,15 @@ function AdminFinancePanel({ onFlash, isSuperAdmin }) {
           empty="No pending withdrawal requests."
         />
         <p className="text-xs mt-2" style={{ color: 'var(--ink-soft)' }}>Approving means you've paid the user externally (bank transfer/mobile wallet, per their details above) — CareerZ has no payout gateway, so this just confirms it happened. Rejecting returns the funds to their available balance.</p>
+      </div>
+
+      <div className="card" style={{ padding: 20, marginBottom: 16 }}>
+        <h4 className="font-semibold mb-3">Donor Deposits Awaiting Verification</h4>
+        <Table loading={donorDeposits === null} headers={['Donor', 'Amount', 'Method', 'Reference', 'Proof', 'Action']} rows={(donorDeposits || []).map((d) => [
+          `${d.donor?.fullName || 'Donor'} (${d.donor?.email || '—'})`, `${d.currency} ${d.amount}`, d.paymentMethod, d.paymentReference,
+          d.paymentProofUrl ? <a className="btn" href={d.paymentProofUrl} target="_blank" rel="noreferrer">View proof</a> : '—',
+          <div className="flex gap-2"><button className="btn btn-primary" onClick={() => reviewDonorDeposit(d._id, 'confirmed')}>Confirm received</button><button className="btn" onClick={() => reviewDonorDeposit(d._id, 'rejected')}>Reject</button></div>
+        ])} empty="No donor deposits awaiting verification." />
       </div>
 
       <div className="card" style={{ padding: 20, marginBottom: 16, border: '1px solid var(--gold)' }}>
@@ -20647,23 +22136,122 @@ function GuardianTutoringApprovalPanel({ onFlash }) {
 
 // ---------------------------------------------------------------- Shared: Messages & Notifications
 
-function MessagesPanel({ onFlash, initialUser, onConsumedInitialUser }) {
+function MessagesPanel({ onFlash, user, initialUser, onConsumedInitialUser }) {
   const [conversations, setConversations] = useState(null);
+  const [contacts, setContacts] = useState([]);
   const [activeUser, setActiveUser] = useState(null);
   const [thread, setThread] = useState(null);
   const [text, setText] = useState('');
   const [newRecipientId, setNewRecipientId] = useState('');
+  const [attachment, setAttachment] = useState(null);
+  const [sending, setSending] = useState(false);
+  const { socket, refreshUnreadMessages } = useRealtime();
+
+  const [view, setView] = useState('direct'); // 'direct' | 'groups'
+  const [groups, setGroups] = useState(null);
+  const [activeGroup, setActiveGroup] = useState(null);
+  const [groupMessages, setGroupMessages] = useState(null);
+  const [groupText, setGroupText] = useState('');
+  const [showCreateGroup, setShowCreateGroup] = useState(false);
+  const [groupForm, setGroupForm] = useState({ name: '', memberIds: [] });
+  const [creatingGroup, setCreatingGroup] = useState(false);
+
+  function loadGroups() {
+    apiRequest('/group-conversations/mine').then(setGroups).catch((err) => onFlash(err.message));
+  }
 
   function loadConversations() {
     apiRequest('/messages/conversations').then(setConversations).catch((err) => onFlash(err.message));
   }
-  useEffect(loadConversations, []);
+  useEffect(() => {
+    loadConversations();
+    loadGroups();
+    apiRequest('/messages/contacts').then(setContacts).catch((err) => onFlash(err.message));
+  }, []);
+
+  useEffect(() => {
+    if (!socket || !activeGroup) return undefined;
+    socket.emit('group:join', { groupId: activeGroup._id }, () => {});
+    function onGroupMessage(msg) { setGroupMessages((prev) => (prev ? [...prev, msg] : [msg])); }
+    socket.on('group:message', onGroupMessage);
+    return () => { socket.off('group:message', onGroupMessage); socket.emit('group:leave', { groupId: activeGroup._id }, () => {}); };
+  }, [socket, activeGroup]);
+
+  function openGroup(g) {
+    setActiveGroup(g);
+    setGroupMessages(null);
+    apiRequest(`/group-conversations/${g._id}/messages`).then(setGroupMessages).catch((err) => onFlash(err.message));
+  }
+
+  async function sendGroupMessage(e) {
+    e.preventDefault();
+    if (!groupText.trim() || !activeGroup) return;
+    try {
+      await apiRequest(`/group-conversations/${activeGroup._id}/messages`, { method: 'POST', body: { text: groupText.trim() } });
+      setGroupText('');
+    } catch (err) { onFlash(err.message); }
+  }
+
+  function toggleGroupMember(id) {
+    setGroupForm((f) => ({ ...f, memberIds: f.memberIds.includes(id) ? f.memberIds.filter((x) => x !== id) : [...f.memberIds, id] }));
+  }
+
+  async function createGroup(e) {
+    e.preventDefault();
+    if (!groupForm.name.trim() || groupForm.memberIds.length < 2) return onFlash('Group name and at least 2 members are required.');
+    setCreatingGroup(true);
+    try {
+      await apiRequest('/group-conversations', { method: 'POST', body: { name: groupForm.name.trim(), memberIds: groupForm.memberIds } });
+      onFlash('Group created.', 'success');
+      setGroupForm({ name: '', memberIds: [] });
+      setShowCreateGroup(false);
+      loadGroups();
+    } catch (err) { onFlash(err.message); } finally { setCreatingGroup(false); }
+  }
+
+  async function leaveGroup() {
+    if (!activeGroup) return;
+    try { await apiRequest(`/group-conversations/${activeGroup._id}/leave`, { method: 'PATCH' }); onFlash('Left group.', 'success'); setActiveGroup(null); loadGroups(); } catch (err) { onFlash(err.message); }
+  }
+
+  useEffect(() => {
+    if (!socket) return undefined;
+    const refresh = (message) => {
+      loadConversations();
+      if (activeUser && [message?.from?._id || message?.from, message?.to?._id || message?.to].map(String).includes(String(activeUser._id))) {
+        apiRequest(`/messages/with/${activeUser._id}`).then(setThread).catch(() => {});
+      }
+    };
+    const onDelivered = ({ to }) => {
+      if (activeUser && String(to) === String(activeUser._id)) {
+        apiRequest(`/messages/with/${activeUser._id}`).then(setThread).catch(() => {});
+      }
+    };
+    socket.on('message:new', refresh);
+    socket.on('message:read', refresh);
+    socket.on('message:delivered', onDelivered);
+    return () => { socket.off('message:new', refresh); socket.off('message:read', refresh); socket.off('message:delivered', onDelivered); };
+  }, [socket, activeUser]);
 
   function openThread(u) {
     setActiveUser(u);
     setThread(null);
     apiRequest(`/messages/with/${u._id}`).then(setThread).catch((err) => onFlash(err.message));
-    apiRequest(`/messages/with/${u._id}/read`, { method: 'PATCH' }).then(loadConversations).catch(() => {});
+    apiRequest(`/messages/with/${u._id}/read`, { method: 'PATCH' }).then(() => { loadConversations(); refreshUnreadMessages(); }).catch(() => {});
+  }
+
+  async function blockActiveUser() {
+    if (!activeUser) return;
+    const confirmed = await showConfirm(`Block ${activeUser.fullName}? They will no longer be able to message you, even if you share a class or institution.`, { title: 'Block user', danger: true, confirmLabel: 'Block' });
+    if (!confirmed) return;
+    try { await apiRequest(`/messages/block/${activeUser._id}`, { method: 'POST' }); onFlash('User blocked.', 'success'); setActiveUser(null); setThread(null); } catch (err) { onFlash(err.message); }
+  }
+
+  async function reportActiveUser() {
+    if (!activeUser) return;
+    const description = await showPrompt(`Describe the issue with ${activeUser.fullName}.`, { title: 'Report user', required: true, placeholder: 'What happened?' });
+    if (!description) return;
+    try { await apiRequest('/complaints', { method: 'POST', body: { subject: `Reported: ${activeUser.fullName}`, category: 'harassment', description, targetType: 'user', targetId: activeUser._id } }); onFlash('Report submitted — Admin will review it.', 'success'); } catch (err) { onFlash(err.message); }
   }
 
   // Arrived here via a specific person (e.g. Teacher -> Student Communication -> Message) rather
@@ -20677,11 +22265,17 @@ function MessagesPanel({ onFlash, initialUser, onConsumedInitialUser }) {
 
   async function send(e) {
     e.preventDefault();
+    const formEl = e.currentTarget; // captured now — after an await, the event's currentTarget is null
     const toId = activeUser?._id || newRecipientId.trim();
     if (!toId || !text.trim()) return;
+    setSending(true);
     try {
-      await apiRequest('/messages', { method: 'POST', body: { to: toId, text: text.trim() } });
+      const attachments = [];
+      if (attachment) attachments.push({ name: attachment.name, type: attachment.type, url: await uploadToPlatformStorage(attachment, 'messages') });
+      await apiRequest('/messages', { method: 'POST', body: { to: toId, text: text.trim(), attachments } });
       setText('');
+      setAttachment(null);
+      formEl?.reset();
       if (activeUser) {
         apiRequest(`/messages/with/${activeUser._id}`).then(setThread);
       } else {
@@ -20689,10 +22283,89 @@ function MessagesPanel({ onFlash, initialUser, onConsumedInitialUser }) {
         onFlash('Message sent.', 'success');
       }
       loadConversations();
-    } catch (err) { onFlash(err.message); }
+    } catch (err) { onFlash(err.message); } finally { setSending(false); }
   }
 
   return (
+    <div>
+      <nav className="cz-tabbar" style={{ marginBottom: 18 }}>
+        <button type="button" aria-pressed={view === 'direct'} className={`cz-tab${view === 'direct' ? ' active' : ''}`} onClick={() => setView('direct')}>Direct</button>
+        <button type="button" aria-pressed={view === 'groups'} className={`cz-tab${view === 'groups' ? ' active' : ''}`} onClick={() => setView('groups')}>Groups</button>
+      </nav>
+
+      {view === 'groups' && (
+        <div className="grid g2" style={{ gap: 20, alignItems: 'start' }}>
+          <div>
+            <div className="flex items-center justify-between" style={{ marginBottom: 18 }}>
+              <h3 className="font-semibold" style={{ margin: 0 }}>Groups</h3>
+              <button type="button" className="btn btn-primary" style={{ padding: '5px 12px', fontSize: '0.75rem' }} onClick={() => setShowCreateGroup((s) => !s)}>+ New Group</button>
+            </div>
+            {showCreateGroup && (
+              <form onSubmit={createGroup} className="card" style={{ padding: 16, marginBottom: 16, display: 'grid', gap: 10 }}>
+                <input className="form-input" placeholder="Group name" value={groupForm.name} onChange={(e) => setGroupForm({ ...groupForm, name: e.target.value })} />
+                <p className="text-xs" style={{ color: 'var(--ink-soft)' }}>Pick at least 2 approved contacts:</p>
+                <div style={{ maxHeight: 180, overflowY: 'auto', display: 'grid', gap: 6 }}>
+                  {contacts.map((c) => (
+                    <label key={c.user._id} className="flex items-center text-sm" style={{ gap: 8 }}>
+                      <input type="checkbox" checked={groupForm.memberIds.includes(c.user._id)} onChange={() => toggleGroupMember(c.user._id)} />
+                      {c.user.fullName} <span className="text-xs" style={{ color: 'var(--ink-soft)' }}>({c.relationship})</span>
+                    </label>
+                  ))}
+                  {contacts.length === 0 && <p className="text-xs" style={{ color: 'var(--ink-soft)' }}>No approved contacts yet.</p>}
+                </div>
+                <button type="submit" className="btn btn-primary" disabled={creatingGroup} style={{ justifySelf: 'start' }}>{creatingGroup ? 'Creating...' : 'Create Group'}</button>
+              </form>
+            )}
+            {groups === null && <p role="status" className="admin-notice">Loading...</p>}
+            {groups && groups.length === 0 && (
+              <div className="student-empty-state" style={{ border: '1px solid var(--sand-line)', borderRadius: 18 }}>
+                <FaCommentDots aria-hidden="true" />
+                <p>No groups yet</p>
+                <span>Create one from your approved contacts.</span>
+              </div>
+            )}
+            <div className="dash-list">
+              {(groups || []).map((g) => (
+                <div key={g._id} className={`dash-list-item${activeGroup?._id === g._id ? ' unread' : ''}`} style={{ cursor: 'pointer' }} onClick={() => openGroup(g)}>
+                  <span className="dash-list-icon c-forest" aria-hidden><FaUsers size={14} /></span>
+                  <div className="dash-list-body"><div className="title">{g.name}</div><div className="desc">{g.participants.length} members</div></div>
+                </div>
+              ))}
+            </div>
+          </div>
+          <div className="card" style={{ padding: 20 }}>
+            <div className="flex items-center justify-between" style={{ marginBottom: 14 }}>
+              <h3 className="font-semibold" style={{ margin: 0 }}>{activeGroup ? activeGroup.name : 'Select a group'}</h3>
+              {activeGroup && <button type="button" className="btn" style={{ padding: '4px 10px', fontSize: '0.72rem' }} onClick={leaveGroup}>Leave</button>}
+            </div>
+            {activeGroup && (
+              <>
+                <div className="card reveal in" style={{ padding: '10px 14px', marginBottom: 14, maxHeight: 320, overflowY: 'auto' }}>
+                  {groupMessages === null && <p role="status" className="admin-notice">Loading...</p>}
+                  {groupMessages && groupMessages.length === 0 && (
+                    <div className="student-empty-state" style={{ minHeight: 100, padding: '16px 0' }}>
+                      <p>No messages yet</p><span>Say hello to start the group.</span>
+                    </div>
+                  )}
+                  {(groupMessages || []).map((m, idx) => (
+                    <div key={m._id} style={{ padding: '10px 4px', borderBottom: idx < groupMessages.length - 1 ? '1px solid var(--sand-line)' : 'none' }}>
+                      <strong className="text-xs">{m.from?.fullName}</strong>
+                      <div style={{ fontSize: 13 }}>{m.text}</div>
+                      <div style={{ fontSize: 11, color: 'var(--ink-soft)', marginTop: 2 }}>{new Date(m.createdAt).toLocaleString()}</div>
+                    </div>
+                  ))}
+                </div>
+                <form onSubmit={sendGroupMessage} className="flex items-end" style={{ gap: 12 }}>
+                  <input className="form-input" placeholder="Message the group..." value={groupText} onChange={(e) => setGroupText(e.target.value)} required style={{ flex: '1 1 auto' }} />
+                  <button type="submit" className="btn btn-primary" style={{ flexShrink: 0 }}>Send</button>
+                </form>
+              </>
+            )}
+          </div>
+        </div>
+      )}
+
+      {view === 'direct' && (
     <div className="grid g2" style={{ gap: 20, alignItems: 'start' }}>
       <div>
         <h3 className="font-semibold" style={{ marginBottom: 18 }}>Conversations</h3>
@@ -20701,7 +22374,7 @@ function MessagesPanel({ onFlash, initialUser, onConsumedInitialUser }) {
           <div className="student-empty-state" style={{ border: '1px solid var(--sand-line)', borderRadius: 18 }}>
             <FaCommentDots aria-hidden="true" />
             <p>No conversations yet</p>
-            <span>Start one on the right using a User ID.</span>
+            <span>Select an approved contact to start a conversation.</span>
           </div>
         )}
         <div className="dash-list">
@@ -20715,11 +22388,22 @@ function MessagesPanel({ onFlash, initialUser, onConsumedInitialUser }) {
         </div>
       </div>
       <div className="card" style={{ padding: 20 }}>
-        <h3 className="font-semibold" style={{ marginBottom: 14 }}>{activeUser ? activeUser.fullName : 'New Message'}</h3>
+        <div className="flex items-center justify-between" style={{ marginBottom: 14 }}>
+          <h3 className="font-semibold" style={{ margin: 0 }}>{activeUser ? activeUser.fullName : 'New Message'}</h3>
+          {activeUser && (
+            <span className="flex items-center" style={{ gap: 6 }}>
+              <button type="button" className="btn" style={{ padding: '4px 10px', fontSize: '0.72rem' }} onClick={() => blockActiveUser()}>Block</button>
+              <button type="button" className="btn" style={{ padding: '4px 10px', fontSize: '0.72rem' }} onClick={() => reportActiveUser()}>Report</button>
+            </span>
+          )}
+        </div>
         {!activeUser && (
           <label style={{ display: 'block', marginBottom: 14 }}>
-            <span className="text-xs" style={{ display: 'block', color: 'var(--ink-soft)', fontWeight: 600, marginBottom: 6 }}>Recipient's User ID</span>
-            <input className="form-input" placeholder="Paste a User ID to start a new conversation" value={newRecipientId} onChange={(e) => setNewRecipientId(e.target.value)} />
+            <span className="text-xs" style={{ display: 'block', color: 'var(--ink-soft)', fontWeight: 600, marginBottom: 6 }}>Approved recipient</span>
+            <select className="form-select" value={newRecipientId} onChange={(e) => setNewRecipientId(e.target.value)} required>
+              <option value="">Select student, teacher, parent or institution…</option>
+              {contacts.map((contact) => <option key={contact.user._id} value={contact.user._id}>{contact.user.fullName} — {contact.relationship}{contact.context ? ` · ${contact.context}` : ''}</option>)}
+            </select>
           </label>
         )}
         {activeUser && (
@@ -20731,25 +22415,39 @@ function MessagesPanel({ onFlash, initialUser, onConsumedInitialUser }) {
                 <span>Say hello to start the conversation.</span>
               </div>
             )}
-            {(thread || []).map((m, idx) => (
-              <div key={m._id} style={{ padding: '10px 4px', borderBottom: idx < thread.length - 1 ? '1px solid var(--sand-line)' : 'none' }}>
-                <div style={{ fontSize: 13 }}>{m.text}</div>
-                <div style={{ fontSize: 11, color: 'var(--ink-soft)', marginTop: 4 }}>{new Date(m.createdAt).toLocaleString()}</div>
-              </div>
-            ))}
+            {(thread || []).map((m, idx) => {
+              const mine = (m.from?._id || m.from) === user?._id;
+              const status = m.read ? 'Read' : m.deliveredAt ? 'Delivered' : 'Sent';
+              return (
+                <div key={m._id} style={{ padding: '10px 4px', borderBottom: idx < thread.length - 1 ? '1px solid var(--sand-line)' : 'none' }}>
+                  <div style={{ fontSize: 13 }}>{m.text}</div>
+                  {(m.attachments || []).map((file) => <a key={file.url} href={file.url} target="_blank" rel="noreferrer" className="btn" style={{ display: 'inline-flex', padding: '4px 9px', fontSize: 11, marginTop: 6 }}>Open {file.name}</a>)}
+                  <div style={{ fontSize: 11, color: 'var(--ink-soft)', marginTop: 4 }}>
+                    {new Date(m.createdAt).toLocaleString()}
+                    {mine && <span style={{ marginLeft: 6, color: status === 'Read' ? 'var(--emerald)' : 'var(--ink-soft)' }}>· {status === 'Read' ? '✓✓ Read' : status === 'Delivered' ? '✓✓ Delivered' : '✓ Sent'}</span>}
+                  </div>
+                </div>
+              );
+            })}
           </div>
         )}
         <form onSubmit={send} className="flex items-end" style={{ gap: 12 }}>
-          <input className="form-input" placeholder="Type a message..." value={text} onChange={(e) => setText(e.target.value)} required style={{ flex: '1 1 auto', minWidth: 0 }} />
-          <button type="submit" className="btn btn-primary" style={{ flexShrink: 0 }}>Send</button>
+          <div style={{ flex: '1 1 auto', minWidth: 0 }}>
+            <input className="form-input" placeholder="Type a message..." value={text} onChange={(e) => setText(e.target.value)} required />
+            <input type="file" onChange={(e) => setAttachment(e.target.files?.[0] || null)} style={{ marginTop: 7, fontSize: 12 }} />
+          </div>
+          <button type="submit" className="btn btn-primary" style={{ flexShrink: 0 }} disabled={sending}>{sending ? 'Sending…' : 'Send'}</button>
         </form>
       </div>
+    </div>
+      )}
     </div>
   );
 }
 
 function NotificationsPanel({ onFlash }) {
   const [notifications, setNotifications] = useState(null);
+  const { refreshUnreadNotifications } = useRealtime();
 
   function load() {
     apiRequest('/notifications/mine').then(setNotifications).catch((err) => onFlash(err.message));
@@ -20757,10 +22455,10 @@ function NotificationsPanel({ onFlash }) {
   useEffect(load, []);
 
   async function markRead(id) {
-    try { await apiRequest(`/notifications/${id}/read`, { method: 'PATCH' }); load(); } catch (err) { onFlash(err.message); }
+    try { await apiRequest(`/notifications/${id}/read`, { method: 'PATCH' }); await refreshUnreadNotifications(); load(); } catch (err) { onFlash(err.message); }
   }
   async function markAllRead() {
-    try { await apiRequest('/notifications/mine/read-all', { method: 'PATCH' }); load(); } catch (err) { onFlash(err.message); }
+    try { await apiRequest('/notifications/mine/read-all', { method: 'PATCH' }); await refreshUnreadNotifications(); load(); } catch (err) { onFlash(err.message); }
   }
 
   const unreadCount = (notifications || []).filter((n) => !n.read).length;

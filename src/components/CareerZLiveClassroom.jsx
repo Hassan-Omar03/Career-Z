@@ -19,6 +19,7 @@ export default function CareerZLiveClassroom({ session, user, role, onJoined, on
   const localStreamRef = useRef(null);
   const peersRef = useRef(new Map());
   const pendingIceRef = useRef(new Map());
+  const pollIdRef = useRef(null);
   const joinedRef = useRef(false);
   const [localStream, setLocalStream] = useState(null);
   const [remoteStreams, setRemoteStreams] = useState({});
@@ -30,6 +31,13 @@ export default function CareerZLiveClassroom({ session, user, role, onJoined, on
   const [cameraOn, setCameraOn] = useState(true);
   const [sharing, setSharing] = useState(false);
   const [handRaised, setHandRaised] = useState(false);
+  const [poll, setPoll] = useState(null);
+  const [pollQuestion, setPollQuestion] = useState('');
+  const [pollOptions, setPollOptions] = useState(['', '']);
+  const [myVote, setMyVote] = useState(null);
+  const [energyOn, setEnergyOn] = useState(false);
+  const [myEnergy, setMyEnergy] = useState(null);
+  const [classEnergy, setClassEnergy] = useState(null);
 
   function sendSignal(targetUserId, signal) {
     socket?.emit('live-video:signal', { sessionId: session._id, targetUserId, signal });
@@ -98,6 +106,9 @@ export default function CareerZLiveClassroom({ session, user, role, onJoined, on
     };
     const receiveMessage = (item) => setMessages((current) => [...current, item]);
     const receiveHand = (member) => setParticipants((current) => current.map((p) => p.userId === member.userId ? { ...p, raised: member.raised } : p));
+    const receivePoll = (nextPoll) => { if (nextPoll?.id !== pollIdRef.current) { pollIdRef.current = nextPoll?.id || null; setMyVote(null); } setPoll(nextPoll); };
+    const receiveEnergy = (value) => setClassEnergy(value);
+    const receiveEnergyDetail = (value) => role === 'teacher' && setClassEnergy(value);
     const classEnded = ({ sessionId }) => {
       if (sessionId !== session._id) return;
       setStatus('Class ended');
@@ -109,6 +120,9 @@ export default function CareerZLiveClassroom({ session, user, role, onJoined, on
     socket.on('live-video:signal', receiveSignal);
     socket.on('live-video:message', receiveMessage);
     socket.on('live-video:hand', receiveHand);
+    socket.on('live-video:poll', receivePoll);
+    socket.on('live-video:energy', receiveEnergy);
+    socket.on('live-video:energy-detail', receiveEnergyDetail);
     socket.on('live-video:ended', classEnded);
 
     (async () => {
@@ -126,6 +140,7 @@ export default function CareerZLiveClassroom({ session, user, role, onJoined, on
           if (!reply?.ok) return onError?.(new Error(reply?.message || 'Could not join the classroom.'));
           joinedRef.current = true;
           setParticipants(reply.participants || []);
+          pollIdRef.current = reply.poll?.id || null; setPoll(reply.poll || null);
           setStatus('Live');
           if (role === 'teacher') (reply.participants || []).forEach((member) => createOffer(member).catch((error) => onError?.(error)));
           onJoined?.();
@@ -141,11 +156,33 @@ export default function CareerZLiveClassroom({ session, user, role, onJoined, on
       socket.off('live-video:signal', receiveSignal);
       socket.off('live-video:message', receiveMessage);
       socket.off('live-video:hand', receiveHand);
+      socket.off('live-video:poll', receivePoll);
+      socket.off('live-video:energy', receiveEnergy);
+      socket.off('live-video:energy-detail', receiveEnergyDetail);
       socket.off('live-video:ended', classEnded);
       peersRef.current.forEach((peer) => peer.close()); peersRef.current.clear();
       localStreamRef.current?.getTracks().forEach((track) => track.stop());
     };
   }, [socket, session._id]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  useEffect(() => {
+    if (role === 'teacher' || !energyOn || !localStream || !socket) { if (!energyOn) setMyEnergy(null); return undefined; }
+    let cancelled = false; let timer;
+    const video = document.createElement('video'); video.muted = true; video.playsInline = true; video.srcObject = localStream;
+    (async () => {
+      try {
+        await video.play(); const { loadFaceModels, faceapi } = await import('../utils/faceApi'); await loadFaceModels();
+        const tick = async () => {
+          if (cancelled) return;
+          const detection = await faceapi.detectSingleFace(video, new faceapi.TinyFaceDetectorOptions()).catch(() => null);
+          const attentive = Boolean(detection); const score = attentive ? 85 : 15;
+          setMyEnergy({ attentive, score }); socket.emit('live-video:energy-report', { sessionId: session._id, attentive, score });
+          timer = setTimeout(tick, 6000);
+        }; tick();
+      } catch (error) { onError?.(error); setEnergyOn(false); }
+    })();
+    return () => { cancelled = true; clearTimeout(timer); video.srcObject = null; };
+  }, [energyOn, localStream, role, session._id, socket]); // eslint-disable-line react-hooks/exhaustive-deps
 
   function toggleTrack(kind, setter) {
     const track = localStreamRef.current?.getTracks().find((item) => item.kind === kind);
@@ -181,6 +218,16 @@ export default function CareerZLiveClassroom({ session, user, role, onJoined, on
     socket?.emit('live-video:hand', { sessionId: session._id, raised });
   }
 
+  function createPoll(e) {
+    e.preventDefault(); const options = pollOptions.map((item) => item.trim()).filter(Boolean);
+    socket?.emit('live-video:poll-create', { sessionId: session._id, question: pollQuestion.trim(), options }, (reply) => {
+      if (!reply?.ok) return onError?.(new Error(reply?.message || 'Could not create poll.'));
+      setPollQuestion(''); setPollOptions(['', '']);
+    });
+  }
+  function votePoll(index) { socket?.emit('live-video:poll-vote', { sessionId: session._id, optionIndex: index }, (reply) => reply?.ok ? setMyVote(index) : onError?.(new Error(reply?.message || 'Vote failed.'))); }
+  function closePoll() { socket?.emit('live-video:poll-close', { sessionId: session._id }); }
+
   return (
     <div className="card" style={{ overflow: 'hidden', padding: 0 }}>
       <div className="flex items-center justify-between" style={{ padding: 16, borderBottom: '1px solid var(--sand-line)', gap: 12 }}>
@@ -198,10 +245,14 @@ export default function CareerZLiveClassroom({ session, user, role, onJoined, on
             <button type="button" className="btn" onClick={() => toggleTrack('video', setCameraOn)}>{cameraOn ? 'Stop camera' : 'Start camera'}</button>
             <button type="button" className="btn" onClick={toggleScreen}>{sharing ? 'Sharing screen' : 'Share screen'}</button>
             {role !== 'teacher' && <button type="button" className="btn" onClick={toggleHand}>{handRaised ? 'Lower hand' : 'Raise hand'}</button>}
+            {role !== 'teacher' && <label className="btn"><input type="checkbox" checked={energyOn} onChange={(e) => setEnergyOn(e.target.checked)} /> Energy Meter</label>}
+            {myEnergy && <span style={{ color: myEnergy.attentive ? 'var(--emerald)' : 'var(--rose)' }}>{myEnergy.attentive ? 'Focused' : 'Distracted'}</span>}
           </div>
         </div>
         <aside style={{ background: '#fff', borderRadius: 14, padding: 12, display: 'flex', flexDirection: 'column', minHeight: 430 }}>
           <strong>Class chat</strong>
+          {classEnergy?.total > 0 && <div className="text-xs" style={{ marginTop: 8, padding: 8, borderRadius: 8, background: 'var(--sand)' }}><strong>Energy: {classEnergy.average}%</strong> · {classEnergy.attentiveCount}/{classEnergy.total} focused{role === 'teacher' && classEnergy.roster?.length > 0 && <div>{classEnergy.roster.map((row) => <span key={row.userId} style={{ display: 'block', color: row.attentive ? 'var(--emerald)' : 'var(--rose)' }}>{row.name}: {row.attentive ? 'Focused' : 'Distracted'}</span>)}</div>}</div>}
+          {poll ? <div style={{ marginTop: 8, padding: 8, borderRadius: 8, background: 'var(--sand)' }}><strong className="text-xs">{poll.question}</strong>{poll.options.map((option) => <button key={option.index} type="button" className={myVote === option.index ? 'btn btn-primary' : 'btn'} disabled={role === 'teacher' || poll.status === 'closed' || myVote !== null} onClick={() => votePoll(option.index)} style={{ display: 'block', width: '100%', marginTop: 5 }}>{option.text} · {option.votes}</button>)}{role === 'teacher' && poll.status === 'open' && <button type="button" className="btn" onClick={closePoll} style={{ marginTop: 6 }}>Close Poll</button>}</div> : role === 'teacher' && <form onSubmit={createPoll} style={{ marginTop: 8 }}><input className="form-input" required placeholder="Live poll question" value={pollQuestion} onChange={(e) => setPollQuestion(e.target.value)} />{pollOptions.map((option, index) => <input key={index} className="form-input" required placeholder={`Option ${index + 1}`} value={option} onChange={(e) => setPollOptions((current) => current.map((item, i) => i === index ? e.target.value : item))} style={{ marginTop: 5 }} />)}<button type="submit" className="btn" style={{ marginTop: 5 }}>Launch Poll</button></form>}
           <div style={{ flex: 1, overflowY: 'auto', margin: '10px 0', maxHeight: 420 }}>
             {participants.filter((p) => p.raised).map((p) => <p key={`hand-${p.userId}`} className="text-xs" style={{ color: 'var(--amber)' }}>✋ {p.name} raised a hand</p>)}
             {messages.length === 0 && <p className="text-xs" style={{ color: 'var(--ink-soft)' }}>No messages yet.</p>}

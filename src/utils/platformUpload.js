@@ -23,7 +23,9 @@ export function isPlatformUploadAvailable() {
   return configuredPromise;
 }
 
-// Uploads a File/Blob directly to Cloudinary and returns its real https URL.
+// Uploads a File/Blob directly to Cloudinary and returns its real https URL. Documents must use
+// Cloudinary's `raw` resource type: uploading a PDF through `auto` classifies it as an image and
+// many Cloudinary accounts then return "deny or ACL failure" when users try to open it.
 export async function uploadToPlatformStorage(file, folder) {
   const { signature, timestamp, apiKey, cloudName, folder: signedFolder } = await apiRequest(
     `/media/platform/signature${folder ? `?folder=${encodeURIComponent(folder)}` : ''}`,
@@ -37,7 +39,9 @@ export async function uploadToPlatformStorage(file, folder) {
   form.append('signature', signature);
   form.append('folder', signedFolder);
 
-  const res = await fetch(`https://api.cloudinary.com/v1_1/${cloudName}/auto/upload`, { method: 'POST', body: form });
+  const mime = String(file?.type || '').toLowerCase();
+  const resourceType = mime.startsWith('image/') ? 'image' : (mime.startsWith('video/') || mime.startsWith('audio/')) ? 'video' : 'raw';
+  const res = await fetch(`https://api.cloudinary.com/v1_1/${cloudName}/${resourceType}/upload`, { method: 'POST', body: form });
   const data = await res.json();
   if (!res.ok) throw new Error(data.error?.message || 'Upload failed.');
   return data.secure_url;

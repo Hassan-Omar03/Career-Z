@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import {
   FaWallet, FaCommentDots, FaArrowRight, FaCalendarCheck, FaStore, FaClipboardList, FaBookOpen, FaAward, FaBriefcase,
   FaCircle, FaHand, FaCircleCheck, FaFileLines, FaGraduationCap
@@ -55,14 +55,19 @@ export function WalletCard({ onFlash }) {
   const [recipientEmail, setRecipientEmail] = useState('');
   const [busy, setBusy] = useState(false);
   const [paddleConfig, setPaddleConfig] = useState(null);
+  const [nowConfig, setNowConfig] = useState(null);
+  const [payCurrency, setPayCurrency] = useState('usdttrc20');
+  const [cryptoPayment, setCryptoPayment] = useState(null);
+  const pollRef = useRef(null);
 
   function load() {
     apiRequest(`/wallet/me?currency=${currency}`).then(setWallet).catch(() => setWallet({ available: 0, pending: 0, transactions: [] }));
   }
   useEffect(load, [currency]);
   useEffect(() => { apiRequest('/payments/paddle/config').then(setPaddleConfig).catch(() => setPaddleConfig({ enabled: false })); }, []);
+  useEffect(() => { apiRequest('/payments/nowpayments/config').then(setNowConfig).catch(() => setNowConfig({ configured: false, currencies: {} })); }, []);
 
-  function closeModal() { setModal(null); setAmount(''); setPayoutDetails(''); setRecipientEmail(''); }
+  function closeModal() { setModal(null); setAmount(''); setPayoutDetails(''); setRecipientEmail(''); setCryptoPayment(null); }
 
   async function topUp() {
     if (!paddleConfig?.enabled) return onFlash?.('Card payments are not set up yet — ask Admin to connect Paddle.', 'error');
@@ -81,6 +86,29 @@ export function WalletCard({ onFlash }) {
       closeModal();
     } catch (err) { onFlash?.(err.message); } finally { setBusy(false); }
   }
+
+  async function topUpCrypto() {
+    if (!nowConfig?.configured) return onFlash?.('Crypto payments are not set up yet.', 'error');
+    if (!amount || Number(amount) <= 0) return onFlash?.('Enter a valid amount.');
+    setBusy(true);
+    try {
+      const payment = await apiRequest('/payments/nowpayments/wallet/topup', { method: 'POST', body: { amount: Number(amount), currency, payCurrency } });
+      setCryptoPayment(payment);
+      clearInterval(pollRef.current);
+      pollRef.current = setInterval(async () => {
+        try {
+          const res = await apiRequest(`/payments/nowpayments/wallet/topup/${payment.paymentId}/sync`);
+          if (res.status === 'completed') {
+            clearInterval(pollRef.current);
+            onFlash?.('Crypto top-up received — wallet credited.', 'success');
+            closeModal();
+            load();
+          }
+        } catch { /* keep polling — not confirmed on-chain yet */ }
+      }, 15000);
+    } catch (err) { onFlash?.(err.message); } finally { setBusy(false); }
+  }
+  useEffect(() => () => clearInterval(pollRef.current), []);
 
   async function withdraw() {
     if (!amount || Number(amount) <= 0) return onFlash?.('Enter a valid amount.');
@@ -131,7 +159,22 @@ export function WalletCard({ onFlash }) {
           </div>
         ) : (
           <div style={{ padding: '8px 0 12px', display: 'grid', gap: 8, maxWidth: 320 }}>
-            <input className="form-input" type="number" min="0" placeholder={`Amount (${currency})`} value={amount} onChange={(e) => setAmount(e.target.value)} />
+            {modal === 'topup' && cryptoPayment ? (
+              <div style={{ display: 'grid', gap: 6 }}>
+                <p style={{ fontSize: 13 }}>Send exactly <strong>{cryptoPayment.payAmount} {cryptoPayment.payCurrency?.toUpperCase()}</strong> to:</p>
+                <code style={{ fontSize: 12, wordBreak: 'break-all', padding: 8, background: 'var(--sand)', color: 'var(--ink)', borderRadius: 8, userSelect: 'all' }}>{cryptoPayment.payAddress}</code>
+                <p style={{ fontSize: 12, color: 'var(--ink-soft)' }}>Your wallet credits automatically once the network confirms — this page checks every 15s. You can close this and come back; the top-up isn't lost.</p>
+              </div>
+            ) : (
+              <>
+                <input className="form-input" type="number" min="0" placeholder={`Amount (${currency})`} value={amount} onChange={(e) => setAmount(e.target.value)} />
+                {modal === 'topup' && nowConfig?.configured && (
+                  <select className="form-select" value={payCurrency} onChange={(e) => setPayCurrency(e.target.value)}>
+                    {Object.entries(nowConfig.currencies || {}).map(([value, label]) => <option key={value} value={value}>{label}</option>)}
+                  </select>
+                )}
+              </>
+            )}
             {modal === 'withdraw' && (
               <>
                 <select className="form-select" value={payoutMethod} onChange={(e) => setPayoutMethod(e.target.value)}>
@@ -146,11 +189,18 @@ export function WalletCard({ onFlash }) {
               <input className="form-input" type="email" placeholder="Recipient's email" value={recipientEmail} onChange={(e) => setRecipientEmail(e.target.value)} />
             )}
             <div className="flex gap-2">
-              <button type="button" className="btn btn-primary" style={{ padding: '6px 14px', fontSize: '0.8rem' }} disabled={busy}
-                onClick={modal === 'topup' ? topUp : modal === 'withdraw' ? withdraw : transfer}>
-                {busy ? 'Working...' : modal === 'topup' ? 'Continue to Payment' : modal === 'withdraw' ? 'Request Withdrawal' : 'Send'}
-              </button>
-              <button type="button" className="btn" style={{ padding: '6px 14px', fontSize: '0.8rem' }} onClick={closeModal} disabled={busy}>Cancel</button>
+              {!(modal === 'topup' && cryptoPayment) && (
+                <button type="button" className="btn btn-primary" style={{ padding: '6px 14px', fontSize: '0.8rem' }} disabled={busy}
+                  onClick={modal === 'topup' ? topUp : modal === 'withdraw' ? withdraw : transfer}>
+                  {busy ? 'Working...' : modal === 'topup' ? 'Pay with Card' : modal === 'withdraw' ? 'Request Withdrawal' : 'Send'}
+                </button>
+              )}
+              {modal === 'topup' && !cryptoPayment && nowConfig?.configured && (
+                <button type="button" className="btn" style={{ padding: '6px 14px', fontSize: '0.8rem' }} disabled={busy} onClick={topUpCrypto}>
+                  {busy ? 'Working...' : 'Pay with Crypto'}
+                </button>
+              )}
+              <button type="button" className="btn" style={{ padding: '6px 14px', fontSize: '0.8rem' }} onClick={closeModal} disabled={busy}>{cryptoPayment ? 'Close' : 'Cancel'}</button>
             </div>
           </div>
         )}

@@ -8,6 +8,7 @@ import Dashboard from './pages/Dashboard';
 import VerifyCertificate from './pages/VerifyCertificate';
 import VerifyStudentId from './pages/VerifyStudentId';
 import PublicPortfolio from './pages/PublicPortfolio';
+import VerifyFeeReceipt from './pages/VerifyFeeReceipt';
 import { useAuth } from './context/AuthContext';
 import { RealtimeProvider } from './context/RealtimeContext';
 
@@ -28,6 +29,7 @@ export default function App() {
       <Route path="/reset-password" element={<ResetPassword />} />
       <Route path="/verify-certificate/:code" element={<VerifyCertificate />} />
       <Route path="/verify-student-id/:code" element={<VerifyStudentId />} />
+      <Route path="/verify-fee-receipt/:code" element={<VerifyFeeReceipt />} />
       <Route path="/portfolio/:userId" element={<PublicPortfolio />} />
       <Route
         path="/dashboard"

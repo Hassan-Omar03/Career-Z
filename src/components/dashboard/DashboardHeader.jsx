@@ -23,7 +23,7 @@ function useDropdown() {
 
 export default function DashboardHeader({ user, onSidebarToggle, onLogout, onNavigate, navItems = [] }) {
   const { theme, toggleTheme } = useTheme();
-  const { unreadCount, clearUnread } = useRealtime();
+  const { unreadCount, markAllNotificationsRead, unreadMessageCount } = useRealtime();
   const { open: quickActionsOpen, setOpen: setQuickActionsOpen, ref: quickActionsRef } = useDropdown();
   const { open: profileMenuOpen, setOpen: setProfileMenuOpen, ref: profileMenuRef } = useDropdown();
   const [search, setSearch] = useState('');
@@ -102,20 +102,30 @@ export default function DashboardHeader({ user, onSidebarToggle, onLogout, onNav
         </button>
 
         <div className="dash-icon-btn-wrap">
-          <button className="icon-btn" aria-label="Messages" onClick={() => onNavigate?.('messages')}>
+          <button className="icon-btn" aria-label={unreadMessageCount > 0 ? `Messages, ${unreadMessageCount} unread` : 'Messages'} onClick={() => onNavigate?.('messages')} style={{ position: 'relative' }}>
             <FaCommentDots size={17} />
+            {unreadMessageCount > 0 && (
+              <span aria-hidden="true" style={{
+                position: 'absolute', top: -2, right: -2, minWidth: 16, height: 16, padding: '0 4px',
+                borderRadius: 999, background: 'var(--rose, #e11d48)', color: '#fff', fontSize: 10, fontWeight: 700,
+                display: 'flex', alignItems: 'center', justifyContent: 'center', lineHeight: 1
+              }}>{unreadMessageCount}</span>
+            )}
           </button>
         </div>
 
         <div className="dash-icon-btn-wrap">
-          <button className="icon-btn" aria-label={unreadCount > 0 ? `Notifications, ${unreadCount} unread` : 'Notifications'} onClick={() => { clearUnread(); onNavigate?.('notifications'); }} style={{ position: 'relative' }}>
+          <button className="icon-btn" aria-label={unreadCount > 0 ? `Notifications, ${unreadCount} unread` : 'Notifications'} onClick={async () => {
+            try { await markAllNotificationsRead(); } catch { /* The panel still opens if marking read fails. */ }
+            onNavigate?.('notifications');
+          }} style={{ position: 'relative' }}>
             <FaBell size={17} />
             {unreadCount > 0 && (
               <span aria-hidden="true" style={{
                 position: 'absolute', top: -2, right: -2, minWidth: 16, height: 16, padding: '0 4px',
                 borderRadius: 999, background: 'var(--rose, #e11d48)', color: '#fff', fontSize: 10, fontWeight: 700,
                 display: 'flex', alignItems: 'center', justifyContent: 'center', lineHeight: 1
-              }}>{unreadCount > 9 ? '9+' : unreadCount}</span>
+              }}>{unreadCount}</span>
             )}
           </button>
         </div>
