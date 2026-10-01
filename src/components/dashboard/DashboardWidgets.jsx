@@ -51,8 +51,11 @@ export function WalletCard({ onFlash }) {
   const [modal, setModal] = useState(null); // 'topup' | 'withdraw' | 'transfer' | null
   const [amount, setAmount] = useState('');
   const [payoutMethod, setPayoutMethod] = useState('bank_transfer');
+  const [accountTitle, setAccountTitle] = useState('');
   const [payoutDetails, setPayoutDetails] = useState('');
+  const [withdrawReceipt, setWithdrawReceipt] = useState(null);
   const [recipientEmail, setRecipientEmail] = useState('');
+  const [recipientPreview, setRecipientPreview] = useState(null); // {fullName,email} | 'not_found' | null while typing
   const [busy, setBusy] = useState(false);
   const [paddleConfig, setPaddleConfig] = useState(null);
   const [nowConfig, setNowConfig] = useState(null);
@@ -67,7 +70,7 @@ export function WalletCard({ onFlash }) {
   useEffect(() => { apiRequest('/payments/paddle/config').then(setPaddleConfig).catch(() => setPaddleConfig({ enabled: false })); }, []);
   useEffect(() => { apiRequest('/payments/nowpayments/config').then(setNowConfig).catch(() => setNowConfig({ configured: false, currencies: {} })); }, []);
 
-  function closeModal() { setModal(null); setAmount(''); setPayoutDetails(''); setRecipientEmail(''); setCryptoPayment(null); }
+  function closeModal() { setModal(null); setAmount(''); setAccountTitle(''); setPayoutDetails(''); setRecipientEmail(''); setRecipientPreview(null); setCryptoPayment(null); }
 
   async function topUp() {
     if (!paddleConfig?.enabled) return onFlash?.('Card payments are not set up yet — ask Admin to connect Paddle.', 'error');
@@ -112,23 +115,42 @@ export function WalletCard({ onFlash }) {
 
   async function withdraw() {
     if (!amount || Number(amount) <= 0) return onFlash?.('Enter a valid amount.');
+    if (!accountTitle.trim()) return onFlash?.("Enter the account holder's name.");
     if (!payoutDetails.trim()) return onFlash?.('Enter your payout details (e.g. account number).');
     setBusy(true);
     try {
-      await apiRequest('/wallet/withdraw', { method: 'POST', body: { amount: Number(amount), currency, payoutMethod, payoutDetails: payoutDetails.trim() } });
-      onFlash?.('Withdrawal requested — pending Admin review.', 'success');
+      const result = await apiRequest('/wallet/withdraw', { method: 'POST', body: { amount: Number(amount), currency, payoutMethod, payoutDetails: payoutDetails.trim(), accountTitle: accountTitle.trim() } });
+      setWithdrawReceipt(result.reference);
+      onFlash?.(`Withdrawal requested — pending Admin review. Receipt ${result.reference}.`, 'success');
       closeModal();
       load();
     } catch (err) { onFlash?.(err.message); } finally { setBusy(false); }
   }
 
+  // Looks the recipient up as the email is typed — shown to the sender BEFORE they can hit Send,
+  // so a typo never silently sends money to a stranger. The actual send still re-resolves and
+  // verifies the recipient server-side regardless of this preview.
+  useEffect(() => {
+    const email = recipientEmail.trim();
+    if (modal !== 'transfer' || email.length < 3) { setRecipientPreview(null); return; }
+    const t = setTimeout(async () => {
+      try {
+        const matches = await apiRequest(`/users/search?q=${encodeURIComponent(email)}`);
+        const exact = matches.find((u) => u.email.toLowerCase() === email.toLowerCase());
+        setRecipientPreview(exact || 'not_found');
+      } catch { setRecipientPreview(null); }
+    }, 400);
+    return () => clearTimeout(t);
+  }, [recipientEmail, modal]);
+
   async function transfer() {
     if (!amount || Number(amount) <= 0) return onFlash?.('Enter a valid amount.');
     if (!recipientEmail.trim()) return onFlash?.("Enter the recipient's email.");
+    if (recipientPreview === 'not_found') return onFlash?.('No CareerZ account found with that email.');
     setBusy(true);
     try {
-      await apiRequest('/wallet/transfer', { method: 'POST', body: { amount: Number(amount), currency, recipientEmail: recipientEmail.trim() } });
-      onFlash?.('Transfer complete.', 'success');
+      const result = await apiRequest('/wallet/transfer', { method: 'POST', body: { amount: Number(amount), currency, recipientEmail: recipientEmail.trim() } });
+      onFlash?.(`Sent to ${result.recipient?.fullName || recipientEmail} — receipt ${result.reference}.`, 'success');
       closeModal();
       load();
     } catch (err) { onFlash?.(err.message); } finally { setBusy(false); }
@@ -156,6 +178,7 @@ export function WalletCard({ onFlash }) {
             <button type="button" className="btn btn-primary" style={{ padding: '6px 14px', fontSize: '0.8rem' }} onClick={() => setModal('topup')}>Add Funds</button>
             <button type="button" className="btn" style={{ padding: '6px 14px', fontSize: '0.8rem' }} onClick={() => setModal('withdraw')}>Withdraw</button>
             <button type="button" className="btn" style={{ padding: '6px 14px', fontSize: '0.8rem' }} onClick={() => setModal('transfer')}>Transfer</button>
+            {withdrawReceipt && <span className="text-xs" style={{ alignSelf: 'center', color: 'var(--ink-soft)' }}>Last withdrawal receipt: {withdrawReceipt}</span>}
           </div>
         ) : (
           <div style={{ padding: '8px 0 12px', display: 'grid', gap: 8, maxWidth: 320 }}>
@@ -182,15 +205,24 @@ export function WalletCard({ onFlash }) {
                   <option value="mobile_wallet">Mobile Wallet</option>
                   <option value="other">Other</option>
                 </select>
+                <input className="form-input" placeholder="Account holder's name (as it appears on the account)" value={accountTitle} onChange={(e) => setAccountTitle(e.target.value)} />
                 <input className="form-input" placeholder="Account number / details" value={payoutDetails} onChange={(e) => setPayoutDetails(e.target.value)} />
               </>
             )}
             {modal === 'transfer' && (
-              <input className="form-input" type="email" placeholder="Recipient's email" value={recipientEmail} onChange={(e) => setRecipientEmail(e.target.value)} />
+              <>
+                <input className="form-input" type="email" placeholder="Recipient's email" value={recipientEmail} onChange={(e) => setRecipientEmail(e.target.value)} />
+                {recipientPreview === 'not_found' && (
+                  <span style={{ fontSize: 12, color: 'var(--rose, #e11d48)' }}>No CareerZ account found with that email.</span>
+                )}
+                {recipientPreview && recipientPreview !== 'not_found' && (
+                  <span style={{ fontSize: 12, color: 'var(--emerald, #059669)' }}>Sending to: <strong>{recipientPreview.fullName}</strong> ({recipientPreview.email})</span>
+                )}
+              </>
             )}
             <div className="flex gap-2">
               {!(modal === 'topup' && cryptoPayment) && (
-                <button type="button" className="btn btn-primary" style={{ padding: '6px 14px', fontSize: '0.8rem' }} disabled={busy}
+                <button type="button" className="btn btn-primary" style={{ padding: '6px 14px', fontSize: '0.8rem' }} disabled={busy || (modal === 'transfer' && recipientPreview === 'not_found')}
                   onClick={modal === 'topup' ? topUp : modal === 'withdraw' ? withdraw : transfer}>
                   {busy ? 'Working...' : modal === 'topup' ? 'Pay with Card' : modal === 'withdraw' ? 'Request Withdrawal' : 'Send'}
                 </button>
@@ -212,7 +244,11 @@ export function WalletCard({ onFlash }) {
           <div className="dash-list">
             {wallet.transactions.map((t) => (
               <div key={t._id} className="dash-list-item">
-                <div className="dash-list-body"><div className="title">{TX_LABEL[t.type] || t.type}{t.status === 'pending' ? ' (pending)' : ''}</div></div>
+                <div className="dash-list-body">
+                  <div className="title">{TX_LABEL[t.type] || t.type}{t.status === 'pending' ? ' (pending)' : ''}</div>
+                  {t.note && <div style={{ fontSize: 11, color: 'var(--ink-soft)' }}>{t.note}</div>}
+                  {t.reference && <div style={{ fontSize: 11, color: 'var(--ink-soft)' }}>Receipt: {t.reference}</div>}
+                </div>
                 <span className="dash-list-time">{t.currency} {t.type === 'transfer_out' || t.type === 'withdrawal' ? '-' : '+'}{t.amount} · {new Date(t.createdAt).toLocaleDateString()}</span>
               </div>
             ))}
