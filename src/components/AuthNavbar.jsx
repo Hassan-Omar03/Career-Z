@@ -10,9 +10,7 @@ export default function AuthNavbar() {
       <div className="container nav-inner">
         <Link to="/" className="logo">
           <span className="dot"></span>
-          <span className="logo-text">
-            Career<span className="pk">Z.pk</span>
-          </span>
+          <span className="logo-text">Career<span className="pk">Z.pk</span></span>
         </Link>
         <div className="nav-actions">
           <button className="icon-btn" aria-label={theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'} onClick={toggleTheme}>

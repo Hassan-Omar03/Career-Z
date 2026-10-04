@@ -27,6 +27,7 @@ import AppDialogHost from '../components/AppDialogHost';
 import { showConfirm, showPrompt } from '../utils/appDialog';
 import CareerZLiveClassroom from '../components/CareerZLiveClassroom';
 import TransportNavigationMap from '../components/TransportNavigationMap';
+import { createBrandedPdf, addPdfFooter, drawPdfTable, drawPdfSummary, PDF_COLORS } from '../utils/brandedPdf';
 import {
   OverviewStats, WalletCard, QuickActions,
   ProfileCompletion, MiniCalendar, RecommendedGrid, RecentActivity
@@ -90,6 +91,7 @@ const WORKSPACES = {
       ,{ key: 'library', label: 'Institution Library', icon: FaBookOpen }
       ,{ key: 'events', label: 'Events & Activities', icon: FaCalendarDays }
       ,{ key: 'helpdesk', label: 'Institution Help Desk', icon: FaHeadset }
+      ,{ key: 'health', label: 'My Health Record', icon: FaClipboardCheck }
     ]
   },
   teacher: {
@@ -118,6 +120,8 @@ const WORKSPACES = {
       { key: 'aiAssistant', label: 'AI Teacher Assistant', icon: FaGauge },
       { key: 'aiCreative', label: 'AI Creative Teacher', icon: FaGauge },
       { key: 'advancedControl', label: 'Advanced Class Control', icon: FaGauge },
+      { key: 'instEvents', label: 'Events & Activities', icon: FaCalendarDays },
+      { key: 'instHelpdesk', label: 'Institution Help Desk', icon: FaHeadset },
       { key: 'profile', label: 'Personal Information', icon: FaUser }
     ]
   },
@@ -143,6 +147,8 @@ const WORKSPACES = {
       { key: 'health', label: 'Health Record', icon: FaClipboardCheck },
       { key: 'permissions', label: 'Permissions & Consent', icon: FaShieldHalved },
       { key: 'wallet', label: 'Wallet / Payment Records', icon: FaWallet },
+      { key: 'instEvents', label: 'Events & Activities', icon: FaCalendarDays },
+      { key: 'instHelpdesk', label: 'Institution Help Desk', icon: FaHeadset },
       { key: 'profile', label: 'Personal Information', icon: FaUser }
     ]
   },
@@ -592,7 +598,32 @@ function StudentWorkspace({ tab, user, onFlash, onChanged, onNavigate }) {
   if (tab === 'library') return <StudentInstitutionLibraryPanel onFlash={onFlash} />;
   if (tab === 'events') return <StudentInstitutionEventsPanel onFlash={onFlash} />;
   if (tab === 'helpdesk') return <StudentInstitutionHelpDeskPanel onFlash={onFlash} />;
+  if (tab === 'health') return <StudentHealthPanel onFlash={onFlash} />;
   return <ComingSoon label={tab} />;
+}
+
+// A student viewing their OWN health record (spec 15D.14) — before this, only the institution
+// and a linked guardian could see it at all.
+function StudentHealthPanel({ onFlash }) {
+  const [data, setData] = useState(null);
+  useEffect(() => { apiRequest('/students/me/health').then(setData).catch((err) => onFlash(err.message)); }, [onFlash]);
+  if (!data) return <p role="status" className="admin-notice">Loading health record...</p>;
+  return (
+    <div>
+      <h3 className="font-semibold mb-3">My Health Record</h3>
+      <div className="card" style={{ padding: 16, display: 'grid', gap: 8, maxWidth: 520 }}>
+        <div><strong className="text-xs" style={{ color: 'var(--ink-soft)' }}>Blood Group</strong><p>{data.bloodGroup || 'Not on file'}</p></div>
+        <div><strong className="text-xs" style={{ color: 'var(--ink-soft)' }}>Allergies</strong><p>{(data.allergies || []).length ? data.allergies.join(', ') : 'None on file'}</p></div>
+        <div><strong className="text-xs" style={{ color: 'var(--ink-soft)' }}>Medical History</strong><p>{data.medicalNotes || 'None on file'}</p></div>
+        <div><strong className="text-xs" style={{ color: 'var(--ink-soft)' }}>Emergency Contact</strong><p>{data.emergencyContact?.name ? `${data.emergencyContact.name} (${data.emergencyContact.relation}) — ${data.emergencyContact.phone}` : 'Not on file'}</p></div>
+      </div>
+      <h4 className="font-semibold mt-6 mb-2">Vaccination History</h4>
+      <Table headers={['Vaccine', 'Date', 'Notes']} rows={(data.vaccinations || []).map((v) => [v.name, v.date ? new Date(v.date).toLocaleDateString() : '—', v.notes || '—'])} empty="No vaccination records on file." />
+      <h4 className="font-semibold mt-6 mb-2">Incident History</h4>
+      <Table headers={['Date', 'Severity', 'Description', 'Action Taken']} rows={(data.incidents || []).map((i) => [new Date(i.occurredAt).toLocaleDateString(), <Tag status={i.severity === 'severe' ? 'rejected' : i.severity === 'moderate' ? 'pending' : 'approved'} label={i.severity} />, i.description, i.actionTaken || '—'])} empty="No incidents on file." />
+      <p className="text-xs" style={{ color: 'var(--ink-soft)', marginTop: 10 }}>This record is maintained by your institution. To correct anything here, contact your institution's administration.</p>
+    </div>
+  );
 }
 
 function StudentInstitutionLibraryPanel({ onFlash }) {
@@ -600,7 +631,7 @@ function StudentInstitutionLibraryPanel({ onFlash }) {
   useEffect(() => { apiRequest('/institution-ops/mine/library').then(setData).catch((err) => onFlash(err.message)); }, [onFlash]);
   if (!data) return <p role="status" className="admin-notice">Loading library...</p>;
   return <div><h3 className="font-semibold mb-3">Institution Library</h3>
-    <Table headers={['Title', 'Author', 'Type', 'Available', 'Digital access']} rows={data.books.map((book) => [book.title, book.author || '—', book.category.replace('_', ' '), `${book.availableCopies}/${book.copies}`, book.fileUrl ? <a className="btn" href={book.fileUrl} target="_blank" rel="noreferrer">Open</a> : 'Physical item'])} empty="No library resources available." />
+    <Table headers={['Institution', 'Title', 'Author', 'Type', 'Available', 'Digital access']} rows={data.books.map((book) => [book.institution?.name || 'Institution', book.title, book.author || '—', book.category.replaceAll('_', ' '), `${book.availableCopies}/${book.copies}`, book.fileUrl ? <a className="btn" href={book.fileUrl} target="_blank" rel="noreferrer">Open resource</a> : 'Physical item'])} empty="No library resources available." />
     <h4 className="font-semibold mt-6 mb-2">My Loans</h4>
     <Table headers={['Book', 'Borrowed', 'Due', 'Status', 'Fine']} rows={data.loans.map((loan) => [loan.book?.title || 'Removed item', new Date(loan.borrowedAt).toLocaleDateString(), new Date(loan.dueDate).toLocaleDateString(), <Tag status={loan.status === 'returned' ? 'approved' : loan.status === 'overdue' ? 'rejected' : 'pending'} label={loan.status} />, loan.fineAmount || '—'])} empty="You have no library loans." />
   </div>;
@@ -611,8 +642,13 @@ function StudentInstitutionEventsPanel({ onFlash }) {
   function load() { apiRequest('/institution-ops/mine/events').then(setData).catch((err) => onFlash(err.message)); }
   useEffect(load, [onFlash]);
   async function rsvp(eventId) { try { await apiRequest(`/institution-ops/events/${eventId}/rsvp`, { method: 'POST' }); onFlash('RSVP recorded.', 'success'); load(); } catch (err) { onFlash(err.message); } }
+  async function cancelRsvp(eventId) { try { await apiRequest(`/institution-ops/events/${eventId}/rsvp`, { method: 'DELETE' }); onFlash('RSVP withdrawn.', 'success'); load(); } catch (err) { onFlash(err.message); } }
   if (!data) return <p role="status" className="admin-notice">Loading events...</p>;
-  return <div><h3 className="font-semibold mb-3">Events & Activities</h3><Table headers={['Event', 'Type', 'Date', 'Venue', 'Status', 'Action']} rows={data.events.map((event) => [event.title, event.type.replaceAll('_', ' '), new Date(event.startDate).toLocaleString(), event.venue || '—', <Tag status="approved" label={event.status} />, (event.rsvps || []).some((entry) => String(entry.user) === String(data.userId)) ? 'Going' : <button className="btn btn-primary" onClick={() => rsvp(event._id)}>RSVP</button>])} empty="No upcoming events." /></div>;
+  return <div><h3 className="font-semibold mb-3">Events & Activities</h3><Table headers={['Event', 'Type', 'Date', 'Venue', 'Status', 'Action']} rows={data.events.map((event) => {
+    const going = (event.rsvps || []).some((entry) => String(entry.user) === String(data.userId));
+    return [event.title, event.type.replaceAll('_', ' '), new Date(event.startDate).toLocaleString(), event.venue || '—', <Tag status="approved" label={event.status} />,
+      going ? <button className="btn" onClick={() => cancelRsvp(event._id)}>Cancel RSVP</button> : <button className="btn btn-primary" onClick={() => rsvp(event._id)}>RSVP</button>];
+  })} empty="No upcoming events." /></div>;
 }
 
 function StudentInstitutionHelpDeskPanel({ onFlash }) {
@@ -1400,30 +1436,44 @@ function StudentApplicationsPanel({ onFlash }) {
 
 function StudentCertificatesPanel({ onFlash }) {
   const [certificates, setCertificates] = useState(null);
-  useEffect(() => { apiRequest('/students/me/certificates').then(setCertificates).catch((err) => onFlash(err.message)); }, [onFlash]);
+  const [transcripts, setTranscripts] = useState(null);
+  useEffect(() => {
+    apiRequest('/students/me/certificates').then(setCertificates).catch((err) => onFlash(err.message));
+    apiRequest('/students/me/transcripts').then(setTranscripts).catch((err) => onFlash(err.message));
+  }, [onFlash]);
 
   async function downloadCertificate(certificate) {
     try {
       const { jsPDF } = await import('jspdf');
-      const doc = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' });
-      doc.setDrawColor(12, 80, 62); doc.setLineWidth(2); doc.rect(10, 10, 277, 190);
-      doc.setFont('times', 'bold'); doc.setFontSize(28); doc.text('CareerZ Verified Certificate', 148.5, 42, { align: 'center' });
-      doc.setFont('times', 'normal'); doc.setFontSize(15); doc.text('This certifies that', 148.5, 62, { align: 'center' });
-      doc.setFont('times', 'bold'); doc.setFontSize(24); doc.text(certificate.studentName || 'Student', 148.5, 78, { align: 'center' });
-      doc.setFontSize(18); doc.text(certificate.title, 148.5, 98, { align: 'center', maxWidth: 205 });
-      doc.setFont('times', 'normal'); doc.setFontSize(13); doc.text(`Issued by ${certificate.institution?.name || 'Institution'} on ${new Date(certificate.issueDate).toLocaleDateString()}`, 148.5, 118, { align: 'center' });
-      if (certificate.finalGrade || certificate.percentage !== null) doc.text(`Grade: ${certificate.finalGrade || '—'}    Percentage: ${certificate.percentage ?? '—'}%`, 148.5, 132, { align: 'center' });
-      doc.addImage(certificate.qrDataUrl, 'PNG', 128.5, 142, 40, 40);
-      doc.setFontSize(9); doc.text(`Verification ID: ${certificate.verifyCode}`, 148.5, 188, { align: 'center' });
+      const credentialName = certificate.type === 'degree' ? 'Degree' : certificate.type === 'diploma' ? 'Diploma' : certificate.type === 'training' ? 'Training Certificate' : certificate.type === 'achievement' ? 'Certificate of Achievement' : 'Certificate of Completion';
+      const doc = await createBrandedPdf(jsPDF, { title: credentialName, subtitle: 'Digitally issued and independently verifiable', orientation: 'landscape' });
+      doc.setDrawColor(...PDF_COLORS.gold); doc.setLineWidth(1.2); doc.roundedRect(12, 40, 273, 151, 3, 3);
+      doc.setFont('times', 'normal'); doc.setTextColor(...PDF_COLORS.muted); doc.setFontSize(14); doc.text('This certificate is proudly presented to', 148.5, 70, { align: 'center' });
+      doc.setFont('times', 'bold'); doc.setTextColor(...PDF_COLORS.forest); doc.setFontSize(29); doc.text(certificate.studentName || 'Student', 148.5, 88, { align: 'center' });
+      doc.setDrawColor(...PDF_COLORS.gold); doc.line(78, 94, 219, 94);
+      doc.setFontSize(19); doc.text(doc.splitTextToSize(certificate.title, 180), 148.5, 108, { align: 'center' });
+      doc.setFont('helvetica', 'normal'); doc.setTextColor(...PDF_COLORS.muted); doc.setFontSize(11); doc.text(`Issued by ${certificate.institution?.name || 'Institution'} on ${new Date(certificate.issueDate).toLocaleDateString()}`, 148.5, 128, { align: 'center' });
+      if (certificate.finalGrade || certificate.percentage !== null) doc.text(`Grade: ${certificate.finalGrade || '—'}   •   Percentage: ${certificate.percentage ?? '—'}%`, 148.5, 137, { align: 'center' });
+      doc.addImage(certificate.qrDataUrl, 'PNG', 133.5, 143, 30, 30);
+      doc.setFontSize(8); doc.text(`Verification ID: ${certificate.verifyCode}`, 148.5, 179, { align: 'center' });
+      addPdfFooter(doc);
       doc.save(`${certificate.title.replace(/[^a-z0-9]+/gi, '-')}.pdf`);
     } catch (error) { onFlash(error.message); }
   }
 
-  if (certificates === null) return <p role="status" className="admin-notice">Loading...</p>;
-  if (certificates.length === 0) return <p style={{ fontSize: 13, color: 'var(--ink-soft)' }}>No certificates issued to you yet.</p>;
+  async function downloadTranscript(transcript) {
+    const { jsPDF } = await import('jspdf');
+    const doc = await createBrandedPdf(jsPDF, { title: 'Official Academic Transcript', subtitle: transcript.institution?.name || 'CareerZ verified academic record', orientation: 'landscape' });
+    const y = drawPdfSummary(doc, [{ label: 'Student', value: transcript.student?.fullName || '—' }, { label: 'Roll number', value: transcript.rollNumber || '—' }, { label: 'Program', value: transcript.programName || '—' }, { label: 'CGPA / Credits', value: `${transcript.cgpa.toFixed(2)} / 4.00 · ${transcript.totalCredits} credits` }]);
+    drawPdfTable(doc, { headers: ['Session', 'Semester / Term', 'Subject', 'Credits', 'Marks', 'Grade', 'Points'], rows: transcript.rows.map((row) => [row.academicSession || '—', row.term || '—', row.subject, row.creditHours, `${row.marksObtained}/${row.totalMarks} (${row.percentage}%)`, row.grade, row.gradePoints]), startY: y + 3 });
+    addPdfFooter(doc); doc.save(`academic-transcript-${transcript.rollNumber || 'student'}.pdf`);
+  }
+
+  if (certificates === null || transcripts === null) return <p role="status" className="admin-notice">Loading...</p>;
 
   return (
     <div className="grid grid-cols-1 gap-4">
+      {certificates.length === 0 && <p className="admin-notice">No certificates issued to you yet.</p>}
       {certificates.map((c) => (
         <div key={c._id} className="border border-[var(--sand-line)] rounded-xl p-4 flex items-center gap-4">
           <img src={c.qrDataUrl} alt="Verification QR code" style={{ width: 96, height: 96 }} />
@@ -1436,6 +1486,9 @@ function StudentCertificatesPanel({ onFlash }) {
           </div>
         </div>
       ))}
+      <h3 className="font-semibold mt-6">Academic Transcripts</h3>
+      {transcripts.length === 0 && <p className="admin-notice">No official transcript has been issued yet.</p>}
+      {transcripts.map((transcript) => <div key={transcript._id} className="card" style={{ padding: 18 }}><strong>{transcript.programName || 'Academic Transcript'}</strong><p className="text-xs" style={{ color: 'var(--ink-soft)' }}>{transcript.institution?.name} · CGPA {transcript.cgpa.toFixed(2)} · {transcript.totalCredits} credits · Issued {new Date(transcript.issueDate).toLocaleDateString()}</p><Table headers={['Term', 'Credits', 'GPA']} rows={transcript.semesterSummaries.map((term) => [term.term, term.credits, term.gpa.toFixed(2)])} empty="No semester summary." /><button type="button" className="btn btn-primary mt-3" onClick={() => downloadTranscript(transcript)}>Download Official Transcript PDF</button></div>)}
     </div>
   );
 }
@@ -4152,7 +4205,7 @@ async function downloadDeckAsPdf(title, slides) {
         pdf.addImage(image, 'JPEG', 535, 125, 255, 255, undefined, 'FAST');
       } catch { /* keep text content downloadable */ }
     }
-    pdf.setFontSize(10); pdf.text(`${index + 1} / ${slides.length}`, 780, 565);
+    pdf.setFontSize(9); pdf.setTextColor(text); pdf.text('CareerZ.pk', 48, 565); pdf.text(`${index + 1} / ${slides.length}`, 780, 565);
   }
   pdf.save(deckFileName(title, 'pdf'));
 }
@@ -6723,32 +6776,29 @@ function SalaryPayoutProfilePanel({ onFlash }) {
 async function downloadFeePdf(fee) {
   const { jsPDF } = await import('jspdf');
   const QRCode = (await import('qrcode')).default;
-  const pdf = new jsPDF();
   const isPaid = ['paid', 'refunded'].includes(fee.status);
+  const pdf = await createBrandedPdf(jsPDF, { title: isPaid ? 'Payment Receipt' : 'Fee Invoice', subtitle: fee.title });
   const verifyUrl = fee.verifyCode ? `${window.location.origin}/verify-fee-receipt/${fee.verifyCode}` : '';
-  const lines = [
-    isPaid ? 'Payment Receipt' : 'Invoice', `Title: ${fee.title}`,
-    `Fee Type: ${fee.feeType || '—'}`, `Academic Year: ${fee.academicYear || '—'}`, `Term/Period: ${fee.term || fee.billingPeriod || '—'}`,
-    `Original Amount: ${fee.currency} ${fee.originalAmount ?? fee.amount}`,
-    ...(fee.discounts?.length ? fee.discounts.map((d) => `Discount (${d.kind}): -${fee.currency} ${d.amount} — ${d.reason || ''}`) : []),
-    ...(fee.lateFeeAmount ? [`Late Fee: +${fee.currency} ${fee.lateFeeAmount}`] : []),
-    `Payable Amount: ${fee.currency} ${fee.amount}`,
-    `Paid: ${fee.currency} ${fee.paidAmount || (isPaid ? fee.amount : 0)}`,
-    `Outstanding: ${fee.currency} ${fee.outstandingAmount ?? (isPaid ? 0 : fee.amount)}`,
-    `Due Date: ${fee.dueDate ? new Date(fee.dueDate).toLocaleDateString() : '—'}`,
-    `Status: ${fee.status}`,
-    ...(isPaid ? [`Receipt Number: ${fee.receiptNumber || '—'}`, `Payment Method: ${fee.paidVia || fee.paymentMethod || '—'}`, `Paid At: ${fee.paidAt ? new Date(fee.paidAt).toLocaleString() : '—'}`] : [`Payment Instructions: Pay via CareerZ Wallet, Stripe/Paddle checkout, or report a manual bank transfer/cash payment for institution verification.`]),
-    ...(verifyUrl ? [`Verify online: ${verifyUrl}`] : [])
+  let y = drawPdfSummary(pdf, [
+    { label: 'Document status', value: String(fee.status || 'pending').replaceAll('_', ' ').toUpperCase() },
+    { label: 'Due date', value: fee.dueDate ? new Date(fee.dueDate).toLocaleDateString() : '—' },
+    { label: 'Academic year', value: fee.academicYear || '—' },
+    { label: 'Term / period', value: fee.term || fee.billingPeriod || '—' }
+  ]);
+  const rows = [
+    ['Original amount', `${fee.currency} ${fee.originalAmount ?? fee.amount}`],
+    ...(fee.discounts || []).map((d) => [`Discount — ${d.reason || d.kind}`, `-${fee.currency} ${d.amount}`]),
+    ...(fee.lateFeeAmount ? [['Late fee', `+${fee.currency} ${fee.lateFeeAmount}`]] : []),
+    ['Payable amount', `${fee.currency} ${fee.amount}`], ['Paid amount', `${fee.currency} ${fee.paidAmount || (isPaid ? fee.amount : 0)}`],
+    ['Outstanding', `${fee.currency} ${fee.outstandingAmount ?? (isPaid ? 0 : fee.amount)}`]
   ];
-  pdf.setFontSize(16); pdf.text(isPaid ? 'Payment Receipt' : 'Fee Invoice', 18, 18);
-  pdf.setFontSize(11);
-  lines.slice(1).forEach((line, index) => pdf.text(String(line), 18, 32 + index * 8));
+  y = drawPdfTable(pdf, { headers: ['Description', 'Amount'], rows, startY: y + 2, widths: [125, 57] });
+  if (isPaid) y = drawPdfTable(pdf, { headers: ['Payment detail', 'Value'], rows: [['Receipt number', fee.receiptNumber || '—'], ['Payment method', fee.paidVia || fee.paymentMethod || '—'], ['Paid at', fee.paidAt ? new Date(fee.paidAt).toLocaleString() : '—']], startY: y + 8, widths: [60, 122] });
   if (isPaid && verifyUrl) {
     const qr = await QRCode.toDataURL(verifyUrl, { errorCorrectionLevel: 'M', margin: 1, width: 320 });
-    pdf.addImage(qr, 'PNG', 154, 18, 38, 38);
-    pdf.setFontSize(8); pdf.text('Scan to verify receipt', 173, 60, { align: 'center' });
-    pdf.link(154, 18, 38, 42, { url: verifyUrl });
+    pdf.addImage(qr, 'PNG', 158, 44, 34, 34); pdf.setFontSize(7); pdf.setTextColor(...PDF_COLORS.muted); pdf.text('Scan to verify', 175, 81, { align: 'center' }); pdf.link(158, 44, 34, 38, { url: verifyUrl });
   }
+  addPdfFooter(pdf);
   pdf.save(`${isPaid ? 'receipt' : 'invoice'}-${fee.title.replace(/\s+/g, '-')}.pdf`);
 }
 
@@ -7720,8 +7770,78 @@ function TeacherWorkspace({ tab, user, onFlash, onChanged, onNavigate, onMessage
   if (tab === 'engagement') return <TeacherEngagementPanel onFlash={onFlash} />;
   if (tab === 'ptm') return <TeacherPtmPanel onFlash={onFlash} />;
   if (tab === 'wallet') return <WalletCard onFlash={onFlash} />;
+  if (tab === 'instEvents') return <StaffInstitutionEventsPanel onFlash={onFlash} institutionSource="teacher" user={user} />;
+  if (tab === 'instHelpdesk') return <StaffInstitutionHelpDeskPanel onFlash={onFlash} institutionSource="teacher" />;
   const labels = {};
   return <ComingSoon label={labels[tab] || tab} />;
+}
+
+// Resolves "which institution does this user belong to" for Teacher and Parent Events/Help-Desk
+// access (previously neither role had any UI for either module, even though both can be an
+// event's audience and both can legitimately raise a help-desk ticket).
+function useMyRelatedInstitutionId(onFlash, source) {
+  const [institutionId, setInstitutionId] = useState(undefined);
+  useEffect(() => {
+    if (source === 'teacher') {
+      apiRequest('/teacher-employments/mine').then((list) => {
+        const active = list.find((e) => e.status === 'active') || list[0];
+        setInstitutionId(active?.institution?._id || null);
+      }).catch(() => setInstitutionId(null));
+    } else {
+      apiRequest('/parents/children').then((list) => {
+        setInstitutionId(list[0]?.student?.primaryInstitution || null);
+      }).catch(() => setInstitutionId(null));
+    }
+  }, [onFlash, source]);
+  return institutionId;
+}
+
+// Shared by Teacher and Parent — both were missing any Events/Activities UI even though events
+// can target them as audience (spec 15D.17).
+function StaffInstitutionEventsPanel({ onFlash, institutionSource, user }) {
+  const institutionId = useMyRelatedInstitutionId(onFlash, institutionSource);
+  const [events, setEvents] = useState(null);
+  const userId = user?._id || '';
+  function load() {
+    if (!institutionId) return;
+    apiRequest(`/institution-ops/${institutionId}/events/public`).then(setEvents).catch((err) => onFlash(err.message));
+  }
+  useEffect(load, [institutionId]); // eslint-disable-line react-hooks/exhaustive-deps
+  async function rsvp(eventId) { try { await apiRequest(`/institution-ops/events/${eventId}/rsvp`, { method: 'POST' }); onFlash('RSVP recorded.', 'success'); load(); } catch (err) { onFlash(err.message); } }
+  async function cancelRsvp(eventId) { try { await apiRequest(`/institution-ops/events/${eventId}/rsvp`, { method: 'DELETE' }); onFlash('RSVP withdrawn.', 'success'); load(); } catch (err) { onFlash(err.message); } }
+
+  if (institutionId === undefined) return <p role="status" className="admin-notice">Loading...</p>;
+  if (!institutionId) return <p className="admin-notice">No linked institution found yet.</p>;
+  return <div><h3 className="font-semibold mb-3">Events & Activities</h3><Table headers={['Event', 'Type', 'Date', 'Venue', 'Status', 'Action']} rows={(events || []).map((event) => {
+    const going = (event.rsvps || []).some((entry) => String(entry.user) === String(userId));
+    return [event.title, event.type.replaceAll('_', ' '), new Date(event.startDate).toLocaleString(), event.venue || '—', <Tag status="approved" label={event.status} />,
+      going ? <button className="btn" onClick={() => cancelRsvp(event._id)}>Cancel RSVP</button> : <button className="btn btn-primary" onClick={() => rsvp(event._id)}>RSVP</button>];
+  })} empty="No upcoming events." /></div>;
+}
+
+// Shared by Teacher and Parent — both were missing any Help Desk UI even though the backend
+// already accepted their tickets (spec 15D.16).
+function StaffInstitutionHelpDeskPanel({ onFlash, institutionSource }) {
+  const institutionId = useMyRelatedInstitutionId(onFlash, institutionSource);
+  const [tickets, setTickets] = useState(null);
+  const [form, setForm] = useState({ category: 'academic', subject: '', description: '', priority: 'medium' });
+  function load() { apiRequest('/institution-ops/tickets/mine').then(setTickets).catch((err) => onFlash(err.message)); }
+  useEffect(load, [onFlash]);
+  async function submit(e) {
+    e.preventDefault();
+    try { await apiRequest(`/institution-ops/${institutionId}/tickets`, { method: 'POST', body: form }); onFlash('Help-desk ticket created.', 'success'); setForm({ category: 'academic', subject: '', description: '', priority: 'medium' }); load(); } catch (err) { onFlash(err.message); }
+  }
+  if (institutionId === undefined) return <p role="status" className="admin-notice">Loading...</p>;
+  return <div><h3 className="font-semibold mb-3">Institution Help Desk</h3>
+    {institutionId ? <form onSubmit={submit} className="card space-y-3 mb-4" style={{ padding: 18, maxWidth: 620 }}>
+      <select className="form-select" value={form.category} onChange={(e) => setForm({ ...form, category: e.target.value })}>{HELPDESK_CATEGORIES.map((item) => <option key={item}>{item}</option>)}</select>
+      <select className="form-select" value={form.priority} onChange={(e) => setForm({ ...form, priority: e.target.value })}>{['low', 'medium', 'high', 'urgent'].map((item) => <option key={item}>{item}</option>)}</select>
+      <input className="form-input" placeholder="Subject" required value={form.subject} onChange={(e) => setForm({ ...form, subject: e.target.value })} />
+      <textarea className="form-input" rows={4} placeholder="Describe the issue" required value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} />
+      <button className="btn btn-primary">Submit Ticket</button>
+    </form> : <p className="admin-notice">No linked institution found yet.</p>}
+    {tickets === null ? <p role="status" className="admin-notice">Loading tickets...</p> : <Table headers={['Ticket', 'Institution', 'Subject', 'Priority', 'Status', 'Resolution']} rows={tickets.map((ticket) => [ticket.ticketNumber, ticket.institution?.name || '—', ticket.subject, ticket.priority, <Tag status={['resolved', 'closed'].includes(ticket.status) ? 'approved' : 'pending'} label={ticket.status.replace('_', ' ')} />, ticket.resolutionNotes || '—'])} empty="No help-desk tickets." />}
+  </div>;
 }
 
 // Real BYOK AI Teacher Assistant (spec 14.7/15B.5-15B.6) — Notes, Quiz and Lesson Plan
@@ -10999,6 +11119,8 @@ function ParentWorkspace({ tab, user, onFlash, onChanged, onNavigate }) {
   if (tab === 'ptm') return <ParentPtmPanel onFlash={onFlash} />;
   if (tab === 'aiAssistant') return <ParentAiAssistantPanel onFlash={onFlash} />;
   if (tab === 'transport') return <ParentTransportPanel onFlash={onFlash} />;
+  if (tab === 'instEvents') return <StaffInstitutionEventsPanel onFlash={onFlash} institutionSource="parent" user={user} />;
+  if (tab === 'instHelpdesk') return <StaffInstitutionHelpDeskPanel onFlash={onFlash} institutionSource="parent" />;
   return <ComingSoon label={tab} />;
 }
 
@@ -11958,17 +12080,24 @@ function ParentHealthPanel({ onFlash }) {
   const selected = children.find((c) => c.student._id === studentId);
   const isSponsor = selected?.relationship === 'sponsor';
 
+  const [extra, setExtra] = useState({ vaccinations: [], incidents: [] });
+
   useEffect(() => {
     if (!studentId || isSponsor) return;
     setForm(null);
-    apiRequest(`/parents/children/${studentId}/health`).then((h) => setForm({
-      bloodGroup: h.bloodGroup || '',
-      allergies: (h.allergies || []).join(', '),
-      medicalNotes: h.medicalNotes || '',
-      emergencyName: h.emergencyContact?.name || '',
-      emergencyPhone: h.emergencyContact?.phone || '',
-      emergencyRelation: h.emergencyContact?.relation || ''
-    })).catch((err) => onFlash(err.message));
+    apiRequest(`/parents/children/${studentId}/health`).then((h) => {
+      setForm({
+        bloodGroup: h.bloodGroup || '',
+        allergies: (h.allergies || []).join(', '),
+        medicalNotes: h.medicalNotes || '',
+        emergencyName: h.emergencyContact?.name || '',
+        emergencyPhone: h.emergencyContact?.phone || '',
+        emergencyRelation: h.emergencyContact?.relation || ''
+      });
+      // Vaccinations/incidents were previously not returned to parents at all — a parent could
+      // only learn about an incident from the one-off notification email, with no lasting record.
+      setExtra({ vaccinations: h.vaccinations || [], incidents: h.incidents || [] });
+    }).catch((err) => onFlash(err.message));
   }, [studentId, isSponsor, onFlash]);
 
   async function save(e) {
@@ -12031,6 +12160,10 @@ function ParentHealthPanel({ onFlash }) {
           <button type="submit" className="btn btn-primary" style={{ padding: '9px 20px', justifySelf: 'start' }} disabled={saving}>{saving ? 'Saving...' : 'Save Health Record'}</button>
         </form>
       )}
+      <h4 className="font-semibold mt-6 mb-2">Vaccination History</h4>
+      <Table headers={['Vaccine', 'Date', 'Notes']} rows={extra.vaccinations.map((v) => [v.name, v.date ? new Date(v.date).toLocaleDateString() : '—', v.notes || '—'])} empty="No vaccination records on file." />
+      <h4 className="font-semibold mt-6 mb-2">Incident History</h4>
+      <Table headers={['Date', 'Severity', 'Description', 'Action Taken']} rows={extra.incidents.map((i) => [new Date(i.occurredAt).toLocaleDateString(), <Tag status={i.severity === 'severe' ? 'rejected' : i.severity === 'moderate' ? 'pending' : 'approved'} label={i.severity} />, i.description, i.actionTaken || '—'])} empty="No incidents on file." />
       </>
       )}
     </div>
@@ -13285,15 +13418,11 @@ function InstitutionPayrollPanel({ onFlash }) {
   }
   async function downloadPayslip(p) {
     const { jsPDF } = await import('jspdf');
-    const pdf = new jsPDF();
-    const lines = [
-      institution.name, 'Official Salary Slip', `Employee: ${p.staff?.fullName || '—'}`, `Period: ${p.month}/${p.year}`,
-      `Basic salary: ${p.currency} ${p.basicSalary}`, `Bonus: ${p.currency} ${p.bonuses || 0}`,
-      `Overtime: ${p.currency} ${p.overtimeAmount || 0}`, `Allowances: ${p.currency} ${p.allowances || 0}`, `Commission: ${p.currency} ${p.commissionAmount || 0}`,
-      `Deductions: ${p.currency} ${p.deductions || 0}`, `Tax: ${p.currency} ${p.taxAmount || 0}`, `Net amount: ${p.currency} ${p.netAmount}`,
-      `Status: ${p.status}`, `Payment method: ${p.paymentMethod || 'Pending'}`, `Receipt: ${p.transactionId || 'Pending'}`
-    ];
-    lines.forEach((line, index) => pdf.text(String(line), 18, 22 + index * 10));
+    const pdf = await createBrandedPdf(jsPDF, { title: 'Official Salary Slip', subtitle: institution.name });
+    let y = drawPdfSummary(pdf, [{ label: 'Employee', value: p.staff?.fullName || '—' }, { label: 'Pay period', value: `${p.month}/${p.year}` }, { label: 'Status', value: String(p.status).toUpperCase() }, { label: 'Net salary', value: `${p.currency} ${p.netAmount}` }]);
+    y = drawPdfTable(pdf, { headers: ['Earnings', 'Amount'], rows: [['Basic salary', `${p.currency} ${p.basicSalary}`], ['Bonus', `${p.currency} ${p.bonuses || 0}`], ['Overtime', `${p.currency} ${p.overtimeAmount || 0}`], ['Allowances', `${p.currency} ${p.allowances || 0}`], ['Commission', `${p.currency} ${p.commissionAmount || 0}`]], startY: y + 3, widths: [120, 62] });
+    drawPdfTable(pdf, { headers: ['Deductions / payment', 'Value'], rows: [['Deductions', `${p.currency} ${p.deductions || 0}`], ['Tax', `${p.currency} ${p.taxAmount || 0}`], ['Payment method', p.paymentMethod || 'Pending'], ['Receipt reference', p.transactionId || 'Pending']], startY: y + 7, widths: [82, 100] });
+    addPdfFooter(pdf);
     pdf.save(`salary-slip-${p.staff?.fullName || 'staff'}-${p.month}-${p.year}.pdf`);
   }
 
@@ -13314,10 +13443,10 @@ function InstitutionPayrollPanel({ onFlash }) {
   async function downloadTaxReport() {
     try {
       const report = await apiRequest(`/institutions/${institution._id}/payroll-tax-report?year=${Number(form.year)}`);
-      const { jsPDF } = await import('jspdf'); const pdf = new jsPDF();
-      const lines = [institution.name, `Payroll & Tax Report — ${report.year}`, `Gross: ${report.totals.gross}`, `Tax withheld: ${report.totals.tax}`, `Other deductions: ${report.totals.deductions}`, `Net payroll: ${report.totals.net}`];
-      report.rows.forEach((p) => lines.push(`${p.month}/${p.year} · ${p.staff?.fullName || 'Staff'} · ${p.currency} ${p.netAmount} · Tax ${p.taxAmount || 0}`));
-      lines.forEach((line, index) => pdf.text(String(line), 16, 20 + index * 8)); pdf.save(`payroll-tax-report-${report.year}.pdf`);
+      const { jsPDF } = await import('jspdf'); const pdf = await createBrandedPdf(jsPDF, { title: `Payroll & Tax Report ${report.year}`, subtitle: institution.name, orientation: 'landscape' });
+      const y = drawPdfSummary(pdf, [{ label: 'Gross payroll', value: report.totals.gross }, { label: 'Tax withheld', value: report.totals.tax }, { label: 'Other deductions', value: report.totals.deductions }, { label: 'Net payroll', value: report.totals.net }]);
+      drawPdfTable(pdf, { headers: ['Period', 'Employee', 'Currency', 'Gross', 'Tax', 'Deductions', 'Net'], rows: report.rows.map((p) => [`${p.month}/${p.year}`, p.staff?.fullName || 'Staff', p.currency, p.basicSalary, p.taxAmount || 0, p.deductions || 0, p.netAmount]), startY: y + 3 });
+      addPdfFooter(pdf); pdf.save(`payroll-tax-report-${report.year}.pdf`);
     } catch (err) { onFlash(err.message); }
   }
   const PAYSLIP_METHODS = [
@@ -13692,13 +13821,21 @@ function InstitutionPlacementPanel({ onFlash }) {
   }
   async function refer(e) {
     e.preventDefault();
-    if (!referForm.studentId.trim() || !referForm.jobId.trim()) return onFlash('Student User ID and Job ID are required.');
+    if (!referForm.studentId.trim() || !referForm.jobId.trim()) return onFlash('Select a student and enter a Job ID.');
     try {
       await apiRequest('/institution-employer/referrals', { method: 'POST', body: { studentId: referForm.studentId.trim(), jobId: referForm.jobId.trim() } });
       onFlash('Referral created — the student was notified.', 'success');
       setReferForm({ studentId: '', jobId: '' });
       load(institution._id);
     } catch (err) { onFlash(err.message); }
+  }
+  async function endPartnership(id) {
+    const confirmed = await showConfirm('End this active partnership? Referrals to that employer\'s jobs will no longer be possible.', { confirmLabel: 'End partnership' });
+    if (!confirmed) return;
+    try { await apiRequest(`/institution-employer/partnerships/${id}/end`, { method: 'PATCH' }); onFlash('Partnership ended.', 'success'); load(institution._id); } catch (err) { onFlash(err.message); }
+  }
+  async function declineReferral(id) {
+    try { await apiRequest(`/institution-employer/referrals/${id}/decline`, { method: 'PATCH' }); onFlash('Referral withdrawn.', 'success'); load(institution._id); } catch (err) { onFlash(err.message); }
   }
 
   const PARTNER_STATUS_TAG = { requested: 'pending', active: 'approved', declined: 'rejected', ended: 'rejected' };
@@ -13719,8 +13856,11 @@ function InstitutionPlacementPanel({ onFlash }) {
         </form>
         <Table
           loading={partnerships === null}
-          headers={['Employer', 'Status']}
-          rows={(partnerships || []).map((p) => [p.employer?.companyName || p.employer?.fullName, <Tag status={PARTNER_STATUS_TAG[p.status] || 'pending'} label={p.status} />])}
+          headers={['Employer', 'Status', 'Action']}
+          rows={(partnerships || []).map((p) => [
+            p.employer?.companyName || p.employer?.fullName, <Tag status={PARTNER_STATUS_TAG[p.status] || 'pending'} label={p.status} />,
+            p.status === 'active' ? <button className="btn" style={{ padding: '4px 10px', fontSize: '0.72rem' }} onClick={() => endPartnership(p._id)}>End Partnership</button> : '—'
+          ])}
           empty="No partnerships yet."
         />
       </div>
@@ -13728,18 +13868,19 @@ function InstitutionPlacementPanel({ onFlash }) {
       <div className="admin-section" style={{ marginTop: 16 }}>
         <div className="admin-section-heading"><div><h2>Refer a Student</h2><p>Recommends a real student for a real job — the student still applies themselves.</p></div></div>
         <form onSubmit={refer} className="flex gap-2 items-end mb-3 flex-wrap">
-          <input className="form-input" placeholder="Student's User ID" value={referForm.studentId} onChange={(e) => setReferForm({ ...referForm, studentId: e.target.value })} style={{ minWidth: 200 }} />
+          <InstitutionStudentSelect institutionId={institution._id} value={referForm.studentId} onChange={(v) => setReferForm({ ...referForm, studentId: v })} />
           <input className="form-input" placeholder="Job ID" value={referForm.jobId} onChange={(e) => setReferForm({ ...referForm, jobId: e.target.value })} style={{ minWidth: 200 }} />
           <button type="submit" className="btn btn-primary">Refer</button>
         </form>
         {placement?.stats && <p className="text-xs" style={{ color: 'var(--ink-soft)', marginBottom: 10 }}>Total referrals: {placement.stats.total || 0} · Applied: {placement.stats.applied || 0} · Placed: {placement.stats.placed || 0}</p>}
         <Table
           loading={placement === null}
-          headers={['Student', 'Job', 'Status', 'Referred']}
+          headers={['Student', 'Job', 'Status', 'Referred', 'Action']}
           rows={(placement?.referrals || []).map((r) => [
             r.student?.fullName, `${r.job?.title} @ ${r.job?.company}`,
             <Tag status={REFERRAL_STATUS_TAG[r.status] || 'pending'} label={r.status} />,
-            new Date(r.createdAt).toLocaleDateString()
+            new Date(r.createdAt).toLocaleDateString(),
+            r.status === 'referred' ? <button className="btn" style={{ padding: '4px 10px', fontSize: '0.72rem' }} onClick={() => declineReferral(r._id)}>Withdraw</button> : '—'
           ])}
           empty="No referrals yet."
         />
@@ -13798,7 +13939,10 @@ function InstitutionCertificatesPanel({ onFlash }) {
   const [institution, setInstitution] = useState(null);
   const [certificates, setCertificates] = useState([]);
   const [eligible, setEligible] = useState([]);
+  const [advanced, setAdvanced] = useState({ programs: [], achievements: [] });
+  const [students, setStudents] = useState([]);
   const [selection, setSelection] = useState('');
+  const [advancedSelection, setAdvancedSelection] = useState('');
 
   function load() {
     apiRequest('/institutions/mine/list').then((list) => {
@@ -13807,8 +13951,26 @@ function InstitutionCertificatesPanel({ onFlash }) {
       if (inst) {
         apiRequest(`/institutions/${inst._id}/certificates`).then(setCertificates).catch((err) => onFlash(err.message));
         apiRequest(`/institutions/${inst._id}/certificates/eligible`).then(setEligible).catch((err) => onFlash(err.message));
+        apiRequest(`/institutions/${inst._id}/certificates/advanced-eligible`).then(setAdvanced).catch((err) => onFlash(err.message));
+        apiRequest(`/institutions/${inst._id}/students`).then(setStudents).catch((err) => onFlash(err.message));
       }
     }).catch((err) => onFlash(err.message));
+  }
+
+  async function issueAdvanced(e) {
+    e.preventDefault();
+    const candidates = [...advanced.programs, ...advanced.achievements];
+    const row = candidates.find((item) => `${item.type}:${item.student?._id}:${item.program?._id || item.achievement?._id}` === advancedSelection);
+    if (!row) return onFlash('Select an eligible credential first.');
+    try {
+      await apiRequest(`/institutions/${institution._id}/certificates`, { method: 'POST', body: { type: row.type, student: row.student._id, program: row.program?._id, achievement: row.achievement?._id } });
+      onFlash(`${row.type} credential issued.`, 'success'); setAdvancedSelection(''); load();
+    } catch (err) { onFlash(err.message); }
+  }
+
+  async function generateTranscript(studentId) {
+    try { await apiRequest(`/institutions/${institution._id}/transcripts`, { method: 'POST', body: { student: studentId } }); onFlash('Official transcript generated from graded results.', 'success'); }
+    catch (err) { onFlash(err.message); }
   }
   useEffect(load, []);
 
@@ -13845,9 +14007,18 @@ function InstitutionCertificatesPanel({ onFlash }) {
         <button type="submit" className="btn btn-primary" disabled={!selection}>Issue Verified Certificate</button>
       </form>
       {eligible.length === 0 && <p className="admin-notice">No completed certificate-enabled course is waiting for issuance.</p>}
+      <h3 className="font-semibold mt-6 mb-2">Diploma, Training, Degree & Achievement</h3>
+      <p className="admin-notice">Only students whose complete program courses and fees are cleared appear as eligible. Degree additionally requires graduated status; achievements must already be institution-verified.</p>
+      <form onSubmit={issueAdvanced} className="flex gap-3 items-end mb-4 flex-wrap">
+        <select className="form-select" value={advancedSelection} onChange={(e) => setAdvancedSelection(e.target.value)} style={{ minWidth: 440 }} required><option value="">Select verified credential candidate</option>{[...advanced.programs, ...advanced.achievements].filter((item) => item.eligible).map((item) => { const id = item.program?._id || item.achievement?._id; return <option key={`${item.type}:${item.student._id}:${id}`} value={`${item.type}:${item.student._id}:${id}`}>{item.student.fullName} — {item.type.toUpperCase()} — {item.program?.name || item.achievement?.title}</option>; })}</select>
+        <button type="submit" className="btn btn-primary">Issue Credential</button>
+      </form>
+      <h3 className="font-semibold mt-6 mb-2">Academic Transcripts</h3>
+      <p className="admin-notice">Transcript is calculated from real graded results. Subject marks are combined by course and term; credits, semester GPA and cumulative CGPA are calculated automatically.</p>
+      <div className="flex gap-2 flex-wrap mb-4">{students.map((profile) => <button key={profile.user?._id} type="button" className="btn" onClick={() => generateTranscript(profile.user?._id)}>Generate {profile.user?.fullName}'s Transcript</button>)}</div>
       <Table
-        headers={['Student', 'Course', 'Title', 'Grade / Percentage', 'Status', 'Issued', 'Action']}
-        rows={certificates.map((c) => [c.student?.fullName, c.course?.title || '—', c.title, `${c.finalGrade || '—'} · ${c.percentage ?? '—'}%`, <span><Tag status={c.status === 'active' ? 'approved' : 'rejected'} label={c.status} />{c.revokeReason ? <small style={{ display: 'block' }}>{c.revokeReason}</small> : null}</span>, new Date(c.issueDate).toLocaleDateString(), c.status === 'active' ? <button className="btn" onClick={() => revoke(c)}>Revoke</button> : '—'])}
+        headers={['Student', 'Type / Course', 'Title', 'Grade / Percentage', 'Status', 'Issued', 'Action']}
+        rows={certificates.map((c) => [c.student?.fullName, c.course?.title || c.type?.toUpperCase() || '—', c.title, c.type === 'course' ? `${c.finalGrade || '—'} · ${c.percentage ?? '—'}%` : 'Verified completion', <span><Tag status={c.status === 'active' ? 'approved' : 'rejected'} label={c.status} />{c.revokeReason ? <small style={{ display: 'block' }}>{c.revokeReason}</small> : null}</span>, new Date(c.issueDate).toLocaleDateString(), c.status === 'active' ? <button className="btn" onClick={() => revoke(c)}>Revoke</button> : '—'])}
         empty="No certificates issued yet."
       />
     </div>
@@ -14446,18 +14617,11 @@ function reportRowsForPdf(reportType, data) {
 
 async function downloadReportPdf(reportType, label, rows) {
   const { jsPDF } = await import('jspdf');
-  const pdf = new jsPDF({ orientation: 'landscape' });
-  pdf.setFontSize(14); pdf.text(label, 14, 16);
-  pdf.setFontSize(9);
-  if (rows.length === 0) { pdf.text('No data.', 14, 28); pdf.save(`${reportType}-report.pdf`); return; }
+  const pdf = await createBrandedPdf(jsPDF, { title: label, subtitle: `Generated ${new Date().toLocaleDateString()}`, orientation: 'landscape' });
+  if (rows.length === 0) { pdf.setTextColor(...PDF_COLORS.muted); pdf.text('No data available for this report.', 14, 72); addPdfFooter(pdf); pdf.save(`${reportType}-report.pdf`); return; }
   const headers = Object.keys(rows[0]);
-  let y = 26;
-  pdf.text(headers.join(' | '), 14, y);
-  rows.forEach((row) => {
-    y += 7;
-    if (y > 190) { pdf.addPage(); y = 20; }
-    pdf.text(headers.map((h) => String(row[h] ?? '')).join(' | '), 14, y);
-  });
+  drawPdfTable(pdf, { headers: headers.map((h) => h.replaceAll('_', ' ').toUpperCase()), rows: rows.map((row) => headers.map((h) => row[h])) });
+  addPdfFooter(pdf);
   pdf.save(`${reportType}-report.pdf`);
 }
 
@@ -15032,10 +15196,15 @@ function InstitutionLibraryPanel({ onFlash }) {
   const [tab, setTab] = useState('books');
   const [form, setForm] = useState({ title: '', author: '', isbn: '', category: 'book', copies: 1, fileUrl: '', finePerDay: 0 });
   const [borrowForm, setBorrowForm] = useState({});
+  const [libraryBorrowers, setLibraryBorrowers] = useState([]);
+  const [qrScannerOpen, setQrScannerOpen] = useState(false);
+  const [qrLookup, setQrLookup] = useState('');
+  const [scannedBook, setScannedBook] = useState(null);
 
   function load(instId) {
     apiRequest(`/institution-ops/${instId}/books`).then(setBooks).catch((err) => onFlash(err.message));
     apiRequest(`/institution-ops/${instId}/loans`).then(setLoans).catch((err) => onFlash(err.message));
+    apiRequest(`/institution-ops/${instId}/library-borrowers`).then(setLibraryBorrowers).catch((err) => onFlash(err.message));
   }
   useEffect(() => { if (institution) load(institution._id); }, [institution]);
 
@@ -15067,6 +15236,24 @@ function InstitutionLibraryPanel({ onFlash }) {
     try { await apiRequest(`/institution-ops/loans/${loanId}/return`, { method: 'PATCH' }); onFlash('Book returned.', 'success'); load(institution._id); } catch (err) { onFlash(err.message); }
   }
 
+  async function waiveFine(loanId) {
+    const reason = await showPrompt('Reason for waiving this library fine:', 'Fine waived by institution');
+    if (reason === null) return;
+    try { await apiRequest(`/institution-ops/loans/${loanId}/waive-fine`, { method: 'PATCH', body: { reason } }); onFlash('Library fine waived.', 'success'); load(institution._id); } catch (err) { onFlash(err.message); }
+  }
+
+  async function lookupQr(rawValue) {
+    const code = String(rawValue || '').trim().replace(/^careerz-library:/i, '');
+    if (!code) return onFlash('Scan a book QR or enter its code.');
+    try {
+      const found = await apiRequest(`/institution-ops/${institution._id}/books/qr/${encodeURIComponent(code)}`);
+      setScannedBook(found);
+      setQrLookup(found.qrCode);
+      setQrScannerOpen(false);
+      onFlash(`${found.title} found. You can issue it below.`, 'success');
+    } catch (err) { onFlash(err.message); }
+  }
+
   if (institution === undefined) return <p role="status" className="admin-notice">Loading...</p>;
   if (!institution) return <p className="admin-notice">Register an institution first (My Institution tab).</p>;
 
@@ -15078,23 +15265,33 @@ function InstitutionLibraryPanel({ onFlash }) {
       </div>
       {tab === 'books' ? (
         <>
+          <section className="admin-card mb-3" style={{ padding: 16 }}>
+            <div className="flex gap-2 items-center flex-wrap">
+              <strong>Scan library QR</strong>
+              <input className="form-input" placeholder="Scan or enter QR code" value={qrLookup} onChange={(e) => setQrLookup(e.target.value)} style={{ maxWidth: 300 }} />
+              <button type="button" className="btn" onClick={() => lookupQr(qrLookup)}>Find resource</button>
+              <button type="button" className="btn btn-primary" onClick={() => setQrScannerOpen((value) => !value)}>{qrScannerOpen ? 'Close camera' : 'Scan with camera'}</button>
+            </div>
+            {qrScannerOpen && <div style={{ marginTop: 12 }}><QrScanner onScan={lookupQr} hint="Point the camera at the QR sticker on the library resource." /></div>}
+            {scannedBook && <div className="admin-notice" style={{ marginTop: 12 }}><strong>{scannedBook.title}</strong> · {scannedBook.category.replaceAll('_', ' ')} · {scannedBook.availableCopies}/{scannedBook.copies} available. Complete borrower, due date and fine in its highlighted catalog row, then press Issue.</div>}
+          </section>
           <form onSubmit={addBook} className="flex gap-3 items-end mb-3 flex-wrap">
             <input className="form-input" placeholder="Title" value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })} required />
             <input className="form-input" placeholder="Author" value={form.author} onChange={(e) => setForm({ ...form, author: e.target.value })} />
             <input className="form-input" placeholder="ISBN / catalog code" value={form.isbn} onChange={(e) => setForm({ ...form, isbn: e.target.value })} />
             <select className="form-select" value={form.category} onChange={(e) => setForm({ ...form, category: e.target.value })}>
-              {['book', 'ebook', 'journal', 'research_paper'].map((c) => <option key={c} value={c}>{c}</option>)}
+              {['book', 'ebook', 'journal', 'research_paper', 'video', 'audio_lecture', 'slides', 'notes'].map((c) => <option key={c} value={c}>{c.replaceAll('_', ' ')}</option>)}
             </select>
             <input className="form-input" type="number" min="0" placeholder="Copies" value={form.copies} onChange={(e) => setForm({ ...form, copies: e.target.value })} style={{ maxWidth: 100 }} />
             <input className="form-input" type="url" placeholder="Digital file URL (optional)" value={form.fileUrl} onChange={(e) => setForm({ ...form, fileUrl: e.target.value })} />
             <button type="submit" className="btn btn-primary">Add Book</button>
           </form>
           <Table
-            headers={['Title', 'Author', 'Category', 'Available', 'QR Code', 'Borrow', 'Action']}
+            headers={['Title', 'Author', 'Category', 'Available', 'Scannable QR', 'Borrow', 'Action']}
             rows={(books || []).map((b) => [
-              b.title, b.author || '—', b.category, `${b.availableCopies}/${b.copies}`, b.qrCode,
+              <span style={String(scannedBook?._id) === String(b._id) ? { fontWeight: 800, color: 'var(--green)' } : undefined}>{b.title}</span>, b.author || '—', b.category.replaceAll('_', ' '), `${b.availableCopies}/${b.copies}`, <LibraryResourceQr code={b.qrCode} title={b.title} />,
               <div className="flex gap-1 items-center">
-                <input className="form-input" placeholder="Borrower User ID" style={{ width: 110, padding: '4px 6px', fontSize: '0.72rem' }} onChange={(e) => setBorrowForm({ ...borrowForm, [b._id]: { ...borrowForm[b._id], borrower: e.target.value } })} />
+                <select className="form-select" style={{ minWidth: 220, padding: '4px 6px', fontSize: '0.72rem' }} value={borrowForm[b._id]?.borrower || ''} onChange={(e) => setBorrowForm({ ...borrowForm, [b._id]: { ...borrowForm[b._id], borrower: e.target.value } })}><option value="">Select borrower</option>{libraryBorrowers.map((student) => <option key={student.user._id} value={student.user._id}>{student.user.fullName} ({student.rollNumber || student.user.email})</option>)}</select>
                 <input className="form-input" type="date" style={{ width: 120, padding: '4px 6px', fontSize: '0.72rem' }} onChange={(e) => setBorrowForm({ ...borrowForm, [b._id]: { ...borrowForm[b._id], dueDate: e.target.value } })} />
                 <input className="form-input" type="number" min="0" placeholder="Fine/day" style={{ width: 85, padding: '4px 6px', fontSize: '0.72rem' }} onChange={(e) => setBorrowForm({ ...borrowForm, [b._id]: { ...borrowForm[b._id], finePerDay: e.target.value } })} />
                 <button className="btn" style={{ padding: '4px 8px', fontSize: '0.72rem' }} onClick={() => borrow(b._id)}>Issue</button>
@@ -15111,13 +15308,24 @@ function InstitutionLibraryPanel({ onFlash }) {
             l.book?.title, l.borrower?.fullName, new Date(l.borrowedAt).toLocaleDateString(), new Date(l.dueDate).toLocaleDateString(),
             <Tag status={l.status === 'returned' ? 'approved' : 'pending'} label={l.status} />,
             l.fineAmount > 0 ? `${l.fineAmount}` : '—',
-            l.status !== 'returned' ? <button className="btn" style={{ padding: '4px 8px', fontSize: '0.72rem' }} onClick={() => returnLoan(l._id)}>Mark Returned</button> : '—'
+            <div className="flex gap-1 flex-wrap">{l.status !== 'returned' && <button className="btn" style={{ padding: '4px 8px', fontSize: '0.72rem' }} onClick={() => returnLoan(l._id)}>Mark Returned</button>}{l.fineAmount > 0 && !l.fineWaived && <button className="btn" style={{ padding: '4px 8px', fontSize: '0.72rem' }} onClick={() => waiveFine(l._id)}>Waive fine</button>}</div>
           ])}
           empty="No loans yet."
         />
       )}
     </div>
   );
+}
+
+function LibraryResourceQr({ code, title }) {
+  const [image, setImage] = useState('');
+  useEffect(() => {
+    let live = true;
+    import('qrcode').then(({ default: QRCode }) => QRCode.toDataURL(`careerz-library:${code}`, { errorCorrectionLevel: 'M', margin: 1, width: 160 })).then((url) => { if (live) setImage(url); }).catch(() => {});
+    return () => { live = false; };
+  }, [code]);
+  if (!image) return <span>{code}</span>;
+  return <div style={{ display: 'grid', gap: 4, justifyItems: 'center' }}><img src={image} alt={`QR for ${title}`} width="96" height="96" /><small style={{ maxWidth: 110, overflowWrap: 'anywhere' }}>{code}</small><a href={image} download={`${title.replace(/[^a-z0-9]+/gi, '-')}-library-qr.png`} className="btn" style={{ padding: '3px 7px', fontSize: '.7rem' }}>Download sticker</a></div>;
 }
 
 // Student's own hostel status/requests — previously a student had no screen at all to see their
@@ -15980,7 +16188,7 @@ function DriverDashboardPanel({ onFlash }) {
 function InstitutionInventoryPanel({ onFlash }) {
   const institution = useMyInstitution(onFlash);
   const [items, setItems] = useState(null);
-  const [form, setForm] = useState({ name: '', category: 'other', quantity: 1, location: '', condition: 'good' });
+  const [form, setForm] = useState({ name: '', category: 'other', quantity: 1, location: '', condition: 'good', purchaseDate: '', purchaseCost: '', notes: '' });
 
   function load(instId) {
     apiRequest(`/institution-ops/${instId}/inventory`).then(setItems).catch((err) => onFlash(err.message));
@@ -15990,15 +16198,29 @@ function InstitutionInventoryPanel({ onFlash }) {
   async function addItem(e) {
     e.preventDefault();
     try {
-      await apiRequest(`/institution-ops/${institution._id}/inventory`, { method: 'POST', body: { ...form, quantity: Number(form.quantity) } });
+      await apiRequest(`/institution-ops/${institution._id}/inventory`, { method: 'POST', body: { ...form, quantity: Number(form.quantity), purchaseCost: Number(form.purchaseCost || 0), purchaseDate: form.purchaseDate || null } });
       onFlash('Item added.', 'success');
-      setForm({ name: '', category: 'other', quantity: 1, location: '', condition: 'good' });
+      setForm({ name: '', category: 'other', quantity: 1, location: '', condition: 'good', purchaseDate: '', purchaseCost: '', notes: '' });
       load(institution._id);
     } catch (err) { onFlash(err.message); }
   }
 
   async function removeItem(id) {
     try { await apiRequest(`/institution-ops/inventory/${id}`, { method: 'DELETE' }); onFlash('Item removed.', 'success'); load(institution._id); } catch (err) { onFlash(err.message); }
+  }
+
+  async function editItem(item) {
+    const quantity = await showPrompt('Quantity:', String(item.quantity));
+    if (quantity === null) return;
+    const location = await showPrompt('Location:', item.location || '');
+    if (location === null) return;
+    const purchaseCost = await showPrompt('Unit cost (PKR):', String(item.purchaseCost || 0));
+    if (purchaseCost === null) return;
+    try {
+      await apiRequest(`/institution-ops/inventory/${item._id}`, { method: 'PATCH', body: { quantity: Number(quantity), location, purchaseCost: Number(purchaseCost) } });
+      onFlash('Item updated.', 'success');
+      load(institution._id);
+    } catch (err) { onFlash(err.message); }
   }
 
   if (institution === undefined) return <p role="status" className="admin-notice">Loading...</p>;
@@ -16013,17 +16235,20 @@ function InstitutionInventoryPanel({ onFlash }) {
         </select>
         <input className="form-input" type="number" min="0" placeholder="Quantity" value={form.quantity} onChange={(e) => setForm({ ...form, quantity: e.target.value })} style={{ maxWidth: 100 }} />
         <input className="form-input" placeholder="Location (e.g. Lab 2)" value={form.location} onChange={(e) => setForm({ ...form, location: e.target.value })} />
+        <input className="form-input" type="number" min="0" placeholder="Unit cost (PKR)" value={form.purchaseCost} onChange={(e) => setForm({ ...form, purchaseCost: e.target.value })} style={{ maxWidth: 160 }} />
+        <label className="text-xs">Purchase date<input className="form-input" type="date" value={form.purchaseDate} onChange={(e) => setForm({ ...form, purchaseDate: e.target.value })} style={{ marginTop: 4 }} /></label>
         <select className="form-select" value={form.condition} onChange={(e) => setForm({ ...form, condition: e.target.value })}>
           {['new', 'good', 'needs_repair', 'damaged'].map((c) => <option key={c} value={c}>{c.replace('_', ' ')}</option>)}
         </select>
         <button type="submit" className="btn btn-primary">Add Item</button>
       </form>
       <Table
-        headers={['Name', 'Category', 'Qty', 'Location', 'Condition', 'Action']}
+        headers={['Name', 'Category', 'Qty', 'Location', 'Condition', 'Unit cost', 'Total value', 'Purchased', 'Action']}
         rows={(items || []).map((i) => [
           i.name, i.category.replace('_', ' '), i.quantity, i.location || '—',
           <Tag status={i.condition === 'damaged' ? 'rejected' : i.condition === 'needs_repair' ? 'pending' : 'approved'} label={i.condition.replace('_', ' ')} />,
-          <button className="btn" style={{ padding: '4px 8px', fontSize: '0.72rem', color: 'var(--rose)' }} onClick={() => removeItem(i._id)}>Remove</button>
+          `PKR ${Number(i.purchaseCost || 0).toLocaleString()}`, `PKR ${(Number(i.purchaseCost || 0) * Number(i.quantity || 0)).toLocaleString()}`, i.purchaseDate ? new Date(i.purchaseDate).toLocaleDateString() : '—',
+          <div className="flex gap-1"><button className="btn" style={{ padding: '4px 8px', fontSize: '0.72rem' }} onClick={() => editItem(i)}>Edit</button><button className="btn" style={{ padding: '4px 8px', fontSize: '0.72rem', color: 'var(--rose)' }} onClick={() => removeItem(i._id)}>Remove</button></div>
         ])}
         empty="No inventory items added yet."
       />
@@ -16227,6 +16452,7 @@ const HELPDESK_CATEGORIES = ['academic', 'fee', 'teacher', 'student', 'staff', '
 function InstitutionHelpDeskPanel({ onFlash }) {
   const institution = useMyInstitution(onFlash);
   const [tickets, setTickets] = useState(null);
+  const [assignPick, setAssignPick] = useState({}); // ticketId -> picked person
 
   function load(instId) {
     apiRequest(`/institution-ops/${instId}/tickets`).then(setTickets).catch((err) => onFlash(err.message));
@@ -16242,23 +16468,30 @@ function InstitutionHelpDeskPanel({ onFlash }) {
     try { await apiRequest(`/institution-ops/tickets/${id}`, { method: 'PATCH', body: { status, resolutionNotes } }); onFlash(`Ticket marked ${status.replace('_', ' ')}.`, 'success'); load(institution._id); } catch (err) { onFlash(err.message); }
   }
 
+  async function assign(id, person) {
+    try { await apiRequest(`/institution-ops/tickets/${id}`, { method: 'PATCH', body: { assignedTo: person._id } }); onFlash(`Assigned to ${person.fullName}.`, 'success'); load(institution._id); } catch (err) { onFlash(err.message); }
+  }
+
   if (institution === undefined) return <p role="status" className="admin-notice">Loading...</p>;
   if (!institution) return <p className="admin-notice">Register an institution first (My Institution tab).</p>;
 
   return (
     <div>
       <Table
-        headers={['Ticket #', 'Raised By', 'Category', 'Subject', 'Priority', 'Status', 'Action']}
+        headers={['Ticket #', 'Raised By', 'Category', 'Subject', 'Priority', 'Status', 'Assigned', 'Action']}
         rows={(tickets || []).map((t) => [
           t.ticketNumber, t.raisedBy?.fullName, t.category, t.subject,
           <Tag status={t.priority === 'urgent' ? 'rejected' : t.priority === 'high' ? 'pending' : 'approved'} label={t.priority} />,
           <Tag status={t.status === 'resolved' || t.status === 'closed' ? 'approved' : 'pending'} label={t.status.replace('_', ' ')} />,
+          t.assignedTo?.fullName ? t.assignedTo.fullName : (
+            !['resolved', 'closed'].includes(t.status) ? <PersonPicker selected={assignPick[t._id]} onPick={(p) => { setAssignPick((s) => ({ ...s, [t._id]: p })); assign(t._id, p); }} onClear={() => setAssignPick((s) => ({ ...s, [t._id]: null }))} placeholder="Assign to staff" /> : '—'
+          ),
           !['resolved', 'closed'].includes(t.status) ? (
             <div className="flex gap-1">
               <button className="btn" style={{ padding: '4px 8px', fontSize: '0.72rem' }} onClick={() => update(t._id, 'in_progress')}>In Progress</button>
               <button className="btn btn-primary" style={{ padding: '4px 8px', fontSize: '0.72rem' }} onClick={() => update(t._id, 'resolved')}>Resolve</button>
             </div>
-          ) : '—'
+          ) : t.status === 'resolved' ? <button className="btn" style={{ padding: '4px 8px', fontSize: '0.72rem' }} onClick={() => update(t._id, 'closed')}>Close</button> : '—'
         ])}
         empty="No help desk tickets yet."
       />
@@ -16912,7 +17145,7 @@ function InstitutionClassesPanel({ onFlash }) {
   }, [courses, sections, timetableSection]);
 
   async function saveCourseAssignment(course) {
-    const edit = courseEdits[course._id] || { subject: course.subject || '', classSection: course.classSection?._id || '', teacher: course.teacher?._id || '' };
+    const edit = courseEdits[course._id] || { subject: course.subject || '', classSection: course.classSection?._id || '', teacher: course.teacher?._id || '', creditHours: course.creditHours || 3, academicTerm: course.academicTerm || '' };
     try {
       await apiRequest(`/institutions/${institution._id}/courses/${course._id}/academic-assignment`, { method: 'PATCH', body: edit });
       onFlash('Course linked to subject, section and teacher.', 'success');
@@ -17018,10 +17251,10 @@ function InstitutionClassesPanel({ onFlash }) {
       <h3 className="font-semibold mb-2 mt-6">Course Academic Assignments</h3>
       <p className="admin-notice">Link every course to its real subject, class/section and teacher. Timetable and examinations use this assignment automatically.</p>
       <Table
-        headers={['Course', 'Subject', 'Class / Section', 'Teacher', 'Action']}
+        headers={['Course', 'Subject', 'Class / Section', 'Teacher', 'Credits', 'Semester / Term', 'Action']}
         rows={courses.map((course) => {
-          const edit = courseEdits[course._id] || { subject: course.subject || '', classSection: course.classSection?._id || '', teacher: course.teacher?._id || '' };
-          return [course.title, <input className="form-input" style={{ minWidth: 170 }} placeholder="Subject name" value={edit.subject} onChange={(e) => setCourseEdits({ ...courseEdits, [course._id]: { ...edit, subject: e.target.value } })} />, <select className="form-select" style={{ minWidth: 190 }} value={edit.classSection} onChange={(e) => setCourseEdits({ ...courseEdits, [course._id]: { ...edit, classSection: e.target.value } })}><option value="">Select class / section</option>{sections.map((section) => <option key={section._id} value={section._id}>{section.name} · {section.academicYear || 'No session'}</option>)}</select>, <select className="form-select" style={{ minWidth: 160 }} value={edit.teacher} onChange={(e) => setCourseEdits({ ...courseEdits, [course._id]: { ...edit, teacher: e.target.value } })}><option value="">Select teacher</option>{teachers.map((teacher) => <option key={teacher.user._id} value={teacher.user._id}>{teacher.user.fullName}</option>)}</select>, <button type="button" className="btn btn-primary" onClick={() => saveCourseAssignment(course)}>Save assignment</button>];
+          const edit = courseEdits[course._id] || { subject: course.subject || '', classSection: course.classSection?._id || '', teacher: course.teacher?._id || '', creditHours: course.creditHours || 3, academicTerm: course.academicTerm || '' };
+          return [course.title, <input className="form-input" style={{ minWidth: 170 }} placeholder="Subject name" value={edit.subject} onChange={(e) => setCourseEdits({ ...courseEdits, [course._id]: { ...edit, subject: e.target.value } })} />, <select className="form-select" style={{ minWidth: 190 }} value={edit.classSection} onChange={(e) => setCourseEdits({ ...courseEdits, [course._id]: { ...edit, classSection: e.target.value } })}><option value="">Select class / section</option>{sections.map((section) => <option key={section._id} value={section._id}>{section.name} · {section.academicYear || 'No session'}</option>)}</select>, <select className="form-select" style={{ minWidth: 160 }} value={edit.teacher} onChange={(e) => setCourseEdits({ ...courseEdits, [course._id]: { ...edit, teacher: e.target.value } })}><option value="">Select teacher</option>{teachers.map((teacher) => <option key={teacher.user._id} value={teacher.user._id}>{teacher.user.fullName}</option>)}</select>, <input type="number" min="0.5" max="12" step="0.5" className="form-input" style={{ width: 85 }} value={edit.creditHours} onChange={(e) => setCourseEdits({ ...courseEdits, [course._id]: { ...edit, creditHours: e.target.value } })} />, <input className="form-input" style={{ minWidth: 130 }} placeholder="Semester 1" value={edit.academicTerm} onChange={(e) => setCourseEdits({ ...courseEdits, [course._id]: { ...edit, academicTerm: e.target.value } })} />, <button type="button" className="btn btn-primary" onClick={() => saveCourseAssignment(course)}>Save assignment</button>];
         })}
         empty="No institution courses found. Create an institution course first."
       />
@@ -17113,13 +17346,13 @@ function EmployerWorkspace({ tab, user, onFlash, onChanged }) {
   if (tab === 'post') return <EmployerPostJobPanel onFlash={onFlash} />;
   if (tab === 'jobs') return <EmployerJobsPanel onFlash={onFlash} />;
   if (tab === 'employees') return <EmployerEmploymentsPanel onFlash={onFlash} />;
-  if (tab === 'partnerships') return <EmployerPartnershipsPanel onFlash={onFlash} />;
+  if (tab === 'partnerships') return <EmployerPartnershipsPanel onFlash={onFlash} user={user} />;
   return <ComingSoon label={tab} />;
 }
 
 // Institution<->Employer partnerships (spec: "employer partnerships, campus recruitment") —
 // employer side: accept/decline a request, or request one with an institution directly.
-function EmployerPartnershipsPanel({ onFlash }) {
+function EmployerPartnershipsPanel({ onFlash, user }) {
   const [partnerships, setPartnerships] = useState(null);
   const [instId, setInstId] = useState('');
 
@@ -17130,7 +17363,10 @@ function EmployerPartnershipsPanel({ onFlash }) {
     e.preventDefault();
     if (!instId.trim()) return;
     try {
-      await apiRequest('/institution-employer/partnerships', { method: 'POST', body: { institutionId: instId.trim() } });
+      // The backend requires employerEmail on every request — for the employer-initiated side
+      // that's simply the employer's own account email (previously this was omitted entirely,
+      // so every employer-initiated request failed with "employerEmail is required").
+      await apiRequest('/institution-employer/partnerships', { method: 'POST', body: { institutionId: instId.trim(), employerEmail: user?.email } });
       onFlash('Partnership request sent.', 'success');
       setInstId('');
       load();
@@ -17138,6 +17374,11 @@ function EmployerPartnershipsPanel({ onFlash }) {
   }
   async function respond(id, decision) {
     try { await apiRequest(`/institution-employer/partnerships/${id}/respond`, { method: 'PATCH', body: { decision } }); onFlash(`Partnership ${decision}.`, 'success'); load(); } catch (err) { onFlash(err.message); }
+  }
+  async function end(id) {
+    const confirmed = await showConfirm('End this active partnership? The institution will no longer be able to refer students to your jobs.', { confirmLabel: 'End partnership' });
+    if (!confirmed) return;
+    try { await apiRequest(`/institution-employer/partnerships/${id}/end`, { method: 'PATCH' }); onFlash('Partnership ended.', 'success'); load(); } catch (err) { onFlash(err.message); }
   }
 
   const STATUS_TAG = { requested: 'pending', active: 'approved', declined: 'rejected', ended: 'rejected' };
@@ -17158,7 +17399,7 @@ function EmployerPartnershipsPanel({ onFlash }) {
           p.status === 'requested' ? <div className="flex gap-2">
             <button className="btn btn-primary" style={{ padding: '4px 10px', fontSize: '0.75rem' }} onClick={() => respond(p._id, 'active')}>Accept</button>
             <button className="btn" style={{ padding: '4px 10px', fontSize: '0.75rem' }} onClick={() => respond(p._id, 'declined')}>Decline</button>
-          </div> : '—'
+          </div> : p.status === 'active' ? <button className="btn" style={{ padding: '4px 10px', fontSize: '0.75rem' }} onClick={() => end(p._id)}>End Partnership</button> : '—'
         ])}
         empty="No partnerships yet."
       />
