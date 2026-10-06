@@ -1488,7 +1488,7 @@ function StudentCertificatesPanel({ onFlash }) {
       ))}
       <h3 className="font-semibold mt-6">Academic Transcripts</h3>
       {transcripts.length === 0 && <p className="admin-notice">No official transcript has been issued yet.</p>}
-      {transcripts.map((transcript) => <div key={transcript._id} className="card" style={{ padding: 18 }}><strong>{transcript.programName || 'Academic Transcript'}</strong><p className="text-xs" style={{ color: 'var(--ink-soft)' }}>{transcript.institution?.name} · CGPA {transcript.cgpa.toFixed(2)} · {transcript.totalCredits} credits · Issued {new Date(transcript.issueDate).toLocaleDateString()}</p><Table headers={['Term', 'Credits', 'GPA']} rows={transcript.semesterSummaries.map((term) => [term.term, term.credits, term.gpa.toFixed(2)])} empty="No semester summary." /><button type="button" className="btn btn-primary mt-3" onClick={() => downloadTranscript(transcript)}>Download Official Transcript PDF</button></div>)}
+      {transcripts.map((transcript) => <div key={transcript._id} className="card" style={{ padding: 18 }}><strong>{transcript.programName || 'Academic Transcript'}</strong><p className="text-xs" style={{ color: 'var(--ink-soft)' }}>{transcript.institution?.name} · CGPA {transcript.cgpa.toFixed(2)} · {transcript.totalCredits} credits · Issued {new Date(transcript.issueDate).toLocaleDateString()}</p><Table headers={['Session', 'Term', 'Credits', 'GPA']} rows={transcript.semesterSummaries.map((term) => [term.academicSession || '—', term.term, term.credits, term.gpa.toFixed(2)])} empty="No semester summary." /><button type="button" className="btn btn-primary mt-3" onClick={() => downloadTranscript(transcript)}>Download Official Transcript PDF</button></div>)}
     </div>
   );
 }
