@@ -22,7 +22,8 @@ import CampusTourViewer from '../components/CampusTourViewer';
 import QrScanner from '../components/QrScanner';
 import AdminOperationsCenter from '../components/admin/AdminOperationsCenter';
 import { loadPaddle, setActiveCheckoutHandler } from '../utils/paddleLoader';
-import { startJazzCashCheckout, getJazzCashConfig, JAZZCASH_RESULT_MESSAGE } from '../utils/jazzcashCheckout';
+import { startJazzCashCheckout, getJazzCashConfig, jazzCashResultMessage } from '../utils/jazzcashCheckout';
+import { usePaymentRecovery } from '../hooks/usePaymentRecovery';
 import { isPlatformUploadAvailable, uploadToPlatformStorage } from '../utils/platformUpload';
 import AppDialogHost from '../components/AppDialogHost';
 import { showConfirm, showPrompt } from '../utils/appDialog';
@@ -495,12 +496,14 @@ export default function Dashboard() {
     setTimeout(() => setMsg(null), 4000);
   }
 
+  usePaymentRecovery(user?._id, flash);
+
   // Back from JazzCash's hosted page: the backend has already verified and applied the result.
   useEffect(() => {
     const params = new URLSearchParams(location.search);
     const result = params.get('jazzcash');
     if (!result) return;
-    const [text, type] = JAZZCASH_RESULT_MESSAGE[result] || JAZZCASH_RESULT_MESSAGE.error;
+    const [text, type] = jazzCashResultMessage(result, params.get('code'));
     flash(params.get('ref') ? `${text} (Ref ${params.get('ref')})` : text, type);
     window.history.replaceState(null, '', window.location.pathname);
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -6827,6 +6830,10 @@ function StudentFeesPanel({ onFlash }) {
   const [fees, setFees] = useState(null);
   function load() { apiRequest('/students/me/fees').then(setFees).catch((err) => onFlash(err.message)); }
   useEffect(load, [onFlash]);
+  useEffect(() => {
+    window.addEventListener('careerz:payment-confirmed', load);
+    return () => window.removeEventListener('careerz:payment-confirmed', load);
+  }, [onFlash]);
 
   async function requestFeeRefund(fee) {
     const reason = await showPrompt('Why are you requesting this refund?', { title: 'Request Fee Refund', required: true });
@@ -17633,11 +17640,11 @@ function EmployerJobsPanel({ onFlash }) {
   useEffect(() => { apiRequest('/jobs/featured-fee').then(setFeaturedFee).catch(() => {}); }, []);
   async function feature(jobId) {
     try {
-      const { transactionId } = await apiRequest(`/payments/paddle/jobs/${jobId}/feature/checkout`, { method: 'POST' });
+      const { transactionId } = await apiRequest(`/payments/paddle/jobs/${jobId}/feature-checkout`, { method: 'POST' });
       const Paddle = await loadPaddle(featureCheckout.paddle.clientToken, featureCheckout.paddle.environment);
       setActiveCheckoutHandler(async () => {
         try {
-          const result = await apiRequest(`/payments/paddle/jobs/${jobId}/feature/${transactionId}/sync`);
+          const result = await apiRequest(`/payments/paddle/jobs/${jobId}/feature-checkout/${transactionId}/sync`);
           if (result.status === 'paid') { onFlash('Featured placement confirmed.', 'success'); load(); }
         } catch (error) { onFlash(error.message); }
       });

@@ -69,6 +69,10 @@ export function WalletCard({ onFlash }) {
     apiRequest(`/wallet/me?currency=${currency}`).then(setWallet).catch(() => setWallet({ available: 0, pending: 0, transactions: [] }));
   }
   useEffect(load, [currency]);
+  useEffect(() => {
+    window.addEventListener('careerz:payment-confirmed', load);
+    return () => window.removeEventListener('careerz:payment-confirmed', load);
+  }, [currency]);
   useEffect(() => { apiRequest('/payments/paddle/config').then(setPaddleConfig).catch(() => setPaddleConfig({ enabled: false })); }, []);
   useEffect(() => { getJazzCashConfig().then(setJazzConfig); }, []);
   useEffect(() => { apiRequest('/payments/nowpayments/config').then(setNowConfig).catch(() => setNowConfig({ configured: false, currencies: {} })); }, []);
