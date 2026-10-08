@@ -5,6 +5,7 @@ import {
 } from 'react-icons/fa6';
 import { apiRequest } from '../../api/client';
 import { loadPaddle, setActiveCheckoutHandler } from '../../utils/paddleLoader';
+import { startJazzCashCheckout, getJazzCashConfig } from '../../utils/jazzcashCheckout';
 
 export function WelcomeBanner({ name }) {
   return (
@@ -59,6 +60,7 @@ export function WalletCard({ onFlash }) {
   const [busy, setBusy] = useState(false);
   const [paddleConfig, setPaddleConfig] = useState(null);
   const [nowConfig, setNowConfig] = useState(null);
+  const [jazzConfig, setJazzConfig] = useState(null);
   const [payCurrency, setPayCurrency] = useState('usdttrc20');
   const [cryptoPayment, setCryptoPayment] = useState(null);
   const pollRef = useRef(null);
@@ -68,6 +70,7 @@ export function WalletCard({ onFlash }) {
   }
   useEffect(load, [currency]);
   useEffect(() => { apiRequest('/payments/paddle/config').then(setPaddleConfig).catch(() => setPaddleConfig({ enabled: false })); }, []);
+  useEffect(() => { getJazzCashConfig().then(setJazzConfig); }, []);
   useEffect(() => { apiRequest('/payments/nowpayments/config').then(setNowConfig).catch(() => setNowConfig({ configured: false, currencies: {} })); }, []);
 
   function closeModal() { setModal(null); setAmount(''); setAccountTitle(''); setPayoutDetails(''); setRecipientEmail(''); setRecipientPreview(null); setCryptoPayment(null); }
@@ -88,6 +91,12 @@ export function WalletCard({ onFlash }) {
       Paddle.Checkout.open({ transactionId, settings: { displayMode: 'overlay' } });
       closeModal();
     } catch (err) { onFlash?.(err.message); } finally { setBusy(false); }
+  }
+
+  async function topUpJazzCash() {
+    if (!amount || Number(amount) <= 0) return onFlash?.('Enter a valid amount.');
+    setBusy(true);
+    try { await startJazzCashCheckout('/payments/jazzcash/wallet/topup', { amount: Number(amount), currency }); } catch (err) { onFlash?.(err.message); setBusy(false); }
   }
 
   async function topUpCrypto() {
@@ -225,6 +234,11 @@ export function WalletCard({ onFlash }) {
                 <button type="button" className="btn btn-primary" style={{ padding: '6px 14px', fontSize: '0.8rem' }} disabled={busy || (modal === 'transfer' && recipientPreview === 'not_found')}
                   onClick={modal === 'topup' ? topUp : modal === 'withdraw' ? withdraw : transfer}>
                   {busy ? 'Working...' : modal === 'topup' ? 'Pay with Card' : modal === 'withdraw' ? 'Request Withdrawal' : 'Send'}
+                </button>
+              )}
+              {modal === 'topup' && !cryptoPayment && jazzConfig?.enabled && (
+                <button type="button" className="btn" style={{ padding: '6px 14px', fontSize: '0.8rem' }} disabled={busy} onClick={topUpJazzCash}>
+                  {busy ? 'Working...' : 'Pay with JazzCash'}
                 </button>
               )}
               {modal === 'topup' && !cryptoPayment && nowConfig?.configured && (

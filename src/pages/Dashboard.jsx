@@ -6,7 +6,7 @@
   FaCartShopping, FaBoxOpen, FaBoxesStacked, FaTruck, FaStar, FaRegStar, FaTriangleExclamation, FaQrcode, FaLock,
   FaEarthAmericas, FaDatabase, FaUserGear, FaNewspaper, FaWandMagicSparkles,
   FaUserGraduate, FaBed, FaKitMedical, FaCalendarDays, FaHeadset, FaRobot,
-  FaCheck, FaLocationDot, FaExpand, FaGlobe, FaCreditCard, FaFaceSmile, FaCircleCheck,
+  FaCheck, FaLocationDot, FaExpand, FaGlobe, FaMobileScreen, FaFaceSmile, FaCircleCheck,
   FaArrowLeft, FaArrowRight, FaArrowRotateLeft, FaCopy, FaEye, FaPaperPlane,
   FaMicrophone, FaHand, FaVideo, FaPowerOff, FaCrosshairs
 } from 'react-icons/fa6';
@@ -22,6 +22,7 @@ import CampusTourViewer from '../components/CampusTourViewer';
 import QrScanner from '../components/QrScanner';
 import AdminOperationsCenter from '../components/admin/AdminOperationsCenter';
 import { loadPaddle, setActiveCheckoutHandler } from '../utils/paddleLoader';
+import { startJazzCashCheckout, getJazzCashConfig, JAZZCASH_RESULT_MESSAGE } from '../utils/jazzcashCheckout';
 import { isPlatformUploadAvailable, uploadToPlatformStorage } from '../utils/platformUpload';
 import AppDialogHost from '../components/AppDialogHost';
 import { showConfirm, showPrompt } from '../utils/appDialog';
@@ -493,6 +494,17 @@ export default function Dashboard() {
     setMsg({ text, type });
     setTimeout(() => setMsg(null), 4000);
   }
+
+  // Back from JazzCash's hosted page: the backend has already verified and applied the result.
+  useEffect(() => {
+    const params = new URLSearchParams(location.search);
+    const result = params.get('jazzcash');
+    if (!result) return;
+    const [text, type] = JAZZCASH_RESULT_MESSAGE[result] || JAZZCASH_RESULT_MESSAGE.error;
+    flash(params.get('ref') ? `${text} (Ref ${params.get('ref')})` : text, type);
+    window.history.replaceState(null, '', window.location.pathname);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const ws = (isRepOnly && activeWorkspace === 'institution') ? REPRESENTATIVE_WORKSPACE
     : (isWardenOnly && activeWorkspace === 'institution') ? WARDEN_WORKSPACE
@@ -6456,9 +6468,8 @@ const MANUAL_FEE_METHODS = PAYMENT_METHODS.filter((method) => method.value !== '
 
 // Manual fee payments remain pending until the institution verifies them.
 // Works for both the student paying their own fee and a parent paying a linked child's fee.
-// Real Stripe Checkout redirect (spec 4.6/3A.3) — separate from the self-report methods below.
-// Renders nothing if Stripe isn't configured (GET /payments/stripe/config), so no dead button
-// shows up before a real key is added.
+// Real Paddle checkout — separate from the self-report methods below. Renders nothing if Paddle
+// isn't configured (GET /payments/paddle/config), so no dead button shows up before keys exist.
 function PaddleCheckoutButton({ feeId, onFlash, onPaid }) {
   const [config, setConfig] = useState(null);
   const [loading, setLoading] = useState(false);
@@ -6505,17 +6516,14 @@ function PaddleCheckoutButton({ feeId, onFlash, onPaid }) {
   );
 }
 
-function StripeCheckoutButton({ feeId, onFlash }) {
+function JazzCashCheckoutButton({ feeId, onFlash }) {
   const [config, setConfig] = useState(null);
   const [loading, setLoading] = useState(false);
-  useEffect(() => { apiRequest('/payments/stripe/config').then(setConfig).catch(() => setConfig({ enabled: false })); }, []);
+  useEffect(() => { getJazzCashConfig().then(setConfig); }, []);
 
   async function startCheckout() {
     setLoading(true);
-    try {
-      const { url } = await apiRequest(`/payments/stripe/fees/${feeId}/checkout`, { method: 'POST' });
-      window.location.href = url;
-    } catch (err) { onFlash(err.message); setLoading(false); }
+    try { await startJazzCashCheckout(`/payments/jazzcash/fees/${feeId}/checkout`); } catch (err) { onFlash(err.message); setLoading(false); }
   }
 
   if (!config?.enabled) return null;
@@ -6526,11 +6534,11 @@ function StripeCheckoutButton({ feeId, onFlash }) {
       disabled={loading}
       style={{
         padding: '10px 18px', fontSize: '0.85rem', fontWeight: 700, borderRadius: 10, border: 'none',
-        background: 'linear-gradient(135deg, #635bff, #7a73ff)', color: '#fff', cursor: loading ? 'default' : 'pointer',
+        background: 'linear-gradient(135deg, #c8102e, #e43d4f)', color: '#fff', cursor: loading ? 'default' : 'pointer',
         opacity: loading ? 0.7 : 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, width: '100%'
       }}
     >
-      <FaCreditCard aria-hidden="true" /> {loading ? 'Redirecting...' : 'Pay Online (Stripe)'}
+      <FaMobileScreen aria-hidden="true" /> {loading ? 'Redirecting...' : 'Pay with JazzCash'} {!loading && <span style={{ fontWeight: 400, opacity: 0.85, fontSize: '0.78rem' }}>(Wallet / Card / Voucher)</span>}
     </button>
   );
 }
@@ -6579,7 +6587,7 @@ function PayFeeButton({ fee, onFlash, onPaid }) {
     return (
       <div style={{ display: 'grid', gap: 8, minWidth: 220 }}>
         <PaddleCheckoutButton feeId={fee._id} onFlash={onFlash} onPaid={onPaid} />
-        <StripeCheckoutButton feeId={fee._id} onFlash={onFlash} />
+        <JazzCashCheckoutButton feeId={fee._id} onFlash={onFlash} />
         <button
           type="button"
           onClick={() => setOpen(true)}
@@ -6702,7 +6710,7 @@ function SalaryPaymentButton({ payslip, onSubmit }) {
   useEffect(() => {
     if (open && payslip.institution && payslip.staff?._id) apiRequest(`/institutions/${payslip.institution}/staff/${payslip.staff._id}/payout-profile`).then((profile) => { setPayout(profile); setMethod(profile.preferredMethod || ''); }).catch(() => setPayout({ configured: false }));
   }, [open, payslip.institution, payslip.staff?._id]);
-  const manual = Boolean(method) && !['platform_wallet', 'stripe_transfer'].includes(method);
+  const manual = Boolean(method) && method !== 'platform_wallet';
   async function submit(e) {
     e.preventDefault();
     if (method === 'platform_wallet') {
@@ -6724,7 +6732,7 @@ function SalaryPaymentButton({ payslip, onSubmit }) {
   return <form onSubmit={submit} style={{ display: 'grid', gap: 6, minWidth: 250 }}>
     <CustomSelect value={method} onChange={setMethod} ariaLabel="Salary payment method" minWidth="100%" options={[
       { value: '', label: 'Select payout method' },
-      { value: 'platform_wallet', label: 'CareerZ Internal Wallet' }, { value: 'stripe_transfer', label: 'Stripe Connect bank payout' },
+      { value: 'platform_wallet', label: 'CareerZ Internal Wallet' },
       payout?.bank?.destination && { value: 'bank_transfer', label: `${payout.bank.bankName || 'Bank'} · ${payout.bank.destination}` },
       payout?.mobileWallet?.destination && { value: 'mobile_wallet', label: `${payout.mobileWallet.provider || 'Mobile wallet'} · ${payout.mobileWallet.destination}` },
       payout?.crypto?.destination && { value: 'crypto', label: `${payout.crypto.asset || 'Crypto'} ${payout.crypto.network || ''} · ${payout.crypto.destination}` },
@@ -6755,7 +6763,7 @@ function SalaryPayoutProfilePanel({ onFlash }) {
   return <form onSubmit={save} className="admin-section" style={{ marginTop: 18 }}>
     <div className="admin-section-heading"><div><h2>Salary Payout Details</h2><p>Save once; institutions will see masked destinations when paying salary.</p></div></div>
     <div className="grid" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 10 }}>
-      <label className="text-xs">Preferred method<select className="form-select" value={form.preferredMethod} onChange={(e) => setForm({ ...form, preferredMethod: e.target.value })}>{[['platform_wallet','CareerZ Wallet'],['stripe_transfer','Stripe Connect'],['bank_transfer','Bank transfer'],['mobile_wallet','Mobile wallet'],['crypto','Crypto wallet'],['cash','Cash']].map(([v,l]) => <option key={v} value={v}>{l}</option>)}</select></label>
+      <label className="text-xs">Preferred method<select className="form-select" value={form.preferredMethod} onChange={(e) => setForm({ ...form, preferredMethod: e.target.value })}>{[['platform_wallet','CareerZ Wallet'],['bank_transfer','Bank transfer'],['mobile_wallet','Mobile wallet'],['crypto','Crypto wallet'],['cash','Cash']].map(([v,l]) => <option key={v} value={v}>{l}</option>)}</select></label>
       <input className="form-input" placeholder="Bank name" value={form.bank.bankName || ''} onChange={(e) => setGroup('bank','bankName',e.target.value)} />
       <input className="form-input" placeholder="Bank account title" value={form.bank.accountTitle || ''} onChange={(e) => setGroup('bank','accountTitle',e.target.value)} />
       <input className="form-input" placeholder="IBAN" value={form.bank.iban || ''} onChange={(e) => setGroup('bank','iban',e.target.value)} />
@@ -9049,18 +9057,7 @@ function TeacherProfileDetailsPanel({ user, onFlash, onChanged }) {
 
 function TeacherEarningsPanel({ onFlash }) {
   const [payslips, setPayslips] = useState(null);
-  const [payoutStatus, setPayoutStatus] = useState(null);
-  const [connecting, setConnecting] = useState(false);
   useEffect(() => { apiRequest('/teachers/me/payslips').then(setPayslips).catch((err) => onFlash(err.message)); }, [onFlash]);
-  useEffect(() => { apiRequest('/teachers/me/payout-status').then(setPayoutStatus).catch(() => setPayoutStatus(false)); }, []);
-
-  async function connectBank() {
-    setConnecting(true);
-    try {
-      const res = await apiRequest('/teachers/me/payout-onboarding', { method: 'POST' });
-      window.location.href = res.url;
-    } catch (err) { onFlash(err.message); setConnecting(false); }
-  }
   async function reviewManualSalary(payslip, decision) {
     let rejectionReason = '';
     if (decision === 'reject') {
@@ -9080,21 +9077,6 @@ function TeacherEarningsPanel({ onFlash }) {
   return (
     <div>
       <h3 className="font-semibold mb-2">Salary & Earnings</h3>
-
-      <div className="card" style={{ padding: 14, marginBottom: 16 }}>
-        {payoutStatus === null && <p className="text-xs" style={{ color: 'var(--ink-soft)' }}>Checking bank connection...</p>}
-        {payoutStatus === false && <p className="text-xs" style={{ color: 'var(--ink-soft)' }}>Real bank transfer isn't available on this platform yet.</p>}
-        {payoutStatus && (
-          payoutStatus.payoutsEnabled ? (
-            <p className="text-xs" style={{ color: 'var(--emerald)', fontWeight: 700 }}>✓ Bank account connected — institutions can send you real transfers via Stripe.</p>
-          ) : (
-            <>
-              <p className="text-xs" style={{ marginBottom: 8 }}>{payoutStatus.connected ? 'Finish connecting your bank account to receive real Stripe transfers.' : 'Connect a bank account so institutions can pay your salary via a real bank transfer instead of just an internal ledger.'}</p>
-              <button type="button" className="btn btn-primary" style={{ padding: '6px 14px', fontSize: '0.78rem' }} disabled={connecting} onClick={connectBank}>{connecting ? 'Redirecting...' : payoutStatus.connected ? 'Finish Bank Setup' : 'Connect Bank Account (Stripe)'}</button>
-            </>
-          )
-        )}
-      </div>
 
       <Table
         loading={payslips === null}
@@ -13451,7 +13433,6 @@ function InstitutionPayrollPanel({ onFlash }) {
   }
   const PAYSLIP_METHODS = [
     { value: 'platform_wallet', label: 'CareerZ Wallet (instant ledger transfer)' },
-    { value: 'stripe_transfer', label: 'Real Bank Transfer (Stripe)' },
     { value: 'bank_transfer', label: 'Bank Transfer (manual)' },
     { value: 'mobile_wallet', label: 'Mobile Wallet' },
     { value: 'cash', label: 'Cash' },
@@ -17579,12 +17560,10 @@ const CANDIDATE_STATUS = {
 };
 
 function EmployerJobsPanel({ onFlash }) {
-  const [featureCheckout, setFeatureCheckout] = useState({ stripe: false, paddle: false });
+  const [featureCheckout, setFeatureCheckout] = useState({ paddle: false });
   useEffect(() => {
-    Promise.all([
-      apiRequest('/payments/stripe/config').catch(() => ({ enabled: false })),
-      apiRequest('/payments/paddle/config').catch(() => ({ enabled: false }))
-    ]).then(([stripe, paddle]) => setFeatureCheckout({ stripe: stripe.enabled, paddle: paddle.enabled ? paddle : false }));
+    apiRequest('/payments/paddle/config').catch(() => ({ enabled: false }))
+      .then((paddle) => setFeatureCheckout({ paddle: paddle.enabled ? paddle : false }));
   }, []);
   const [jobs, setJobs] = useState([]);
   const [openJob, setOpenJob] = useState(null);
@@ -17652,13 +17631,8 @@ function EmployerJobsPanel({ onFlash }) {
 
   const [featuredFee, setFeaturedFee] = useState(null);
   useEffect(() => { apiRequest('/jobs/featured-fee').then(setFeaturedFee).catch(() => {}); }, []);
-  async function feature(jobId, provider) {
+  async function feature(jobId) {
     try {
-      if (provider === 'stripe') {
-        const { url } = await apiRequest(`/payments/stripe/jobs/${jobId}/feature/checkout`, { method: 'POST' });
-        window.location.assign(url);
-        return;
-      }
       const { transactionId } = await apiRequest(`/payments/paddle/jobs/${jobId}/feature/checkout`, { method: 'POST' });
       const Paddle = await loadPaddle(featureCheckout.paddle.clientToken, featureCheckout.paddle.environment);
       setActiveCheckoutHandler(async () => {
@@ -17688,9 +17662,8 @@ function EmployerJobsPanel({ onFlash }) {
             <button className="btn" style={{ padding: '6px 12px', fontSize: '0.78rem' }} onClick={() => startEdit(j)}>Edit</button>
             {featuredFee?.enabled !== false && !(j.featured && new Date(j.featuredUntil) > new Date()) && (
               <span className="flex gap-2 flex-wrap">
-                {featureCheckout.paddle && <button className="btn" onClick={() => feature(j._id, 'paddle')}>Feature with Paddle{featuredFee ? ` ($${featuredFee.fee})` : ''}</button>}
-                {featureCheckout.stripe && <button className="btn" onClick={() => feature(j._id, 'stripe')}>Feature with Stripe{featuredFee ? ` ($${featuredFee.fee})` : ''}</button>}
-                {!featureCheckout.paddle && !featureCheckout.stripe && <span className="text-xs">Featured checkout unavailable</span>}
+                {featureCheckout.paddle && <button className="btn" onClick={() => feature(j._id)}>Feature with Paddle{featuredFee ? ` ($${featuredFee.fee})` : ''}</button>}
+                {!featureCheckout.paddle && <span className="text-xs">Featured checkout unavailable</span>}
               </span>
             )}
             {(j.status === 'active' || j.status === 'paused') && (
@@ -22631,7 +22604,7 @@ function StudentPanel({ onFlash }) {
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState('');
   const [openCourseId, setOpenCourseId] = useState(null);
-  const [paymentConfig, setPaymentConfig] = useState({ stripe: false, paddle: false });
+  const [paymentConfig, setPaymentConfig] = useState({ paddle: false, jazzcash: false });
   const [checkoutId, setCheckoutId] = useState(null);
 
   async function load() {
@@ -22644,19 +22617,19 @@ function StudentPanel({ onFlash }) {
   useEffect(() => { load(); }, []);
   useEffect(() => {
     Promise.all([
-      apiRequest('/payments/stripe/config').catch(() => ({ enabled: false })),
-      apiRequest('/payments/paddle/config').catch(() => ({ enabled: false }))
-    ]).then(([stripe, paddle]) => setPaymentConfig({ stripe: stripe.enabled, paddle: paddle.enabled ? paddle : false }));
+      apiRequest('/payments/paddle/config').catch(() => ({ enabled: false })),
+      getJazzCashConfig()
+    ]).then(([paddle, jazzcash]) => setPaymentConfig({ paddle: paddle.enabled ? paddle : false, jazzcash: Boolean(jazzcash.enabled) }));
   }, []);
 
-  async function checkout(course, provider) {
+  async function checkoutJazzCash(course) {
+    setCheckoutId(course._id);
+    try { await startJazzCashCheckout(`/payments/jazzcash/courses/${course._id}/checkout`); } catch (error) { onFlash(error.message); setCheckoutId(null); }
+  }
+
+  async function checkout(course) {
     setCheckoutId(course._id);
     try {
-      if (provider === 'stripe') {
-        const { url } = await apiRequest(`/payments/stripe/courses/${course._id}/checkout`, { method: 'POST' });
-        window.location.assign(url);
-        return;
-      }
       const { transactionId } = await apiRequest(`/payments/paddle/courses/${course._id}/checkout`, { method: 'POST' });
       const Paddle = await loadPaddle(paymentConfig.paddle.clientToken, paymentConfig.paddle.environment);
       setActiveCheckoutHandler(async () => {
@@ -22691,9 +22664,9 @@ function StudentPanel({ onFlash }) {
               : c.institution ? <span className="text-xs">Assigned after admission and fee-plan enrollment</span>
               : c.isFree ? <button className="btn btn-primary mt-2" style={{ padding: '5px 12px', fontSize: '0.78rem' }} onClick={() => enroll(c._id)}>Enroll free</button>
                 : <div className="flex gap-2 mt-2 flex-wrap">
-                  {paymentConfig.paddle && <button type="button" className="btn btn-primary" disabled={checkoutId === c._id} onClick={() => checkout(c, 'paddle')}>Pay with Paddle</button>}
-                  {paymentConfig.stripe && <button type="button" className="btn" disabled={checkoutId === c._id} onClick={() => checkout(c, 'stripe')}>Pay with Stripe</button>}
-                  {!paymentConfig.paddle && !paymentConfig.stripe && <span className="text-xs">Checkout is unavailable right now.</span>}
+                  {paymentConfig.paddle && <button type="button" className="btn btn-primary" disabled={checkoutId === c._id} onClick={() => checkout(c)}>Pay with Paddle</button>}
+                  {paymentConfig.jazzcash && <button type="button" className="btn" disabled={checkoutId === c._id} onClick={() => checkoutJazzCash(c)}>Pay with JazzCash</button>}
+                  {!paymentConfig.paddle && !paymentConfig.jazzcash && <span className="text-xs">Checkout is unavailable right now.</span>}
                 </div>}
           </div>
         ))}
