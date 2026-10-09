@@ -1,3 +1,4 @@
+import BrandLogo from '../components/BrandLogo';
 import PageSeo from '../components/PageSeo';
 import SiteFooter from '../components/SiteFooter';
 import { FaGraduationCap, FaUsers, FaChalkboardUser, FaSchool, FaHandshake, FaHeart, FaStore, FaArrowLeft } from 'react-icons/fa6';
@@ -117,6 +118,7 @@ export default function Signup() {
           <Link to="/" className="auth-back flex items-center" style={{ gap: 5 }}><FaArrowLeft aria-hidden="true" /> Back to home</Link>
 
           <div className="auth-card reveal in">
+            <div className="auth-form-brand"><BrandLogo /></div>
             <div className="auth-head">
               <div className="eyebrow">Join CareerZ</div>
               <h1>Create your account</h1>

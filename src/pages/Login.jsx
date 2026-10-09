@@ -1,3 +1,4 @@
+import BrandLogo from '../components/BrandLogo';
 import PageSeo from '../components/PageSeo';
 import SiteFooter from '../components/SiteFooter';
 import { useEffect, useState } from 'react';
@@ -121,6 +122,7 @@ export default function Login() {
           <Link to="/" className="auth-back flex items-center" style={{ gap: 5 }}><FaArrowLeft aria-hidden="true" /> Back to home</Link>
 
           <div className="auth-card reveal in">
+            <div className="auth-form-brand"><BrandLogo /></div>
             <div className="auth-head">
               <div className="eyebrow">Welcome back</div>
               <h1>Sign in to CareerZ.pk</h1>

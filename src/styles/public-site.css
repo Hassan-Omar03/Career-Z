@@ -19,6 +19,13 @@
 .public-header .public-account{font-size:13px;white-space:nowrap}
 .public-header .btn.public-account{padding:10px 16px}
 .public-menu-toggle{display:none}
+.auth-form-brand{display:flex;justify-content:center;margin:0 0 22px;padding:8px 18px;background:#faf8f1;border:1px solid #e3e8df;border-radius:16px}
+.auth-form-brand .brand-logo{max-width:100%}
+.auth-form-brand .brand-logo img{width:260px;max-width:100%;height:115px;object-fit:contain}
+.dash-sidebar .dash-sidebar-brand{position:relative;display:flex;justify-content:center;align-items:center;padding:14px 16px;margin:0 12px 12px;min-height:0;border-bottom:1px solid #ffffff20}
+.dash-sidebar-brand .brand-logo{width:100%;max-width:240px;padding:4px 10px;border:1px solid #ffffff18;border-radius:16px;background:linear-gradient(135deg,#ffffff0c,#ffffff03);box-shadow:0 4px 16px #001a1410}
+.dash-sidebar-brand .brand-logo img{width:100%;height:90px;object-fit:contain}
+.dash-sidebar-brand .dash-sidebar-close-btn{position:absolute;right:4px;top:8px;z-index:1}
 .public-header .lang-select-wrap{flex-shrink:0}
 @media(max-width:480px){.public-header .nav-inner{flex-wrap:wrap}.public-header .nav-actions{flex-wrap:wrap;justify-content:flex-end}.public-header .lang-select-btn{padding:8px;gap:5px}.public-header .lang-select-btn svg{width:14px}.public-header .brand-logo{flex-shrink:1}.public-header .nav-actions{gap:5px}}
 .public-header{background:#faf8f1!important;border-bottom:1px solid #dce7df;box-shadow:0 3px 18px #0c473508}
