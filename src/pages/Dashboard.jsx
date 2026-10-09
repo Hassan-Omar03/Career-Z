@@ -28,6 +28,14 @@ import CampusTourViewer from '../components/CampusTourViewer';
 import QrScanner from '../components/QrScanner';
 import AdminOperationsCenter from '../components/admin/AdminOperationsCenter';
 import { loadPaddle, setActiveCheckoutHandler } from '../utils/paddleLoader';
+import { PushNotificationToggle, StaffPermissionsEditor } from '../components/dashboard/NotificationSettings';
+import GradingPolicyEditor from '../components/dashboard/GradingPolicyEditor';
+import { QuestionBankPanel, QuestionBankPicker, ExamSecurityOptions, ExamIntegrityMonitor, IntegrityBadge } from '../components/dashboard/QuestionBank';
+import CourseForum from '../components/dashboard/CourseForum';
+import LessonMetadata from '../components/dashboard/LessonMetadata';
+import InstitutionSettingsPanel from '../components/dashboard/InstitutionSettingsPanel';
+import ResourceLibrary from '../components/dashboard/ResourceLibrary';
+import SubtitleManager from '../components/dashboard/SubtitleManager';
 import { startJazzCashCheckout, getJazzCashConfig, jazzCashResultMessage } from '../utils/jazzcashCheckout';
 import { usePaymentRecovery } from '../hooks/usePaymentRecovery';
 import { isPlatformUploadAvailable, uploadToPlatformStorage } from '../utils/platformUpload';
@@ -78,7 +86,7 @@ const WORKSPACES = {
       { key: 'institutions', label: 'My Institutions', icon: FaBuilding },
       { key: 'classes', label: 'My Classes', icon: FaChalkboardUser },
       { key: 'courses', label: 'My Courses', icon: FaBookOpen },
-      { key: 'learningCenter', label: 'Learning Center', icon: FaBookOpen },
+      { key: 'resourceLibrary', label: 'Resource Library & Playlists', icon: FaFileLines },
       { key: 'offlineStudy', label: 'Offline Study', icon: FaFileLines },
       { key: 'assignments', label: 'Assignments & Tests', icon: FaClipboardList },
       { key: 'attendance', label: 'Attendance', icon: FaCalendarCheck },
@@ -120,6 +128,7 @@ const WORKSPACES = {
       { key: 'myAttendance', label: 'My Attendance', icon: FaClipboardCheck },
       { key: 'homework', label: 'Homework / Assignments', icon: FaFileLines },
       { key: 'examination', label: 'Examinations', icon: FaAward },
+      { key: 'questionBank', label: 'Question Bank', icon: FaAward },
       { key: 'results', label: 'Results / Grades', icon: FaChartLine },
       { key: 'materialUpload', label: 'Learning Material Upload', icon: FaFileLines },
       { key: 'liveClasses', label: 'Live Classes', icon: FaChalkboardUser },
@@ -137,7 +146,6 @@ const WORKSPACES = {
       { key: 'health', label: 'Student Health Incidents', icon: FaKitMedical },
       { key: 'instHelpdesk', label: 'Institution Help Desk', icon: FaHeadset },
       { key: 'placement', label: 'Placement Office', icon: FaBriefcase },
-      { key: 'learningCenter', label: 'Learning Center', icon: FaBookOpen },
       { key: 'offlineStudy', label: 'Offline Study', icon: FaFileLines },
       { key: 'profile', label: 'Personal Information', icon: FaUser }
     ]
@@ -175,6 +183,7 @@ const WORKSPACES = {
     nav: [
       { key: 'summary', label: 'Dashboard', icon: FaGauge },
       { key: 'institution', label: 'My Institution', icon: FaSchool },
+      { key: 'instSettings', label: 'Institute Settings', icon: FaSchool },
       { key: 'admissions', label: 'Admission Management', icon: FaUserGraduate },
       { key: 'staff', label: 'Staff Management', icon: FaUsers },
       { key: 'teachers', label: 'Teacher Management', icon: FaChalkboardUser },
@@ -198,7 +207,6 @@ const WORKSPACES = {
       { key: 'helpdesk', label: 'Complaint & Help Desk', icon: FaHeadset },
       { key: 'aiAssistant', label: 'AI Operations Assistant', icon: FaRobot },
       { key: 'placement', label: 'Placement Office', icon: FaBriefcase },
-      { key: 'learningCenter', label: 'Learning Center', icon: FaBookOpen },
       { key: 'offlineStudy', label: 'Offline Study', icon: FaFileLines },
       { key: 'subscription', label: 'Subscription Plan', icon: FaStar },
       { key: 'reports', label: 'Reports', icon: FaChartLine },
@@ -604,11 +612,12 @@ export default function Dashboard() {
 // ---------------------------------------------------------------- Student
 
 function StudentWorkspace({ tab, user, onFlash, onChanged, onNavigate }) {
-  if (tab === 'learningCenter') return <LearningCenter onFlash={onFlash} />;
+  if (tab === 'learningCenter') return <StudentPanel onFlash={onFlash} />;
   if (tab === 'offlineStudy') return <OfflineStudy onFlash={onFlash} />;
   if (tab === 'aiAssistant') return <StudentAiAssistantPanel onFlash={onFlash} />;
   if (tab === 'profile') return <><ProfilePanel user={user} onFlash={onFlash} onChanged={onChanged} /><StudentAcademicProfilePanel onFlash={onFlash} onChanged={onChanged} /><RolesPanel onFlash={onFlash} onChanged={onChanged} /><SupportComplaintPanel onFlash={onFlash} /></>;
   if (tab === 'courses') return <StudentPanel onFlash={onFlash} />;
+  if (tab === 'resourceLibrary') return <ResourceLibrary onFlash={onFlash} />;
   if (tab === 'wallet') return <StudentFeesPanel onFlash={onFlash} />;
   if (tab === 'summary') return <StudentSummary onNavigate={onNavigate} user={user} />;
   if (tab === 'assignments') return <StudentAssignmentsPanel onFlash={onFlash} />;
@@ -1500,7 +1509,7 @@ function StudentCertificatesPanel({ onFlash }) {
   async function downloadTranscript(transcript) {
     const { jsPDF } = await import('jspdf');
     const doc = await createBrandedPdf(jsPDF, { title: 'Official Academic Transcript', subtitle: transcript.institution?.name || 'CareerZ verified academic record', orientation: 'landscape' });
-    const y = drawPdfSummary(doc, [{ label: 'Student', value: transcript.student?.fullName || '—' }, { label: 'Roll number', value: transcript.rollNumber || '—' }, { label: 'Program', value: transcript.programName || '—' }, { label: 'CGPA / Credits', value: `${transcript.cgpa.toFixed(2)} / 4.00 · ${transcript.totalCredits} credits` }]);
+    const y = drawPdfSummary(doc, [{ label: 'Student', value: transcript.student?.fullName || '—' }, { label: 'Roll number', value: transcript.rollNumber || '—' }, { label: 'Program', value: transcript.programName || '—' }, { label: 'CGPA / Credits', value: `${transcript.cgpa.toFixed(2)} / ${Number(transcript.gpaScaleMax || 4).toFixed(2)} · ${transcript.totalCredits} credits` }]);
     drawPdfTable(doc, { headers: ['Session', 'Semester / Term', 'Subject', 'Credits', 'Marks', 'Grade', 'Points'], rows: transcript.rows.map((row) => [row.academicSession || '—', row.term || '—', row.subject, row.creditHours, `${row.marksObtained}/${row.totalMarks} (${row.percentage}%)`, row.grade, row.gradePoints]), startY: y + 3 });
     addPdfFooter(doc); doc.save(`academic-transcript-${transcript.rollNumber || 'student'}.pdf`);
   }
@@ -1524,7 +1533,7 @@ function StudentCertificatesPanel({ onFlash }) {
       ))}
       <h3 className="font-semibold mt-6">Academic Transcripts</h3>
       {transcripts.length === 0 && <p className="admin-notice">No official transcript has been issued yet.</p>}
-      {transcripts.map((transcript) => <div key={transcript._id} className="card" style={{ padding: 18 }}><strong>{transcript.programName || 'Academic Transcript'}</strong><p className="text-xs" style={{ color: 'var(--ink-soft)' }}>{transcript.institution?.name} · CGPA {transcript.cgpa.toFixed(2)} · {transcript.totalCredits} credits · Issued {new Date(transcript.issueDate).toLocaleDateString()}</p><Table headers={['Session', 'Term', 'Credits', 'GPA']} rows={transcript.semesterSummaries.map((term) => [term.academicSession || '—', term.term, term.credits, term.gpa.toFixed(2)])} empty="No semester summary." /><button type="button" className="btn btn-primary mt-3" onClick={() => downloadTranscript(transcript)}>Download Official Transcript PDF</button></div>)}
+      {transcripts.map((transcript) => <div key={transcript._id} className="card" style={{ padding: 18 }}><strong>{transcript.programName || 'Academic Transcript'}</strong><p className="text-xs" style={{ color: 'var(--ink-soft)' }}>{transcript.institution?.name} · CGPA {transcript.cgpa.toFixed(2)} / {Number(transcript.gpaScaleMax || 4).toFixed(2)} · {transcript.totalCredits} credits · Issued {new Date(transcript.issueDate).toLocaleDateString()}</p><Table headers={['Session', 'Term', 'Credits', 'GPA']} rows={transcript.semesterSummaries.map((term) => [term.academicSession || '—', term.term, term.credits, term.gpa.toFixed(2)])} empty="No semester summary." /><button type="button" className="btn btn-primary mt-3" onClick={() => downloadTranscript(transcript)}>Download Official Transcript PDF</button></div>)}
     </div>
   );
 }
@@ -7371,7 +7380,7 @@ function StudentExamsSection({ onFlash }) {
         loading={exams === null}
         headers={['Exam', 'Subject / Class', 'Session / Term', 'Teacher', 'Schedule', 'Paper', 'Action']}
         rows={(exams || []).map((ex) => [
-          <span><strong>{ex.title}</strong><br /><small>{ex.type}</small></span>, <span className="text-xs">{ex.subject || ex.courseTitle}<br />{ex.classSection?.name || 'No section'}</span>, <span className="text-xs">{ex.academicSession || '—'}<br />{ex.term || '—'}</span>, ex.teacher?.fullName || '—', ex.scheduledDate ? new Date(ex.scheduledDate).toLocaleString() : 'Available now', `${ex.questions.length} Q · ${ex.totalMarks} marks · ${ex.durationMinutes ? `${ex.durationMinutes} min` : 'Untimed'}`,
+          <span><strong>{ex.title}</strong><br /><small>{ex.type}</small></span>, <span className="text-xs">{ex.subject || ex.courseTitle}<br />{ex.classSection?.name || 'No section'}</span>, <span className="text-xs">{ex.academicSession || '—'}<br />{ex.term || '—'}</span>, ex.teacher?.fullName || '—', ex.scheduledDate ? new Date(ex.scheduledDate).toLocaleString() : 'Available now', `${ex.questionCount ?? ex.questions.length} Q · ${ex.totalMarks ?? "varies"} marks · ${ex.durationMinutes ? `${ex.durationMinutes} min` : 'Untimed'}`,
           attempts[ex._id]?.status && attempts[ex._id].status !== 'in_progress'
             ? <Tag status="approved" label={attempts[ex._id].status} />
             : ex.closesAt && Date.now() > new Date(ex.closesAt).getTime()
@@ -7386,6 +7395,7 @@ function StudentExamsSection({ onFlash }) {
       {openExam && (
         <div className="card reveal in mt-4" style={{ padding: 20 }}>
           <h4 className="font-semibold mb-3">{openExam.title}</h4>
+          <ExamIntegrityMonitor attemptId={openExam.attempt?._id} />
           {timeRemaining !== null && <p className="text-sm mb-3" style={{ color: timeRemaining < 60 ? 'var(--rose)' : 'var(--ink-soft)', fontWeight: 700 }}>Time remaining: {Math.floor(timeRemaining / 60)}:{String(timeRemaining % 60).padStart(2, '0')}</p>}
           {openExam.questions.map((q, i) => (
             <div key={i} className="mb-4">
@@ -7813,7 +7823,7 @@ function StudentSummary({ onNavigate, user }) {
 // ---------------------------------------------------------------- Teacher
 
 function TeacherWorkspace({ tab, user, onFlash, onChanged, onNavigate, onMessageUser }) {
-  if (tab === 'learningCenter') return <LearningCenter onFlash={onFlash} />;
+  if (tab === 'learningCenter') return <TeacherPanel onFlash={onFlash} />;
   if (tab === 'offlineStudy') return <OfflineStudy onFlash={onFlash} />;
   if (tab === 'placement') return <PlacementOffice onFlash={onFlash} />;
   if (tab === 'health') return <MedicalHealth mode="teacher" onFlash={onFlash} />;
@@ -7832,9 +7842,10 @@ function TeacherWorkspace({ tab, user, onFlash, onChanged, onNavigate, onMessage
   if (tab === 'liveClasses') return <TeacherLiveClassesPanel user={user} onFlash={onFlash} />;
   if (tab === 'studentCommunication') return <TeacherStudentCommunicationPanel onFlash={onFlash} onNavigate={onNavigate} onMessageUser={onMessageUser} />;
   if (tab === 'examination') return <TeacherExaminationPanel onFlash={onFlash} />;
+  if (tab === 'questionBank') return <QuestionBankPanel onFlash={onFlash} />;
   if (tab === 'earnings') return <TeacherEarningsPanel onFlash={onFlash} />;
   if (tab === 'performance') return <TeacherPerformancePanel onFlash={onFlash} />;
-  if (tab === 'resourceLibrary') return <TeacherResourceLibraryPanel onFlash={onFlash} />;
+  if (tab === 'resourceLibrary') return <ResourceLibrary onFlash={onFlash} canShare />;
   if (tab === 'aiAssistant') return <TeacherAiAssistantPanel onFlash={onFlash} />;
   if (tab === 'aiCreative') return <TeacherCreativeAiPanel onFlash={onFlash} />;
   if (tab === 'advancedControl') return <AdvancedClassControlPanel onFlash={onFlash} />;
@@ -8148,7 +8159,7 @@ function AdvancedClassControlPanel({ onFlash }) {
       if (err || !ack?.ok) return onFlash(ack?.message || 'Could not start the live class.');
       setLiveSession(ack.session);
       setCurrent(ack.session.currentSlide || 0);
-      onFlash(`Live class started — students in this course can now join.`, 'success');
+      onFlash(ack.session.liveClassSessionId ? 'Live class started and linked to your scheduled class — joins count as attendance, and engagement is saved on it.' : 'Live class started — students in this course can now join. (No scheduled class right now, so attendance is not recorded.)', 'success');
     });
   }
 
@@ -9778,7 +9789,7 @@ function TeacherStudyGroupDetail({ groupId, onFlash, onBack }) {
 function TeacherExaminationPanel({ onFlash }) {
   const { courses, courseId, setCourseId } = useTeacherCourses(onFlash);
   const [exams, setExams] = useState([]);
-  const [form, setForm] = useState({ title: '', type: 'quiz', academicSession: '', term: '', scheduledDate: '', closesAt: '', durationMinutes: 30, passingPercent: 50, venue: '', instructions: '', questions: [] });
+  const [form, setForm] = useState({ title: '', type: 'quiz', academicSession: '', term: '', scheduledDate: '', closesAt: '', durationMinutes: 30, passingPercent: 50, venue: '', instructions: '', questions: [], bankQuestionIds: [], shuffleQuestions: false, shuffleOptions: false, questionsPerAttempt: 0, flagThreshold: 3 });
   const [openExam, setOpenExam] = useState(null);
   const [submissions, setSubmissions] = useState([]);
 
@@ -9804,11 +9815,11 @@ function TeacherExaminationPanel({ onFlash }) {
 
   async function createExam(e) {
     e.preventDefault();
-    if (form.questions.length === 0) return onFlash('Add at least one question.');
+    if (form.questions.length === 0 && form.bankQuestionIds.length === 0) return onFlash('Add at least one question or pick one from the question bank.');
     try {
       await apiRequest(`/courses/${courseId}/exams`, { method: 'POST', body: { ...form, scheduledDate: form.scheduledDate || null, closesAt: form.closesAt || null } });
       onFlash('Exam created (unpublished).', 'success');
-      setForm({ title: '', type: 'quiz', academicSession: selectedCourse?.classSection?.academicYear || '', term: '', scheduledDate: '', closesAt: '', durationMinutes: 30, passingPercent: 50, venue: '', instructions: '', questions: [] });
+      setForm({ title: '', type: 'quiz', academicSession: selectedCourse?.classSection?.academicYear || '', term: '', scheduledDate: '', closesAt: '', durationMinutes: 30, passingPercent: 50, venue: '', instructions: '', questions: [], bankQuestionIds: [], shuffleQuestions: false, shuffleOptions: false, questionsPerAttempt: 0, flagThreshold: 3 });
       loadExams();
     } catch (err) { onFlash(err.message); }
   }
@@ -9888,6 +9899,8 @@ function TeacherExaminationPanel({ onFlash }) {
               </div>
             )}
 
+            <QuestionBankPicker institutionId={selectedCourse?.institution?._id || selectedCourse?.institution || ''} selectedIds={form.bankQuestionIds} onChange={(ids) => setForm((f) => ({ ...f, bankQuestionIds: ids }))} onFlash={onFlash} />
+            <ExamSecurityOptions value={form} onChange={(patch) => setForm((f) => ({ ...f, ...patch }))} questionCount={form.questions.length + form.bankQuestionIds.length} />
             <div className="admin-notice"><strong>Paper summary:</strong> {form.questions.length} question(s) · {form.questions.reduce((sum, question) => sum + (Number(question.marks) || 0), 0)} total marks · Pass at {form.passingPercent}%</div>
 
             <div className="flex flex-wrap items-center" style={{ gap: 10 }}>
@@ -9902,7 +9915,7 @@ function TeacherExaminationPanel({ onFlash }) {
           <Table
             headers={['Title', 'Subject / Class', 'Session / Term', 'Type', 'Scheduled', 'Paper', 'Status', 'Action']}
             rows={exams.map((ex) => [
-              ex.title, <span className="text-xs"><strong>{ex.subject || selectedCourse?.subject || '—'}</strong><br />{ex.classSection?.name || selectedCourse?.classSection?.name || 'No section'}</span>, <span className="text-xs">{ex.academicSession || '—'}<br />{ex.term || '—'}</span>, ex.type, ex.scheduledDate ? new Date(ex.scheduledDate).toLocaleString() : '—', `${ex.questions.length} Q · ${ex.totalMarks} marks`, ex.published ? <Tag status="approved" /> : <Tag status="pending" />,
+              ex.title, <span className="text-xs"><strong>{ex.subject || selectedCourse?.subject || '—'}</strong><br />{ex.classSection?.name || selectedCourse?.classSection?.name || 'No section'}</span>, <span className="text-xs">{ex.academicSession || '—'}<br />{ex.term || '—'}</span>, ex.type, ex.scheduledDate ? new Date(ex.scheduledDate).toLocaleString() : '—', `${ex.questionCount ?? ex.questions.length} Q · ${ex.totalMarks ?? "varies"} marks`, ex.published ? <Tag status="approved" /> : <Tag status="pending" />,
               <div className="flex" style={{ gap: 8 }}>
                 {!ex.published && <button className="btn btn-primary" style={{ padding: '6px 14px', fontSize: '0.78rem' }} onClick={() => publish(ex._id)}>Publish</button>}
                 <button className="btn" style={{ padding: '6px 14px', fontSize: '0.78rem' }} onClick={() => openSubmissions(ex._id)}>Submissions</button>
@@ -9933,7 +9946,7 @@ function ExamSubmissionsView({ exam, submissions, onGrade }) {
       )}
       {submissions.map((s) => {
         const reviewAnswers = [...s.answers].sort((a, b) => a.questionIndex - b.questionIndex);
-        const totalMarks = Number(exam?.totalMarks) || reviewAnswers.reduce((sum, answer) => sum + (Number(exam?.questions?.[answer.questionIndex]?.marks) || 0), 0);
+        const totalMarks = reviewAnswers.reduce((sum, answer) => sum + (Number(exam?.questions?.[answer.questionIndex]?.marks) || 0), 0);
         const obtainedMarks = s.status === 'graded' ? Number(s.score) || 0 : reviewAnswers.reduce((sum, answer) => sum + (Number(drafts[`${s._id}-${answer.questionIndex}`]) || 0), 0);
         const percentage = totalMarks > 0 ? (obtainedMarks / totalMarks) * 100 : 0;
         const needsFinalGrade = s.status !== 'graded' || !s.finalGrade;
@@ -9942,9 +9955,10 @@ function ExamSubmissionsView({ exam, submissions, onGrade }) {
           <div key={s._id} className="card" style={{ padding: 18, marginBottom: 14 }}>
             <div className="flex items-center justify-between">
               <strong>{s.student?.fullName}</strong>
-              <span className="text-sm">{s.status === 'graded' ? `Final score: ${s.score}/${exam?.totalMarks || '—'}` : 'Teacher review pending'} · <Tag status={s.status === 'graded' ? 'approved' : 'pending'} label={s.status === 'graded' ? 'graded' : 'pending'} /></span>
+              <span className="text-sm">{s.status === 'graded' ? `Final score: ${s.score}/${totalMarks || '—'}` : 'Teacher review pending'} · <Tag status={s.status === 'graded' ? 'approved' : 'pending'} label={s.status === 'graded' ? 'graded' : 'pending'} /></span>
             </div>
             <p className="text-sm" style={{ color: 'var(--ink-soft)', marginTop: 8 }}>Review every MCQ, short answer and long answer, then enter marks for each question.</p>
+            <p style={{ marginTop: 6 }}><IntegrityBadge submission={s} /></p>
             <div className="admin-notice" style={{ display: 'flex', gap: 24, flexWrap: 'wrap', marginTop: 14 }}>
               <span><small>Obtained marks</small><br /><strong>{obtainedMarks}/{totalMarks}</strong></span>
               <span><small>Percentage</small><br /><strong>{percentage.toFixed(2)}%</strong></span>
@@ -11053,7 +11067,7 @@ function TeacherLiveClassesPanel({ user, onFlash }) {
       <Table loading={sessions === null} headers={['Title', 'Course / Subject', 'Class', 'Schedule', 'Status', 'Action']} rows={(sessions || []).map((session) => [
         session.title, session.course?.subject || session.course?.title, session.classSection?.name || '—',
         `${new Date(session.scheduledStart).toLocaleString()} – ${new Date(session.scheduledEnd).toLocaleTimeString()}`,
-        <Tag status={session.status === 'live' ? 'approved' : session.status === 'ended' ? 'completed' : session.status === 'cancelled' ? 'rejected' : 'pending'} label={session.status === 'live' ? 'Live now' : session.status} />,
+        <span><Tag status={session.status === 'live' ? 'approved' : session.status === 'ended' ? 'completed' : session.status === 'cancelled' ? 'rejected' : 'pending'} label={session.status === 'live' ? 'Live now' : session.status} />{session.startedByClassControl && <small style={{ display: 'block' }}>via Advanced Class Control</small>}{session.engagement?.participantCount > 0 && <small style={{ display: 'block' }}>Engagement {session.engagement.averageEnergy ?? '—'}% · {session.engagement.attentiveCount}/{session.engagement.participantCount} attentive</small>}</span>,
         session.status === 'scheduled' ? <button type="button" className="btn btn-primary" disabled={busyId === session._id} onClick={() => start(session)}>{busyId === session._id ? 'Starting…' : 'Start Class'}</button>
           : session.status === 'live' ? <div className="flex gap-2"><button type="button" className="btn btn-primary" onClick={() => session.provider === 'external' ? window.open(session.externalMeetingUrl, '_blank', 'noopener,noreferrer') : setActive(session)}>Open Classroom</button><button type="button" className="btn" style={{ color: 'var(--rose)' }} onClick={() => end(session)}>End</button></div> : '—'
       ])} empty="No live class has been scheduled for you yet." />
@@ -11120,57 +11134,6 @@ function TeacherPerformancePanel({ onFlash }) {
   );
 }
 
-function TeacherResourceLibraryPanel({ onFlash }) {
-  const [items, setItems] = useState(null);
-
-  useEffect(() => {
-    apiRequest('/courses/mine/list').then(async (list) => {
-      const all = await Promise.all(list.map(async (c) => {
-        try {
-          const data = await apiRequest(`/courses/${c._id}`);
-          return (data.lessons || []).map((l) => ({ course: c.title, lesson: l.title, videoUrl: l.videoUrl, resources: l.resources || [] }));
-        } catch { return []; }
-      }));
-      setItems(all.flat());
-    }).catch((err) => onFlash(err.message));
-  }, [onFlash]);
-
-  if (items === null) return <p role="status" className="admin-notice">Loading...</p>;
-
-  return (
-    <div>
-      <h3 className="font-semibold" style={{ marginBottom: 4 }}>Resource Library</h3>
-      <p className="text-xs" style={{ color: 'var(--ink-soft)', marginBottom: 18 }}>Every lesson video and downloadable resource across all your courses, in one place. Add or edit these from My Classes → Manage Lessons.</p>
-      {items.length === 0 && (
-        <div className="student-empty-state" style={{ border: '1px solid var(--sand-line)', borderRadius: 18 }}>
-          <FaFileLines aria-hidden="true" />
-          <p>No lessons added yet</p>
-        </div>
-      )}
-      <div style={{ display: 'grid', gap: 12 }}>
-        {items.map((it, i) => (
-          <div key={i} className="hover-card card" style={{ padding: 18, display: 'flex', gap: 14, alignItems: 'flex-start' }}>
-            <span style={{ width: 34, height: 34, borderRadius: 10, background: 'var(--sand)', color: 'var(--forest)', display: 'grid', placeItems: 'center', flexShrink: 0 }}>
-              <FaFileLines aria-hidden="true" size={14} />
-            </span>
-            <div style={{ minWidth: 0, flex: 1 }}>
-              <strong className="text-sm">{it.lesson}</strong>
-              <p className="text-xs" style={{ color: 'var(--ink-soft)', marginTop: 2 }}>{it.course}</p>
-              {(it.videoUrl || it.resources.length > 0) && (
-                <div className="flex flex-wrap items-center" style={{ gap: 8, marginTop: 10 }}>
-                  {it.videoUrl && <a href={it.videoUrl} target="_blank" rel="noreferrer" className="text-xs" style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '5px 12px', borderRadius: 999, background: 'var(--sand)', border: '1px solid var(--sand-line)', color: 'var(--forest)', fontWeight: 600 }}>▶ Video</a>}
-                  {it.resources.map((r, ri) => (
-                    <a key={ri} href={r.url} target="_blank" rel="noreferrer" className="text-xs" style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '5px 12px', borderRadius: 999, background: 'var(--sand)', border: '1px solid var(--sand-line)', color: 'var(--forest)', fontWeight: 600 }}><FaFileLines aria-hidden="true" /> {r.name || 'Download'}</a>
-                  ))}
-                </div>
-              )}
-            </div>
-          </div>
-        ))}
-      </div>
-    </div>
-  );
-}
 
 // ---------------------------------------------------------------- Parent
 
@@ -12507,7 +12470,7 @@ function ParentSummary({ onNavigate }) {
 // ------------------------------------------------------------ Institution
 
 function InstitutionWorkspace({ tab, user, onFlash, onChanged, isWarden = false }) {
-  if (tab === 'learningCenter') return <LearningCenter onFlash={onFlash} />;
+  if (tab === 'learningCenter') return <InstitutionClassesPanel onFlash={onFlash} />;
   if (tab === 'offlineStudy') return <OfflineStudy onFlash={onFlash} />;
   if (tab === 'profile') return <><ProfilePanel user={user} onFlash={onFlash} onChanged={onChanged} />{isWarden && <SalaryPayoutProfilePanel onFlash={onFlash} />}<RolesPanel onFlash={onFlash} onChanged={onChanged} /><SupportComplaintPanel onFlash={onFlash} /></>;
   if (tab === 'institution') return <InstitutionPanel onFlash={onFlash} onChanged={onChanged} />;
@@ -12527,6 +12490,7 @@ function InstitutionWorkspace({ tab, user, onFlash, onChanged, isWarden = false 
   if (tab === 'payroll') return <InstitutionPayrollPanel onFlash={onFlash} />;
   if (tab === 'reports') return <InstitutionReportsPanel onFlash={onFlash} />;
   if (tab === 'examination') return <InstitutionExaminationPanel onFlash={onFlash} />;
+  if (tab === 'instSettings') return <InstitutionSettingsTab onFlash={onFlash} />;
   if (tab === 'campusTour') return <InstitutionCampusTourPanel onFlash={onFlash} />;
   if (tab === 'admissions') return <InstitutionAdmissionsPanel onFlash={onFlash} />;
   if (tab === 'library') return <InstitutionLibraryPanel onFlash={onFlash} />;
@@ -13593,6 +13557,12 @@ function InstitutionPayrollPanel({ onFlash }) {
   );
 }
 
+function InstitutionSettingsTab({ onFlash }) {
+  const institution = useMyInstitution(onFlash);
+  if (institution === undefined) return <p role="status" className="admin-notice">Loading...</p>;
+  return <InstitutionSettingsPanel institution={institution} onFlash={onFlash} />;
+}
+
 function useMyInstitution(onFlash) {
   const [institution, setInstitution] = useState(undefined);
   useEffect(() => {
@@ -14073,6 +14043,7 @@ function InstitutionCertificatesPanel({ onFlash }) {
 
   return (
     <div>
+      <GradingPolicyEditor institutionId={institution._id} onFlash={onFlash} />
       <div className="admin-notice" style={{ marginBottom: 16 }}><strong>Certificates follow academic completion</strong><p className="text-xs mt-1">A verified course certificate is generated only after course completion, a passed and teacher-graded exam, cleared due fees and institution verification. Manual User IDs and arbitrary titles are not accepted.</p></div>
       <form onSubmit={issue} className="flex gap-3 items-end mb-3 flex-wrap">
         <label className="text-xs" style={{ fontWeight: 700 }}>Eligible completion
@@ -14850,6 +14821,8 @@ function InstitutionBroadcastPanel({ onFlash }) {
         <input className="form-input" placeholder="Title" value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })} required />
         <textarea className="form-input" placeholder="Message" rows={4} value={form.body} onChange={(e) => setForm({ ...form, body: e.target.value })} />
         <div className="flex gap-4 items-center" style={{ fontSize: 13 }}>
+          <span style={{ color: 'var(--ink-soft)' }}>In-app + browser push always.</span>
+          <label className="flex items-center gap-1"><input type="checkbox" checked={!form.channels.includes('no-email')} onChange={() => toggleChannel('no-email')} /> Email</label>
           <label className="flex items-center gap-1"><input type="checkbox" checked={form.channels.includes('sms')} onChange={() => toggleChannel('sms')} disabled={!commsStatus?.configured || !commsStatus?.smsFromNumber} /> SMS</label>
           <label className="flex items-center gap-1"><input type="checkbox" checked={form.channels.includes('whatsapp')} onChange={() => toggleChannel('whatsapp')} disabled={!commsStatus?.configured || !commsStatus?.whatsappFromNumber} /> WhatsApp</label>
           {!commsStatus?.configured && <span style={{ color: 'var(--ink-soft)' }}>Connect Twilio below to enable SMS/WhatsApp.</span>}
@@ -16950,12 +16923,12 @@ function InstitutionStaffPanel({ onFlash }) {
       </form>
       <p style={{ fontSize: 12, color: 'var(--ink-soft)', marginBottom: 16 }}>Ask the staff member for their account's User ID from their Profile tab — a search-by-email lookup isn't built yet. Representatives can review inquiries/applications, but can only accept/reject applications if you grant that permission here.</p>
       <Table
-        headers={['Role', 'Designation', 'Department', 'AI permissions', 'Added', 'Action']}
+        headers={['Role', 'Designation', 'Department', 'AI permissions', 'Permissions', 'Added', 'Action']}
         rows={(institution.staff || []).map((s) => [s.role, s.designation || '—', s.department || '—',
           <span className="flex gap-2 flex-wrap">
             <button className="btn" type="button" onClick={() => updateAiPermission(s, 'use')}>AI use: {s.permissions?.includes('ai:use') ? 'On' : 'Off'}</button>
             <button className="btn" type="button" onClick={() => updateAiPermission(s, 'manage')}>AI keys: {s.permissions?.includes('ai:manage') ? 'On' : 'Off'}</button>
-          </span>, new Date(s.addedAt).toLocaleDateString(), <button className="btn" style={{ padding: '5px 12px', fontSize: '0.78rem', background: 'var(--sand-line)', color: 'var(--ink)' }} onClick={() => removeStaffMember(s.user)}>Remove</button>])}
+          </span>, <StaffPermissionsEditor key={`${s.user}-${(s.permissions || []).join()}`} institutionId={institution._id} staff={s} onFlash={onFlash} onSaved={load} />, new Date(s.addedAt).toLocaleDateString(), <button className="btn" style={{ padding: '5px 12px', fontSize: '0.78rem', background: 'var(--sand-line)', color: 'var(--ink)' }} onClick={() => removeStaffMember(s.user)}>Remove</button>])}
         empty="No staff added yet."
       />
 
@@ -17311,6 +17284,7 @@ function InstitutionClassesPanel({ onFlash }) {
         })}
         empty="No institution courses found. Create an institution course first."
       />
+      <details style={{ marginTop: 16 }}><summary>Course study settings and approvals</summary><LearningCenter workspace="institution" embedded onFlash={onFlash} renderLessonExtras={l => <LessonMetadata lessonId={l._id} canReview onFlash={onFlash} />} /></details>
 
       {sections.length > 0 && (
         <>
@@ -22815,29 +22789,8 @@ function CourseResourcesPanel({ courseId, onFlash, onClose }) {
               Overall Course Score: {enrollment.overallScore || 0}% (lessons + assignments + tests + attendance) — <strong>{COMPLETION_STATUS_LABEL[enrollment.completionStatus] || 'In progress'}</strong>
             </p>
           )}
-          {data.lessons.length === 0 && <p style={{ fontSize: 13, color: 'var(--ink-soft)' }}>No lessons published for this course yet.</p>}
-          {data.lessons.map((l) => {
-            const isDone = completedIds.includes(l._id);
-            return (
-              <div key={l._id} className="border border-[var(--sand-line)] rounded-xl p-3 mb-3">
-                <div className="flex items-center justify-between">
-                  <strong className="text-sm">{l.title}</strong>
-                  <button type="button" className={isDone ? 'btn' : 'btn btn-primary'} style={{ padding: '3px 10px', fontSize: '0.72rem' }} onClick={() => toggleComplete(l._id)}>{isDone ? <span className="flex items-center" style={{ gap: 5, justifyContent: 'center' }}><FaCheck aria-hidden="true" /> Completed</span> : 'Mark Complete'}</button>
-                </div>
-                {l.kind === 'slide_deck' && l.deck?.slides?.length > 0
-                  ? <SlideDeckViewer title={l.title} slides={l.deck.slides} />
-                  : l.content && <p className="text-sm mt-1" style={{ whiteSpace: 'pre-wrap' }}>{l.content}</p>}
-                {l.videoUrl && <a href={l.videoUrl} target="_blank" rel="noreferrer" className="text-xs mt-2" style={{ display: 'inline-block', color: 'var(--emerald)' }}>▶ Watch video</a>}
-                {(l.resources || []).length > 0 && (
-                  <div className="mt-2 flex gap-3 flex-wrap">
-                    {l.resources.map((r, i) => (
-                      <a key={i} href={r.url} target="_blank" rel="noreferrer" className="text-xs" style={{ color: 'var(--emerald)' }}><FaFileLines aria-hidden="true" /> {r.name || 'Download'}</a>
-                    ))}
-                  </div>
-                )}
-              </div>
-            );
-          })}
+          <LearningCenter key={courseId} selectedCourseId={courseId} workspace="student" embedded onFlash={onFlash} onUpdated={load} renderLessonExtras={l => <><LessonMetadata lessonId={l._id} canEdit={false} canReview={false} onFlash={onFlash} /><CourseForum courseId={courseId} lesson={l} onFlash={onFlash} compact />{l.kind === "slide_deck" && l.deck?.slides?.length > 0 ? <SlideDeckViewer title={l.title} slides={l.deck.slides} /> : null}</>} />
+          <CourseForum courseId={courseId} onFlash={onFlash} />
         </>
       )}
     </div>
@@ -23094,31 +23047,20 @@ function TeacherSlideDeckManager({ lesson, onFlash, onChanged }) {
 
 function TeacherLessonsPanel({ courseId, onFlash, onClose }) {
   const [data, setData] = useState(null);
-  const [form, setForm] = useState({ title: '', content: '', videoUrl: '', resourceName: '', resourceUrl: '' });
+  const [refreshKey, setRefreshKey] = useState(0);
   const [deletingLessonId, setDeletingLessonId] = useState(null);
 
   function load() {
-    apiRequest(`/courses/${courseId}`).then(setData).catch((err) => onFlash(err.message));
+    apiRequest(`/courses/${courseId}`).then(result => { setData(result); setRefreshKey(n => n + 1); }).catch((err) => onFlash(err.message));
   }
   useEffect(load, [courseId]);
-
-  async function addLesson(e) {
-    e.preventDefault();
-    try {
-      const resources = form.resourceUrl ? [{ name: form.resourceName || 'Download', url: form.resourceUrl }] : [];
-      await apiRequest(`/courses/${courseId}/lessons`, { method: 'POST', body: { title: form.title, content: form.content, videoUrl: form.videoUrl || null, resources } });
-      onFlash('Lesson added.', 'success');
-      setForm({ title: '', content: '', videoUrl: '', resourceName: '', resourceUrl: '' });
-      load();
-    } catch (err) { onFlash(err.message); }
-  }
 
   async function removeLesson(lesson) {
     const confirmed = await showConfirm(
       `Delete “${lesson.title}” permanently? Students will no longer be able to access it, and its completion record will be removed.`,
       { title: 'Delete lesson', confirmLabel: 'Delete lesson', danger: true }
     );
-    if (!confirmed) return;
+    if (!confirmed) return false;
 
     setDeletingLessonId(lesson._id);
     try {
@@ -23126,78 +23068,18 @@ function TeacherLessonsPanel({ courseId, onFlash, onClose }) {
       onFlash('Lesson deleted successfully.', 'success');
       load();
     } catch (err) {
-      onFlash(err.message);
+      throw err;
     } finally {
       setDeletingLessonId(null);
     }
   }
 
-  return (
-    <div className="card reveal in" style={{ padding: 20, marginTop: 16 }}>
-      <div className="flex items-center justify-between" style={{ marginBottom: 18 }}>
-        <h4 className="font-semibold">{data?.course?.title || 'Lessons'}</h4>
-        {onClose && <button type="button" className="btn" style={{ padding: '6px 14px', fontSize: '0.78rem' }} onClick={onClose}>Close</button>}
-      </div>
-      {data?.course && <CompletionRulesEditor course={data.course} onFlash={onFlash} onSaved={load} />}
-      <form onSubmit={addLesson} style={{ display: 'grid', gap: 12, marginBottom: 24, paddingBottom: 24, borderBottom: '1px solid var(--sand-line)' }}>
-        <input className="form-input" placeholder="Lesson title" required value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })} />
-        <textarea className="form-input" placeholder="Notes / content" rows={3} value={form.content} onChange={(e) => setForm({ ...form, content: e.target.value })} />
-        <input className="form-input" placeholder="Video link (YouTube, Drive, etc. — optional)" value={form.videoUrl} onChange={(e) => setForm({ ...form, videoUrl: e.target.value })} />
-        <div className="flex flex-wrap" style={{ gap: 12 }}>
-          <input className="form-input" placeholder="Resource name (optional)" value={form.resourceName} onChange={(e) => setForm({ ...form, resourceName: e.target.value })} style={{ flex: '1 1 200px', minWidth: 0 }} />
-          <input className="form-input" placeholder="Resource link (optional)" value={form.resourceUrl} onChange={(e) => setForm({ ...form, resourceUrl: e.target.value })} style={{ flex: '1 1 200px', minWidth: 0 }} />
-        </div>
-        <button type="submit" className="btn btn-primary" style={{ justifySelf: 'start', padding: '8px 20px' }}>Add Lesson</button>
-      </form>
-      {(data?.lessons || []).length > 0 && (
-        <div style={{ display: 'grid', gap: 12 }}>
-          {data.lessons.map((l, i) => (
-            <div key={l._id} className="hover-card card" style={{ padding: 18, display: 'flex', gap: 14, alignItems: 'flex-start' }}>
-              <span style={{ width: 34, height: 34, borderRadius: 10, background: 'var(--sand)', color: 'var(--forest)', display: 'grid', placeItems: 'center', flexShrink: 0, fontWeight: 700, fontSize: 13 }}>{i + 1}</span>
-              <div style={{ minWidth: 0, flex: 1 }}>
-                <div className="flex items-center justify-between" style={{ gap: 12 }}>
-                  <strong className="text-sm">{l.title}</strong>
-                  {l.kind !== 'slide_deck' && (
-                    <button
-                      type="button"
-                      className="btn"
-                      onClick={() => removeLesson(l)}
-                      disabled={deletingLessonId === l._id}
-                      style={{ padding: '5px 12px', fontSize: '0.76rem', color: 'var(--rose)', flexShrink: 0 }}
-                    >
-                      {deletingLessonId === l._id ? 'Deleting…' : 'Delete'}
-                    </button>
-                  )}
-                </div>
-                {l.kind === 'slide_deck' && l.deck?.slides?.length > 0 ? (
-                  <>
-                    <SlideDeckViewer title={l.title} slides={l.deck.slides} />
-                    <TeacherSlideDeckManager lesson={l} onFlash={onFlash} onChanged={load} />
-                  </>
-                ) : l.content && <p className="text-sm" style={{ whiteSpace: 'pre-wrap', marginTop: 6, color: 'var(--ink-soft)' }}>{l.content}</p>}
-                {(l.videoUrl || (l.resources || []).length > 0) && (
-                  <div className="flex flex-wrap items-center" style={{ gap: 8, marginTop: 12 }}>
-                    {l.videoUrl && (
-                      <a href={l.videoUrl} target="_blank" rel="noreferrer" className="text-xs" style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '5px 12px', borderRadius: 999, background: 'var(--sand)', border: '1px solid var(--sand-line)', color: 'var(--forest)', fontWeight: 600 }}>▶ Video link</a>
-                    )}
-                    {(l.resources || []).map((r, ri) => (
-                      <a key={ri} href={r.url} target="_blank" rel="noreferrer" className="text-xs" style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '5px 12px', borderRadius: 999, background: 'var(--sand)', border: '1px solid var(--sand-line)', color: 'var(--forest)', fontWeight: 600 }}><FaFileLines aria-hidden="true" /> {r.name || 'Download'}</a>
-                    ))}
-                  </div>
-                )}
-              </div>
-            </div>
-          ))}
-        </div>
-      )}
-      {data && data.lessons.length === 0 && (
-        <div className="student-empty-state">
-          <FaFileLines aria-hidden="true" />
-          <p>No lessons added yet</p>
-        </div>
-      )}
-    </div>
-  );
+  return <div className="card reveal in" style={{ padding: 20, marginTop: 16 }}>
+    <div className="flex items-center justify-between"><h4>{data?.course?.title || 'Lessons'}</h4>{onClose && <button type="button" className="btn" onClick={onClose}>Close</button>}</div>
+    {data?.course && <CompletionRulesEditor course={data.course} onFlash={onFlash} onSaved={load} />}
+    <LearningCenter key={courseId} selectedCourseId={courseId} refreshKey={refreshKey} workspace="teacher" embedded onFlash={onFlash} onUpdated={load} onDeleteLesson={removeLesson} renderLessonExtras={l => <><LessonMetadata lessonId={l._id} canEdit={true} canReview={true} onFlash={onFlash} /><SubtitleManager lesson={l} onFlash={onFlash} onChanged={load} /><CourseForum courseId={courseId} lesson={l} onFlash={onFlash} compact />{l.kind === 'slide_deck' && l.deck?.slides?.length > 0 ? <><SlideDeckViewer title={l.title} slides={l.deck.slides} /><TeacherSlideDeckManager lesson={l} onFlash={onFlash} onChanged={load} /></> : null}</>} />
+    <CourseForum courseId={courseId} onFlash={onFlash} />
+  </div>;
 }
 
 // A dedicated sidebar page for "Learning Material Upload" — the document lists it separately
@@ -23955,6 +23837,7 @@ function SettingsPanel({ user, onFlash, onChanged }) {
   return (
     <div>
       <h3 className="font-semibold mb-3">Account Settings</h3>
+      <PushNotificationToggle onFlash={onFlash} />
       <form onSubmit={saveProfile} className="card" style={{ padding: 22, display: 'grid', gap: 14, maxWidth: 480, marginBottom: 24 }}>
         <div className="flex items-center" style={{ gap: 14 }}>
           {form.profilePhoto

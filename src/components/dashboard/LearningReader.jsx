@@ -13,6 +13,16 @@ export function ReadingTools({ text, children }) {
 export function LessonVideo({ lesson, canTrack = false, files }) {
   const player = useRef(null), lastSaved = useRef(0), [blobs, setBlobs] = useState({}), [quality, setQuality] = useState(''), [unavailable, setUnavailable] = useState(false);
   useEffect(() => { const links = {}; for (const [url, blob] of Object.entries(files || {})) links[url] = URL.createObjectURL(blob); setBlobs(links); return () => Object.values(links).forEach(URL.revokeObjectURL); }, [files]);
+  // Generated subtitles are served by the API (another origin); without crossOrigin on the video a
+  // cross-origin <track> would be ignored, so fetch them (CORS-enabled) into same-origin blob URLs.
+  const [captionBlobs, setCaptionBlobs] = useState({});
+  useEffect(() => {
+    let alive = true; const made = {};
+    const remote = (lesson.captions || []).map(t => t.url).filter(u => (u || '').includes('/api/media-accessibility/tracks/'));
+    Promise.all(remote.map(u => fetch(u).then(r => (r.ok ? r.text() : null)).then(text => { if (text) made[u] = URL.createObjectURL(new Blob([text], { type: 'text/vtt' })); }).catch(() => {})))
+      .then(() => { if (alive) setCaptionBlobs(made); else Object.values(made).forEach(URL.revokeObjectURL); });
+    return () => { alive = false; Object.values(made).forEach(URL.revokeObjectURL); };
+  }, [lesson.captions]);
   const sources = [...(lesson.videoUrl ? [{ label: 'Original', url: lesson.videoUrl }] : []), ...(lesson.videoSources || [])].filter(source => !files || files[source.url]);
   const selected = sources.find(source => source.url === quality) || sources[0];
   if (!selected) return lesson.videoUrl ? <p>Video requires internet or a permitted offline download.</p> : null;
@@ -24,7 +34,7 @@ export function LessonVideo({ lesson, canTrack = false, files }) {
   }
   return <section><label>Video quality<select className="form-select" value={selected.url} onChange={e => { setQuality(e.target.value); setUnavailable(false); }}>{sources.map(source => <option key={source.url} value={source.url}>{source.label}</option>)}</select></label>
     <video ref={player} controls preload="metadata" src={blobs[selected.url] || selected.url} onLoadedMetadata={resume} onTimeUpdate={remember} onPause={() => { lastSaved.current = 0; remember(); }} onError={() => setUnavailable(true)} style={{ width: '100%', maxHeight: 480 }} crossOrigin="anonymous">
-      {(lesson.captions || []).filter(track => !files || files[track.url]).map((track, n) => <track key={track.url} kind="subtitles" src={blobs[track.url] || track.url} srcLang={track.language || 'en'} label={track.label || track.language} default={n === 0} />)}
+      {(lesson.captions || []).filter(track => !files || files[track.url]).map((track, n) => <track key={track.url} kind="subtitles" src={blobs[track.url] || captionBlobs[track.url] || track.url} srcLang={track.language || 'en'} label={track.label || track.language} default={n === 0} />)}
     </video>{unavailable && <p>This provider cannot play inside the lesson. <a href={selected.url} target="_blank" rel="noreferrer">Open the original video</a>.</p>}
     {(lesson.videoChapters || []).map(chapter => <button className="btn" key={chapter.title + chapter.seconds} onClick={() => { if (player.current) player.current.currentTime = chapter.seconds; }}>{chapter.title} · {Math.floor(chapter.seconds / 60)}:{String(chapter.seconds % 60).padStart(2, '0')}</button>)}
   </section>;

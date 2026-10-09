@@ -6,7 +6,7 @@ export function ReviewControls({ item, kind, data, busy, onReview }) {
   const canReview = stage === 'department_review' ? data.canReviewDepartment : stage === 'principal_review' && data.canReviewPrincipal;
   if (data.course.approvalWorkflow !== 'staged') return null;
   return <div>
-    {data.canManage && ['draft', 'rejected'].includes(stage) && <button className="btn" disabled={busy} onClick={() => onReview(item._id, kind, 'submit')}>Submit for review</button>}
+    {data.canAuthor && ['draft', 'rejected'].includes(stage) && <button className="btn" disabled={busy} onClick={() => onReview(item._id, kind, 'submit')}>Submit for review</button>}
     {canReview && <><button className="btn" disabled={busy} onClick={() => onReview(item._id, kind, 'approve')}>Approve {stage === 'department_review' ? 'department' : 'principal'} review</button><input className="form-input" aria-label="Revision feedback" placeholder="Explain what needs revision" value={notes} onChange={e => setNotes(e.target.value)} /><button className="btn" disabled={busy || !notes.trim()} onClick={() => onReview(item._id, kind, 'reject', notes)}>Request revision</button></>}
     {item.approvalHistory?.length > 0 && <details><summary>Review history</summary>{item.approvalHistory.map((row, n) => <p key={n}>{row.action} · {new Date(row.at).toLocaleString()} {row.notes}</p>)}</details>}
   </div>;

@@ -1,5 +1,5 @@
 // Thin fetch() wrapper for the CareerZ backend API.
-const API_BASE = import.meta.env?.VITE_API_BASE || 'http://localhost:5000/api';
+export const API_BASE = import.meta.env?.VITE_API_BASE || 'http://localhost:5000/api';
 
 const TOKEN_KEY = 'cz_access_token';
 const REFRESH_KEY = 'cz_refresh_token';

@@ -20,6 +20,7 @@
     "@vladmandic/face-api": "^1.7.15",
     "jspdf": "^4.2.1",
     "jsqr": "^1.4.0",
+    "katex": "^0.16.47",
     "leaflet": "^1.9.4",
     "pptxgenjs": "^4.0.1",
     "qrcode": "^1.5.4",

@@ -47,7 +47,40 @@ function DataPanel({ endpoint, title, onFlash }) {
   return <div><div className="flex items-center justify-between mb-3"><h3>{title}</h3><button className="btn" onClick={load}>Refresh</button></div>{data ? <pre className="card text-xs" style={{ padding: 16, overflow: 'auto', maxHeight: 600, whiteSpace: 'pre-wrap' }}>{JSON.stringify(data, null, 2)}</pre> : <p role="status">Loading…</p>}</div>;
 }
 
+// Uploaded files captured by a backup: list, download one, or re-upload every lost file.
+function BackupUploads({ backupId, onFlash }) {
+  const [files, setFiles] = useState(null);
+  useEffect(() => { apiRequest(`/admin/backups/${backupId}/uploads`).then(setFiles).catch((e) => onFlash(e.message)); }, [backupId]); // eslint-disable-line react-hooks/exhaustive-deps
+  async function download(key, url) {
+    try {
+      const { session, API_BASE } = await import('../../api/client');
+      const res = await fetch(`${API_BASE}/admin/backups/${backupId}/uploads/${key}`, { headers: { Authorization: `Bearer ${session.getAccessToken() || ''}` } });
+      if (!res.ok) throw new Error('Download failed.');
+      const blob = await res.blob();
+      const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = url.split('/').pop() || key; a.click(); URL.revokeObjectURL(a.href);
+    } catch (e) { onFlash(e.message); }
+  }
+  async function restoreFiles() {
+    try {
+      const preview = await apiRequest(`/admin/backups/${backupId}/uploads/restore`, { method: 'POST', body: {} });
+      if (!preview.toRestore.length) return onFlash('Every backed-up file is still available — nothing to restore.', 'success');
+      const typed = await showPrompt(`${preview.toRestore.length} uploaded file(s) are missing and will be re-uploaded from this backup; every record using them is repointed.
+
+Type exactly: ${preview.confirmationRequired}`, { title: 'Restore lost files', placeholder: preview.confirmationRequired, confirmLabel: 'Restore files' });
+      if (typed !== preview.confirmationRequired) return;
+      const result = await apiRequest(`/admin/backups/${backupId}/uploads/restore`, { method: 'POST', body: { confirm: typed } });
+      onFlash(`${result.restored.length} file(s) restored${result.failed.length ? `, ${result.failed.length} failed: ${result.failed.map((f) => f.error).join('; ')}` : ''}.`, result.failed.length ? 'error' : 'success');
+    } catch (e) { onFlash(e.message); }
+  }
+  if (!files) return <p className="text-xs">Loading files...</p>;
+  return <div style={{ marginTop: 8 }}>
+    <div className="flex gap-2 items-center"><span className="text-xs">{files.filter((f) => f.status === 'saved').length} uploaded file(s) saved{files.some((f) => f.status !== 'saved') ? `, ${files.filter((f) => f.status !== 'saved').length} could not be downloaded` : ''}</span><button className="btn" onClick={restoreFiles}>Restore lost files</button></div>
+    <div style={{ maxHeight: 220, overflowY: 'auto', marginTop: 6 }}>{files.map((f) => <div key={f.key} className="text-xs flex justify-between gap-2" style={{ padding: '4px 0' }}><span style={{ wordBreak: 'break-all' }}>{f.url} · {(f.size / 1024).toFixed(1)} KB · used by {f.usedBy}{f.status !== 'saved' ? ` · ${f.error}` : ''}</span>{f.status === 'saved' && <button className="btn" style={{ padding: '2px 8px' }} onClick={() => download(f.key, f.url)}>Download</button>}</div>)}</div>
+  </div>;
+}
+
 function BackupRestorePanel({ onFlash }) {
+  const [openFiles, setOpenFiles] = useState(null);
   const [rows, setRows] = useState(null);
   const load = () => apiRequest('/admin/backups').then(setRows).catch((e) => onFlash(e.message));
   useEffect(load, []);
@@ -60,7 +93,7 @@ function BackupRestorePanel({ onFlash }) {
       onFlash('Backup restored. Verify platform health now.', 'success');
     } catch (e) { onFlash(e.message); }
   }
-  return <div><h3 className="mb-3">Guarded Backup Restore</h3><p className="admin-notice">Restore first validates every backup file, then requires an exact typed confirmation. MongoDB transactions must be available.</p>{(rows || []).map((row) => <div className="card flex justify-between items-center gap-2" style={{ padding: 12 }} key={row._id}><span className="text-sm">{row.folder} · {row.status}</span><button className="btn" disabled={row.status !== 'completed'} onClick={() => restore(row._id)}>Validate / Restore</button></div>)}</div>;
+  return <div><h3 className="mb-3">Guarded Backup Restore</h3><p className="admin-notice">Restore first validates every backup file, then requires an exact typed confirmation. MongoDB transactions must be available.</p>{(rows || []).map((row) => <div className="card flex justify-between items-center gap-2" style={{ padding: 12 }} key={row._id}><span className="text-sm">{row.folder} · {row.status}{row.files ? ` · ${row.files.count} file(s)` : ''}</span><span className="flex gap-2"><button className="btn" disabled={row.status !== 'completed'} onClick={() => setOpenFiles(openFiles === row._id ? null : row._id)}>Uploaded files</button><button className="btn" disabled={row.status !== 'completed'} onClick={() => restore(row._id)}>Validate / Restore</button></span>{openFiles === row._id && <div style={{ flexBasis: '100%' }}><BackupUploads backupId={row._id} onFlash={onFlash} /></div>}</div>)}</div>;
 }
 
 function FavoritesPanel({ onFlash }) {
