@@ -7,6 +7,8 @@ export function useTheme() {
 
   useEffect(() => {
     document.documentElement.setAttribute('data-theme', theme);
+    document.documentElement.classList.toggle('light-theme', theme === 'light');
+    document.documentElement.classList.toggle('dark-theme', theme === 'dark');
     localStorage.setItem(THEME_KEY, theme);
   }, [theme]);
 

@@ -1,3 +1,4 @@
+import PublicPage from './pages/PublicPage';
 import { useEffect, useState } from 'react';
 import { Navigate, Route, Routes } from 'react-router-dom';
 import Home from './pages/Home';
@@ -21,6 +22,8 @@ function subdomainOf(hostname) {
   const match = /^([a-z0-9-]+)\.careerz\.pk$/i.exec(hostname || '');
   return match && !['www', 'app', 'api'].includes(match[1].toLowerCase()) ? match[1].toLowerCase() : null;
 }
+
+function PublicPageBlog() { return <PublicPage />; }
 
 function HomeOrInstitution() {
   const sub = subdomainOf(window.location.hostname);
@@ -82,6 +85,8 @@ export default function App() {
           </ProtectedRoute>
         }
       />
+      <Route path="/blog/:postSlug" element={<PublicPageBlog />} />
+      <Route path="/:slug" element={<PublicPage />} />
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
   );

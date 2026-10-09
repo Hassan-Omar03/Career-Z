@@ -1,3 +1,4 @@
+import BrandLogo from '../BrandLogo';
 import ThemeIcon from '../ThemeIcon';
 import { useEffect, useRef, useState } from 'react';
 import { useTheme } from '../../hooks/useTheme';
@@ -48,9 +49,7 @@ export default function DashboardHeader({ user, onSidebarToggle, onLogout, onNav
     <header className="dash-header">
       <div className="dash-header-left">
         <button className="icon-btn dash-sidebar-toggle" aria-label="Toggle sidebar" onClick={onSidebarToggle}><FaBars size={17} /></button>
-        <a href="/" className="logo dash-header-brand" aria-label="CareerZ.pk Home">
-          <span className="dot"></span><span className="logo-text">Career<span className="pk">Z.pk</span></span>
-        </a>
+        <BrandLogo dark={theme === 'dark'} className="dash-header-brand" />
         <div className="dash-search-wrap">
           <label className="dash-search">
             <FaMagnifyingGlass size={17} />

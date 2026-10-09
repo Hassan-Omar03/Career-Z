@@ -4238,6 +4238,9 @@ async function downloadDeckAsPptx(title, slides) {
 async function downloadDeckAsPdf(title, slides) {
   const { jsPDF } = await import('jspdf');
   const pdf = new jsPDF({ orientation: 'landscape', unit: 'pt', format: 'a4' });
+  const brandResponse = await fetch('/logo2.png');
+  if (!brandResponse.ok) throw new Error('Could not load presentation logo.');
+  const brandLogo = await imageSourceToDataUrl('/logo2.png');
   for (let index = 0; index < slides.length; index++) {
     if (index > 0) pdf.addPage('a4', 'landscape');
     const slide = slides[index];
@@ -4246,8 +4249,10 @@ async function downloadDeckAsPdf(title, slides) {
     const text = slide.text || '#1f2937';
     pdf.setFillColor(bg); pdf.rect(0, 0, 842, 595, 'F');
     pdf.setFillColor(accent); pdf.rect(0, 0, 842, 12, 'F');
+    pdf.setFillColor('#ffffff'); pdf.roundedRect(710, 14, 120, 60, 4, 4, 'F');
+    pdf.addImage(brandLogo, 'PNG', 720, 17, 100, 53);
     pdf.setTextColor(text); pdf.setFont('helvetica', 'bold'); pdf.setFontSize(27);
-    pdf.text(pdf.splitTextToSize(slide.title || '', 700), 48, 70);
+    pdf.text(pdf.splitTextToSize(slide.title || '', 650), 48, 70);
     pdf.setFont('helvetica', 'normal'); pdf.setFontSize(16);
     let y = 135;
     for (const bullet of slide.bullets || []) {

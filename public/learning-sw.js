@@ -1,6 +1,6 @@
 // Only app-shell/static assets. Never cache APIs, tokens or personalized responses.
-const CACHE = 'careerz-shell-learning-v1';
-function isStaticPath(pathname) { return /^\/(assets\/|src\/|node_modules\/|@vite\/|favicon\.|icons\.|logo\d*\.)/.test(pathname); }
+const CACHE = 'careerz-shell-learning-v2';
+function isStaticPath(pathname) { return /^\/(assets\/|brand\/|src\/|node_modules\/|@vite\/|favicon\.|icons\.|logo\d*\.)/.test(pathname); }
 self.addEventListener('message', event => {
   if (event.data?.type !== 'cache-learning-shell' || !Array.isArray(event.data.urls)) return;
   const urls = event.data.urls.filter(value => {
@@ -9,13 +9,13 @@ self.addEventListener('message', event => {
   });
   event.waitUntil(caches.open(CACHE).then(cache => Promise.allSettled(urls.map(url => cache.add(url)))));
 });
-self.addEventListener('install', event => { event.waitUntil(caches.open(CACHE).then(cache => cache.addAll(['/', '/index.html']))); self.skipWaiting(); });
+self.addEventListener('install', event => { event.waitUntil(caches.open(CACHE).then(cache => cache.addAll(['/', '/index.html', '/logo2.png', '/brand/logo-dark.png']))); self.skipWaiting(); });
 self.addEventListener('activate', event => { event.waitUntil(self.clients.claim()); });
 self.addEventListener('fetch', event => {
   const url = new URL(event.request.url);
   if (event.request.method !== 'GET' || url.origin !== self.location.origin || url.pathname.startsWith('/api/') || /socket\.io|auth|webhook/i.test(url.pathname)) return;
   if (event.request.mode === 'navigate') { event.respondWith(fetch(event.request).then(response => { if (response.ok) caches.open(CACHE).then(cache => cache.put('/index.html', response.clone())); return response; }).catch(() => caches.match('/index.html'))); return; }
-  if (isStaticPath(url.pathname) && ['script', 'style', 'font', 'image'].includes(event.request.destination)) event.respondWith(fetch(event.request).then(response => { if (response.ok) caches.open(CACHE).then(cache => cache.put(event.request, response.clone())); return response; }).catch(() => caches.match(event.request)));
+  if (isStaticPath(url.pathname) && (['script', 'style', 'font', 'image'].includes(event.request.destination) || ['/logo2.png', '/brand/logo-dark.png'].includes(url.pathname))) event.respondWith(fetch(event.request).then(response => { if (response.ok) caches.open(CACHE).then(cache => cache.put(event.request, response.clone())); return response; }).catch(() => caches.match(event.request)));
 });
 // Background notifications (Web Push): shown even when no CareerZ tab is open.
 self.addEventListener('push', event => {

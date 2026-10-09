@@ -1,3 +1,5 @@
+import PageSeo from '../components/PageSeo';
+import SiteFooter from '../components/SiteFooter';
 import { useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { FaArrowLeft } from 'react-icons/fa6';
@@ -113,7 +115,7 @@ export default function Login() {
 
   return (
     <>
-      <AuthNavbar />
+      <PageSeo title="Sign in" description="Secure CareerZ account access" path="/login" noindex/><AuthNavbar />
       <section className="auth-shell">
         <div className="auth-wrap">
           <Link to="/" className="auth-back flex items-center" style={{ gap: 5 }}><FaArrowLeft aria-hidden="true" /> Back to home</Link>
@@ -241,7 +243,7 @@ export default function Login() {
             )}
           </div>
         </div>
-      </section>
+      </section><SiteFooter />
     </>
   );
 }

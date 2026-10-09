@@ -1,3 +1,116 @@
 {
-  "rewrites": [{ "source": "/(.*)", "destination": "/index.html" }]
+  "rewrites": [
+    {
+      "source": "/about",
+      "destination": "/about/index.html"
+    },
+    {
+      "source": "/contact",
+      "destination": "/contact/index.html"
+    },
+    {
+      "source": "/faq",
+      "destination": "/faq/index.html"
+    },
+    {
+      "source": "/help",
+      "destination": "/help/index.html"
+    },
+    {
+      "source": "/privacy",
+      "destination": "/privacy/index.html"
+    },
+    {
+      "source": "/terms",
+      "destination": "/terms/index.html"
+    },
+    {
+      "source": "/cookies",
+      "destination": "/cookies/index.html"
+    },
+    {
+      "source": "/refund",
+      "destination": "/refund/index.html"
+    },
+    {
+      "source": "/cancellation",
+      "destination": "/cancellation/index.html"
+    },
+    {
+      "source": "/community-guidelines",
+      "destination": "/community-guidelines/index.html"
+    },
+    {
+      "source": "/code-of-conduct",
+      "destination": "/code-of-conduct/index.html"
+    },
+    {
+      "source": "/careers",
+      "destination": "/careers/index.html"
+    },
+    {
+      "source": "/blog",
+      "destination": "/blog/index.html"
+    },
+    {
+      "source": "/news",
+      "destination": "/news/index.html"
+    },
+    {
+      "source": "/partnership",
+      "destination": "/partnership/index.html"
+    },
+    {
+      "source": "/advertise",
+      "destination": "/advertise/index.html"
+    },
+    {
+      "source": "/press",
+      "destination": "/press/index.html"
+    },
+    {
+      "source": "/accessibility",
+      "destination": "/accessibility/index.html"
+    },
+    {
+      "source": "/sitemap",
+      "destination": "/sitemap/index.html"
+    },
+    {
+      "source": "/institutions",
+      "destination": "/institutions/index.html"
+    },
+    {
+      "source": "/courses",
+      "destination": "/courses/index.html"
+    },
+    {
+      "source": "/jobs",
+      "destination": "/jobs/index.html"
+    },
+    {
+      "source": "/scholarships",
+      "destination": "/scholarships/index.html"
+    },
+    {
+      "source": "/marketplace",
+      "destination": "/marketplace/index.html"
+    },
+    {
+      "source": "/agent-program",
+      "destination": "/agent-program/index.html"
+    },
+    {
+      "source": "/donor-program",
+      "destination": "/donor-program/index.html"
+    },
+    {
+      "source": "/become-a-seller",
+      "destination": "/become-a-seller/index.html"
+    },
+    {
+      "source": "/(.*)",
+      "destination": "/index.html"
+    }
+  ]
 }

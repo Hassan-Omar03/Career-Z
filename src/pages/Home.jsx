@@ -1,20 +1,15 @@
-import ThemeIcon from '../components/ThemeIcon';
+import AuthNavbar from '../components/AuthNavbar';
+import SiteFooter from '../components/SiteFooter';
+import PageSeo from '../components/PageSeo';
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { FaBars } from 'react-icons/fa6';
-import { useTheme } from '../hooks/useTheme';
-import { useAuth } from '../context/AuthContext';
 import LiveTicker from '../components/LiveTicker';
-import LanguageSelector from '../components/LanguageSelector';
 import AiConsole from '../components/AiConsole';
 
 const ROLE_CHIPS = ['Students', 'Parents', 'Teachers', 'Institutions', 'Employers', 'Agents', 'Donors'];
 
 export default function Home() {
-  const { theme, toggleTheme } = useTheme();
-  const { user } = useAuth();
   const [scrollPct, setScrollPct] = useState(0);
-  const [mobileOpen, setMobileOpen] = useState(false);
 
   useEffect(() => {
     function onScroll() {
@@ -27,49 +22,12 @@ export default function Home() {
   }, []);
 
   return (
-    <>
+    <div className="home-page">
       <div id="scroll-progress" style={{ width: `${scrollPct}%` }}></div>
 
-      <LiveTicker />
+      <PageSeo title="Global AI-Powered Education Ecosystem" description="Connect education, learning and career opportunities with CareerZ." /><LiveTicker />
 
-      <header className="nav">
-        <div className="container nav-inner">
-          <div className="logo">
-            <span className="dot"></span>
-            <span className="logo-text">Career<span className="pk">Z.pk</span></span>
-          </div>
-          <nav className={`nav-links${mobileOpen ? ' mobile-open' : ''}`}>
-            <a href="#courses">Courses</a>
-            <a href="#institutions">Institutions</a>
-            <a href="#jobs">Jobs</a>
-            <a href="#scholarships">Scholarships</a>
-            <a href="#marketplace">Marketplace</a>
-          </nav>
-          <div className="nav-actions">
-            <LanguageSelector />
-            <button className="icon-btn" aria-label={theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'} onClick={toggleTheme}>
-              <ThemeIcon theme={theme} />
-            </button>
-            {user ? (
-              <Link to="/dashboard" className="btn btn-primary" style={{ padding: '10px 20px', fontSize: '13.5px' }}>
-                Dashboard
-              </Link>
-            ) : (
-              <>
-                <Link to="/login" className="btn btn-outline" style={{ padding: '10px 20px', fontSize: '13.5px' }}>
-                  Sign In
-                </Link>
-                <Link to="/signup" className="btn btn-primary" style={{ padding: '10px 20px', fontSize: '13.5px' }}>
-                  Sign Up
-                </Link>
-              </>
-            )}
-            <button className="mobile-toggle" aria-label="Menu" onClick={() => setMobileOpen((o) => !o)}><FaBars size={18} /></button>
-          </div>
-        </div>
-      </header>
-
-      <section className="hero">
+      <AuthNavbar />    <section className="hero">
         <div className="container hero-grid">
           <div className="reveal in">
             <div className="eyebrow">The Global AI Education Ecosystem</div>
@@ -88,14 +46,10 @@ export default function Home() {
         </div>
       </section>
 
-      <section className="section-pad" style={{ textAlign: 'center' }}>
-        <div className="container">
-          <div className="eyebrow">More sections coming</div>
-          <p style={{ color: 'var(--ink-soft)', maxWidth: 560, margin: '8px auto 0' }}>
-            Featured institutions, courses, jobs, scholarships and the marketplace preview are next on the build list.
-          </p>
-        </div>
-      </section>
-    </>
+      <section className="section-pad"><div className="container"><h2>Education to opportunity</h2><div className="public-page-links">{[['Institutions','institutions','Connect with your institution and campus community.'],['Courses','courses','Learn online, on campus and with downloaded resources.'],['Jobs','jobs','Explore career opportunities and placement support.'],['Scholarships','scholarships','Find support for your education.'],['Marketplace','marketplace','Explore education products and services.']].map(([title,slug,desc])=><Link key={slug} className="discovery-card" to={'/'+slug}><h3>{title}</h3><p>{desc}</p></Link>)}</div></div></section>
+      <section className="section-pad"><div className="container"><h2>One platform for your education community</h2><div className="public-page-links">{[['Students and parents','Follow enrolled courses, class schedules, assignments and learning progress.'],['Teachers','Organize lessons, lead live classes, manage discussions and review assessments.'],['Institutions','Manage memberships, staff permissions, timetables and attendance.'],['Employers, agents and donors','Connect education with placement opportunities and learning support.']].map(([title,description])=><article className="discovery-card" key={title}><h3>{title}</h3><p>{description}</p></article>)}</div></div></section>
+      <section className="section-pad"><div className="container"><h2>Get started in three steps</h2><ol><li>Create and verify your CareerZ account.</li><li>Complete your profile and join the relevant institution or workspace.</li><li>Explore your approved courses, resources and opportunities.</li></ol><Link className="btn btn-primary" to="/signup">Create your account</Link> <Link className="btn btn-outline" to="/help">Visit Help Center</Link></div></section>
+      <SiteFooter />
+    </div>
   );
 }

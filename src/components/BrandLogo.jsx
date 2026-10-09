@@ -1,0 +1,2 @@
+import { Link } from 'react-router-dom';
+export default function BrandLogo({ dark = false, className = '' }) { return <Link to="/" className={`brand-logo ${dark ? 'brand-logo-dark' : ''} ${className}`} aria-label="CareerZ home"><img src={dark ? '/brand/logo-dark.png' : '/logo2.png'} onError={e => { e.currentTarget.onerror = null; e.currentTarget.src = '/logo2.png'; }} alt="CareerZ - Empowering Global Futures" /></Link>; }

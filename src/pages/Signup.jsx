@@ -1,3 +1,5 @@
+import PageSeo from '../components/PageSeo';
+import SiteFooter from '../components/SiteFooter';
 import { FaGraduationCap, FaUsers, FaChalkboardUser, FaSchool, FaHandshake, FaHeart, FaStore, FaArrowLeft } from 'react-icons/fa6';
 import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
@@ -109,7 +111,7 @@ export default function Signup() {
 
   return (
     <>
-      <AuthNavbar />
+      <PageSeo title="Create account" description="Secure CareerZ account access" path="/signup" noindex/><AuthNavbar />
       <section className="auth-shell">
         <div className="auth-wrap auth-wrap-wide">
           <Link to="/" className="auth-back flex items-center" style={{ gap: 5 }}><FaArrowLeft aria-hidden="true" /> Back to home</Link>
@@ -222,11 +224,11 @@ export default function Signup() {
               <div className="signup-consents">
                 <label className="form-check">
                   <input type="checkbox" id="signup-terms" name="terms" required aria-invalid={Boolean(errors.terms && !terms)} aria-describedby={errors.terms && !terms ? "consent-error" : undefined} checked={terms} onChange={(e) => setTerms(e.target.checked)} />
-                  <span>I agree to the <a href="#terms">Terms &amp; Conditions</a></span>
+                  <span>I agree to the <a href="/terms">Terms &amp; Conditions</a></span>
                 </label>
                 <label className="form-check">
                   <input type="checkbox" id="signup-privacy" name="privacy" required aria-invalid={Boolean(errors.terms && !privacy)} aria-describedby={errors.terms && !privacy ? "consent-error" : undefined} checked={privacy} onChange={(e) => setPrivacy(e.target.checked)} />
-                  <span>I agree to the <a href="#privacy">Privacy Policy</a></span>
+                  <span>I agree to the <a href="/privacy">Privacy Policy</a></span>
                 </label>
                 {errors.terms && (!terms || !privacy) && <div id="consent-error" role="alert" className="form-error show">{errors.terms}</div>}
               </div>
@@ -241,7 +243,7 @@ export default function Signup() {
             </div>
           </div>
         </div>
-      </section>
+      </section><SiteFooter />
     </>
   );
 }

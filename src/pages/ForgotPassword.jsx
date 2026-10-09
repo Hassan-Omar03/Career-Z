@@ -1,3 +1,4 @@
+import PageSeo from '../components/PageSeo';
 import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { FaArrowLeft } from 'react-icons/fa6';
@@ -33,7 +34,7 @@ export default function ForgotPassword() {
 
   return (
     <>
-      <AuthNavbar />
+      <PageSeo title="Reset your password" description="Secure CareerZ account access" path="/forgot-password" noindex/><AuthNavbar />
       <section className="auth-shell">
         <div className="auth-wrap">
           <Link to="/login" className="auth-back flex items-center" style={{ gap: 5 }}><FaArrowLeft aria-hidden="true" /> Back to sign in</Link>
