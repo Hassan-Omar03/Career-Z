@@ -13,7 +13,7 @@ const SOCKET_URL = (import.meta.env.VITE_API_BASE || 'http://localhost:5000/api'
 // the bell badge and dashboard-sensitive screens update instantly instead of waiting for the
 // next manual refresh/poll.
 export function RealtimeProvider({ children }) {
-  const { user } = useAuth();
+  const { user, refreshAccountStatus } = useAuth();
   const [unreadCount, setUnreadCount] = useState(0);
   const [unreadMessageCount, setUnreadMessageCount] = useState(0);
   const [latestNotification, setLatestNotification] = useState(null);
@@ -64,8 +64,10 @@ export function RealtimeProvider({ children }) {
       setLatestNotification(notification);
     });
     socket.on('connect', refreshUnreadNotifications);
-    socket.on('dashboard:update', () => {
+    socket.on('dashboard:update', (payload) => {
       setDashboardUpdateSignal((s) => s + 1);
+      // Approve/suspend/re-verification changes what this account may open.
+      if (payload?.reason === 'verification') refreshAccountStatus();
     });
     // A new message bumps the header badge for the recipient; markThreadRead (opening that
     // thread) emits this same event back to the sender, so both sides stay in sync live.

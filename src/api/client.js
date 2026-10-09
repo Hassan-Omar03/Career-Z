@@ -70,6 +70,10 @@ export async function apiRequest(path, { method = 'GET', body, auth = true, retr
   }
 
   if (!res.ok) {
+    // The server locks unverified/incomplete accounts; let the app route to the right page.
+    if (res.status === 403 && payload.errors?.code === 'ACCOUNT_GATE' && typeof window !== 'undefined') {
+      window.dispatchEvent(new CustomEvent('careerz:account-gate', { detail: payload.errors }));
+    }
     throw new ApiError(payload.message || 'Request failed.', res.status, payload.errors);
   }
 
@@ -78,7 +82,7 @@ export async function apiRequest(path, { method = 'GET', body, auth = true, retr
 
 let refreshInFlight = null;
 
-function tryRefreshToken() {
+export function tryRefreshToken() {
   const refreshToken = session.getRefreshToken();
   if (refreshInFlight?.token === refreshToken) return refreshInFlight.promise;
   const pending = { token: refreshToken };

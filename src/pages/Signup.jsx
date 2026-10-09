@@ -1,20 +1,15 @@
-import { FaGraduationCap, FaUsers, FaChalkboardUser, FaBriefcase, FaSchool, FaHandshake, FaHeart, FaUser, FaArrowLeft } from 'react-icons/fa6';
+import { FaGraduationCap, FaUsers, FaChalkboardUser, FaSchool, FaHandshake, FaHeart, FaStore, FaArrowLeft } from 'react-icons/fa6';
 import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import AuthNavbar from '../components/AuthNavbar';
 import PasswordField from '../components/PasswordField';
 import { useAuth } from '../context/AuthContext';
-import { apiRequest } from '../api/client';
 
-// Maps the signup account-type choice to the backend's real RBAC role name.
-// 'student' and 'general' need no extra role (student is the default account).
-const ACCOUNT_TYPE_TO_ROLE = {
-  parent: 'parent',
-  teacher: 'teacher',
-  employer: 'employer',
-  institution_representative: 'institution_owner',
-  agent: 'education_agent',
-  donor: 'donor'
+// Account kinds that change which documents and profile fields are mandatory.
+const SUBTYPES = {
+  agent: [['individual', 'Individual agent'], ['agency', 'Registered agency']],
+  donor: [['individual', 'Individual donor'], ['organization', 'Organization']],
+  marketplace: [['individual', 'Individual seller'], ['business', 'Business']]
 };
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -47,20 +42,19 @@ const ROLE_OPTIONS = [
   { value: 'student', icon: FaGraduationCap, label: 'Student' },
   { value: 'parent', icon: FaUsers, label: 'Parent' },
   { value: 'teacher', icon: FaChalkboardUser, label: 'Teacher' },
-  { value: 'employer', icon: FaBriefcase, label: 'Employer' },
-  { value: 'institution_representative', icon: FaSchool, label: 'Institution Representative' },
+  { value: 'institute', icon: FaSchool, label: 'Institute' },
   { value: 'agent', icon: FaHandshake, label: 'Agent' },
   { value: 'donor', icon: FaHeart, label: 'Donor' },
-  { value: 'general', icon: FaUser, label: 'General User' }
+  { value: 'marketplace', icon: FaStore, label: 'Marketplace' }
 ];
 
 export default function Signup() {
-  const { register, refreshProfile } = useAuth();
+  const { register } = useAuth();
   const navigate = useNavigate();
 
   const [form, setForm] = useState({
     fullName: '', email: '', password: '', confirmPassword: '',
-    accountType: 'student', country: '', city: ''
+    accountType: 'student', subtype: '', country: '', city: ''
   });
   const [terms, setTerms] = useState(false);
   const [privacy, setPrivacy] = useState(false);
@@ -96,19 +90,14 @@ export default function Signup() {
         fullName: form.fullName,
         email: form.email,
         password: form.password,
-        country: form.country || undefined
+        country: form.country || undefined,
+        accountType: form.accountType,
+        subtype: SUBTYPES[form.accountType] ? (form.subtype || SUBTYPES[form.accountType][0][0]) : undefined
       });
 
-      const requestedRole = ACCOUNT_TYPE_TO_ROLE[form.accountType];
-      if (requestedRole) {
-        try {
-          await apiRequest('/roles/request', { method: 'POST', body: { requestedRole } });
-          await refreshProfile(); // role is granted immediately — pull the updated user so the right dashboard shows right away
-        } catch { /* non-fatal — user can request it again from the dashboard */ }
-      }
-
       setSuccess(true);
-      setTimeout(() => navigate('/dashboard'), 1200);
+      // Next step: upload the mandatory documents for admin verification.
+      setTimeout(() => navigate('/onboarding'), 1200);
     } catch (err) {
       setServerError(err.message || 'Could not create your account.');
     } finally {
@@ -135,7 +124,7 @@ export default function Signup() {
             {success && (
               <div className="auth-success show">
                 <span className="dot"></span>
-                <span>Account created. Welcome to CareerZ — check your inbox to verify your email.</span>
+                <span>Account created. Next, upload your verification documents.</span>
               </div>
             )}
             {serverError && (
@@ -179,7 +168,7 @@ export default function Signup() {
               <fieldset className="form-group signup-role-group" aria-describedby="account-type-hint">
                 <legend>Account type</legend>
                 <p id="account-type-hint" className="form-hint" style={{ margin: '0 0 12px' }}>
-                  Choose how you'll mainly use CareerZ. Roles beyond Student are submitted for admin approval automatically — you can also request more later from your dashboard.
+                  Choose how you'll use CareerZ. Every account is verified: after signing up you upload the required documents, our team approves them, and then you complete your profile.
                 </p>
                 <div className="auth-role-grid">
                   {ROLE_OPTIONS.map((role) => (
@@ -189,11 +178,19 @@ export default function Signup() {
                       <input
                         type="radio" name="accountType" value={role.value}
                         checked={form.accountType === role.value}
-                        onChange={(e) => update('accountType', e.target.value)}
+                        onChange={(e) => setForm((f) => ({ ...f, accountType: e.target.value, subtype: '' }))}
                       />
                     </label>
                   ))}
                 </div>
+                {SUBTYPES[form.accountType] && (
+                  <div className="form-group" style={{ marginTop: 12 }}>
+                    <label htmlFor="signup-subtype">Account kind</label>
+                    <select className="form-select" id="signup-subtype" value={form.subtype || SUBTYPES[form.accountType][0][0]} onChange={(e) => update('subtype', e.target.value)}>
+                      {SUBTYPES[form.accountType].map(([value, label]) => <option key={value} value={value}>{label}</option>)}
+                    </select>
+                  </div>
+                )}
               </fieldset>
 
               <div className="form-row-split">

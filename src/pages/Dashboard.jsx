@@ -8,7 +8,8 @@
   FaUserGraduate, FaBed, FaKitMedical, FaCalendarDays, FaHeadset, FaRobot,
   FaCheck, FaLocationDot, FaExpand, FaGlobe, FaCreditCard, FaMobileScreen, FaFaceSmile, FaCircleCheck,
   FaArrowLeft, FaArrowRight, FaArrowRotateLeft, FaCopy, FaEye, FaPaperPlane,
-  FaMicrophone, FaHand, FaVideo, FaPowerOff, FaCrosshairs
+  FaMicrophone, FaHand, FaVideo, FaPowerOff, FaCrosshairs,
+  FaIdCard,
 } from 'react-icons/fa6';
 import { Children, useEffect, useRef, useState } from 'react';
 import { useLocation } from 'react-router-dom';
@@ -27,6 +28,8 @@ import OfflineStudy from '../components/dashboard/OfflineStudy';
 import CampusTourViewer from '../components/CampusTourViewer';
 import QrScanner from '../components/QrScanner';
 import AdminOperationsCenter from '../components/admin/AdminOperationsCenter';
+import AdminVerificationPanel from '../components/admin/AdminVerificationPanel';
+import VerifiedProfileSection from '../components/verification/VerifiedProfileSection';
 import { loadPaddle, setActiveCheckoutHandler } from '../utils/paddleLoader';
 import { PushNotificationToggle, StaffPermissionsEditor } from '../components/dashboard/NotificationSettings';
 import GradingPolicyEditor from '../components/dashboard/GradingPolicyEditor';
@@ -147,7 +150,7 @@ const WORKSPACES = {
       { key: 'instHelpdesk', label: 'Institution Help Desk', icon: FaHeadset },
       { key: 'placement', label: 'Placement Office', icon: FaBriefcase },
       { key: 'offlineStudy', label: 'Offline Study', icon: FaFileLines },
-      { key: 'profile', label: 'Personal Information', icon: FaUser }
+      { key: 'profile', label: 'My Profile', icon: FaUser }
     ]
   },
   parent: {
@@ -174,7 +177,7 @@ const WORKSPACES = {
       { key: 'wallet', label: 'Wallet / Payment Records', icon: FaWallet },
       { key: 'instEvents', label: 'Events & Activities', icon: FaCalendarDays },
       { key: 'instHelpdesk', label: 'Institution Help Desk', icon: FaHeadset },
-      { key: 'profile', label: 'Personal Information', icon: FaUser }
+      { key: 'profile', label: 'My Profile', icon: FaUser }
     ]
   },
   institution: {
@@ -213,7 +216,7 @@ const WORKSPACES = {
       { key: 'communication', label: 'Communication Center', icon: FaBell },
       { key: 'campusLife', label: 'Newsletter & Magazine', icon: FaNewspaper },
       { key: 'campusTour', label: 'Virtual Campus Tour', icon: FaSchool },
-      { key: 'profile', label: 'My Account', icon: FaUser }
+      { key: 'profile', label: 'My Profile', icon: FaUser }
     ]
   },
   employer: {
@@ -233,6 +236,7 @@ const WORKSPACES = {
     greeting: 'Platform overview and moderation.',
     nav: [
       { key: 'summary', label: 'Dashboard', icon: FaGauge },
+      { key: 'verifications', label: 'User Verification & Approval', icon: FaIdCard },
       { key: 'worldmap', label: 'World Map', icon: FaEarthAmericas },
       { key: 'institutions_mgmt', label: 'Institution Management', icon: FaBuildingColumns },
       { key: 'agents', label: 'Agent Management', icon: FaUsers },
@@ -255,7 +259,7 @@ const WORKSPACES = {
     greeting: 'Manage the scholarships you fund.',
     nav: [
       { key: 'summary', label: 'Dashboard', icon: FaGauge },
-      { key: 'profile', label: 'Donor Profile', icon: FaUser },
+      { key: 'profile', label: 'My Profile', icon: FaUser },
       { key: 'donorVerification', label: 'Verification/Documents', icon: FaClipboardCheck },
       { key: 'post', label: 'Post a Scholarship', icon: FaFileLines },
       { key: 'scholarships', label: 'My Scholarships', icon: FaGraduationCap },
@@ -279,7 +283,7 @@ const WORKSPACES = {
     greeting: 'Manage your marketplace listings and orders.',
     nav: [
       { key: 'summary', label: 'Dashboard', icon: FaGauge },
-      { key: 'profile', label: 'Seller/Store Profile', icon: FaUser },
+      { key: 'profile', label: 'My Profile', icon: FaUser },
       { key: 'sellerVerification', label: 'Verification/Documents', icon: FaClipboardCheck },
       { key: 'addListing', label: 'Add New Listing', icon: FaFileLines },
       { key: 'listings', label: 'Products/Listings', icon: FaStore },
@@ -301,7 +305,7 @@ const WORKSPACES = {
     greeting: 'Manage the job placements you handle for your clients.',
     nav: [
       { key: 'summary', label: 'Dashboard', icon: FaGauge },
-      { key: 'profile', label: 'Agent Profile', icon: FaUser },
+      { key: 'profile', label: 'My Profile', icon: FaUser },
       { key: 'post', label: 'Post a Job', icon: FaFileLines },
       { key: 'jobs', label: 'My Job Posts', icon: FaBriefcase },
       { key: 'candidates', label: 'Applications', icon: FaUsers },
@@ -461,9 +465,11 @@ function useInstitutionStaffInfo(roles) {
 }
 
 export default function Dashboard() {
-  const { user, refreshProfile } = useAuth();
+  const { user, refreshProfile, accountStatus } = useAuth();
   const location = useLocation();
-  const roles = user?.roles || [];
+  // Only account types that are admin-approved with a complete profile open a workspace (the API
+  // enforces the same rule); exempt staff accounts keep all their roles.
+  const roles = (accountStatus && !accountStatus.exempt ? accountStatus.accessibleRoles : user?.roles) || [];
   const [msg, setMsg] = useState(null);
   const staffRoles = useInstitutionStaffInfo(roles);
   const repInfo = staffRoles?.find((r) => r.role === 'representative') || null;
@@ -538,12 +544,15 @@ export default function Dashboard() {
     : (isWardenOnly && activeWorkspace === 'institution') ? WARDEN_WORKSPACE
     : (isDriverOnly && activeWorkspace === 'institution') ? DRIVER_WORKSPACE
     : (isPlatformStaffOnly && activeWorkspace === 'admin')
-      ? { ...WORKSPACES.admin, label: 'Platform Staff', nav: WORKSPACES.admin.nav.filter((item) => ['summary', 'profile', 'settings'].includes(item.key)) }
+      ? { ...WORKSPACES.admin, label: 'Platform Staff', nav: WORKSPACES.admin.nav.filter((item) => ['summary', 'verifications', 'profile', 'settings'].includes(item.key)) }
       : (() => {
           const workspace = WORKSPACES[activeWorkspace] || WORKSPACES.student;
           if (activeWorkspace !== 'institution') return workspace;
           return { ...workspace, nav: workspace.nav.filter((item) => item.key !== 'wardenDashboard') };
         })();
+  // The verified account type behind this workspace, whose mandatory profile lives under My Profile.
+  const verifiedRole = { student: 'student', teacher: 'teacher', parent: 'parent', donor: 'donor', marketplace_seller: 'marketplace_seller', education_agent: 'education_agent',
+    institution: (isRepOnly || isWardenOnly || isDriverOnly) ? null : roles.includes('institution_owner') ? 'institution_owner' : roles.includes('academy_owner') ? 'academy_owner' : null }[activeWorkspace] || null;
   const NAME_TITLES = new Set(['mr', 'mr.', 'mrs', 'mrs.', 'ms', 'ms.', 'miss', 'dr', 'dr.', 'prof', 'prof.', 'sir', 'madam']);
   const nameWords = (user?.fullName || '').split(' ').filter(Boolean);
   const firstName = nameWords.find((w) => !NAME_TITLES.has(w.toLowerCase())) || nameWords[0] || 'there';
@@ -590,6 +599,7 @@ export default function Dashboard() {
         {activeTab === 'help' && <HelpCenterPanel onFlash={flash} />}
         {(!SHARED_TABS.includes(activeTab) || (activeWorkspace === 'admin' && activeTab === 'settings' && !isPlatformStaffOnly)) && (
           <>
+            {activeTab === 'profile' && verifiedRole && <VerifiedProfileSection role={verifiedRole} onFlash={flash} />}
             {activeWorkspace === 'student' && <StudentWorkspace tab={activeTab} user={user} onFlash={flash} onChanged={refreshProfile} onNavigate={setActiveTab} />}
             {activeWorkspace === 'teacher' && <TeacherWorkspace tab={activeTab} user={user} onFlash={flash} onChanged={refreshProfile} onNavigate={setActiveTab} onMessageUser={openMessageWith} />}
             {activeWorkspace === 'parent' && <ParentWorkspace tab={activeTab} user={user} onFlash={flash} onChanged={refreshProfile} onNavigate={setActiveTab} />}
@@ -20979,6 +20989,7 @@ function AdminWorkspace({ tab, user, roles, onFlash, onChanged }) {
   if (tab === 'backups') return <AdminBackupsPanel onFlash={onFlash} />;
   if (tab === 'aiInsights') return <AdminAiInsightsPanel onFlash={onFlash} />;
   if (tab === 'operationsCenter') return <AdminOperationsCenter onFlash={onFlash} />;
+  if (tab === 'verifications') return <AdminVerificationPanel onFlash={onFlash} currentUserId={user?._id} />;
   return <ComingSoon label={tab} />;
 }
 
