@@ -9,7 +9,7 @@ export default function DashboardSidebar({ open, onClose, onLogout, navItems = [
   return (
     <aside className={`dash-sidebar${open ? ' dash-sidebar-open' : ''}`} aria-label="Dashboard navigation">
       <div className="dash-sidebar-brand">
-        <BrandLogo dark />
+        <BrandLogo />
         <button className="icon-btn dash-sidebar-close-btn" aria-label="Close menu" onClick={onClose}><FaXmark size={18} /></button>
       </div>
 
