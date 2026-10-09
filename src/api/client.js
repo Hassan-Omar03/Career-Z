@@ -21,6 +21,7 @@ export const session = {
     if (refreshToken) localStorage.setItem(REFRESH_KEY, refreshToken);
   },
   clear() {
+    if (typeof window !== 'undefined') window.dispatchEvent(new CustomEvent('careerz:logout', { detail: { userId: session.getUser()?._id } }));
     localStorage.removeItem(TOKEN_KEY);
     localStorage.removeItem(REFRESH_KEY);
     localStorage.removeItem(USER_KEY);

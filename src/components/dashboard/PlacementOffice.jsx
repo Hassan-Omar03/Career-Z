@@ -1,0 +1,31 @@
+import { useEffect, useState } from 'react';
+import { apiRequest } from '../../api/client';
+const base = '/institution-employer';
+export default function PlacementOffice({ onFlash }) {
+  const [institutions, setInstitutions] = useState([]), [id, setId] = useState('');
+  const [partners, setPartners] = useState([]), [data, setData] = useState({ referrals: [], stats: {} }), [catalogue, setCatalogue] = useState({ students: [], jobs: [], staff: [] });
+  const [email, setEmail] = useState(''), [message, setMessage] = useState(''), [student, setStudent] = useState(''), [job, setJob] = useState('');
+  const [loading, setLoading] = useState(true), [busy, setBusy] = useState(false), [error, setError] = useState('');
+  useEffect(() => { let alive = true; apiRequest(`${base}/institutions`).then(list => { if (alive) { setInstitutions(list); setId(list[0]?._id || ''); } }).catch(e => { if (alive) setError(e.message); }).finally(() => { if (alive) setLoading(false); }); return () => { alive = false; }; }, []);
+  async function fetchData(selected) { return Promise.all([apiRequest(`${base}/partnerships/mine`), apiRequest(`${base}/referrals/institution/${selected}`), apiRequest(`${base}/institutions/${selected}/catalogue`)]); }
+  function assign([p, d, c], selected) { setPartners(p.filter(p => p.institution?._id === selected)); setData(d); setCatalogue(c); }
+  useEffect(() => { let alive = true; setStudent(''); setJob(''); setError(''); if (!id) return; setLoading(true); fetchData(id).then(result => { if (alive) assign(result, id); }).catch(e => { if (alive) setError(e.message); }).finally(() => { if (alive) setLoading(false); }); return () => { alive = false; }; }, [id]);
+  async function run(work) { if (busy) return; setBusy(true); try { await work(); assign(await fetchData(id), id); setError(''); onFlash('Placement updated.', 'success'); } catch (e) { setError(e.message); onFlash(e.message, 'error'); } finally { setBusy(false); } }
+  const button = (title, work) => <button type="button" className="btn" disabled={busy} onClick={() => run(work)}>{title}</button>;
+  const patch = (path, body) => apiRequest(`${base}${path}`, { method: 'PATCH', body });
+  return <section><h2>Placement Office</h2>{error && <p role="alert">{error} {id && button('Retry', async () => {})}</p>}
+    {!!institutions.length && <label>Institution<select className="form-select" value={id} disabled={busy} onChange={e => setId(e.target.value)}>{institutions.map(i => <option key={i._id} value={i._id}>{i.name}</option>)}</select></label>}
+    {loading && <p role="status">Loading placement records…</p>}{!loading && !id && <p>No institution placement access. Ask your institute owner to grant Placement access.</p>}
+    {id && !loading && <><h3>Employer partnerships</h3><form style={{ display: 'grid', gap: 10 }} onSubmit={e => { e.preventDefault(); run(async () => { await apiRequest(`${base}/partnerships`, { method: 'POST', body: { institutionId: id, employerEmail: email, message } }); setEmail(''); setMessage(''); }); }}>
+      <label>Employer account email<input className="form-input" type="email" required value={email} onChange={e => setEmail(e.target.value)} /></label><label>Message<textarea className="form-input" value={message} onChange={e => setMessage(e.target.value)} /></label><button className="btn btn-primary" disabled={busy}>Request partnership</button></form>
+      {!partners.length && <p>No partnerships yet.</p>}{partners.map(p => <article className="dash-card" key={p._id} style={{ padding: 16, marginTop: 10 }}><strong>{p.employer?.companyName || p.employer?.fullName}</strong><p>{p.employer?.email} · {p.status}</p><p>{p.message}</p>{p.canRespond && <>{button('Accept', () => patch(`/partnerships/${p._id}/respond`, { decision: 'active' }))}{button('Decline', () => patch(`/partnerships/${p._id}/respond`, { decision: 'declined' }))}</>}{p.status === 'requested' && !p.canRespond && <p>Waiting for employer response.</p>}{p.status === 'active' && button('End partnership', () => patch(`/partnerships/${p._id}/end`, {}))}</article>)}
+      <h3>Refer a student or graduate</h3><form style={{ display: 'grid', gap: 10 }} onSubmit={e => { e.preventDefault(); run(async () => { await apiRequest(`${base}/referrals`, { method: 'POST', body: { institutionId: id, studentId: student, jobId: job } }); setStudent(''); setJob(''); }); }}>
+        <label>Student<select className="form-select" required value={student} onChange={e => setStudent(e.target.value)}><option value="">Select student</option>{catalogue.students.map(s => <option key={s._id} value={s._id}>{s.fullName} ({s.email})</option>)}</select></label>
+        <label>Partner employer job<select className="form-select" required value={job} onChange={e => setJob(e.target.value)}><option value="">Select job</option>{catalogue.jobs.map(j => <option key={j._id} value={j._id}>{j.title} — {j.company} ({j.type})</option>)}</select></label><button className="btn btn-primary" disabled={busy || !student || !job}>Refer student</button></form>
+      {!catalogue.jobs.length && <p>No open jobs from active employer partners. Activate a partnership and ask the employer to publish a job.</p>}
+      <p>Total: {data.stats.total || 0} · Applied: {data.stats.applied || 0} · Hired: {data.stats.placed || 0} · Declined/withdrawn: {data.stats.declined || 0}</p>
+      {data.referrals.map(r => <article key={r._id} className="dash-card" style={{ padding: 16, marginTop: 10 }}><h4>{r.student?.fullName} — {r.job?.title} @ {r.job?.company}</h4><p>Referral: {r.status} · Employer application: {r.applicationStatus || 'Not applied'}</p>{r.status === 'referred' && button('Withdraw referral', () => patch(`/referrals/${r._id}/decline`, {}))}</article>)}
+      {catalogue.canManagePermissions && <><h3>Placement staff access</h3><p>Grant dedicated placement access to a teacher or staff member. Staff with full operations permission also retain placement access through that permission.</p>{catalogue.staff.map(s => <p key={s._id}>{s.fullName} · Placement: {s.canManagePlacement ? 'On' : 'Off'} {button(s.canManagePlacement ? 'Remove placement access' : 'Grant placement access', () => patch(`/institutions/${id}/staff/${s._id}/permission`, { enabled: !s.canManagePlacement }))}</p>)}</>}
+    </>}
+  </section>;
+}

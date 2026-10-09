@@ -1,5 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { useRealtime } from '../context/RealtimeContext';
+import LiveLearningTools from './LiveLearningTools';
+import { apiRequest } from '../api/client';
 
 const rtcConfig = { iceServers: [{ urls: 'stun:stun.l.google.com:19302' }] };
 
@@ -17,10 +19,13 @@ function VideoTile({ stream, name, muted = false }) {
 export default function CareerZLiveClassroom({ session, user, role, onJoined, onLeave, onError }) {
   const { socket } = useRealtime();
   const localStreamRef = useRef(null);
+  const screenStreamRef = useRef(null);
   const peersRef = useRef(new Map());
   const pendingIceRef = useRef(new Map());
   const pollIdRef = useRef(null);
   const joinedRef = useRef(false);
+  const groupRef = useRef('main');
+  const rtcConfigRef = useRef(rtcConfig);
   const [localStream, setLocalStream] = useState(null);
   const [remoteStreams, setRemoteStreams] = useState({});
   const [participants, setParticipants] = useState([]);
@@ -29,6 +34,7 @@ export default function CareerZLiveClassroom({ session, user, role, onJoined, on
   const [status, setStatus] = useState('Connecting camera and microphone…');
   const [micOn, setMicOn] = useState(true);
   const [cameraOn, setCameraOn] = useState(true);
+  const [policy, setPolicy] = useState({ chatAllowed: true, microphoneAllowed: true, cameraRequired: false, screenShareAllowed: false });
   const [sharing, setSharing] = useState(false);
   const [handRaised, setHandRaised] = useState(false);
   const [poll, setPoll] = useState(null);
@@ -51,8 +57,9 @@ export default function CareerZLiveClassroom({ session, user, role, onJoined, on
 
   function makePeer(member) {
     if (peersRef.current.has(member.userId)) return peersRef.current.get(member.userId);
-    const peer = new RTCPeerConnection(rtcConfig);
-    localStreamRef.current?.getTracks().forEach((track) => peer.addTrack(track, localStreamRef.current));
+    const peer = new RTCPeerConnection(rtcConfigRef.current);
+    const outgoing = screenStreamRef.current ? new MediaStream([...screenStreamRef.current.getVideoTracks(), ...(localStreamRef.current?.getAudioTracks() || [])]) : localStreamRef.current;
+    outgoing?.getTracks().forEach((track) => peer.addTrack(track, outgoing));
     peer.onicecandidate = ({ candidate }) => candidate && sendSignal(member.userId, { candidate });
     peer.ontrack = ({ streams }) => setRemoteStreams((current) => ({ ...current, [member.userId]: streams[0] }));
     peer.onconnectionstatechange = () => {
@@ -71,13 +78,34 @@ export default function CareerZLiveClassroom({ session, user, role, onJoined, on
     sendSignal(member.userId, { description: peer.localDescription });
   }
 
+  function switchGroup(group) {
+    if (!joinedRef.current || !socket) return;
+    peersRef.current.forEach(peer => peer.close());
+    peersRef.current.clear(); pendingIceRef.current.clear();
+    setRemoteStreams({}); setMessages([]);
+    socket.emit('live-video:join', { sessionId: session._id, group }, reply => {
+      if (!reply?.ok) return onError?.(new Error(reply?.message || 'Could not change room.'));
+      groupRef.current = reply.group || 'main';
+      setParticipants(reply.participants || []);
+      (reply.participants || []).filter(member => String(user._id) < member.userId).forEach(member => createOffer(member).catch(onError));
+    });
+  }
+
+  function applyPolicy(next) {
+    setPolicy(next);
+    if (role !== 'teacher' && next.microphoneAllowed === false) {
+      localStreamRef.current?.getAudioTracks().forEach(track => { track.enabled = false; }); setMicOn(false);
+    }
+  }
+
   useEffect(() => {
-    if (!socket) return undefined;
+    if (!socket || session.mode === 'physical') return undefined;
     let disposed = false;
 
     const participantJoined = async (member) => {
+      if (member.group !== groupRef.current) return;
       setParticipants((current) => current.some((p) => p.userId === member.userId) ? current : [...current, member]);
-      if (role === 'teacher') try { await createOffer(member); } catch (error) { onError?.(error); }
+      if (String(user._id) < member.userId) try { await createOffer(member); } catch (error) { onError?.(error); }
     };
     const participantLeft = (member) => {
       peersRef.current.get(member.userId)?.close();
@@ -114,6 +142,7 @@ export default function CareerZLiveClassroom({ session, user, role, onJoined, on
       setStatus('Class ended');
       onLeave?.();
     };
+    const reconnect = () => { if (joinedRef.current && !disposed) switchGroup(groupRef.current); };
 
     socket.on('live-video:participant-joined', participantJoined);
     socket.on('live-video:participant-left', participantLeft);
@@ -124,25 +153,32 @@ export default function CareerZLiveClassroom({ session, user, role, onJoined, on
     socket.on('live-video:energy', receiveEnergy);
     socket.on('live-video:energy-detail', receiveEnergyDetail);
     socket.on('live-video:ended', classEnded);
+    socket.on('connect', reconnect);
 
     (async () => {
       try {
+        const configuration = await apiRequest(`/live-classes/${session._id}/rtc-config`);
+        rtcConfigRef.current = { iceServers: configuration.iceServers };
         let stream;
-        try { stream = await navigator.mediaDevices.getUserMedia({ audio: true, video: true }); }
+        try { stream = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: true }, video: { width: { ideal: 1280 }, height: { ideal: 720 } } }); }
         catch {
           try { stream = await navigator.mediaDevices.getUserMedia({ audio: true, video: false }); setCameraOn(false); }
           catch { stream = new MediaStream(); setCameraOn(false); setMicOn(false); }
         }
         if (disposed) return stream.getTracks().forEach((track) => track.stop());
+        if (role !== 'teacher' && configuration.policy?.cameraRequired && !stream.getVideoTracks().length) { stream.getTracks().forEach(track => track.stop()); throw new Error('Your teacher requires a camera. Enable camera permission and rejoin.'); }
         localStreamRef.current = stream;
+        if (configuration.policy) applyPolicy(configuration.policy);
         setLocalStream(stream);
         socket.emit('live-video:join', { sessionId: session._id }, (reply) => {
+          if (disposed) { socket.emit('live-video:leave', { sessionId: session._id }); return; }
           if (!reply?.ok) return onError?.(new Error(reply?.message || 'Could not join the classroom.'));
           joinedRef.current = true;
+          groupRef.current = reply.group || 'main';
           setParticipants(reply.participants || []);
           pollIdRef.current = reply.poll?.id || null; setPoll(reply.poll || null);
           setStatus('Live');
-          if (role === 'teacher') (reply.participants || []).forEach((member) => createOffer(member).catch((error) => onError?.(error)));
+          (reply.participants || []).filter(member => String(user._id) < member.userId).forEach((member) => createOffer(member).catch((error) => onError?.(error)));
           onJoined?.();
         });
       } catch (error) { setStatus('Could not connect'); onError?.(error); }
@@ -151,6 +187,7 @@ export default function CareerZLiveClassroom({ session, user, role, onJoined, on
     return () => {
       disposed = true;
       if (joinedRef.current) socket.emit('live-video:leave', { sessionId: session._id });
+      joinedRef.current = false;
       socket.off('live-video:participant-joined', participantJoined);
       socket.off('live-video:participant-left', participantLeft);
       socket.off('live-video:signal', receiveSignal);
@@ -160,8 +197,10 @@ export default function CareerZLiveClassroom({ session, user, role, onJoined, on
       socket.off('live-video:energy', receiveEnergy);
       socket.off('live-video:energy-detail', receiveEnergyDetail);
       socket.off('live-video:ended', classEnded);
+      socket.off('connect', reconnect);
       peersRef.current.forEach((peer) => peer.close()); peersRef.current.clear();
       localStreamRef.current?.getTracks().forEach((track) => track.stop());
+      screenStreamRef.current?.getTracks().forEach((track) => track.stop());
     };
   }, [socket, session._id]); // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -191,14 +230,17 @@ export default function CareerZLiveClassroom({ session, user, role, onJoined, on
   }
 
   async function toggleScreen() {
-    if (sharing) return;
+    if (sharing) { screenStreamRef.current?.getTracks().forEach(track => track.stop()); screenStreamRef.current = null; setLocalStream(localStreamRef.current); setSharing(false); const camera = localStreamRef.current?.getVideoTracks()[0]; peersRef.current.forEach(peer => peer.getSenders().find(sender => sender.track?.kind === 'video')?.replaceTrack(camera || null)); return; }
+    if (role !== 'teacher' && !policy.screenShareAllowed) return;
     try {
       const display = await navigator.mediaDevices.getDisplayMedia({ video: true });
+      screenStreamRef.current = display;
       const screenTrack = display.getVideoTracks()[0];
       peersRef.current.forEach((peer) => peer.getSenders().find((sender) => sender.track?.kind === 'video')?.replaceTrack(screenTrack));
       setLocalStream(new MediaStream([screenTrack, ...(localStreamRef.current?.getAudioTracks() || [])]));
       setSharing(true);
       screenTrack.onended = () => {
+        screenStreamRef.current = null;
         const camera = localStreamRef.current?.getVideoTracks()[0];
         peersRef.current.forEach((peer) => peer.getSenders().find((sender) => sender.track?.kind === 'video')?.replaceTrack(camera));
         setLocalStream(localStreamRef.current); setSharing(false);
@@ -228,6 +270,8 @@ export default function CareerZLiveClassroom({ session, user, role, onJoined, on
   function votePoll(index) { socket?.emit('live-video:poll-vote', { sessionId: session._id, optionIndex: index }, (reply) => reply?.ok ? setMyVote(index) : onError?.(new Error(reply?.message || 'Vote failed.'))); }
   function closePoll() { socket?.emit('live-video:poll-close', { sessionId: session._id }); }
 
+  if (session.mode === 'physical') return <div className="card"><h3>{session.title} — on-campus class</h3><button className="btn" onClick={onLeave}>Close classroom tools</button><LiveLearningTools session={session} role={role} onError={onError} onPolicyChange={applyPolicy} /></div>;
+
   return (
     <div className="card" style={{ overflow: 'hidden', padding: 0 }}>
       <div className="flex items-center justify-between" style={{ padding: 16, borderBottom: '1px solid var(--sand-line)', gap: 12 }}>
@@ -241,9 +285,9 @@ export default function CareerZLiveClassroom({ session, user, role, onJoined, on
             {Object.entries(remoteStreams).map(([id, stream]) => <VideoTile key={id} stream={stream} name={participants.find((p) => p.userId === id)?.name || 'Participant'} />)}
           </div>
           <div className="flex flex-wrap justify-center gap-2" style={{ paddingTop: 14 }}>
-            <button type="button" className="btn" onClick={() => toggleTrack('audio', setMicOn)}>{micOn ? 'Mute mic' : 'Unmute mic'}</button>
-            <button type="button" className="btn" onClick={() => toggleTrack('video', setCameraOn)}>{cameraOn ? 'Stop camera' : 'Start camera'}</button>
-            <button type="button" className="btn" onClick={toggleScreen}>{sharing ? 'Sharing screen' : 'Share screen'}</button>
+            <button type="button" className="btn" disabled={role !== 'teacher' && !policy.microphoneAllowed} onClick={() => toggleTrack('audio', setMicOn)}>{micOn ? 'Mute mic' : 'Unmute mic'}</button>
+            <button type="button" className="btn" disabled={role !== 'teacher' && policy.cameraRequired && cameraOn} onClick={() => toggleTrack('video', setCameraOn)}>{cameraOn ? 'Stop camera' : 'Start camera'}</button>
+            <button type="button" className="btn" disabled={role !== 'teacher' && !policy.screenShareAllowed && !sharing} onClick={toggleScreen}>{sharing ? 'Stop sharing' : 'Share screen'}</button>
             {role !== 'teacher' && <button type="button" className="btn" onClick={toggleHand}>{handRaised ? 'Lower hand' : 'Raise hand'}</button>}
             {role !== 'teacher' && <label className="btn"><input type="checkbox" checked={energyOn} onChange={(e) => setEnergyOn(e.target.checked)} /> Energy Meter</label>}
             {myEnergy && <span style={{ color: myEnergy.attentive ? 'var(--emerald)' : 'var(--rose)' }}>{myEnergy.attentive ? 'Focused' : 'Distracted'}</span>}
@@ -258,9 +302,10 @@ export default function CareerZLiveClassroom({ session, user, role, onJoined, on
             {messages.length === 0 && <p className="text-xs" style={{ color: 'var(--ink-soft)' }}>No messages yet.</p>}
             {messages.map((item) => <p key={item.id} className="text-xs" style={{ marginBottom: 8 }}><strong>{item.name}:</strong> {item.text}</p>)}
           </div>
-          <form onSubmit={sendMessage} className="flex gap-2"><input className="form-input" value={message} onChange={(e) => setMessage(e.target.value)} placeholder="Ask or reply…" /><button className="btn btn-primary" type="submit">Send</button></form>
+          <form onSubmit={sendMessage} className="flex gap-2"><input className="form-input" disabled={role !== 'teacher' && !policy.chatAllowed} value={message} onChange={(e) => setMessage(e.target.value)} placeholder="Ask or reply…" /><button className="btn btn-primary" disabled={role !== 'teacher' && !policy.chatAllowed} type="submit">Send</button></form>
         </aside>
       </div>
+      <LiveLearningTools session={session} role={role} localStream={localStream} onGroupChange={switchGroup} onPolicyChange={applyPolicy} onError={onError} />
     </div>
   );
 }

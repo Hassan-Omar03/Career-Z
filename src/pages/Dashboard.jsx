@@ -6,7 +6,7 @@
   FaCartShopping, FaBoxOpen, FaBoxesStacked, FaTruck, FaStar, FaRegStar, FaTriangleExclamation, FaQrcode, FaLock,
   FaEarthAmericas, FaDatabase, FaUserGear, FaNewspaper, FaWandMagicSparkles,
   FaUserGraduate, FaBed, FaKitMedical, FaCalendarDays, FaHeadset, FaRobot,
-  FaCheck, FaLocationDot, FaExpand, FaGlobe, FaMobileScreen, FaFaceSmile, FaCircleCheck,
+  FaCheck, FaLocationDot, FaExpand, FaGlobe, FaCreditCard, FaMobileScreen, FaFaceSmile, FaCircleCheck,
   FaArrowLeft, FaArrowRight, FaArrowRotateLeft, FaCopy, FaEye, FaPaperPlane,
   FaMicrophone, FaHand, FaVideo, FaPowerOff, FaCrosshairs
 } from 'react-icons/fa6';
@@ -18,6 +18,12 @@ import { apiRequest } from '../api/client';
 import { startRegistration, startAuthentication } from '@simplewebauthn/browser';
 import { verifyEmail, resendVerification } from '../api/auth';
 import DashboardLayout from '../components/dashboard/DashboardLayout';
+import InstitutionInventory from '../components/dashboard/InstitutionInventory';
+import MedicalHealth from '../components/dashboard/MedicalHealth';
+import InstitutionCommunity from '../components/dashboard/InstitutionCommunity';
+import PlacementOffice from '../components/dashboard/PlacementOffice';
+import LearningCenter from '../components/dashboard/LearningCenter';
+import OfflineStudy from '../components/dashboard/OfflineStudy';
 import CampusTourViewer from '../components/CampusTourViewer';
 import QrScanner from '../components/QrScanner';
 import AdminOperationsCenter from '../components/admin/AdminOperationsCenter';
@@ -72,9 +78,12 @@ const WORKSPACES = {
       { key: 'institutions', label: 'My Institutions', icon: FaBuilding },
       { key: 'classes', label: 'My Classes', icon: FaChalkboardUser },
       { key: 'courses', label: 'My Courses', icon: FaBookOpen },
+      { key: 'learningCenter', label: 'Learning Center', icon: FaBookOpen },
+      { key: 'offlineStudy', label: 'Offline Study', icon: FaFileLines },
       { key: 'assignments', label: 'Assignments & Tests', icon: FaClipboardList },
       { key: 'attendance', label: 'Attendance', icon: FaCalendarCheck },
       { key: 'learningAnalytics', label: 'Learning Analytics', icon: FaChartLine },
+      { key: 'aiAssistant', label: 'AI Student Assistant', icon: FaRobot },
       { key: 'certificates', label: 'Certificates', icon: FaAward },
       { key: 'digitalLocker', label: 'Digital Locker', icon: FaLock },
       { key: 'studentId', label: 'Digital Student ID', icon: FaQrcode },
@@ -90,6 +99,7 @@ const WORKSPACES = {
       { key: 'campusLife', label: 'Campus Life', icon: FaNewspaper },
       { key: 'hostel', label: 'My Hostel', icon: FaBed },
       { key: 'transport', label: 'My Transport', icon: FaTruck }
+      ,{ key: 'inventory', label: 'My Inventory', icon: FaBoxesStacked }
       ,{ key: 'library', label: 'Institution Library', icon: FaBookOpen }
       ,{ key: 'events', label: 'Events & Activities', icon: FaCalendarDays }
       ,{ key: 'helpdesk', label: 'Institution Help Desk', icon: FaHeadset }
@@ -123,7 +133,12 @@ const WORKSPACES = {
       { key: 'aiCreative', label: 'AI Creative Teacher', icon: FaGauge },
       { key: 'advancedControl', label: 'Advanced Class Control', icon: FaGauge },
       { key: 'instEvents', label: 'Events & Activities', icon: FaCalendarDays },
+      { key: 'inventory', label: 'My Inventory', icon: FaBoxesStacked },
+      { key: 'health', label: 'Student Health Incidents', icon: FaKitMedical },
       { key: 'instHelpdesk', label: 'Institution Help Desk', icon: FaHeadset },
+      { key: 'placement', label: 'Placement Office', icon: FaBriefcase },
+      { key: 'learningCenter', label: 'Learning Center', icon: FaBookOpen },
+      { key: 'offlineStudy', label: 'Offline Study', icon: FaFileLines },
       { key: 'profile', label: 'Personal Information', icon: FaUser }
     ]
   },
@@ -183,6 +198,8 @@ const WORKSPACES = {
       { key: 'helpdesk', label: 'Complaint & Help Desk', icon: FaHeadset },
       { key: 'aiAssistant', label: 'AI Operations Assistant', icon: FaRobot },
       { key: 'placement', label: 'Placement Office', icon: FaBriefcase },
+      { key: 'learningCenter', label: 'Learning Center', icon: FaBookOpen },
+      { key: 'offlineStudy', label: 'Offline Study', icon: FaFileLines },
       { key: 'subscription', label: 'Subscription Plan', icon: FaStar },
       { key: 'reports', label: 'Reports', icon: FaChartLine },
       { key: 'communication', label: 'Communication Center', icon: FaBell },
@@ -587,6 +604,9 @@ export default function Dashboard() {
 // ---------------------------------------------------------------- Student
 
 function StudentWorkspace({ tab, user, onFlash, onChanged, onNavigate }) {
+  if (tab === 'learningCenter') return <LearningCenter onFlash={onFlash} />;
+  if (tab === 'offlineStudy') return <OfflineStudy onFlash={onFlash} />;
+  if (tab === 'aiAssistant') return <StudentAiAssistantPanel onFlash={onFlash} />;
   if (tab === 'profile') return <><ProfilePanel user={user} onFlash={onFlash} onChanged={onChanged} /><StudentAcademicProfilePanel onFlash={onFlash} onChanged={onChanged} /><RolesPanel onFlash={onFlash} onChanged={onChanged} /><SupportComplaintPanel onFlash={onFlash} /></>;
   if (tab === 'courses') return <StudentPanel onFlash={onFlash} />;
   if (tab === 'wallet') return <StudentFeesPanel onFlash={onFlash} />;
@@ -611,9 +631,10 @@ function StudentWorkspace({ tab, user, onFlash, onChanged, onNavigate }) {
   if (tab === 'hostel') return <StudentHostelPanel onFlash={onFlash} />;
   if (tab === 'transport') return <StudentTransportPanel onFlash={onFlash} />;
   if (tab === 'library') return <StudentInstitutionLibraryPanel onFlash={onFlash} />;
-  if (tab === 'events') return <StudentInstitutionEventsPanel onFlash={onFlash} />;
-  if (tab === 'helpdesk') return <StudentInstitutionHelpDeskPanel onFlash={onFlash} />;
-  if (tab === 'health') return <StudentHealthPanel onFlash={onFlash} />;
+  if (tab === 'events') return <InstitutionCommunity kind="events" onFlash={onFlash} />;
+  if (tab === 'helpdesk') return <InstitutionCommunity kind="tickets" onFlash={onFlash} />;
+  if (tab === 'inventory') return <InstitutionInventory onFlash={onFlash} />;
+  if (tab === 'health') return <MedicalHealth mode="student" onFlash={onFlash} />;
   return <ComingSoon label={tab} />;
 }
 
@@ -3468,7 +3489,7 @@ function StudentReferralsPanel({ onFlash }) {
   const [referrals, setReferrals] = useState(null);
   const [busyId, setBusyId] = useState(null);
 
-  function load() { apiRequest('/institution-employer/referrals/mine').then(setReferrals).catch(() => setReferrals([])); }
+  function load() { apiRequest('/institution-employer/referrals/mine').then(setReferrals).catch(err => onFlash(err.message)); }
   useEffect(load, []);
 
   async function apply(id) {
@@ -3483,10 +3504,10 @@ function StudentReferralsPanel({ onFlash }) {
       <p className="text-xs" style={{ color: 'var(--ink-soft)', marginBottom: 12 }}>Your institution recommended you for these — nothing is submitted until you apply yourself.</p>
       <Table
         loading={referrals === null}
-        headers={['Job', 'Institution', 'Status', 'Action']}
+        headers={['Job', 'Institution', 'Referral', 'Application', 'Action']}
         rows={(referrals || []).map((r) => [
-          `${r.job?.title} @ ${r.job?.company}`, r.institution?.name, <Tag status={STATUS_TAG[r.status] || 'pending'} label={r.status} />,
-          r.status === 'referred' ? <button className="btn btn-primary" style={{ padding: '4px 12px', fontSize: '0.78rem' }} disabled={busyId === r._id} onClick={() => apply(r._id)}>Apply</button> : '—'
+          `${r.job?.title} @ ${r.job?.company}`, r.institution?.name, <Tag status={STATUS_TAG[r.status] || 'pending'} label={r.status} />, r.applicationStatus || 'Not applied',
+          r.status === 'referred' ? <><button className="btn btn-primary" style={{ padding: '4px 12px', fontSize: '0.78rem' }} disabled={busyId === r._id} onClick={() => apply(r._id)}>Apply</button><button className="btn" disabled={busyId === r._id} onClick={async () => { setBusyId(r._id); try { await apiRequest('/institution-employer/referrals/' + r._id + '/decline', { method: 'PATCH' }); onFlash('Referral declined.', 'success'); load(); } catch(e) { onFlash(e.message); } finally { setBusyId(null); } }}>Decline</button></> : '—'
         ])}
         empty="No referrals yet."
       />
@@ -4088,7 +4109,7 @@ function AiResultView({ text, shareTitle }) {
   );
 }
 
-function AiFeatureCard({ feature, title, description, placeholder, aiEnabled, shareable }) {
+function AiFeatureCard({ feature, title, description, placeholder, aiEnabled, shareable, institutionId }) {
   const [open, setOpen] = useState(false);
   const [prompt, setPrompt] = useState('');
   const [result, setResult] = useState('');
@@ -4099,7 +4120,7 @@ function AiFeatureCard({ feature, title, description, placeholder, aiEnabled, sh
     e.preventDefault();
     setLoading(true); setError(''); setResult('');
     try {
-      const { result: text } = await apiRequest('/ai/generate', { method: 'POST', body: { feature, prompt } });
+      const { result: text } = await apiRequest('/ai/generate', { method: 'POST', body: { feature, prompt, institutionId: institutionId || undefined } });
       setResult(text);
       setPrompt('');
     } catch (err) { setError(err.message); } finally { setLoading(false); }
@@ -4307,7 +4328,7 @@ function ShareSlideDeckToClass({ slides, defaultTitle }) {
 // Real AI Slides Generator (spec 15B.6 "خودکار پریزنٹیشن سلائیڈز") — the one sub-feature of "AI
 // Creative Teacher" buildable with the existing text-AI system (no image/video/3D AI provider
 // needed). Produces an actual presentable, fullscreen-able slide deck, not just a text blob.
-function SlideDeckGenerator({ aiEnabled, imageEnabled }) {
+function SlideDeckGenerator({ aiEnabled, imageEnabled, institutionId }) {
   const [topic, setTopic] = useState('');
   const [slides, setSlides] = useState(null);
   const [current, setCurrent] = useState(0);
@@ -4319,7 +4340,7 @@ function SlideDeckGenerator({ aiEnabled, imageEnabled }) {
     e.preventDefault();
     setLoading(true); setError(''); setSlides(null);
     try {
-      const { result } = await apiRequest('/ai/generate', { method: 'POST', body: { feature: 'teacher_slides', prompt: topic } });
+      const { result } = await apiRequest('/ai/generate', { method: 'POST', body: { feature: 'teacher_slides', prompt: topic, institutionId: institutionId || undefined } });
       const parsed = parseSlides(result);
       if (parsed.length === 0) throw new Error("Couldn't parse slides from the response — try again.");
       setSlides(parsed);
@@ -4337,7 +4358,7 @@ function SlideDeckGenerator({ aiEnabled, imageEnabled }) {
             try {
               const { imageDataUrl } = await apiRequest('/ai/image', {
                 method: 'POST',
-                body: { prompt: `${slide.imagePrompt}. Presentation illustration, clean composition, no words, no letters, no watermark.` }
+                body: { institutionId: institutionId || undefined, prompt: `${slide.imagePrompt}. Presentation illustration, clean composition, no words, no letters, no watermark.` }
               });
               setSlides((currentSlides) => currentSlides.map((item, i) => i === index ? { ...item, image: imageDataUrl, imageStatus: 'ready', imageError: '' } : item));
             } catch (imageError) {
@@ -6471,8 +6492,6 @@ const MANUAL_FEE_METHODS = PAYMENT_METHODS.filter((method) => method.value !== '
 
 // Manual fee payments remain pending until the institution verifies them.
 // Works for both the student paying their own fee and a parent paying a linked child's fee.
-// Real Paddle checkout — separate from the self-report methods below. Renders nothing if Paddle
-// isn't configured (GET /payments/paddle/config), so no dead button shows up before keys exist.
 function PaddleCheckoutButton({ feeId, onFlash, onPaid }) {
   const [config, setConfig] = useState(null);
   const [loading, setLoading] = useState(false);
@@ -6515,6 +6534,38 @@ function PaddleCheckoutButton({ feeId, onFlash, onPaid }) {
       }}
     >
       <FaGlobe aria-hidden="true" /> {loading ? 'Loading...' : 'Pay Online'} {!loading && <span style={{ fontWeight: 400, opacity: 0.85, fontSize: '0.78rem' }}>(Card / Apple Pay / Google Pay)</span>}
+    </button>
+  );
+}
+
+// Real Stripe Checkout redirect. Always shown; until STRIPE_SECRET_KEY is configured, clicking it
+// explains that instead of redirecting.
+function StripeCheckoutButton({ feeId, onFlash }) {
+  const [config, setConfig] = useState(null);
+  const [loading, setLoading] = useState(false);
+  useEffect(() => { apiRequest('/payments/stripe/config').then(setConfig).catch(() => setConfig({ enabled: false })); }, []);
+
+  async function startCheckout() {
+    if (!config?.enabled) return onFlash('Stripe is not set up yet — add STRIPE_SECRET_KEY and STRIPE_WEBHOOK_SECRET on the server.');
+    setLoading(true);
+    try {
+      const { url } = await apiRequest(`/payments/stripe/fees/${feeId}/checkout`, { method: 'POST' });
+      window.location.href = url;
+    } catch (err) { onFlash(err.message); setLoading(false); }
+  }
+
+  return (
+    <button
+      type="button"
+      onClick={startCheckout}
+      disabled={loading}
+      style={{
+        padding: '10px 18px', fontSize: '0.85rem', fontWeight: 700, borderRadius: 10, border: 'none',
+        background: 'linear-gradient(135deg, #635bff, #7a73ff)', color: '#fff', cursor: loading ? 'default' : 'pointer',
+        opacity: loading ? 0.7 : 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, width: '100%'
+      }}
+    >
+      <FaCreditCard aria-hidden="true" /> {loading ? 'Redirecting...' : 'Pay Online (Stripe)'}
     </button>
   );
 }
@@ -6591,6 +6642,7 @@ function PayFeeButton({ fee, onFlash, onPaid }) {
       <div style={{ display: 'grid', gap: 8, minWidth: 220 }}>
         <PaddleCheckoutButton feeId={fee._id} onFlash={onFlash} onPaid={onPaid} />
         <JazzCashCheckoutButton feeId={fee._id} onFlash={onFlash} />
+        <StripeCheckoutButton feeId={fee._id} onFlash={onFlash} />
         <button
           type="button"
           onClick={() => setOpen(true)}
@@ -6713,7 +6765,7 @@ function SalaryPaymentButton({ payslip, onSubmit }) {
   useEffect(() => {
     if (open && payslip.institution && payslip.staff?._id) apiRequest(`/institutions/${payslip.institution}/staff/${payslip.staff._id}/payout-profile`).then((profile) => { setPayout(profile); setMethod(profile.preferredMethod || ''); }).catch(() => setPayout({ configured: false }));
   }, [open, payslip.institution, payslip.staff?._id]);
-  const manual = Boolean(method) && method !== 'platform_wallet';
+  const manual = Boolean(method) && !['platform_wallet', 'stripe_transfer'].includes(method);
   async function submit(e) {
     e.preventDefault();
     if (method === 'platform_wallet') {
@@ -6735,7 +6787,7 @@ function SalaryPaymentButton({ payslip, onSubmit }) {
   return <form onSubmit={submit} style={{ display: 'grid', gap: 6, minWidth: 250 }}>
     <CustomSelect value={method} onChange={setMethod} ariaLabel="Salary payment method" minWidth="100%" options={[
       { value: '', label: 'Select payout method' },
-      { value: 'platform_wallet', label: 'CareerZ Internal Wallet' },
+      { value: 'platform_wallet', label: 'CareerZ Internal Wallet' }, { value: 'stripe_transfer', label: 'Stripe Connect bank payout' },
       payout?.bank?.destination && { value: 'bank_transfer', label: `${payout.bank.bankName || 'Bank'} · ${payout.bank.destination}` },
       payout?.mobileWallet?.destination && { value: 'mobile_wallet', label: `${payout.mobileWallet.provider || 'Mobile wallet'} · ${payout.mobileWallet.destination}` },
       payout?.crypto?.destination && { value: 'crypto', label: `${payout.crypto.asset || 'Crypto'} ${payout.crypto.network || ''} · ${payout.crypto.destination}` },
@@ -6766,7 +6818,7 @@ function SalaryPayoutProfilePanel({ onFlash }) {
   return <form onSubmit={save} className="admin-section" style={{ marginTop: 18 }}>
     <div className="admin-section-heading"><div><h2>Salary Payout Details</h2><p>Save once; institutions will see masked destinations when paying salary.</p></div></div>
     <div className="grid" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 10 }}>
-      <label className="text-xs">Preferred method<select className="form-select" value={form.preferredMethod} onChange={(e) => setForm({ ...form, preferredMethod: e.target.value })}>{[['platform_wallet','CareerZ Wallet'],['bank_transfer','Bank transfer'],['mobile_wallet','Mobile wallet'],['crypto','Crypto wallet'],['cash','Cash']].map(([v,l]) => <option key={v} value={v}>{l}</option>)}</select></label>
+      <label className="text-xs">Preferred method<select className="form-select" value={form.preferredMethod} onChange={(e) => setForm({ ...form, preferredMethod: e.target.value })}>{[['platform_wallet','CareerZ Wallet'],['stripe_transfer','Stripe Connect'],['bank_transfer','Bank transfer'],['mobile_wallet','Mobile wallet'],['crypto','Crypto wallet'],['cash','Cash']].map(([v,l]) => <option key={v} value={v}>{l}</option>)}</select></label>
       <input className="form-input" placeholder="Bank name" value={form.bank.bankName || ''} onChange={(e) => setGroup('bank','bankName',e.target.value)} />
       <input className="form-input" placeholder="Bank account title" value={form.bank.accountTitle || ''} onChange={(e) => setGroup('bank','accountTitle',e.target.value)} />
       <input className="form-input" placeholder="IBAN" value={form.bank.iban || ''} onChange={(e) => setGroup('bank','iban',e.target.value)} />
@@ -7761,6 +7813,10 @@ function StudentSummary({ onNavigate, user }) {
 // ---------------------------------------------------------------- Teacher
 
 function TeacherWorkspace({ tab, user, onFlash, onChanged, onNavigate, onMessageUser }) {
+  if (tab === 'learningCenter') return <LearningCenter onFlash={onFlash} />;
+  if (tab === 'offlineStudy') return <OfflineStudy onFlash={onFlash} />;
+  if (tab === 'placement') return <PlacementOffice onFlash={onFlash} />;
+  if (tab === 'health') return <MedicalHealth mode="teacher" onFlash={onFlash} />;
   if (tab === 'profile') return <><ProfilePanel user={user} onFlash={onFlash} onChanged={onChanged} /><SalaryPayoutProfilePanel onFlash={onFlash} /><RolesPanel onFlash={onFlash} onChanged={onChanged} /><SupportComplaintPanel onFlash={onFlash} /></>;
   if (tab === 'teacherProfile') return <TeacherProfileDetailsPanel user={user} onFlash={onFlash} onChanged={onChanged} />;
   if (tab === 'employmentOffers') return <TeacherEmploymentPanel onFlash={onFlash} />;
@@ -7785,8 +7841,9 @@ function TeacherWorkspace({ tab, user, onFlash, onChanged, onNavigate, onMessage
   if (tab === 'engagement') return <TeacherEngagementPanel onFlash={onFlash} />;
   if (tab === 'ptm') return <TeacherPtmPanel onFlash={onFlash} />;
   if (tab === 'wallet') return <WalletCard onFlash={onFlash} />;
-  if (tab === 'instEvents') return <StaffInstitutionEventsPanel onFlash={onFlash} institutionSource="teacher" user={user} />;
-  if (tab === 'instHelpdesk') return <StaffInstitutionHelpDeskPanel onFlash={onFlash} institutionSource="teacher" />;
+  if (tab === 'instEvents') return <InstitutionCommunity kind="events" onFlash={onFlash} />;
+  if (tab === 'instHelpdesk') return <InstitutionCommunity kind="tickets" onFlash={onFlash} />;
+  if (tab === 'inventory') return <InstitutionInventory onFlash={onFlash} />;
   const labels = {};
   return <ComingSoon label={labels[tab] || tab} />;
 }
@@ -7861,27 +7918,41 @@ function StaffInstitutionHelpDeskPanel({ onFlash, institutionSource }) {
 
 // Real BYOK AI Teacher Assistant (spec 14.7/15B.5-15B.6) — Notes, Quiz and Lesson Plan
 // generation, routed through the teacher's own connected AI provider.
+
+function AiScope({ scope, onScope, onStatus, onFlash }) {
+  const [options, setOptions] = useState([]);
+  useEffect(() => { let alive = true; apiRequest('/institution-ops/community/institutions').then(async list => {
+    const connected = await Promise.all(list.map(async i => { try { const status = await apiRequest('/ai/institutions/' + i._id + '/config'); return { ...i, status }; } catch { return null; } }));
+    if (alive) setOptions(connected.filter(Boolean));
+  }).catch(() => {}); return () => { alive = false; }; }, []);
+  useEffect(() => { let alive = true; onStatus(null); apiRequest(scope ? '/ai/institutions/' + scope + '/config' : '/ai/config').then(status => { if (alive) onStatus(status); }).catch(e => { if (alive) onFlash(e.message); }); return () => { alive = false; }; }, [scope]);
+  return <label>AI billing source<select className="form-select" value={scope} onChange={e => onScope(e.target.value)}><option value="">My personal API key</option>{options.map(i => <option key={i._id} value={i._id}>{i.name} — institution API key</option>)}</select></label>;
+}
 function TeacherAiAssistantPanel({ onFlash }) {
-  const [status, setStatus] = useState(null);
-  function refresh() { apiRequest('/ai/config').then(setStatus).catch(() => {}); }
-  useEffect(refresh, []);
-
-  const textEnabled = status?.text.configured || false;
-
-  return (
-    <div>
-      <h3 className="font-semibold mb-3">AI Teacher Assistant</h3>
-      <AiSettingsPanel onFlash={onFlash} onChanged={refresh} />
-      <h4 className="font-semibold mb-2" style={{ fontSize: '0.9rem' }}>Text Tools</h4>
-      <div className="grid grid-cols-1 md:grid-cols-2" style={{ gap: 14, marginBottom: 14 }}>
-        <AiFeatureCard feature="teacher_notes" title="AI Notes Generator" description="Give a topic — get clear, structured class notes." placeholder="e.g. Photosynthesis for Grade 8 Biology" aiEnabled={textEnabled} shareable />
-        <AiFeatureCard feature="teacher_quiz" title="AI Quiz Generator" description="Give a topic — get 5 multiple-choice questions with answers." placeholder="e.g. Newton's Laws of Motion" aiEnabled={textEnabled} shareable />
-        <AiFeatureCard feature="teacher_lesson_plan" title="AI Lesson Plan Builder" description="Give a topic and grade level — get a structured lesson plan." placeholder="e.g. Introduction to Fractions, Grade 4" aiEnabled={textEnabled} shareable />
-      </div>
-      <SlideDeckGenerator aiEnabled={textEnabled} imageEnabled={status?.image.configured || false} />
-      <p className="text-xs mt-4" style={{ color: 'var(--ink-soft)' }}>Graphics, 3D models, narration, avatar video and the AI Video Lesson Creator have their own dedicated tab — AI Creative Teacher.</p>
-    </div>
-  );
+  const [status, setStatus] = useState(null), [scope, setScope] = useState('');
+  const tools = [
+    ['teacher_notes', 'Notes Generator'], ['teacher_quiz', 'Quiz Generator'], ['teacher_lesson_plan', 'Lesson Plan'],
+    ['teacher_assignment', 'Smart Assignment'], ['teacher_paper', 'Question Paper'], ['teacher_rubric', 'Assessment Rubric']
+  ];
+  return <section><h3>AI Teacher Assistant</h3><AiScope scope={scope} onScope={setScope} onStatus={setStatus} onFlash={onFlash} />
+    {!scope && <AiSettingsPanel onFlash={onFlash} onChanged={() => apiRequest('/ai/config').then(setStatus)} />}
+    {scope && <p>Uses the selected institution key with its AI access permission. Contact the owner to connect a provider.</p>}
+    <div style={{ display: 'grid', gap: 14, gridTemplateColumns: 'repeat(auto-fit,minmax(260px,1fr))' }}>{tools.map(([feature,title]) => <AiFeatureCard key={scope + feature} feature={feature} title={title} description="Enter topic, level and your requirements. Review the draft before publishing." placeholder="Introduction to Computing, first semester, English" aiEnabled={!!status?.text.configured} institutionId={scope} shareable />)}</div>
+    <SlideDeckGenerator key={scope} institutionId={scope} aiEnabled={!!status?.text.configured} imageEnabled={!!status?.image.configured} /><TeacherPerformanceInsights institutionId={scope} enabled={!!status?.text.configured} />
+    <p>Review and publish approved content to your course so enrolled students can access it.</p>
+  </section>;
+}
+function TeacherPerformanceInsights({ institutionId, enabled }) {
+ const [data,setData]=useState(null),[busy,setBusy]=useState(false),[error,setError]=useState('');
+ useEffect(()=>{setData(null);setError('');},[institutionId]);
+ async function generate(){setBusy(true);setError('');try{setData(await apiRequest('/ai/teaching-insights',{method:'POST',body:{institutionId:institutionId||undefined}}));}catch(e){setError(e.message);}finally{setBusy(false);}}
+ return <section><h3>My Class Performance Analysis</h3><p>Uses graded results from your assigned courses only.</p><button className="btn" disabled={busy||!enabled} onClick={generate}>{busy?'Analyzing?':'Analyze my classes'}</button>{error&&<p role="alert">{error}</p>}{data&&<><p style={{whiteSpace:'pre-wrap'}}>{data.insights}</p><details><summary>Data used</summary><pre style={{whiteSpace:'pre-wrap'}}>{data.dataSummary}</pre></details></>}</section>;
+}
+function StudentAiAssistantPanel({ onFlash }) {
+  const [status,setStatus] = useState(null);
+  useEffect(() => { apiRequest('/ai/config').then(setStatus).catch(e => onFlash(e.message)); }, []);
+  const tools = [['student_study_plan','Study Planner'],['student_notes_summary','Smart Notes'],['student_study_help','Study Tutor'],['student_homework','Homework Assistant'],['student_revision','Revision'],['student_practice','Practice Questions'],['student_mock_test','Mock Test'],['career_advice','Career Suggestions'],['student_skills','Skill Suggestions']];
+  return <section><h3>AI Student Assistant</h3><AiSettingsPanel purposes={[AI_PURPOSES[0]]} onFlash={onFlash} onChanged={() => apiRequest('/ai/config').then(setStatus)} /><p>Enter your subject, topic and learning needs. Uses your personal API key; private institution records are not sent.</p><div style={{display:'grid',gap:14,gridTemplateColumns:'repeat(auto-fit,minmax(260px,1fr))'}}>{tools.map(([feature,title]) => <AiFeatureCard key={feature} feature={feature} title={title} description="Generate learning support from the information you provide." placeholder="Subject, topic, level and what you need help with" aiEnabled={!!status?.text.configured} />)}</div></section>;
 }
 
 // Real BYOK AI Creative Teacher (spec 15B.6-15B.7) — its own dedicated pipeline, separate from
@@ -9084,6 +9155,21 @@ function TeacherEarningsPanel({ onFlash }) {
   return (
     <div>
       <h3 className="font-semibold mb-2">Salary & Earnings</h3>
+
+      <div className="card" style={{ padding: 14, marginBottom: 16 }}>
+        {payoutStatus === null && <p className="text-xs" style={{ color: 'var(--ink-soft)' }}>Checking bank connection...</p>}
+        {payoutStatus === false && <p className="text-xs" style={{ color: 'var(--ink-soft)' }}>Real bank transfer isn't available on this platform yet.</p>}
+        {payoutStatus && (
+          payoutStatus.payoutsEnabled ? (
+            <p className="text-xs" style={{ color: 'var(--emerald)', fontWeight: 700 }}>✓ Bank account connected — institutions can send you real transfers via Stripe.</p>
+          ) : (
+            <>
+              <p className="text-xs" style={{ marginBottom: 8 }}>{payoutStatus.connected ? 'Finish connecting your bank account to receive real Stripe transfers.' : 'Connect a bank account so institutions can pay your salary via a real bank transfer instead of just an internal ledger.'}</p>
+              <button type="button" className="btn btn-primary" style={{ padding: '6px 14px', fontSize: '0.78rem' }} disabled={connecting} onClick={connectBank}>{connecting ? 'Redirecting...' : payoutStatus.connected ? 'Finish Bank Setup' : 'Connect Bank Account (Stripe)'}</button>
+            </>
+          )
+        )}
+      </div>
 
       <Table
         loading={payslips === null}
@@ -10902,7 +10988,7 @@ function StudentScheduledLiveClasses({ user, onFlash }) {
         <div><strong>{session.title}</strong><p className="text-xs">{session.course?.title}</p></div>, session.institution?.name, session.teacher?.fullName,
         `${new Date(session.scheduledStart).toLocaleString()} – ${new Date(session.scheduledEnd).toLocaleTimeString()}`,
         <Tag status={session.status === 'live' ? 'approved' : session.status === 'ended' ? 'completed' : 'pending'} label={session.status === 'live' ? 'Live now' : session.status} />,
-        session.status === 'live' ? <button type="button" className="btn btn-primary" onClick={() => join(session)}>Join Class</button> : '—'
+        session.mode === 'physical' ? 'On-campus class · teacher marks attendance' : session.status === 'live' ? <button type="button" className="btn btn-primary" onClick={() => join(session)}>Join Class</button> : '—'
       ])} empty="No live classes scheduled for your enrolled courses." />
     </div>
   );
@@ -11103,13 +11189,13 @@ function ParentWorkspace({ tab, user, onFlash, onChanged, onNavigate }) {
   if (tab === 'institutionInfo') return <ParentInstitutionInfoPanel onFlash={onFlash} />;
   if (tab === 'teacherMessages') return <ParentTeacherMessagesPanel onFlash={onFlash} onNavigate={onNavigate} />;
   if (tab === 'wallet') return <ParentPaymentRecordsPanel onFlash={onFlash} />;
-  if (tab === 'health') return <ParentHealthPanel onFlash={onFlash} />;
+  if (tab === 'health') return <MedicalHealth mode="parent" onFlash={onFlash} />;
   if (tab === 'permissions') return <ParentPermissionsPanel onFlash={onFlash} />;
   if (tab === 'ptm') return <ParentPtmPanel onFlash={onFlash} />;
   if (tab === 'aiAssistant') return <ParentAiAssistantPanel onFlash={onFlash} />;
   if (tab === 'transport') return <ParentTransportPanel onFlash={onFlash} />;
-  if (tab === 'instEvents') return <StaffInstitutionEventsPanel onFlash={onFlash} institutionSource="parent" user={user} />;
-  if (tab === 'instHelpdesk') return <StaffInstitutionHelpDeskPanel onFlash={onFlash} institutionSource="parent" />;
+  if (tab === 'instEvents') return <InstitutionCommunity kind="events" onFlash={onFlash} />;
+  if (tab === 'instHelpdesk') return <InstitutionCommunity kind="tickets" onFlash={onFlash} />;
   return <ComingSoon label={tab} />;
 }
 
@@ -12421,6 +12507,8 @@ function ParentSummary({ onNavigate }) {
 // ------------------------------------------------------------ Institution
 
 function InstitutionWorkspace({ tab, user, onFlash, onChanged, isWarden = false }) {
+  if (tab === 'learningCenter') return <LearningCenter onFlash={onFlash} />;
+  if (tab === 'offlineStudy') return <OfflineStudy onFlash={onFlash} />;
   if (tab === 'profile') return <><ProfilePanel user={user} onFlash={onFlash} onChanged={onChanged} />{isWarden && <SalaryPayoutProfilePanel onFlash={onFlash} />}<RolesPanel onFlash={onFlash} onChanged={onChanged} /><SupportComplaintPanel onFlash={onFlash} /></>;
   if (tab === 'institution') return <InstitutionPanel onFlash={onFlash} onChanged={onChanged} />;
   if (tab === 'summary') return <InstitutionSummary />;
@@ -12446,13 +12534,13 @@ function InstitutionWorkspace({ tab, user, onFlash, onChanged, isWarden = false 
   if (tab === 'wardenDashboard') return <WardenDashboardPanel onFlash={onFlash} />;
   if (tab === 'transport') return <InstitutionTransportPanel onFlash={onFlash} />;
   if (tab === 'driverDashboard') return <DriverDashboardPanel onFlash={onFlash} />;
-  if (tab === 'inventory') return <InstitutionInventoryPanel onFlash={onFlash} />;
-  if (tab === 'health') return <InstitutionHealthPanel onFlash={onFlash} />;
-  if (tab === 'events') return <InstitutionEventsPanel onFlash={onFlash} />;
-  if (tab === 'helpdesk') return <InstitutionHelpDeskPanel onFlash={onFlash} />;
+  if (tab === 'inventory') return <InstitutionInventory manage onFlash={onFlash} />;
+  if (tab === 'health') return <MedicalHealth mode="institution" onFlash={onFlash} />;
+  if (tab === 'events') return <InstitutionCommunity kind="events" manage onFlash={onFlash} />;
+  if (tab === 'helpdesk') return <InstitutionCommunity kind="tickets" manage onFlash={onFlash} />;
   if (tab === 'aiAssistant') return <InstitutionAiAssistantPanel onFlash={onFlash} />;
   if (tab === 'subscription') return <InstitutionSubscriptionPanel onFlash={onFlash} />;
-  if (tab === 'placement') return <InstitutionPlacementPanel onFlash={onFlash} />;
+  if (tab === 'placement') return <PlacementOffice onFlash={onFlash} />;
   if (tab === 'wallet') return <WalletCard onFlash={onFlash} />;
   return <ComingSoon label={tab} />;
 }
@@ -13440,6 +13528,7 @@ function InstitutionPayrollPanel({ onFlash }) {
   }
   const PAYSLIP_METHODS = [
     { value: 'platform_wallet', label: 'CareerZ Wallet (instant ledger transfer)' },
+    { value: 'stripe_transfer', label: 'Real Bank Transfer (Stripe)' },
     { value: 'bank_transfer', label: 'Bank Transfer (manual)' },
     { value: 'mobile_wallet', label: 'Mobile Wallet' },
     { value: 'cash', label: 'Cash' },
@@ -16489,44 +16578,20 @@ function InstitutionHelpDeskPanel({ onFlash }) {
 
 // ==================== AI Operations Assistant (spec 15D.19) ====================
 
+
 function InstitutionAiAssistantPanel({ onFlash }) {
-  const institution = useMyInstitution(onFlash);
-  const [insights, setInsights] = useState(null);
-  const [dataSummary, setDataSummary] = useState(null);
-  const [loading, setLoading] = useState(false);
-
-  async function generate() {
-    setLoading(true);
-    try {
-      const res = await apiRequest(`/institutions/${institution._id}/ai-insights`, { method: 'POST' });
-      setInsights(res.insights);
-      setDataSummary(res.dataSummary);
-    } catch (err) { onFlash(err.message); } finally { setLoading(false); }
-  }
-
-  if (institution === undefined) return <p role="status" className="admin-notice">Loading...</p>;
-  if (!institution) return <p className="admin-notice">Register an institution first (My Institution tab).</p>;
-
-  return (
-    <div>
-      <AiSettingsPanel key={institution._id} institutionId={institution._id} onFlash={onFlash} />
-      <div className="admin-section">
-        <div className="admin-section-heading"><div><h2>AI Operations Assistant</h2><p>Uses your own connected AI provider (Profile → AI Settings) to analyze your institution's real fee, payroll and support data. All decisions remain yours — this only summarizes.</p></div></div>
-        <button className="btn btn-primary" onClick={generate} disabled={loading}>{loading ? 'Analyzing...' : 'Generate Insights'}</button>
-      </div>
-      {insights && (
-        <div className="admin-section" style={{ marginTop: 16 }}>
-          <div className="admin-section-heading"><div><h2>Insights</h2></div></div>
-          <p style={{ whiteSpace: 'pre-line', fontSize: 14, lineHeight: 1.6 }}>{insights}</p>
-          <details style={{ marginTop: 12 }}>
-            <summary style={{ fontSize: 12, color: 'var(--ink-soft)', cursor: 'pointer' }}>Raw data used</summary>
-            <pre style={{ fontSize: 12, whiteSpace: 'pre-wrap' }}>{dataSummary}</pre>
-          </details>
-        </div>
-      )}
-      <p style={{ fontSize: 12, color: 'var(--ink-soft)', marginTop: 12 }}>Requires an AI provider connected under Profile → AI Settings (BYOK — your own API key, e.g. OpenAI/Claude/Gemini).</p>
-    </div>
-  );
+  const [institutions,setInstitutions]=useState([]),[id,setId]=useState(''),[status,setStatus]=useState(null);
+  const [insights,setInsights]=useState(''),[dataSummary,setDataSummary]=useState(''),[loading,setLoading]=useState(false),[error,setError]=useState('');
+  useEffect(()=>{apiRequest('/institution-ops/community/institutions').then(list=>{const manageable=list.filter(i=>i.canManage);setInstitutions(manageable);setId(manageable[0]?._id||'');}).catch(e=>setError(e.message));},[]);
+  useEffect(()=>{let alive=true;setStatus(null);setInsights('');setDataSummary('');if(id)apiRequest('/ai/institutions/'+id+'/config').then(s=>{if(alive)setStatus(s);}).catch(e=>{if(alive)setError(e.message);});return()=>{alive=false;};},[id]);
+  async function generate(){setLoading(true);setError('');try{const r=await apiRequest('/institutions/'+id+'/ai-insights',{method:'POST'});setInsights(r.insights);setDataSummary(r.dataSummary);}catch(e){setError(e.message);onFlash(e.message);}finally{setLoading(false);}}
+  return <section><h2>AI Operations Assistant</h2><label>Institution<select className="form-select" disabled={loading} value={id} onChange={e=>{setError('');setId(e.target.value);}}>{institutions.map(i=><option key={i._id} value={i._id}>{i.name}</option>)}</select></label>
+    {error&&<p role="alert">{error}</p>}{id&&<AiSettingsPanel key={id} institutionId={id} purposes={[AI_PURPOSES[0]]} onFlash={onFlash} onChanged={()=>apiRequest('/ai/institutions/'+id+'/config').then(setStatus)} />}
+    <p>Analyzes real fee totals by currency, recorded attendance, graded class results, staff check-ins, payroll and support tickets. Decisions remain yours. Reports use all recorded history; missing data is identified.</p>
+    <button className="btn btn-primary" disabled={loading||!id||!status?.text.configured} onClick={generate}>{loading?'Analyzing…':'Generate Insights'}</button>
+    {id&&!status?.text.configured&&<p>Connect the institution text provider above first.</p>}
+    {insights&&<><h3>Insights</h3><p style={{whiteSpace:'pre-wrap'}}>{insights}</p><details><summary>Raw data used</summary><pre style={{whiteSpace:'pre-wrap'}}>{dataSummary}</pre></details><button className="btn" onClick={()=>{const blob=new Blob([insights+'\n\n'+dataSummary],{type:'text/plain'});const url=URL.createObjectURL(blob);const anchor=document.createElement('a');anchor.href=url;anchor.download='institution-ai-report.txt';anchor.click();URL.revokeObjectURL(url);}}>Download report</button></>}
+  </section>;
 }
 
 // Master spec Part 17E "Subscription System" — Free/Basic/Professional/Enterprise. A paid plan
@@ -17384,7 +17449,7 @@ function EmployerPartnershipsPanel({ onFlash, user }) {
         headers={['Institution', 'Status', 'Action']}
         rows={(partnerships || []).map((p) => [
           p.institution?.name, <Tag status={STATUS_TAG[p.status] || 'pending'} label={p.status} />,
-          p.status === 'requested' ? <div className="flex gap-2">
+          p.canRespond ? <div className="flex gap-2">
             <button className="btn btn-primary" style={{ padding: '4px 10px', fontSize: '0.75rem' }} onClick={() => respond(p._id, 'active')}>Accept</button>
             <button className="btn" style={{ padding: '4px 10px', fontSize: '0.75rem' }} onClick={() => respond(p._id, 'declined')}>Decline</button>
           </div> : p.status === 'active' ? <button className="btn" style={{ padding: '4px 10px', fontSize: '0.75rem' }} onClick={() => end(p._id)}>End Partnership</button> : '—'
@@ -22629,6 +22694,14 @@ function StudentPanel({ onFlash }) {
     ]).then(([paddle, jazzcash]) => setPaymentConfig({ paddle: paddle.enabled ? paddle : false, jazzcash: Boolean(jazzcash.enabled) }));
   }, []);
 
+  async function checkoutStripe(course) {
+    setCheckoutId(course._id);
+    try {
+      const { url } = await apiRequest(`/payments/stripe/courses/${course._id}/checkout`, { method: 'POST' });
+      window.location.assign(url);
+    } catch (error) { onFlash(error.message); setCheckoutId(null); }
+  }
+
   async function checkoutJazzCash(course) {
     setCheckoutId(course._id);
     try { await startJazzCashCheckout(`/payments/jazzcash/courses/${course._id}/checkout`); } catch (error) { onFlash(error.message); setCheckoutId(null); }
@@ -22673,6 +22746,7 @@ function StudentPanel({ onFlash }) {
                 : <div className="flex gap-2 mt-2 flex-wrap">
                   {paymentConfig.paddle && <button type="button" className="btn btn-primary" disabled={checkoutId === c._id} onClick={() => checkout(c)}>Pay with Paddle</button>}
                   {paymentConfig.jazzcash && <button type="button" className="btn" disabled={checkoutId === c._id} onClick={() => checkoutJazzCash(c)}>Pay with JazzCash</button>}
+                  <button type="button" className="btn" disabled={checkoutId === c._id} onClick={() => checkoutStripe(c)}>Pay with Stripe</button>
                   {!paymentConfig.paddle && !paymentConfig.jazzcash && <span className="text-xs">Checkout is unavailable right now.</span>}
                 </div>}
           </div>

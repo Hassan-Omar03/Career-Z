@@ -5,6 +5,9 @@ import './index.css';
 import App from './App.jsx';
 import { AuthProvider } from './context/AuthContext';
 import { TranslationProvider } from './context/TranslationContext';
+import { initOfflineLearning } from './utils/offlineLearning';
+
+initOfflineLearning();
 
 createRoot(document.getElementById('root')).render(
   <StrictMode>

@@ -15,9 +15,8 @@ export function AuthProvider({ children }) {
           const { user: freshUser } = await getMe();
           setUser(freshUser);
           session.set({ user: freshUser });
-        } catch {
-          session.clear();
-          setUser(null);
+        } catch (error) {
+          if (error.status !== 0) { session.clear(); setUser(null); }
         }
       }
       setLoading(false);
@@ -46,8 +45,8 @@ export function AuthProvider({ children }) {
   }
 
   async function logout() {
-    await logoutApi();
-    setUser(null);
+    try { await logoutApi(); }
+    finally { session.clear(); setUser(null); }
   }
 
   async function refreshProfile() {
