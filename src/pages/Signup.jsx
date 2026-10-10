@@ -77,6 +77,8 @@ export default function Signup() {
     else if (!EMAIL_RE.test(form.email)) next.email = 'Enter a valid email address.';
     if (!form.password || form.password.length < 8) next.password = 'Password must be at least 8 characters.';
     if (!form.confirmPassword || form.confirmPassword !== form.password) next.confirmPassword = 'Passwords do not match.';
+    if (!form.country) next.country = 'Select your country.';
+    if (!form.city) next.city = 'Select your city.';
     if (!terms || !privacy) next.terms = 'Please accept both the Terms & Conditions and the Privacy Policy to continue.';
     setErrors(next);
     return Object.keys(next).length === 0;
@@ -93,7 +95,9 @@ export default function Signup() {
         fullName: form.fullName,
         email: form.email,
         password: form.password,
-        country: form.country || undefined,
+        country: form.country,
+        city: form.city,
+        acceptedTerms: terms && privacy,
         accountType: form.accountType,
         subtype: SUBTYPES[form.accountType] ? (form.subtype || SUBTYPES[form.accountType][0][0]) : undefined
       });
@@ -199,9 +203,9 @@ export default function Signup() {
 
               <div className="form-row-split">
                 <div className="form-group">
-                  <label htmlFor="signup-country">Country</label>
+                  <label htmlFor="signup-country">Country <span className="vf-req">*</span></label>
                   <select
-                    className="form-select" id="signup-country"
+                    className="form-select" id="signup-country" required aria-invalid={Boolean(errors.country && !form.country)}
                     value={form.country}
                     onChange={(e) => setForm((f) => ({ ...f, country: e.target.value, city: '' }))}
                   >
@@ -210,16 +214,18 @@ export default function Signup() {
                       <option key={c} value={c}>{c}</option>
                     ))}
                   </select>
+                  {errors.country && !form.country && <div className="form-error show">{errors.country}</div>}
                 </div>
                 <div className="form-group">
-                  <label htmlFor="signup-city">City</label>
+                  <label htmlFor="signup-city">City <span className="vf-req">*</span></label>
                   <select
-                    className="form-select" id="signup-city" disabled={cities.length === 0}
+                    className="form-select" id="signup-city" required disabled={cities.length === 0} aria-invalid={Boolean(errors.city && !form.city)}
                     value={form.city} onChange={(e) => update('city', e.target.value)}
                   >
                     <option value="">Select City</option>
                     {cities.map((c) => <option key={c} value={c}>{c}</option>)}
                   </select>
+                  {errors.city && !form.city && <div className="form-error show">{form.country ? errors.city : 'Select your country first, then your city.'}</div>}
                 </div>
               </div>
 

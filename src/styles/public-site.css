@@ -19,6 +19,9 @@
 .public-header .public-account{font-size:13px;white-space:nowrap}
 .public-header .btn.public-account{padding:10px 16px}
 .public-menu-toggle{display:none}
+.vf-topbar .vf-brand img{width:190px;height:76px;object-fit:contain}
+.vf-topbar .vf-brand{background:#faf8f1;border-radius:12px;padding:0 10px;flex-shrink:0}
+@media(max-width:480px){.vf-topbar .vf-brand img{width:135px;height:60px}.vf-topbar{flex-wrap:wrap}.vf-topbar-user{margin-left:auto}}
 .auth-form-brand{display:flex;justify-content:center;margin:0 0 22px;padding:8px 18px;background:#faf8f1;border:1px solid #e3e8df;border-radius:16px}
 .auth-form-brand .brand-logo{max-width:100%}
 .auth-form-brand .brand-logo img{width:260px;max-width:100%;height:115px;object-fit:contain}

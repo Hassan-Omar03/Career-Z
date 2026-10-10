@@ -16,7 +16,7 @@ function VideoTile({ stream, name, muted = false }) {
   );
 }
 
-export default function CareerZLiveClassroom({ session, user, role, onJoined, onLeave, onError }) {
+export default function CareerZLiveClassroom({ session, user, role, observeStudentId, onJoined, onLeave, onError }) {
   const { socket } = useRealtime();
   const localStreamRef = useRef(null);
   const screenStreamRef = useRef(null);
@@ -58,6 +58,7 @@ export default function CareerZLiveClassroom({ session, user, role, onJoined, on
   function makePeer(member) {
     if (peersRef.current.has(member.userId)) return peersRef.current.get(member.userId);
     const peer = new RTCPeerConnection(rtcConfigRef.current);
+    if(role==='observer'){peer.addTransceiver('audio',{direction:'recvonly'});peer.addTransceiver('video',{direction:'recvonly'});}
     const outgoing = screenStreamRef.current ? new MediaStream([...screenStreamRef.current.getVideoTracks(), ...(localStreamRef.current?.getAudioTracks() || [])]) : localStreamRef.current;
     outgoing?.getTracks().forEach((track) => peer.addTrack(track, outgoing));
     peer.onicecandidate = ({ candidate }) => candidate && sendSignal(member.userId, { candidate });
@@ -83,7 +84,7 @@ export default function CareerZLiveClassroom({ session, user, role, onJoined, on
     peersRef.current.forEach(peer => peer.close());
     peersRef.current.clear(); pendingIceRef.current.clear();
     setRemoteStreams({}); setMessages([]);
-    socket.emit('live-video:join', { sessionId: session._id, group }, reply => {
+    socket.emit('live-video:join', { sessionId: session._id, group,observeStudentId:role==='observer'?observeStudentId:undefined }, reply => {
       if (!reply?.ok) return onError?.(new Error(reply?.message || 'Could not change room.'));
       groupRef.current = reply.group || 'main';
       setParticipants(reply.participants || []);
@@ -157,20 +158,20 @@ export default function CareerZLiveClassroom({ session, user, role, onJoined, on
 
     (async () => {
       try {
-        const configuration = await apiRequest(`/live-classes/${session._id}/rtc-config`);
+        const configuration = await apiRequest(`/live-classes/${session._id}/rtc-config${role==='observer'?'?observeChild='+encodeURIComponent(observeStudentId):''}`);
         rtcConfigRef.current = { iceServers: configuration.iceServers };
         let stream;
-        try { stream = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: true }, video: { width: { ideal: 1280 }, height: { ideal: 720 } } }); }
+        if(role==='observer'){stream=new MediaStream();setCameraOn(false);setMicOn(false);}else try { stream = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: true }, video: { width: { ideal: 1280 }, height: { ideal: 720 } } }); }
         catch {
           try { stream = await navigator.mediaDevices.getUserMedia({ audio: true, video: false }); setCameraOn(false); }
           catch { stream = new MediaStream(); setCameraOn(false); setMicOn(false); }
         }
         if (disposed) return stream.getTracks().forEach((track) => track.stop());
-        if (role !== 'teacher' && configuration.policy?.cameraRequired && !stream.getVideoTracks().length) { stream.getTracks().forEach(track => track.stop()); throw new Error('Your teacher requires a camera. Enable camera permission and rejoin.'); }
+        if (role === 'student' && configuration.policy?.cameraRequired && !stream.getVideoTracks().length) { stream.getTracks().forEach(track => track.stop()); throw new Error('Your teacher requires a camera. Enable camera permission and rejoin.'); }
         localStreamRef.current = stream;
         if (configuration.policy) applyPolicy(configuration.policy);
         setLocalStream(stream);
-        socket.emit('live-video:join', { sessionId: session._id }, (reply) => {
+        socket.emit('live-video:join', { sessionId: session._id,observeStudentId:role==='observer'?observeStudentId:undefined }, (reply) => {
           if (disposed) { socket.emit('live-video:leave', { sessionId: session._id }); return; }
           if (!reply?.ok) return onError?.(new Error(reply?.message || 'Could not join the classroom.'));
           joinedRef.current = true;
@@ -270,6 +271,7 @@ export default function CareerZLiveClassroom({ session, user, role, onJoined, on
   function votePoll(index) { socket?.emit('live-video:poll-vote', { sessionId: session._id, optionIndex: index }, (reply) => reply?.ok ? setMyVote(index) : onError?.(new Error(reply?.message || 'Vote failed.'))); }
   function closePoll() { socket?.emit('live-video:poll-close', { sessionId: session._id }); }
 
+  if(role==='observer')return <section className="card"><h3>{session.title}</h3><p>Read-only guardian observation · {status}</p><button className="btn" onClick={onLeave}>Stop observing</button><div style={{display:'grid',gap:12,gridTemplateColumns:'repeat(auto-fit,minmax(min(100%,280px),1fr))',marginTop:16}}>{Object.entries(remoteStreams).map(([id,stream])=><VideoTile key={id} stream={stream} name={participants.find(p=>p.userId===id)?.name||'Class participant'}/>)}</div>{!Object.keys(remoteStreams).length&&<p>Waiting for classroom media. Your camera and microphone stay off.</p>}</section>;
   if (session.mode === 'physical') return <div className="card"><h3>{session.title} — on-campus class</h3><button className="btn" onClick={onLeave}>Close classroom tools</button><LiveLearningTools session={session} role={role} onError={onError} onPolicyChange={applyPolicy} /></div>;
 
   return (

@@ -1,10 +1,10 @@
 import { apiRequest, session } from './client';
 
-export async function register({ fullName, email, phone, password, country, accountType, subtype }) {
+export async function register({ fullName, email, phone, password, country, city, acceptedTerms, accountType, subtype }) {
   const data = await apiRequest('/auth/register', {
     method: 'POST',
     auth: false,
-    body: { fullName, email, phone, password, country, accountType, subtype }
+    body: { fullName, email, phone, password, country, city, acceptedTerms, accountType, subtype }
   });
   session.set(data);
   return data;

@@ -54,7 +54,7 @@ export default function DashboardHeader({ user, onSidebarToggle, onLogout, onNav
           <label className="dash-search">
             <FaMagnifyingGlass size={17} />
             <input
-              type="text" placeholder="Search institutions, courses, jobs…" autoComplete="off"
+              type="text" aria-label="Search institutions, courses and jobs" placeholder="Search institutions, courses, jobs…" autoComplete="off"
               value={search} onChange={(e) => setSearch(e.target.value)}
             />
           </label>

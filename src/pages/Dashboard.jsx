@@ -1,3 +1,10 @@
+import GuardianProof from '../components/dashboard/GuardianProof';
+import FamilyChatPolicy from '../components/dashboard/FamilyChatPolicy';
+import {FamilyPolicy,StudentFamilyMeeting} from '../components/dashboard/FamilyPolicy';
+import FamilyCafeteria from '../components/dashboard/FamilyCafeteria';
+import {FamilyPrivate,FamilyAdminSummary} from '../components/dashboard/FamilyPrivate';
+import {FamilyConnections, FamilyAcademic, FamilyPayments, InstitutionFamilyActions, FamilyTeacherNotes} from '../components/dashboard/FamilyCenter';
+import FamilyClassrooms from '../components/dashboard/FamilyClassrooms';
 ﻿import {
   FaArrowUpRightFromSquare, FaBookmark, FaRegBookmark, FaCircle, FaXmark, FaShieldHalved, FaUsers, FaBuildingColumns, FaClipboardCheck, FaUser, FaUserShield,
   FaGauge, FaBuilding, FaChalkboardUser, FaBookOpen, FaClipboardList, FaAward, FaFileLines,
@@ -85,6 +92,7 @@ const WORKSPACES = {
     greeting: 'Ready to keep learning?',
     nav: [
       { key: 'summary', label: 'Dashboard', icon: FaGauge },
+      {key:'cafeteria',label:'Cafeteria',icon:FaWallet},
       { key: 'profile', label: 'My Profile', icon: FaUser },
       { key: 'institutions', label: 'My Institutions', icon: FaBuilding },
       { key: 'classes', label: 'My Classes', icon: FaChalkboardUser },
@@ -158,6 +166,7 @@ const WORKSPACES = {
     greeting: "Here's what's happening with your children.",
     nav: [
       { key: 'summary', label: 'Dashboard', icon: FaGauge },
+      {key:'cafeteria',label:'Cafeteria',icon:FaWallet},
       { key: 'children', label: 'My Children', icon: FaUsers },
       { key: 'attendance', label: 'Attendance', icon: FaCalendarCheck },
       { key: 'transport', label: 'Live Transport', icon: FaTruck },
@@ -174,6 +183,7 @@ const WORKSPACES = {
       { key: 'portfolio', label: 'Digital Portfolio', icon: FaFileLines },
       { key: 'health', label: 'Health Record', icon: FaClipboardCheck },
       { key: 'permissions', label: 'Permissions & Consent', icon: FaShieldHalved },
+      { key: 'classroomObservation', label: 'Classroom Observation', icon: FaChalkboardUser },
       { key: 'wallet', label: 'Wallet / Payment Records', icon: FaWallet },
       { key: 'instEvents', label: 'Events & Activities', icon: FaCalendarDays },
       { key: 'instHelpdesk', label: 'Institution Help Desk', icon: FaHeadset },
@@ -185,6 +195,7 @@ const WORKSPACES = {
     greeting: 'Manage your institution here.',
     nav: [
       { key: 'summary', label: 'Dashboard', icon: FaGauge },
+      {key:'cafeteria',label:'Cafeteria',icon:FaWallet},
       { key: 'institution', label: 'My Institution', icon: FaSchool },
       { key: 'instSettings', label: 'Institute Settings', icon: FaSchool },
       { key: 'admissions', label: 'Admission Management', icon: FaUserGraduate },
@@ -602,7 +613,7 @@ export default function Dashboard() {
             {activeTab === 'profile' && verifiedRole && <VerifiedProfileSection role={verifiedRole} onFlash={flash} />}
             {activeWorkspace === 'student' && <StudentWorkspace tab={activeTab} user={user} onFlash={flash} onChanged={refreshProfile} onNavigate={setActiveTab} />}
             {activeWorkspace === 'teacher' && <TeacherWorkspace tab={activeTab} user={user} onFlash={flash} onChanged={refreshProfile} onNavigate={setActiveTab} onMessageUser={openMessageWith} />}
-            {activeWorkspace === 'parent' && <ParentWorkspace tab={activeTab} user={user} onFlash={flash} onChanged={refreshProfile} onNavigate={setActiveTab} />}
+            {activeWorkspace === 'parent' && <ParentWorkspace tab={activeTab} user={user} onFlash={flash} onChanged={refreshProfile} onNavigate={setActiveTab} onMessageUser={u=>{setPendingMessageUser(u);setActiveTab('messages');}} />}
             {activeWorkspace === 'institution' && (isRepOnly
               ? <RepresentativeWorkspace tab={activeTab} user={user} onFlash={flash} onChanged={refreshProfile} onNavigate={setActiveTab} repInfo={repInfo} />
               : <InstitutionWorkspace tab={activeTab} user={user} onFlash={flash} onChanged={refreshProfile} isWarden={isWardenOnly} />)}
@@ -629,6 +640,7 @@ function StudentWorkspace({ tab, user, onFlash, onChanged, onNavigate }) {
   if (tab === 'courses') return <StudentPanel onFlash={onFlash} />;
   if (tab === 'resourceLibrary') return <ResourceLibrary onFlash={onFlash} />;
   if (tab === 'wallet') return <StudentFeesPanel onFlash={onFlash} />;
+  if(tab==='cafeteria')return <FamilyCafeteria studentId={user._id} onFlash={onFlash}/>;
   if (tab === 'summary') return <StudentSummary onNavigate={onNavigate} user={user} />;
   if (tab === 'assignments') return <StudentAssignmentsPanel onFlash={onFlash} />;
   if (tab === 'attendance') return <StudentAttendancePanel onFlash={onFlash} />;
@@ -719,96 +731,8 @@ function StudentInstitutionHelpDeskPanel({ onFlash }) {
 // Student-side management of parent/guardian links (spec: Student<->Parent "dedicated Parent
 // Connection management, unlink/revoke flow") — approve/reject incoming requests from a parent,
 // see who's currently linked, and revoke any link at any time (their own consent to withdraw).
-function StudentParentConnectionsPanel({ onFlash }) {
-  const [incoming, setIncoming] = useState(null);
-  const [linked, setLinked] = useState(null);
-  const [busyId, setBusyId] = useState(null);
+function StudentParentConnectionsPanel({onFlash}) {return <><FamilyConnections student onFlash={onFlash} /><StudentFamilyMeeting onFlash={onFlash}/></>;}
 
-  function load() {
-    apiRequest('/parents/incoming-requests').then(setIncoming).catch((err) => onFlash(err.message));
-    apiRequest('/parents/link-requests').then((list) => setLinked(list.filter((l) => l.status === 'approved'))).catch((err) => onFlash(err.message));
-  }
-  useEffect(load, []);
-
-  async function respond(id, decision) {
-    setBusyId(id);
-    try {
-      await apiRequest(`/parents/link-requests/${id}/respond`, { method: 'PATCH', body: { decision } });
-      onFlash(`Request ${decision}.`, 'success');
-      load();
-    } catch (err) { onFlash(err.message); } finally { setBusyId(null); }
-  }
-
-  async function unlink(id) {
-    setBusyId(id);
-    try {
-      await apiRequest(`/parents/link-requests/${id}`, { method: 'DELETE' });
-      onFlash('Connection removed.', 'success');
-      load();
-    } catch (err) { onFlash(err.message); } finally { setBusyId(null); }
-  }
-
-  async function togglePermission(link, key) {
-    try {
-      await apiRequest(`/parents/link-requests/${link._id}/permissions`, { method: 'PATCH', body: { [key]: !link.permissions?.[key] } });
-      load();
-    } catch (err) { onFlash(err.message); }
-  }
-
-  const RELATIONSHIP_LABEL = { father: 'Father', mother: 'Mother', guardian: 'Guardian', sponsor: 'Sponsor' };
-  const PERMISSION_LABEL = { payFees: 'Pay Fees', viewHealth: 'View Health', giveConsent: 'Give Consent' };
-
-  return (
-    <div>
-      <h3 className="font-semibold mb-2">Parent Connections</h3>
-      <div className="admin-section">
-        <div className="admin-section-heading"><div><h2>Incoming Requests</h2><p>A parent/guardian asked to link to your account. Only approve someone you actually know.</p></div></div>
-        {incoming === null && <p role="status" className="admin-notice">Loading...</p>}
-        {incoming?.length === 0 && <p className="text-sm" style={{ color: 'var(--ink-soft)' }}>No pending requests.</p>}
-        {(incoming || []).map((r) => (
-          <div key={r._id} className="flex items-center justify-between flex-wrap" style={{ gap: 8, padding: '10px 0', borderBottom: '1px solid var(--sand-line)' }}>
-            <div>
-              <strong className="text-sm">{r.parent?.fullName}</strong>
-              <p className="text-xs" style={{ color: 'var(--ink-soft)' }}>{r.parent?.email} · {RELATIONSHIP_LABEL[r.relationship] || r.relationship}</p>
-            </div>
-            <div className="flex gap-2">
-              <button type="button" className="btn btn-primary" style={{ padding: '5px 12px', fontSize: '0.78rem' }} disabled={busyId === r._id} onClick={() => respond(r._id, 'approved')}>Approve</button>
-              <button type="button" className="btn" style={{ padding: '5px 12px', fontSize: '0.78rem' }} disabled={busyId === r._id} onClick={() => respond(r._id, 'rejected')}>Reject</button>
-            </div>
-          </div>
-        ))}
-      </div>
-
-      <div className="admin-section" style={{ marginTop: 16 }}>
-        <div className="admin-section-heading"><div><h2>Connected Guardians</h2></div></div>
-        {linked === null && <p role="status" className="admin-notice">Loading...</p>}
-        {linked?.length === 0 && <p className="text-sm" style={{ color: 'var(--ink-soft)' }}>No parent/guardian connected yet.</p>}
-        {(linked || []).map((r) => (
-          <div key={r._id} style={{ padding: '10px 0', borderBottom: '1px solid var(--sand-line)' }}>
-            <div className="flex items-center justify-between flex-wrap" style={{ gap: 8 }}>
-              <div>
-                <strong className="text-sm">{r.parent?.fullName}</strong>
-                <p className="text-xs" style={{ color: 'var(--ink-soft)' }}>{r.parent?.email} · {RELATIONSHIP_LABEL[r.relationship] || r.relationship} · Since {new Date(r.approvedAt || r.createdAt).toLocaleDateString()}</p>
-              </div>
-              <button type="button" className="btn" style={{ padding: '5px 12px', fontSize: '0.78rem', background: 'var(--sand-line)' }} disabled={busyId === r._id} onClick={() => unlink(r._id)}>Unlink</button>
-            </div>
-            <div className="flex gap-2 flex-wrap" style={{ marginTop: 6 }}>
-              {Object.keys(PERMISSION_LABEL).map((key) => (
-                <button key={key} type="button" className="btn" style={{ padding: '3px 8px', fontSize: '0.7rem' }} onClick={() => togglePermission(r, key)}>
-                  {PERMISSION_LABEL[key]}: {r.permissions?.[key] === false ? 'Off' : 'On'}
-                </button>
-              ))}
-            </div>
-          </div>
-        ))}
-      </div>
-
-      <StudentTutoringPanel onFlash={onFlash} />
-    </div>
-  );
-}
-
-// Independent Teacher Enrollment — student side: accept/decline invitations, revoke anytime.
 function StudentTutoringPanel({ onFlash }) {
   const [links, setLinks] = useState(null);
   const [busyId, setBusyId] = useState(null);
@@ -7073,8 +6997,8 @@ function StudentAssignmentsPanel({ onFlash }) {
       <h3 className="font-semibold mb-2 mt-6">My Submissions</h3>
       <Table
         loading={submissions === null}
-        headers={['Assignment', 'Due', 'Status', 'Marks']}
-        rows={(submissions || []).map((s) => { const completionOnly = ['homework', 'worksheet'].includes(s.assignment?.type); return [s.assignment?.title, s.assignment?.dueDate ? new Date(s.assignment.dueDate).toLocaleDateString() : '—', <Tag status={s.status === 'graded' ? 'approved' : s.status === 'resubmit_requested' ? 'rejected' : 'pending'} label={s.status === 'graded' && completionOnly ? 'reviewed' : s.status?.replace('_', ' ')} />, completionOnly ? (s.status === 'graded' ? 'Completed' : '—') : s.status === 'graded' ? `${s.marksObtained} / ${s.assignment?.maxMarks ?? '—'}` : `— / ${s.assignment?.maxMarks ?? '—'}`]; })}
+        headers={['Assignment / Details', 'Due', 'Status', 'Marks / Teacher feedback']}
+        rows={(submissions || []).map((s) => { const completionOnly = ['homework', 'worksheet'].includes(s.assignment?.type); return [<div>{s.assignment?.title}<p>{s.assignment?.description}</p></div>, s.assignment?.dueDate ? new Date(s.assignment.dueDate).toLocaleDateString() : '—', <Tag status={s.status === 'graded' ? 'approved' : s.status === 'resubmit_requested' ? 'rejected' : 'pending'} label={s.status === 'graded' && completionOnly ? 'reviewed' : s.status?.replace('_', ' ')} />, completionOnly ? (s.status === 'graded' ? 'Completed' : '—') : s.status === 'graded' ? `${s.marksObtained} / ${s.assignment?.maxMarks ?? '—'}` : `— / ${s.assignment?.maxMarks ?? '—'}`]; })}
         empty="No assignment submissions yet."
       />
       <h3 className="font-semibold mb-2 mt-6">My Results</h3>
@@ -7865,7 +7789,7 @@ function TeacherWorkspace({ tab, user, onFlash, onChanged, onNavigate, onMessage
   if (tab === 'aiCreative') return <TeacherCreativeAiPanel onFlash={onFlash} />;
   if (tab === 'advancedControl') return <AdvancedClassControlPanel onFlash={onFlash} />;
   if (tab === 'engagement') return <TeacherEngagementPanel onFlash={onFlash} />;
-  if (tab === 'ptm') return <TeacherPtmPanel onFlash={onFlash} />;
+  if (tab === 'ptm') return <><TeacherPtmPanel onFlash={onFlash} /><FamilyTeacherNotes onFlash={onFlash} /></>;
   if (tab === 'wallet') return <WalletCard onFlash={onFlash} />;
   if (tab === 'instEvents') return <InstitutionCommunity kind="events" onFlash={onFlash} />;
   if (tab === 'instHelpdesk') return <InstitutionCommunity kind="tickets" onFlash={onFlash} />;
@@ -10625,7 +10549,7 @@ function TeacherAttendancePanel({ onFlash }) {
                       <td className="py-2 pr-4">{en.student.fullName}</td>
                       <td className="py-2 pr-4">
                         <select className="form-select" value={status} onChange={(e) => setStatuses({ ...statuses, [en.student._id]: e.target.value })}>
-                          {['present', 'absent', 'late', 'excused'].map((s) => <option key={s} value={s}>{s}</option>)}
+                          {['present', 'absent', 'late', 'excused', 'half_day'].map((s) => <option key={s} value={s}>{s}</option>)}
                         </select>
                       </td>
                       <td className="py-2 pr-4">
@@ -11152,23 +11076,25 @@ function TeacherPerformancePanel({ onFlash }) {
 
 // ---------------------------------------------------------------- Parent
 
-function ParentWorkspace({ tab, user, onFlash, onChanged, onNavigate }) {
-  if (tab === 'profile') return <><ProfilePanel user={user} onFlash={onFlash} onChanged={onChanged} /><RolesPanel onFlash={onFlash} onChanged={onChanged} /><SupportComplaintPanel onFlash={onFlash} /></>;
-  if (tab === 'children') return <ParentPanel onFlash={onFlash} />;
+function ParentWorkspace({ tab, user, onFlash, onChanged, onNavigate,onMessageUser }) {
+  if (tab === 'profile') return <><ProfilePanel user={user} onFlash={onFlash} onChanged={onChanged} /><FamilyPrivate onFlash={onFlash} /><RolesPanel onFlash={onFlash} onChanged={onChanged} /><SupportComplaintPanel onFlash={onFlash} /></>;
+  if (tab === 'children') return <><FamilyConnections onFlash={onFlash} /><GuardianTutoringApprovalPanel onFlash={onFlash} /></>;
+  if(tab==='cafeteria')return <FamilyCafeteria onFlash={onFlash}/>;
   if (tab === 'summary') return <ParentSummary onNavigate={onNavigate} />;
-  if (tab === 'attendance') return <ParentChildDataPanel onFlash={onFlash} kind="attendance" />;
-  if (tab === 'progress') return <ParentChildDataPanel onFlash={onFlash} kind="results" />;
+  if (tab === 'attendance') return <FamilyAcademic kind="attendance" onFlash={onFlash} />;
+  if (tab === 'classroomObservation') return <FamilyClassrooms onFlash={onFlash} />;
+  if (tab === 'progress') return <FamilyAcademic kind="results" onFlash={onFlash} />;
   if (tab === 'fees') return <ParentChildDataPanel onFlash={onFlash} kind="fees" />;
-  if (tab === 'timetable') return <ParentChildDataPanel onFlash={onFlash} kind="timetable" />;
+  if (tab === 'timetable') return <FamilyAcademic kind="timetable" onFlash={onFlash} />;
   if (tab === 'homework') return <ParentChildDataPanel onFlash={onFlash} kind="homework" />;
   if (tab === 'examSchedule') return <ParentChildDataPanel onFlash={onFlash} kind="exams" />;
-  if (tab === 'portfolio') return <ParentChildDataPanel onFlash={onFlash} kind="certificates" />;
-  if (tab === 'performance') return <ParentPerformancePanel onFlash={onFlash} />;
+  if (tab === 'portfolio') return <FamilyAcademic kind="portfolio" onFlash={onFlash} />;
+  if (tab === 'performance') return <FamilyAcademic kind="performance" onFlash={onFlash} />;
   if (tab === 'institutionInfo') return <ParentInstitutionInfoPanel onFlash={onFlash} />;
-  if (tab === 'teacherMessages') return <ParentTeacherMessagesPanel onFlash={onFlash} onNavigate={onNavigate} />;
-  if (tab === 'wallet') return <ParentPaymentRecordsPanel onFlash={onFlash} />;
+  if (tab === 'teacherMessages') return <ParentTeacherMessagesPanel onFlash={onFlash} onNavigate={onNavigate} onMessageUser={onMessageUser}/>;
+  if (tab === 'wallet') return <FamilyPayments onFlash={onFlash} />;
   if (tab === 'health') return <MedicalHealth mode="parent" onFlash={onFlash} />;
-  if (tab === 'permissions') return <ParentPermissionsPanel onFlash={onFlash} />;
+  if (tab === 'permissions') return <><FamilyAcademic kind="permissions" onFlash={onFlash} /><ParentPermissionsPanel onFlash={onFlash} /></>;
   if (tab === 'ptm') return <ParentPtmPanel onFlash={onFlash} />;
   if (tab === 'aiAssistant') return <ParentAiAssistantPanel onFlash={onFlash} />;
   if (tab === 'transport') return <ParentTransportPanel onFlash={onFlash} />;
@@ -11262,6 +11188,8 @@ function ParentAiAssistantPanel({ onFlash }) {
   const [answer, setAnswer] = useState('');
   const [dataSummary, setDataSummary] = useState('');
   const [loading, setLoading] = useState(false);
+  const [dataConsent,setConsent]=useState(false),[sources,setSources]=useState([]),[institutionId,setInstitution]=useState('');
+  useEffect(()=>{let active=true;setInstitution('');setConsent(false);setSources([]);if(studentId)apiRequest(`/parents/children/${studentId}/ai-sources`).then(rows=>{if(active)setSources(rows);}).catch(e=>onFlash(e.message));return()=>{active=false;};},[studentId]);
 
   useEffect(() => {
     apiRequest('/parents/children').then((list) => {
@@ -11276,10 +11204,10 @@ function ParentAiAssistantPanel({ onFlash }) {
     if (!question.trim()) return onFlash('Enter a question first.');
     setLoading(true); setAnswer(''); setDataSummary('');
     try {
-      const res = await apiRequest(`/parents/children/${studentId}/ai-assistant`, { method: 'POST', body: { question: question.trim() } });
+      const res = await apiRequest(`/parents/children/${studentId}/ai-assistant`, { method: 'POST', body: { question: question.trim(),dataConsent,institutionId:institutionId||undefined } });
       setAnswer(res.answer);
       setDataSummary(res.dataSummary);
-      setQuestion('');
+      setQuestion('');setConsent(false);
     } catch (err) { onFlash(err.message); } finally { setLoading(false); }
   }
 
@@ -11298,7 +11226,7 @@ function ParentAiAssistantPanel({ onFlash }) {
       <AiSettingsPanel onFlash={onFlash} purposes={[AI_PURPOSES[0]]} />
       <div className="admin-section">
         <div className="admin-section-heading"><div><h2>AI Parent Assistant</h2><p>Uses your own connected AI provider (above) to answer questions about your child's real attendance, results, fees and upcoming exams. It only summarizes what's already recorded — it never decides anything for you.</p></div></div>
-        <form onSubmit={ask} className="flex gap-3 items-end flex-wrap">
+        <label>AI provider account<select className="form-select" disabled={loading} value={institutionId} onChange={e=>{setInstitution(e.target.value);setConsent(false);}}><option value="">My own connected provider</option>{sources.map(i=><option key={i._id} value={i._id}>{i.name} — institution-funded</option>)}</select></label><label style={{display:'block',margin:'14px 0'}}><input type="checkbox" checked={dataConsent} disabled={loading} onChange={e=>setConsent(e.target.checked)}/> I agree to send this child’s attendance/results, fee-status summary, exam schedule and my question to the selected external AI provider for this request.</label><form onSubmit={ask} className="flex gap-3 items-end flex-wrap">
           {children.length > 1 && (
             <label style={{ display: 'inline-block' }}>
               <span className="text-xs" style={{ display: 'block', color: 'var(--ink-soft)', fontWeight: 600, marginBottom: 6 }}>Child</span>
@@ -11308,7 +11236,7 @@ function ParentAiAssistantPanel({ onFlash }) {
             </label>
           )}
           <input className="form-input" placeholder="e.g. How is their attendance this month?" value={question} onChange={(e) => setQuestion(e.target.value)} style={{ minWidth: 280, flex: 1 }} required />
-          <button type="submit" className="btn btn-primary" disabled={loading}>{loading ? 'Thinking...' : 'Ask'}</button>
+          <button type="submit" className="btn btn-primary" disabled={loading||!dataConsent}>{loading ? 'Thinking...' : 'Ask'}</button>
         </form>
       </div>
       {answer && (
@@ -11413,7 +11341,7 @@ function ParentChildDataPanel({ onFlash, kind }) {
       {rows && kind === 'homework' && (
         <Table
           headers={['Assignment', 'Due', 'Status', 'Marks']}
-          rows={rows.map((s) => [s.assignment?.title, s.assignment?.dueDate ? new Date(s.assignment.dueDate).toLocaleDateString() : '—', <Tag status={s.status === 'graded' ? 'approved' : 'pending'} />, s.marksObtained ?? `/ ${s.assignment?.maxMarks ?? ''}`])}
+          rows={rows.map((s) => [s.assignment?.title, s.assignment?.dueDate ? new Date(s.assignment.dueDate).toLocaleDateString() : '—', <Tag status={s.status === 'graded' ? 'approved' : s.status==='overdue'?'rejected':'pending'} label={s.status} />, <div>{s.marksObtained ?? 'Pending'} / {s.assignment?.maxMarks}<p>{s.feedback}</p></div>])}
           empty="No homework submissions yet."
         />
       )}
@@ -11571,6 +11499,8 @@ function ParentOwnReputationPanel({ institutionId, onFlash }) {
 
 function ParentInstitutionInfoPanel({ onFlash }) {
   const [children, setChildren] = useState(null);
+  const [schoolId,setSchoolId]=useState('');
+  const schools=[...new Map((children||[]).flatMap(c=>c.institutions||[]).map(i=>[i._id,i])).values()];
   const [institution, setInstitution] = useState(undefined);
   const [newsletters, setNewsletters] = useState(null);
   const [magazine, setMagazine] = useState(null);
@@ -11582,16 +11512,16 @@ function ParentInstitutionInfoPanel({ onFlash }) {
   }, []);
 
   useEffect(() => {
-    const instId = children?.[0]?.institutionId;
+    const instId = schoolId || schools[0]?._id || children?.[0]?.institutionId;
     if (!instId) { setInstitution(null); return; }
-    apiRequest(`/institutions/${instId}`).then(setInstitution).catch(() => setInstitution(null));
-  }, [children]);
+    let active=true;setInstitution(undefined);setNewsletters(null);setMagazine(null);setCampusBuildings(null);apiRequest(`/institutions/${instId}`).then(i=>{if(active)setInstitution(i);}).catch(() => {if(active)setInstitution(null);});return()=>{active=false;};
+  }, [children,schoolId]);
 
   useEffect(() => {
     if (!institution?._id) return;
-    apiRequest(`/newsletters/published?institution=${institution._id}`).then(setNewsletters).catch(() => {});
-    apiRequest(`/magazine/published?institution=${institution._id}`).then(setMagazine).catch(() => {});
-    apiRequest(`/institutions/${institution._id}/campus-buildings`).then(setCampusBuildings).catch(() => {});
+    let active=true;apiRequest(`/newsletters/published?institution=${institution._id}`).then(r=>{if(active)setNewsletters(r);}).catch(() => {if(active)setNewsletters([]);});
+    apiRequest(`/magazine/published?institution=${institution._id}`).then(r=>{if(active)setMagazine(r);}).catch(() => {if(active)setMagazine([]);});
+    apiRequest(`/institutions/${institution._id}/campus-buildings`).then(r=>{if(active)setCampusBuildings(r);}).catch(() => {if(active)setCampusBuildings([]);});return()=>{active=false;};
   }, [institution]);
 
   if (children === null) return <p role="status" className="admin-notice">Loading...</p>;
@@ -11601,8 +11531,9 @@ function ParentInstitutionInfoPanel({ onFlash }) {
 
   return (
     <div>
+      <label style={{display:'block',marginBottom:16}}>Child institution<select className="form-select" value={schoolId||schools[0]?._id||institution._id} onChange={e=>setSchoolId(e.target.value)}>{schools.map(i=><option key={i._id} value={i._id}>{i.name}</option>)}</select></label>
       <div className="card" style={{ padding: 20, marginBottom: 20 }}>
-        <h3 className="font-semibold mb-2">{institution.name}</h3>
+        {institution.logo&&<img src={institution.logo} alt={institution.name+' logo'} style={{width:120,height:72,objectFit:'contain',marginBottom:12}}/>}<h3 className="font-semibold mb-2">{institution.name}</h3><p>{institution.address}</p>{institution.phone&&<p>Phone: <a href={'tel:'+institution.phone}>{institution.phone}</a></p>}{institution.email&&<p>Email: <a href={'mailto:'+institution.email}>{institution.email}</a></p>}
         <p className="text-sm" style={{ color: 'var(--ink-soft)' }}>{institution.type || '—'} · {institution.country || '—'}{institution.city ? `, ${institution.city}` : ''}</p>
         {institution.description && <p className="text-sm mt-2">{institution.description}</p>}
         {institution.website && <p className="text-sm mt-2"><a href={institution.website} target="_blank" rel="noreferrer">{institution.website}</a></p>}
@@ -11647,56 +11578,14 @@ function ParentInstitutionInfoPanel({ onFlash }) {
   );
 }
 
-function ParentTeacherMessagesPanel({ onFlash, onNavigate }) {
-  const [children, setChildren] = useState(null);
-
-  useEffect(() => {
-    apiRequest('/parents/me/dashboard').then((d) => setChildren(d.children)).catch((err) => onFlash(err.message));
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-
-  if (children === null) return <p role="status" className="admin-notice">Loading...</p>;
-  if (children.length === 0) {
-    return (
-      <div className="student-empty-state" style={{ border: '1px solid var(--sand-line)', borderRadius: 18, minHeight: 180 }}>
-        <FaUsers aria-hidden="true" />
-        <p>No linked children yet</p>
-        <span>Link one from the "My Children" tab first.</span>
-      </div>
-    );
-  }
-
-  return (
-    <div>
-      <h3 className="font-semibold" style={{ marginBottom: 16 }}>Teacher Communication</h3>
-      <div style={{ display: 'grid', gap: 14 }}>
-        {children.map((c) => (
-          <div key={c.id} className="card" style={{ padding: 20 }}>
-            <div className="flex items-center justify-between flex-wrap" style={{ gap: 12 }}>
-              <div className="flex items-center" style={{ gap: 12 }}>
-                <span style={{ width: 40, height: 40, borderRadius: '50%', background: 'var(--emerald)', color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 700, flexShrink: 0 }}>{c.name[0]}</span>
-                <div>
-                  <strong className="text-sm">{c.name}</strong>
-                  <p className="text-xs" style={{ color: 'var(--ink-soft)', marginTop: 2 }}>Class teacher: {c.classTeacher || 'Not assigned yet'}</p>
-                </div>
-              </div>
-              <button type="button" className="btn btn-primary" style={{ padding: '7px 16px', fontSize: '0.78rem', flexShrink: 0 }} onClick={() => onNavigate?.('messages')}>Message Teacher</button>
-            </div>
-            <div style={{ marginTop: 14, paddingTop: 14, borderTop: '1px solid var(--sand-line)' }}>
-              {c.teacherMessage ? (
-                <p className="text-xs" style={{ color: 'var(--ink-soft)' }}>Latest: "{c.teacherMessage.text}" — {new Date(c.teacherMessage.date).toLocaleString()}{c.teacherMessage.unread > 0 ? ` (${c.teacherMessage.unread} unread)` : ''}</p>
-              ) : (
-                <p className="text-xs" style={{ color: 'var(--ink-soft)' }}>No messages with the class teacher yet.</p>
-              )}
-            </div>
-          </div>
-        ))}
-      </div>
-    </div>
-  );
+function ParentTeacherMessagesPanel({onFlash,onNavigate,onMessageUser}){
+ const [children,setChildren]=useState(null),[rating,setRating]=useState('');
+ useEffect(()=>{apiRequest('/parents/children').then(async rows=>setChildren(await Promise.all(rows.map(async r=>({...r,teachers:await apiRequest('/parents/children/'+r.student._id+'/teachers')}))))).catch(e=>onFlash(e.message));},[]);
+ if(children===null)return <p role="status">Loading teachers…</p>;
+ return <section><h2>Child teachers & feedback</h2>{children.map(c=><article key={c._id} className="card" style={{padding:20,marginTop:16}}><h3>{c.student.fullName}</h3>{c.teachers.map(r=><div key={r.teacher._id} style={{padding:'12px 0',borderBottom:'1px solid var(--sand-line)'}}><strong>{r.teacher.fullName}</strong><p>{r.subjects.join(', ')}</p><button className="btn btn-primary" onClick={()=>onMessageUser?onMessageUser(r.teacher):onNavigate?.('messages')}>Message teacher</button> <button className="btn" onClick={()=>setRating(r.teacher._id)}>Rate teacher</button></div>)}{!c.teachers.length&&<p>No current teacher assigned.</p>}</article>)}{!children.length&&<p>Link a child to see their teachers.</p>}{rating&&<TeacherReputationWidget teacherId={rating} onFlash={onFlash}/>}</section>;
 }
 
-const PTM_STATUS_TAG = { pending: 'pending', confirmed: 'approved', declined: 'rejected', cancelled: 'rejected' };
+const PTM_STATUS_TAG = { pending: 'pending', confirmed: 'approved', declined: 'rejected', cancelled: 'rejected',expired:'rejected',completed:'approved' };
 
 // Shared: meeting minutes + follow-up action items (spec: "PTM ke baad teacher/parent notes aur
 // follow-up tasks likh sakein") — only editable once the meeting is actually marked completed.
@@ -12489,6 +12378,7 @@ function InstitutionWorkspace({ tab, user, onFlash, onChanged, isWarden = false 
   if (tab === 'offlineStudy') return <OfflineStudy onFlash={onFlash} />;
   if (tab === 'profile') return <><ProfilePanel user={user} onFlash={onFlash} onChanged={onChanged} />{isWarden && <SalaryPayoutProfilePanel onFlash={onFlash} />}<RolesPanel onFlash={onFlash} onChanged={onChanged} /><SupportComplaintPanel onFlash={onFlash} /></>;
   if (tab === 'institution') return <InstitutionPanel onFlash={onFlash} onChanged={onChanged} />;
+  if(tab==='cafeteria')return <FamilyCafeteria institution onFlash={onFlash}/>;
   if (tab === 'summary') return <InstitutionSummary />;
   if (tab === 'staff') return <InstitutionStaffPanel onFlash={onFlash} />;
   if (tab === 'classes') return <InstitutionClassesPanel onFlash={onFlash} />;
@@ -12500,7 +12390,7 @@ function InstitutionWorkspace({ tab, user, onFlash, onChanged, isWarden = false 
   if (tab === 'certificates') return <InstitutionCertificatesPanel onFlash={onFlash} />;
   if (tab === 'teachers') return <InstitutionTeachersPanel onFlash={onFlash} />;
   if (tab === 'students') return <InstitutionStudentsPanel onFlash={onFlash} />;
-  if (tab === 'parents') return <InstitutionParentsPanel onFlash={onFlash} />;
+  if (tab === 'parents') return <><InstitutionParentsPanel onFlash={onFlash} /><InstitutionFamilyActions onFlash={onFlash} /><FamilyPolicy onFlash={onFlash}/></>;
   if (tab === 'attendance') return <InstitutionAttendancePanel onFlash={onFlash} />;
   if (tab === 'payroll') return <InstitutionPayrollPanel onFlash={onFlash} />;
   if (tab === 'reports') return <InstitutionReportsPanel onFlash={onFlash} />;
@@ -13784,7 +13674,7 @@ function InstitutionParentsPanel({ onFlash }) {
             <div className="flex flex-wrap gap-2" style={{ marginTop: 8 }}>
               {p.children.map((c) => (
                 <span key={c.linkId} className="flex items-center gap-2" style={{ fontSize: 12, background: 'var(--sand)', borderRadius: 999, padding: '4px 10px' }}>
-                  {c.name} ({c.relationship})
+                  {c.name} ({c.relationship})<GuardianProof review linkId={c.linkId} institutionId={institution._id} onFlash={onFlash} onDone={()=>load(institution._id)}/>
                   <button type="button" className="btn" style={{ padding: '2px 8px', fontSize: '0.7rem' }} onClick={() => toggleVerify(c.linkId, !c.institutionVerified)}>
                     {c.institutionVerified ? <span className="flex items-center" style={{ gap: 5, justifyContent: 'center' }}><FaCheck aria-hidden="true" /> Verified</span> : 'Verify'}
                   </button>
@@ -20980,10 +20870,10 @@ function AdminWorkspace({ tab, user, roles, onFlash, onChanged }) {
       </>
     );
   }
-  if (tab === 'summary' || tab === 'institutions_mgmt') return <AdminPanel onFlash={onFlash} />;
+  if (tab === 'summary' || tab === 'institutions_mgmt') return <><AdminPanel onFlash={onFlash} />{tab==='summary'&&roles.some(r=>['admin','super_admin'].includes(r))&&<FamilyAdminSummary onFlash={onFlash} />}</>;
   if (tab === 'agents') return <AdminRolePanel onFlash={onFlash} role="education_agent" title="Agent Management" />;
   if (tab === 'donors') return <AdminDonorsPanel onFlash={onFlash} />;
-  if (tab === 'complaints') return <AdminComplaintsPanel onFlash={onFlash} />;
+  if (tab === 'complaints') return <><AdminComplaintsPanel onFlash={onFlash}/>{roles.some(r=>['admin','super_admin'].includes(r))&&<FamilyChatPolicy onFlash={onFlash}/>}</>;
   if (tab === 'security') return <AdminSecurityPanel onFlash={onFlash} />;
   if (tab === 'settings') return <AdminSettingsPanel onFlash={onFlash} isSuperAdmin={roles.includes('super_admin')} />;
   if (tab === 'finance') return <AdminFinancePanel onFlash={onFlash} isSuperAdmin={roles.includes('super_admin')} />;
@@ -21682,7 +21572,7 @@ function AdminComplaintsPanel({ onFlash }) {
         loading={complaints === null}
         headers={['Subject', 'By', 'Against', 'Category', 'Status', 'Action']}
         rows={(complaints || []).map((c) => [
-          c.subject, c.submittedBy?.fullName,
+          <div>{c.subject}<p>{c.description}</p>{c.messageEvidence?.length>0&&<details><summary>Submitted message evidence ({c.messageEvidence.length})</summary>{c.messageEvidence.map((m,i)=><article key={i}><p>{new Date(m.sentAt).toLocaleString()} · {m.kind}</p><p style={{whiteSpace:'pre-wrap'}}>{m.text}</p>{m.attachments.map((f,j)=><a key={j} href={f.url} target="_blank" rel="noreferrer">{f.name}</a>)}</article>)}</details>}</div>, c.submittedBy?.fullName,
           c.target ? <span>{c.target.fullName}<br /><span style={{ fontSize: '0.75rem', color: 'var(--ink-soft)' }}>{c.target.email}{c.target.phone ? ` · ${c.target.phone}` : ''}</span></span> : '—',
           c.category, <Tag status={c.status === 'resolved' ? 'approved' : c.status === 'dismissed' ? 'rejected' : 'pending'} />,
           c.status === 'open' || c.status === 'in_review' ? (
@@ -23381,7 +23271,7 @@ function MessagesPanel({ onFlash, user, restrictedStaffMessaging = false, initia
     if (!activeUser) return;
     const description = await showPrompt(`Describe the issue with ${activeUser.fullName}.`, { title: 'Report user', required: true, placeholder: 'What happened?' });
     if (!description) return;
-    try { await apiRequest('/complaints', { method: 'POST', body: { subject: `Reported: ${activeUser.fullName}`, category: 'harassment', description, targetType: 'user', targetId: activeUser._id } }); onFlash('Report submitted — Admin will review it.', 'success'); } catch (err) { onFlash(err.message); }
+    try { await apiRequest('/complaints', { method: 'POST', body: { subject: `Reported: ${activeUser.fullName}`, category: 'harassment', description, targetType: 'user', targetId: activeUser._id,messageIds:(thread||[]).slice(-20).map(m=>m._id) } }); onFlash('Report submitted — Admin will review it.', 'success'); } catch (err) { onFlash(err.message); }
   }
 
   // Arrived here via a specific person (e.g. Teacher -> Student Communication -> Message) rather

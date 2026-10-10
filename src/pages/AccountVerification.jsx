@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import BrandLogo from '../components/BrandLogo';
 import { Link, useNavigate } from 'react-router-dom';
 import { FaArrowRightFromBracket, FaPaperPlane, FaUserPen, FaGauge, FaPlus, FaClockRotateLeft, FaCircleInfo } from 'react-icons/fa6';
 import { useAuth } from '../context/AuthContext';
@@ -22,7 +23,7 @@ export function VerificationShell({ title, subtitle, children }) {
   return (
     <div className="vf-page">
       <header className="vf-topbar">
-        <Link to="/" className="vf-brand">CareerZ</Link>
+        <BrandLogo className="vf-brand" />
         <div className="vf-topbar-user">
           <span className="vf-muted">{user?.email}</span>
           <button type="button" className="btn btn-ghost vf-small" onClick={async () => { await logout(); navigate('/login'); }}><FaArrowRightFromBracket aria-hidden="true" /> Log out</button>

@@ -31,5 +31,5 @@ for (const page of pages) {
   const dir = 'dist'+(page.path==='/'?'':page.path); fs.mkdirSync(dir,{recursive:true});fs.writeFileSync(dir+'/index.html',html);
 }
 fs.writeFileSync('dist/sitemap.xml','<?xml version="1.0" encoding="UTF-8"?><urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">'+pages.map(p=>'<url><loc>'+esc(origin+p.path)+'</loc></url>').join('')+'</urlset>');
-fs.writeFileSync('dist/robots.txt','User-agent: *\nAllow: /\n'+['dashboard','onboarding','complete-profile','login','signup','forgot-password','reset-password'].map(p=>'Disallow: /'+p).join('\n')+'\nSitemap: '+origin+'/sitemap.xml\n');
+fs.writeFileSync('dist/robots.txt','User-agent: *\nAllow: /\n'+['social-callback','dashboard','onboarding','complete-profile','login','signup','forgot-password','reset-password'].map(p=>'Disallow: /'+p).join('\n')+'\nSitemap: '+origin+'/sitemap.xml\n');
 console.log('SEO: generated '+pages.length+' public pages and sitemap.');

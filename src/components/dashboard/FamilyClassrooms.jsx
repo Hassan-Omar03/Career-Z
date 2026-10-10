@@ -1,0 +1,10 @@
+import {useEffect,useState} from 'react';
+import {apiRequest,session as authSession} from '../../api/client';
+import CareerZLiveClassroom from '../CareerZLiveClassroom';
+
+export default function FamilyClassrooms({onFlash}){
+ const [children,setChildren]=useState([]),[child,setChild]=useState(''),[rows,setRows]=useState(null),[active,setActive]=useState(null),[error,setError]=useState('');
+ useEffect(()=>{apiRequest('/parents/children').then(r=>{setChildren(r);setChild(r[0]?.student?._id||'');}).catch(e=>setError(e.message));},[]);
+ useEffect(()=>{if(!child)return;let disposed=false;setActive(null);setRows(null);setError('');async function load(){try{const rows=await apiRequest(`/parents/children/${child}/classrooms`);if(!disposed){setRows(rows);setActive(previous=>previous&&rows.some(r=>r._id===previous._id&&r.status==='live')?previous:null);}}catch(e){if(!disposed){setError(e.message);setActive(null);}}}load();const timer=setInterval(load,15000);return()=>{disposed=true;clearInterval(timer);};},[child]);
+ return <section><h2>Classroom observation</h2><p>Available only when the institution enables guardian observation and your child permits it.</p><label>Child<select className="form-select" value={child} onChange={e=>setChild(e.target.value)}>{children.map(c=><option key={c._id} value={c.student._id}>{c.student.fullName}</option>)}</select></label>{error&&<p role="alert">{error}</p>}{rows===null&&child&&!error&&<p>Loading classes…</p>}{rows?.length===0&&<p>No permitted online classrooms are available.</p>}{active?<CareerZLiveClassroom session={active} user={authSession.getUser()} role="observer" observeStudentId={child} onLeave={()=>setActive(null)} onError={e=>{setActive(null);onFlash(e.message);}}/>:rows?.map(r=><article className="card" key={r._id} style={{padding:20,marginTop:16}}><h3>{r.title}</h3><p>{r.course?.title} · {r.teacher?.fullName} · {r.status}</p><p>{new Date(r.scheduledStart).toLocaleString()}</p><button className="btn btn-primary" disabled={r.status!=='live'} onClick={()=>setActive(r)}>Observe classroom</button></article>)}</section>;
+}

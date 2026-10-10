@@ -1,3 +1,4 @@
+import SocialCallback from './pages/SocialCallback';
 import PublicPage from './pages/PublicPage';
 import { useEffect, useState } from 'react';
 import { Navigate, Route, Routes } from 'react-router-dom';
@@ -63,6 +64,7 @@ export default function App() {
   return (
     <Routes>
       <Route path="/" element={<HomeOrInstitution />} />
+      <Route path="/social-callback" element={<SocialCallback />} />
       <Route path="/login" element={<Login />} />
       <Route path="/signup" element={<Signup />} />
       <Route path="/forgot-password" element={<ForgotPassword />} />
