@@ -1,0 +1,1 @@
+const r=require('node:module').createRequire('D:/Career-Z-backend/package.json');r('./src/services/email.service').sendEmail=async()=>({skipped:true});

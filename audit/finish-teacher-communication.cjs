@@ -1,0 +1,13 @@
+const fs=require('fs'),p='src/pages/Dashboard.jsx';let s=fs.readFileSync(p,'utf8');s=s.replace("onNavigate={setActiveTab} />}","onNavigate={setActiveTab} />}");
+s=s.replace("<ParentWorkspace tab={activeTab} user={user} onFlash={flash} onChanged={refreshProfile} onNavigate={setActiveTab} />", "<ParentWorkspace tab={activeTab} user={user} onFlash={flash} onChanged={refreshProfile} onNavigate={setActiveTab} onMessageUser={u=>{setPendingMessageUser(u);setActiveTab('messages');}} />");
+s=s.replace('function ParentWorkspace({ tab, user, onFlash, onChanged, onNavigate })', 'function ParentWorkspace({ tab, user, onFlash, onChanged, onNavigate,onMessageUser })');
+s=s.replace('<ParentTeacherMessagesPanel onFlash={onFlash} onNavigate={onNavigate} />','<ParentTeacherMessagesPanel onFlash={onFlash} onNavigate={onNavigate} onMessageUser={onMessageUser}/>');
+const start=s.indexOf('function ParentTeacherMessagesPanel'),end=s.indexOf('const PTM_STATUS_TAG',start);s=s.slice(0,start)+`function ParentTeacherMessagesPanel({onFlash,onNavigate,onMessageUser}){
+ const [children,setChildren]=useState(null),[rating,setRating]=useState('');
+ useEffect(()=>{apiRequest('/parents/children').then(async rows=>setChildren(await Promise.all(rows.map(async r=>({...r,teachers:await apiRequest('/parents/children/'+r.student._id+'/teachers')}))))).catch(e=>onFlash(e.message));},[]);
+ if(children===null)return <p role="status">Loading teachers…</p>;
+ return <section><h2>Child teachers & feedback</h2>{children.map(c=><article key={c._id} className="card" style={{padding:20,marginTop:16}}><h3>{c.student.fullName}</h3>{c.teachers.map(r=><div key={r.teacher._id} style={{padding:'12px 0',borderBottom:'1px solid var(--sand-line)'}}><strong>{r.teacher.fullName}</strong><p>{r.subjects.join(', ')}</p><button className="btn btn-primary" onClick={()=>onMessageUser?onMessageUser(r.teacher):onNavigate?.('messages')}>Message teacher</button> <button className="btn" onClick={()=>setRating(r.teacher._id)}>Rate teacher</button></div>)}{!c.teachers.length&&<p>No current teacher assigned.</p>}</article>)}{!children.length&&<p>Link a child to see their teachers.</p>}{rating&&<TeacherReputationWidget teacherId={rating} onFlash={onFlash}/>}</section>;
+}
+
+`+s.slice(end);s=s.replace("cancelled: 'rejected' };", "cancelled: 'rejected',expired:'rejected',completed:'approved' };");fs.writeFileSync(p,s);
+const backend='D:/Career-Z-backend/src/controllers/teacherFeedback.controller.js';s=fs.readFileSync(backend,'utf8');s=s.replace("course: { $in: courseIds } }", "course: { $in: courseIds },status:{$ne:'dropped'} }");s=s.replace("if (!rating || rating < 1 || rating > 5)","if (!Number.isInteger(rating) || rating < 1 || rating > 5)");fs.writeFileSync(backend,s);

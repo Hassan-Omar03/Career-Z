@@ -1,0 +1,6 @@
+const fs=require('fs'),root='D:/Career-Z-backend/src/';
+fs.copyFileSync('audit/family-wallet.stage.cjs',root+'controllers/familyWallet.controller.js');
+fs.writeFileSync(root+'models/FamilyWalletSettlement.js',`const mongoose=require('mongoose');const schema=new mongoose.Schema({reference:{type:String,unique:true,required:true},fee:{type:mongoose.Schema.Types.ObjectId,ref:'Fee',required:true},payer:{type:mongoose.Schema.Types.ObjectId,ref:'User',required:true},recipient:{type:mongoose.Schema.Types.ObjectId,ref:'User',required:true},amount:Number,currency:String,commission:Number,net:Number},{timestamps:true});module.exports=mongoose.model('FamilyWalletSettlement',schema);`);
+fs.writeFileSync(root+'models/FamilyPlatformBalance.js',`const mongoose=require('mongoose');const schema=new mongoose.Schema({currency:{type:String,unique:true,required:true},available:{type:Number,default:0}},{timestamps:true});module.exports=mongoose.model('FamilyPlatformBalance',schema);`);
+const p=root+'routes/parent.routes.js';let s=fs.readFileSync(p,'utf8');s=s.replace("router.get('/wallet',family.wallet);","router.get('/wallet',family.wallet);\nrouter.post('/fees/:feeId/wallet-payment',require('../controllers/familyWallet.controller').pay);");fs.writeFileSync(p,s);
+console.log('Atomic guardian wallet payment installed.');

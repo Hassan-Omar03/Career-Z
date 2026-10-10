@@ -1,0 +1,17 @@
+const fs=require('fs'),root='D:/Career-Z-backend/src/';const edit=(f,fn)=>fs.writeFileSync(root+f,fn(fs.readFileSync(root+f,'utf8').replace(/\r\n/g,'\n')));
+edit('services/familyAccess.service.js',s=>s.replace('async function related(parent,other)',`async function groupContacts(parent){const groups=await require('../models/GroupConversation').find({institution:{$ne:null},participants:parent}).populate('participants','fullName email roles profilePhoto');const rows=[];for(const group of groups){if(!await require('./guardianGroupAccess.service').eligible(group,parent))continue;for(const user of group.participants)if(!same(user,parent)&&await require('./guardianGroupAccess.service').eligible(group,user))rows.push({user,relationship:'parent group',context:group.name});}return rows;}
+async function related(parent,other)`)
+.replace('module.exports={', 'module.exports={groupContacts,'));
+edit('utils/messageAccess.js',s=>s.replace('if(await family.related(fromId,toId)||await family.related(toId,fromId))return true;', "if(await family.related(fromId,toId)||await family.related(toId,fromId))return true;\n  if((await family.groupContacts(fromId)).some(c=>idsEqual(c.user,toId)))return true;")
+.replace('for(const c of await family.contacts(userId))', 'for(const c of [...await family.contacts(userId),...await family.groupContacts(userId)])'));
+edit('controllers/groupConversation.controller.js',s=>s.replace('const allowed = [];',"if(memberIds.some(id=>!require('mongoose').isValidObjectId(id)))throw new AppError('Choose valid contacts.',422);\n  const allowed = [];")
+.replace('for (const id of memberIds)', 'for (const id of [...new Set(memberIds.map(String))])'));
+edit('controllers/course.controller.js',s=>s.replace("await notify(entry.student._id, { title: `New ${assignment.type}: ${assignment.title}`", "await require('../services/notification.service').notifyParentsOfStudent(entry.student._id,{title:'New child '+assignment.type+': '+assignment.title,body:assignment.dueDate?'Due '+new Date(assignment.dueDate).toLocaleString():'No deadline set.',sentBy:req.user._id},{email:true}).catch(()=>{});\n      await notify(entry.student._id, { title: `New ${assignment.type}: ${assignment.title}`"));
+edit('controllers/message.controller.js',s=>s.replace("if (!to || !text?.trim())", "if (!to || (!text?.trim()&&!Array.isArray(attachments)))")
+.replace("text: text.trim(), attachments: safeAttachments", "text: text?.trim()||'[Attachment]', attachments: safeAttachments")
+.replace("const message = await Message.create", "if(!text?.trim()&&!safeAttachments.length)throw new AppError('A message or valid attachment is required.',422);\n  const message = await Message.create")
+.replace(/  notify\(to, \{ title: `New message from[^\n]+\n/,"  // Private chat uses message socket events and unread counts; no routine email/push alert.\n"));
+edit('controllers/groupConversation.controller.js',s=>s.replace("if (!text?.trim()) throw new AppError('text is required.', 422);",'')
+.replace("const message = await GroupMessage.create", "if(!text?.trim()&&!safeAttachments.length)throw new AppError('A message or valid attachment is required.',422);\n  const message = await GroupMessage.create")
+.replace("text: text.trim(), attachments: safeAttachments", "text: text?.trim()||'[Attachment]', attachments: safeAttachments"));
+console.log('Authorized guardian group contacts, attachment messages and homework alerts connected.');

@@ -1,0 +1,12 @@
+const fs=require('fs'),root='D:/Career-Z-backend/src/';const path=root+'controllers/parent.controller.js';let s=fs.readFileSync(path,'utf8').replace(/\r\n/g,'\n');
+s=s.replace("giveConsent:relationship!=='sponsor'", "giveConsent:relationship!=='sponsor',observeClassroom:relationship!=='sponsor'");
+s=s.replace('link.permissions.giveConsent = false;', 'link.permissions.giveConsent = false;\n      link.permissions.observeClassroom=false;');
+s=s.replace('changes:{payFees,viewHealth,giveConsent}', 'changes:{payFees,viewHealth,giveConsent,observeClassroom:req.body.observeClassroom}');
+s=s.replace("await notify(link.parent, { title: 'Your guardian permissions", "if(req.body.observeClassroom===false)await require('../realtime/socket').revokeGuardianObservers(link.parent,link.student);\n  await notify(link.parent, { title: 'Your guardian permissions");fs.writeFileSync(path,s);
+const p='src/components/dashboard/FamilyCenter.jsx';s=fs.readFileSync(p,'utf8');
+s=s.replace("['payFees','viewHealth','giveConsent'].map", "['payFees','viewHealth','giveConsent','observeClassroom'].map");
+s=s.replace("giveConsent:'Sign consent'", "giveConsent:'Sign consent',observeClassroom:'Observe classroom'");
+s=s.replace("[students,setStudents]=useState([]),[form,setForm]", "[students,setStudents]=useState([]),[observationEnabled,setObservationEnabled]=useState(false),[form,setForm]");
+s=s.replace("const [requests,roster]=await Promise.all", "const [requests,roster,policy]=await Promise.all");
+s=s.replace("apiRequest(`/institutions/${institution}/students`)]);setRows(requests);setStudents(roster);", "apiRequest(`/institutions/${institution}/students`),apiRequest(`/institutions/${institution}/family/observation-policy`)]);setRows(requests);setStudents(roster);setObservationEnabled(policy.enabled);");
+s=s.replace("<h2>Guardian Permission Requests</h2>","<h2>Guardian Permission Requests</h2><label style={{display:'block',marginBottom:16}}><input type=\"checkbox\" disabled={busy||!institution} checked={observationEnabled} onChange={async e=>{setBusy(true);try{const policy=await apiRequest(`/institutions/${institution}/family/observation-policy`,{method:'PUT',body:{enabled:e.target.checked}});setObservationEnabled(policy.enabled);onFlash('Classroom observation policy updated.','success');}catch(e){onFlash(e.message);}finally{setBusy(false);}}}/> Allow approved guardians to observe online classes with their child's permission</label>");fs.writeFileSync(p,s);console.log('Student and institution observation controls connected.');

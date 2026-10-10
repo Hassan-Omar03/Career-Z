@@ -1,0 +1,27 @@
+const fs=require('fs'),root='D:/Career-Z-backend/src/';
+fs.writeFileSync(root+'models/TeacherMeetingCalendar.js',`const mongoose=require('mongoose');const schema=new mongoose.Schema({teacher:{type:mongoose.Schema.Types.ObjectId,ref:'User',required:true,unique:true},slots:[{meeting:{type:mongoose.Schema.Types.ObjectId,ref:'ParentTeacherMeeting'},token:String,start:Date,end:Date}]},{timestamps:true});module.exports=mongoose.model('TeacherMeetingCalendar',schema);`);
+fs.writeFileSync(root+'services/teacherMeetingCalendar.service.js',`const Calendar=require('../models/TeacherMeetingCalendar'),AppError=require('../utils/AppError');
+async function reserve(meeting){await Calendar.init();const start=new Date(meeting.confirmedDate),end=new Date(start.getTime()+30*60000),token=require('crypto').randomUUID();try{const row=await Calendar.findOneAndUpdate({teacher:meeting.teacher,slots:{$not:{$elemMatch:{start:{$lt:end},end:{$gt:start}}}}},{$push:{slots:{meeting:meeting._id,token,start,end}}},{upsert:true,new:true});if(!row)throw new AppError('Teacher already has an overlapping meeting.',409);return token;}catch(e){if(e.code===11000)throw new AppError('Teacher already has an overlapping meeting.',409);throw e;}}
+async function release(meeting,token){await Calendar.updateOne({teacher:meeting.teacher},{$pull:{slots:token?{token}:{meeting:meeting._id}}});}
+module.exports={reserve,release};`);
+function edit(path,fn){let s=fs.readFileSync(root+path,'utf8').replace(/\r\n/g,'\n');fs.writeFileSync(root+path,fn(s));}
+edit('models/ParentTeacherMeeting.js',s=>s.replace("'completed', 'cancelled']","'completed', 'cancelled', 'expired']").replace('{ timestamps: true }','{ timestamps: true, optimisticConcurrency:true }'));
+edit('controllers/ptm.controller.js',s=>{
+ s="const calendar=require('../services/teacherMeetingCalendar.service');\n"+s;
+ s=s.replace("try{await meeting.save();}catch(e){if(e.code===11000)throw new AppError('This teacher meeting time is already booked.',409);throw e;}","const token=decision==='confirmed'?await calendar.reserve(meeting):null;try{await meeting.save();}catch(e){if(token)await calendar.release(meeting,token);if(e.code===11000||e.name==='VersionError')throw new AppError('This meeting was booked or updated by another request.',409);throw e;}");
+ s=s.replace("meeting.cancelledBy = req.user._id;\n  await meeting.save();","meeting.cancelledBy = req.user._id;\n  await meeting.save();\n  await calendar.release(meeting);");
+ s=s.replace("if (frequency === 'weekly' && (dayOfWeek === undefined || dayOfWeek < 0 || dayOfWeek > 6))", "if (frequency === 'weekly' && (!Number.isInteger(dayOfWeek) || dayOfWeek < 0 || dayOfWeek > 6))");
+ s=s.replace("if (frequency === 'monthly' && (!dayOfMonth || dayOfMonth < 1 || dayOfMonth > 28))", "if (frequency === 'monthly' && (!Number.isInteger(dayOfMonth) || dayOfMonth < 1 || dayOfMonth > 28))");
+ s=s.replace('  const schedule = await PtmRecurringSchedule.create({',`  if(!/^([01]\\d|2[0-3]):[0-5]\\d$/.test(time))throw new AppError('Use a valid HH:mm meeting time.',422);
+  if(mode==='physical'&&!String(location||'').trim())throw new AppError('Physical meeting location required.',422);
+  if(meetingLink&&!(typeof meetingLink==='string'&&meetingLink.startsWith('https://')))throw new AppError('Use an HTTPS meeting link.',422);
+  if(institutionId){const school=await Institution.findById(institutionId);if(!school||!school.staff.some(s=>String(s.user)===String(req.user._id))&&String(school.owner)!==String(req.user._id))throw new AppError('You are not a teacher at this institution.',403);}
+  const schedule = await PtmRecurringSchedule.create({`);
+ s=s.replace("schedule.active = req.body.active !== false;","if(typeof req.body.active!=='boolean')throw new AppError('active must be true or false.',422);\n  schedule.active = req.body.active;");
+ s=s.replace("bookingKey:String(schedule.teacher)+':'+target.toISOString(),status: 'confirmed', recurringSchedule: schedule._id","status: 'pending', recurringSchedule: schedule._id");
+ s=s.replace("  await notify(schedule.teacher, { title: `Recurring PTM booked:","  const token=await calendar.reserve(meeting).catch(async e=>{await ParentTeacherMeeting.deleteOne({_id:meeting._id,status:'pending'});throw e;});meeting.status='confirmed';meeting.bookingKey=String(schedule.teacher)+':'+target.toISOString();try{await meeting.save();}catch(e){await calendar.release(meeting,token);await ParentTeacherMeeting.deleteOne({_id:meeting._id,status:'pending'});if(e.code===11000||e.name==='VersionError')throw new AppError('This slot was booked by another request.',409);throw e;}\n  await notify(schedule.teacher, { title: `Recurring PTM booked:");
+ return s;
+});
+edit('services/familyAccess.service.js',s=>s.replace("{teacher,subjects:[],institution}","{teacher,subjects:[],institution,institutions:[]}").replace("const r=map.get(id);if(subject", "const r=map.get(id);if(institution&&!r.institutions.some(i=>same(i,institution)))r.institutions.push(institution);if(subject"));
+edit('controllers/familyPrivate.controller.js',s=>s.replace("req.user.roles||[]","req.accessibleRoles||req.user.roles||[]").replace("req.user.roles.includes('platform_staff')&&!req.permissions?.includes('complaint:manage')", "(req.accessibleRoles||req.user.roles).includes('platform_staff')&&!(req.accessibleRoles||req.user.roles).some(r=>['super_admin','admin'].includes(r))"));
+console.log('Concurrent overlapping PTM reservations, strict recurring schedules and scoped teacher schools installed.');

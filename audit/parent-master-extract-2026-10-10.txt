@@ -1,0 +1,4957 @@
+5: Part 1 — Vision, Mission & Foundation
+6: 
+7: ---
+8: 
+9: 1. Project Name
+10: 
+11: CareerZ – Global AI-Powered Education Ecosystem
+12: 
+13: ---
+14: 
+15: 2. Project Vision
+16: 
+17: CareerZ is a production-grade, AI-powered global education ecosystem designed to connect every stakeholder in education through a single intelligent platform.
+18: 
+19: Instead of creating another job portal, LMS, school management system, or marketplace, CareerZ aims to become the complete digital infrastructure for education worldwide.
+20: 
+21: Every student, parent, teacher, institution, employer, education agent, donor, trainer, academy, marketplace seller, and administrator should be able to work together through one unified platform.
+22: 
+23: CareerZ will be accessible from any country and will never be limited to a single language, currency, or education system.
+24: 
+25: ---
+26: 
+27: 3. Mission
+28: 
+29: To simplify every stage of the education journey through Artificial Intelligence.
+30: 
+31: CareerZ will help users:
+32: 
+33: • Discover educational opportunities
+34: • Apply for admissions
+35: • Find scholarships
+36: • Learn new skills
+37: • Connect with institutions
+38: • Find employment
+39: • Hire qualified people
+40: • Sell educational products
+41: • Manage institutions
+42: • Receive AI-powered guidance
+43: 
+44: All through one secure and intelligent ecosystem.
+45: 
+46: ---
+47: 
+48: 4. Long-Term Goal
+49: 
+
+87:    Every module should be production-ready.
+88: 
+89: ---
+90: 
+91: 6. Core Objectives
+92: 
+93: CareerZ must provide:
+94: 
+95: • Education Discovery
+96: 
+97: • Institution Management
+98: 
+99: • Student Management
+100: 
+101: • Teacher Management
+102: 
+103: • Parent Portal
+104: 
+105: • Employer Portal
+106: 
+107: • Job Marketplace
+108: 
+109: • Scholarship System
+110: 
+111: • AI Learning Platform
+112: 
+113: • Digital Marketplace
+114: 
+115: • Education Agent Network
+116: 
+117: • Donor Management
+118: 
+119: • Administration System
+120: 
+121: • AI Analytics
+122: 
+123: ---
+124: 
+125: 7. Target Users
+126: 
+127: CareerZ supports multiple user types:
+128: 
+129: - Students
+130: - Parents
+131: - Teachers
+132: - Institutions
+133: - Institution Owners
+134: - Institution Staff
+135: - Employers
+136: - Education Agents
+137: - Donors
+138: - Trainers
+139: - Academy Owners
+140: - Marketplace Sellers
+141: - Administrators
+142: - Super Administrators
+143: 
+144: Each role will receive its own dashboard, permissions, workflows, and AI assistant.
+145: 
+146: ---
+147: 
+148: 8. Global Platform Principles
+149: 
+150: CareerZ must never contain:
+151: 
+152: ❌ Hardcoded country names
+153: 
+154: ❌ Hardcoded cities
+155: 
+156: ❌ Hardcoded currencies
+157: 
+158: ❌ Country-specific workflows
+
+265: │   │   └── utils.js
+266: │   │
+267: │   ├── images/
+268: │   ├── icons/
+269: │   └── fonts/
+270: │
+271: ├── pages/
+272: │   ├── login.html
+273: │   ├── signup.html
+274: │   ├── forgot-password.html
+275: │   ├── reset-password.html
+276: │   └── verification-pending.html
+277: │
+278: ├── dashboard/
+279: │   ├── student/
+280: │   ├── teacher/
+281: │   ├── parent/
+282: │   ├── institution/
+283: │   ├── owner/
+284: │   ├── employer/
+285: │   ├── agent/
+286: │   ├── donor/
+287: │   ├── marketplace/
+288: │   └── admin/
+289: │
+290: ├── documents/
+291: │
+292: ├── backups/
+293: │
+294: └── uploads/
+295: 
+296: ---
+297: 
+298: 13. Folder Rules
+299: 
+300: Every folder has a single responsibility.
+301: 
+302: Never mix unrelated files.
+303: 
+304: CSS files must remain inside assets/css.
+305: 
+306: JavaScript files must remain inside assets/js.
+307: 
+308: HTML pages must remain inside pages or dashboard.
+309: 
+
+637: 
+638: Public users can browse content but cannot perform protected actions.
+639: 
+640: ---
+641: 
+642: 26. Authentication Pages
+643: 
+644: Authentication pages include:
+645: 
+646: - Login
+647: - Signup
+648: - Forgot Password
+649: - Reset Password
+650: 
+651: These pages are common for every user.
+652: 
+653: No separate login page will exist for Students, Teachers, Employers, Institutions, Parents, or Agents.
+654: 
+655: There is only one authentication system.
+656: 
+657: ---
+658: 
+659: 27. Universal User Account
+660: 
+661: Every person creates only ONE CareerZ account.
+662: 
+663: There are no separate accounts for:
+664: 
+665: ❌ Student
+666: 
+667: ❌ Teacher
+668: 
+669: ❌ Institution
+670: 
+671: ❌ Employer
+672: 
+673: ❌ Parent
+674: 
+675: ❌ Agent
+676: 
+677: Instead:
+678: 
+679: Every new user becomes a normal verified CareerZ user.
+680: 
+681: Additional roles can be requested later.
+682: 
+683: ---
+684: 
+685: 28. User Journey
+686: 
+687: Step 1
+688: 
+689: Visitor opens CareerZ.
+690: 
+691: ↓
+692: 
+693: Step 2
+694: 
+695: User creates an account.
+696: 
+697: ↓
+698: 
+699: Step 3
+700: 
+701: Email verification.
+
+793: - Departments
+794: - Finance
+795: - Reports
+796: 
+797: Employer
+798: 
+799: - Job Posts
+800: - Applicants
+801: - Interviews
+802: 
+803: Agent
+804: 
+805: - Student Applications
+806: - Commission
+807: - Institutions
+808: 
+809: Parent
+810: 
+811: - Children
+812: - Attendance
+813: - Results
+814: - Fee Status
+815: 
+816: ---
+817: 
+818: 31. Role Request System
+819: 
+820: Users do not receive professional roles automatically.
+821: 
+822: Instead:
+823: 
+824: Dashboard
+825: 
+826: ↓
+827: 
+828: Request New Role
+829: 
+830: ↓
+831: 
+832: Select Role
+833: 
+834: ↓
+835: 
+836: Upload Documents
+837: 
+
+1879: 1. Modular & Future-Proof Architecture
+1880: 
+1881: CareerZ مکمل Modular Architecture پر بنایا جائے گا۔
+1882: 
+1883: ہر Module الگ ہوگا، مثلاً:
+1884: 
+1885: Authentication
+1886: 
+1887: Dashboard
+1888: 
+1889: Institutions
+1890: 
+1891: Students
+1892: 
+1893: Teachers
+1894: 
+1895: Parents
+1896: 
+1897: Employers
+1898: 
+1899: Agents
+1900: 
+1901: Courses
+1902: 
+1903: Scholarships
+1904: 
+1905: Jobs
+1906: 
+1907: Payments
+1908: 
+1909: Reports
+1910: 
+1911: AI Assistant
+1912: 
+1913: Notifications
+1914: 
+1915: Support Center
+1916: 
+1917: 
+1918: کسی نئے Module کو شامل یا حذف کرنے کے لیے پوری Website تبدیل کرنے کی ضرورت نہیں ہوگی۔
+1919: 
+1920: 
+1921: ---
+1922: 
+1923: 2. System Settings Center (Super Admin Only)
+
+2223: 
+2224: 
+2225: ---
+2226: 
+2227: PART 5 — Universal Dashboard System (Updated Version)
+2228: 
+2229: 5.1 Universal Dashboard Philosophy
+2230: 
+2231: ہر رجسٹرڈ یوزر کے پاس اپنا ذاتی Dashboard ہوگا۔
+2232: 
+2233: ہر Dashboard اس کے Role کے مطابق خود بخود تبدیل ہوگا۔
+2234: 
+2235: مثال:
+2236: 
+2237: Student Dashboard
+2238: 
+2239: Parent Dashboard
+2240: 
+2241: Teacher Dashboard
+2242: 
+2243: Institution Dashboard
+2244: 
+2245: Employer Dashboard
+2246: 
+2247: Agent Dashboard
+2248: 
+2249: Donor Dashboard
+2250: 
+2251: Staff Dashboard
+2252: 
+2253: Super Admin Dashboard
+2254: 
+2255: 
+2256: تمام Dashboards ایک ہی مرکزی سسٹم سے چلیں گے۔
+2257: 
+2258: 
+2259: ---
+2260: 
+2261: 5.2 Role Based Dashboard
+2262: 
+2263: ہر یوزر صرف اپنی اجازت کے مطابق فیچرز دیکھ سکے گا۔
+2264: 
+2265: مثلاً:
+2266: 
+2267: Student کو Institution Settings نظر نہیں آئیں گی۔
+
+3359: ---
+3360: 
+3361: Part 7 (Updated) — Trust, Safety & Dispute Resolution System
+3362: 
+3363: 7.1 Universal Complaint Center
+3364: 
+3365: ہر Verified User شکایت درج کر سکے گا۔
+3366: 
+3367: مثلاً
+3368: 
+3369: Student → School
+3370: 
+3371: Student → Teacher
+3372: 
+3373: Teacher → School
+3374: 
+3375: Parent → School
+3376: 
+3377: Institution → Teacher
+3378: 
+3379: Institution → Student
+3380: 
+3381: Employer → Employee
+3382: 
+3383: Employee → Employer
+3384: 
+3385: Agent → Institution
+3386: 
+3387: Institution → Agent
+3388: 
+3389: 
+3390: 
+3391: ---
+3392: 
+3393: 7.2 Complaint Categories
+3394: 
+3395: مثلاً
+3396: 
+3397: Salary not paid
+3398: 
+3399: Fee fraud
+3400: 
+3401: Fake certificate
+3402: 
+3403: Fake institution
+
+4237: 8.26 Institution AI Assistant
+4238: 
+4239: ہر ادارے کا الگ AI Assistant ہوگا۔
+4240: 
+4241: وہ صرف اسی ادارے کے ڈیٹا تک رسائی رکھے گا۔
+4242: 
+4243: مثلاً:
+4244: 
+4245: آج کتنے بچے حاضر ہیں؟
+4246: 
+4247: Ahmed کی Fee باقی ہے؟
+4248: 
+4249: Result Print کرو۔
+4250: 
+4251: Timetable بنا دو۔
+4252: 
+4253: Parents کو Message بھیج دو۔
+4254: 
+4255: 
+4256: 
+4257: ---
+4258: 
+4259: 8.27 Future Ready Architecture
+4260: 
+4261: یہ Module مکمل Modular ہوگا۔
+4262: 
+4263: آئندہ اگر:
+4264: 
+4265: نئی Class
+4266: 
+4267: نیا Country
+4268: 
+4269: نئی Language
+4270: 
+4271: نئی Currency
+4272: 
+4273: نیا AI
+4274: 
+4275: نیا Payment Gateway
+4276: 
+4277: نیا Education System
+4278: 
+4279: 
+4280: شامل کرنا ہو تو پورا Module دوبارہ بنانے کی ضرورت نہیں ہوگی۔
+4281: 
+
+4596: Comments
+4597: 
+4598: Progress Report
+4599: 
+4600: 
+4601: Generate کرے گا۔
+4602: 
+4603: 
+4604: ---
+4605: 
+4606: 9.13 Student Communication
+4607: 
+4608: Teacher رابطہ کر سکے گا:
+4609: 
+4610: Student
+4611: 
+4612: Parent
+4613: 
+4614: Institution
+4615: 
+4616: 
+4617: کے ساتھ۔
+4618: 
+4619: Notifications:
+4620: 
+4621: Email
+4622: 
+4623: SMS
+4624: 
+4625: Push Notification
+4626: 
+4627: Internal Messaging
+4628: 
+4629: 
+4630: 
+4631: ---
+4632: 
+4633: 9.14 Online Teaching
+4634: 
+4635: Teacher Online Classes لے سکے گا۔
+4636: 
+4637: Support:
+4638: 
+4639: Zoom
+4640: 
+
+4725: اپنے Students شامل کر سکے گا۔
+4726: 
+4727: اپنی Fees مقرر کر سکے گا۔
+4728: 
+4729: آن لائن یا فزیکل Teaching کر سکے گا۔
+4730: 
+4731: 
+4732: 
+4733: ---
+4734: 
+4735: 9.19 Teacher Reputation System
+4736: 
+4737: ہر Teacher کے لیے:
+4738: 
+4739: Student Ratings
+4740: 
+4741: Parent Feedback
+4742: 
+4743: Institution Feedback
+4744: 
+4745: Verified Teaching Hours
+4746: 
+4747: Achievement Badges
+4748: 
+4749: 
+4750: دکھائے جائیں گے۔
+4751: 
+4752: صرف Verified Reviews قبول ہوں گے۔
+4753: 
+4754: 
+4755: ---
+4756: 
+4757: 9.20 Future Ready Architecture
+4758: 
+4759: یہ Module Modular ہوگا۔
+4760: 
+4761: بعد میں:
+4762: 
+4763: نئی Teaching Technologies
+4764: 
+4765: نئے AI Models
+4766: 
+4767: نئے Exam Systems
+4768: 
+4769: نئے Curriculums
+
+4840: Portfolio
+4841: 
+4842: AI Learning Insights
+4843: 
+4844: 
+4845: 
+4846: ---
+4847: 
+4848: 10.3 Student Profile
+4849: 
+4850: Student اپنی مکمل معلومات Manage کرے گا۔
+4851: 
+4852: Personal Information
+4853: 
+4854: Academic Information
+4855: 
+4856: Parent Information
+4857: 
+4858: Emergency Contact
+4859: 
+4860: Languages
+4861: 
+4862: Skills
+4863: 
+4864: Interests
+4865: 
+4866: Hobbies
+4867: 
+4868: Career Goal
+4869: 
+4870: Profile Picture
+4871: 
+4872: Cover Image
+4873: 
+4874: 
+4875: 
+4876: ---
+4877: 
+4878: 10.4 Lifetime Academic Record
+4879: 
+4880: CareerZ طالب علم کا Lifetime Academic Record محفوظ رکھے گا۔
+4881: 
+4882: اس میں شامل ہوگا:
+4883: 
+4884: Schools
+
+5174: Fee Payments
+5175: 
+5176: Refunds
+5177: 
+5178: Scholarships
+5179: 
+5180: Rewards
+5181: 
+5182: Credits
+5183: 
+5184: 
+5185: تمام Receipts محفوظ رہیں گی۔
+5186: 
+5187: 
+5188: ---
+5189: 
+5190: 10.17 Parent Connection
+5191: 
+5192: Parent اپنے بچے کو Link کرے گا۔
+5193: 
+5194: Parent دیکھ سکے گا:
+5195: 
+5196: Attendance
+5197: 
+5198: Results
+5199: 
+5200: Homework
+5201: 
+5202: Fees
+5203: 
+5204: Notifications
+5205: 
+5206: 
+5207: 
+5208: ---
+5209: 
+5210: 10.18 Digital Student ID
+5211: 
+5212: ہر Student کو QR Verified Digital ID ملے گی۔
+5213: 
+5214: 
+5215: ---
+5216: 
+5217: 10.19 Student Reputation
+5218: 
+5219: System محفوظ رکھے گا:
+5220: 
+5221: Academic Badges
+5222: 
+
+5358: 
+5359: 
+5360: ---
+5361: 
+5362: ⭐ اضافی Master Features
+5363: 
+5364: One-Time Profile System: طالب علم اپنی معلومات صرف ایک بار درج کرے گا، پھر وہی معلومات CV، Job Application، Scholarship، Internship اور Admission میں خودکار استعمال ہوں گی۔
+5365: 
+5366: Lifetime Digital Identity: CareerZ اکاؤنٹ طالب علم کی پوری تعلیمی اور پیشہ ورانہ زندگی کا مستقل ریکارڈ ہوگا۔
+5367: 
+5368: Document Verification: Verified Documents پر QR اور Digital Signature ہوگا، تاکہ Employers اور Institutions انہیں فوراً Verify کر سکیں۔
+5369: 
+5370: Smart Apply: ایک کلک سے متعدد Jobs، Internships یا Scholarships کے لیے درخواست دی جا سکے گی (جہاں پالیسی اجازت دے)۔
+5371: 
+5372: Cross-Platform Growth: طالب علم جیسے جیسے نئی Skills، Certificates یا Experience حاصل کرے گا، اس کا Portfolio اور CV خودکار طور پر اپڈیٹ ہوتے رہیں گے۔
+5373: 
+5374: Part 11 — Parent Portal & Family Management System
+5375: 
+5376: یہ صرف والدین کے لیے نہیں ہوگا بلکہ پورا Family Management System ہوگا۔
+5377: 
+5378: 11.1 Parent Dashboard
+5379: 
+5380: والدین کو اپنا الگ Dashboard ملے گا۔
+5381: 
+5382: وہ دیکھ سکیں گے:
+5383: 
+5384: تمام بچوں کی لسٹ
+5385: 
+5386: ہر بچے کی کلاس
+5387: 
+5388: ادارہ
+5389: 
+5390: Attendance
+5391: 
+5392: Progress
+5393: 
+5394: Exam Result
+5395: 
+5396: Fees
+5397: 
+5398: Notifications
+5399: 
+5400: Messages
+5401: 
+5402: 
+5403: 
+5404: ---
+5405: 
+5406: 11.2 Multiple Children Support
+5407: 
+5408: اگر ایک والد کے:
+5409: 
+5410: 1 بچہ
+5411: 
+5412: 2 بچے
+5413: 
+5414: 5 بچے
+5415: 
+5416: 
+5417: ہوں تب بھی ایک ہی اکاؤنٹ سے سب Manage ہوں۔
+5418: 
+5419: مثلاً
+5420: 
+5421: Parent
+5422: 
+5423: ├── Ali
+5424: 
+5425: ├── Ahmed
+5426: 
+5427: ├── Fatima
+5428: 
+5429: 
+5430: ---
+5431: 
+5432: 11.3 Student Linking
+5433: 
+5434: Parent صرف اپنی مرضی سے کسی Student کو شامل نہیں کرے گا۔
+5435: 
+5436: Workflow:
+5437: 
+5438: Student
+5439: 
+5440: ↓
+5441: 
+5442: Enter Parent Mobile
+5443: 
+5444: ↓
+5445: 
+5446: Parent gets Request
+5447: 
+5448: ↓
+5449: 
+5450: Approve
+5451: 
+5452: ↓
+5453: 
+5454: Student Linked
+5455: 
+5456: 
+5457: ---
+5458: 
+5459: 11.4 Attendance Monitoring
+5460: 
+5461: Parent روز دیکھ سکے
+5462: 
+5463: حاضر
+5464: 
+5465: غیر حاضر
+5466: 
+5467: Late
+5468: 
+5469: Half Day
+5470: 
+5471: 
+5472: اور ماہانہ رپورٹ بھی۔
+5473: 
+5474: 
+5475: ---
+5476: 
+5477: 11.5 Live Academic Progress
+5478: 
+5479: ہر Subject
+5480: 
+5481: مثلاً
+5482: 
+5483: Math
+5484: 
+5485: Science
+5486: 
+5487: English
+5488: 
+5489: Urdu
+
+5498: 
+5499: Weak Areas
+5500: 
+5501: Strong Areas
+5502: 
+5503: سب دکھائی دیں۔
+5504: 
+5505: 
+5506: ---
+5507: 
+5508: 11.6 Homework Center
+5509: 
+5510: Teacher Homework دے
+5511: 
+5512: ↓
+5513: 
+5514: Parent دیکھ سکے
+5515: 
+5516: ↓
+5517: 
+5518: Student Complete کرے
+5519: 
+5520: ↓
+5521: 
+5522: Teacher Check کرے
+5523: 
+5524: ↓
+5525: 
+5526: Parent دیکھ سکے
+5527: 
+5528: 
+5529: ---
+5530: 
+5531: 11.7 Fee Management
+5532: 
+5533: Parent دیکھ سکے
+5534: 
+5535: کتنی Fee ہے
+5536: 
+5537: Paid
+5538: 
+5539: Unpaid
+5540: 
+5541: Due Date
+5542: 
+5543: Receipt
+5544: 
+5545: 
+5546: Online Payment
+5547: 
+5548: Card
+5549: 
+5550: Bank
+5551: 
+5552: Wallet
+5553: 
+5554: Mobile Payment
+5555: 
+5556: Country Supported Methods
+5557: 
+5558: 
+5559: ---
+5560: 
+5561: 11.8 Parent-Teacher Meeting
+5562: 
+5563: Online Booking
+5564: 
+5565: Parent
+5566: 
+5567: ↓
+5568: 
+5569: Choose Teacher
+5570: 
+5571: ↓
+5572: 
+5573: Choose Time
+5574: 
+5575: ↓
+5576: 
+5577: Meeting Confirm
+5578: 
+5579: Online یا Physical
+5580: 
+5581: 
+5582: ---
+5583: 
+5584: 11.9 Parent Chat
+5585: 
+5586: صرف متعلقہ لوگوں سے
+5587: 
+5588: Teacher
+5589: 
+5590: Principal
+5591: 
+5592: Institution
+5593: 
+5594: Accounts Office
+5595: 
+5596: 
+5597: Spam نہیں۔
+5598: 
+5599: 
+5600: ---
+5601: 
+5602: 11.10 AI Parent Assistant
+5603: 
+5604: یہ وہ AI ہوگا جو صرف والدین کی مدد کرے گا، نہ کہ پلیٹ فارم ایڈمن کی۔
+5605: 
+5606: مثلاً:
+5607: 
+5608: میرے بچے کی ریاضی کمزور ہے، کیا کروں؟
+5609: 
+5610: کون سا کورس بہتر ہے؟
+5611: 
+5612: کون سا سکول بہتر رہے گا؟
+5613: 
+5614: اگلی کلاس کی تیاری کیسے کریں؟
+5615: 
+5616: 
+5617: نوٹ:
+5618: 
+5619: یہ AI اختیاری ہوگا۔
+5620: 
+5621: ادارہ اپنی پسند کا AI (ChatGPT، Gemini، Claude وغیرہ) استعمال کر سکے گا۔
+5622: 
+5623: پلیٹ فارم صرف انضمام (Integration) فراہم کرے گا۔
+5624: 
+5625: 
+5626: 
+5627: ---
+5628: 
+5629: 11.11 Child Safety Alerts
+5630: 
+5631: اگر
+5632: 
+5633: مسلسل غیر حاضر
+5634: 
+5635: امتحان میں بہت کم نمبر
+5636: 
+5637: Discipline Issue
+5638: 
+5639: Emergency
+5640: 
+5641: 
+5642: تو Parent کو فوراً Notification جائے۔
+5643: 
+5644: 
+5645: ---
+5646: 
+5647: 11.12 Transport Tracking (Optional)
+5648: 
+5649: اگر ادارہ چاہے
+5650: 
+5651: تو
+5652: 
+5653: School Bus
+5654: 
+5655: GPS
+5656: 
+5657: Driver
+5658: 
+5659: Pickup
+5660: 
+5661: Drop
+5662: 
+5663: Live Tracking
+5664: 
+5665: دیکھ سکے۔
+5666: 
+5667: 
+5668: ---
+5669: 
+5670: 11.13 Health Record
+5671: 
+5672: اختیاری
+5673: 
+5674: والدین محفوظ رکھ سکیں:
+5675: 
+5676: Allergy
+5677: 
+5678: Blood Group
+5679: 
+5680: Emergency Contact
+5681: 
+5682: Medical Notes
+5683: 
+5684: 
+5685: صرف مجاز افراد دیکھ سکیں۔
+5686: 
+5687: 
+5688: ---
+5689: 
+5690: 11.14 Permission System
+5691: 
+5692: Parent اجازت دے سکے:
+5693: 
+5694: Trip
+5695: 
+5696: Event
+5697: 
+5698: Competition
+5699: 
+5700: Photo Permission
+5701: 
+5702: Medical Permission
+5703: 
+5704: 
+5705: Digital Signature کے ساتھ۔
+5706: 
+5707: 
+5708: ---
+5709: 
+5710: 11.15 Parent Reputation
+5711: 
+5712: اگر Parent
+5713: 
+5714: وقت پر Fees دیتا ہے۔
+5715: 
+5716: ادارے کے Rules Follow کرتا ہے۔
+5717: 
+5718: غلط Reports نہیں کرتا۔
+5719: 
+5720: 
+5721: تو اچھا Trust Score بنے۔
+5722: 
+5723: یہ عوامی نہیں ہوگا۔
+5724: 
+5725: صرف Institution دیکھ سکے گی۔
+5726: 
+5727: 
+5728: ---
+5729: 
+5730: 11.16 Privacy
+5731: 
+5732: Parent صرف
+5733: 
+5734: اپنے بچوں کا ڈیٹا دیکھ سکے۔
+5735: 
+5736: دوسرے کسی بچے کا نہیں۔
+5737: 
+5738: 
+5739: ---
+5740: 
+5741: 11.17 Super Admin Control
+5742: 
+5743: آپ بطور Super Admin دیکھ سکیں گے:
+5744: 
+5745: کتنے Parents Active ہیں۔
+5746: 
+5747: Parent Satisfaction
+5748: 
+5749: Complaints
+5750: 
+5751: Fee Statistics
+5752: 
+5753: Parent Engagement
+5754: 
+5755: AI Usage
+5756: 
+5757: Support Tickets
+5758: 
+5759: 
+5760: لیکن والدین کی نجی معلومات صرف ضرورت اور اجازت کے مطابق ہی قابلِ رسائی ہوں گی۔
+5761: 
+5762: 
+5763: ---
+5764: 
+5765: Part 12 — Employer & Smart Job Ecosystem
+5766: 
+5767: یہ صرف "Job Board" نہیں ہوگا بلکہ مکمل AI-powered Hiring Ecosystem ہوگا۔
+5768: 
+5769: 
+5770: ---
+5771: 
+5772: 12.1 Employer Dashboard
+5773: 
+5774: ہر Employer کے پاس اپنا Dashboard ہوگا۔
+5775: 
+5776: وہ دیکھ سکے گا:
+5777: 
+5778: Active Jobs
+5779: 
+5780: Closed Jobs
+5781: 
+5782: Applications
+5783: 
+5784: Shortlisted Candidates
+5785: 
+5786: Interviews
+5787: 
+5788: Hired Employees
+
+7037: Homework Assistant
+7038: 
+7039: AI Revision
+7040: 
+7041: AI Practice Questions
+7042: 
+7043: AI Mock Tests
+7044: 
+7045: Career Suggestions
+7046: 
+7047: Skill Suggestions
+7048: 
+7049: 
+7050: 
+7051: ---
+7052: 
+7053: 14.6 AI Parent Assistant
+7054: 
+7055: Child Progress
+7056: 
+7057: Attendance Summary
+7058: 
+7059: Weak Subjects
+7060: 
+7061: Fee Reminder
+7062: 
+7063: Parent Notifications
+7064: 
+7065: 
+7066: 
+7067: ---
+7068: 
+7069: 14.7 AI Teacher Assistant
+7070: 
+7071: Lesson Plans
+7072: 
+7073: Smart Assignments
+7074: 
+7075: Question Papers
+7076: 
+7077: Rubrics
+7078: 
+7079: Performance Analysis
+7080: 
+7081: 
+7082: 
+7083: ---
+7084: 
+7085: 14.8 AI Institution Assistant
+7086: 
+7087: Admissions Prediction
+7088: 
+7089: Enrollment Forecast
+7090: 
+7091: Finance Insights
+
+7239: 
+7240: کی طرح کام کرے گا۔
+7241: 
+7242: 
+7243: ---
+7244: 
+7245: ہر User کا الگ Dashboard ہوگا۔
+7246: 
+7247: Student کا الگ
+7248: 
+7249: Teacher کا الگ
+7250: 
+7251: Employer کا الگ
+7252: 
+7253: Institution کا الگ
+7254: 
+7255: Parent کا الگ
+7256: 
+7257: Agent کا الگ
+7258: 
+7259: Admin کا الگ
+7260: 
+7261: 
+7262: ---
+7263: 
+7264: Algorithm یہ دیکھے گا
+7265: 
+7266: Search History
+7267: 
+7268: Browsing History
+7269: 
+7270: Courses
+7271: 
+7272: Applications
+7273: 
+7274: Skills
+7275: 
+7276: Interests
+7277: 
+7278: Language
+7279: 
+7280: Country
+7281: 
+7282: City
+7283: 
+
+7923: ↓
+7924: 
+7925: Sections
+7926: 
+7927: کے ساتھ Link ہوگا۔
+7928: 
+7929: 
+7930: ---
+7931: 
+7932: ایک Teacher
+7933: 
+7934: 100 Subjects بھی پڑھا سکتا ہے۔
+7935: 
+7936: 
+7937: ---
+7938: 
+7939: 15A.10 Parent Linking
+7940: 
+7941: ہر Student
+7942: 
+7943: ایک Parent
+7944: 
+7945: دو Parent
+7946: 
+7947: یا Guardian
+7948: 
+7949: کے ساتھ Link ہوگا۔
+7950: 
+7951: مثلاً
+7952: 
+7953: Father
+7954: 
+7955: Mother
+7956: 
+7957: Guardian
+7958: 
+7959: Sponsor
+7960: 
+7961: Hostel Warden
+7962: 
+7963: 
+7964: ---
+7965: 
+7966: 15A.11 Academic Session
+7967: 
+7968: Academic Years
+7969: 
+7970: مثلاً
+7971: 
+7972: 2025-2026
+7973: 
+7974: 2026-2027
+7975: 
+7976: 2027-2028
+7977: 
+7978: 
+7979: ---
+7980: 
+7981: Semester
+7982: 
+7983: Spring
+7984: 
+7985: Fall
+
+8447: 
+8448: ---
+8449: 
+8450: 15B.12 Discussion Forum
+8451: 
+8452: ہر کلاس کا اپنا Discussion Board ہوگا۔
+8453: 
+8454: Teacher سوال پوچھ سکے گا۔
+8455: 
+8456: Students آپس میں گفتگو کر سکیں گے۔
+8457: 
+8458: Moderation System موجود ہوگا۔
+8459: 
+8460: 
+8461: ---
+8462: 
+8463: 15B.13 Parent Classroom Access
+8464: 
+8465: اگر ادارہ اجازت دے تو والدین دیکھ سکیں گے:
+8466: 
+8467: Attendance
+8468: 
+8469: Homework
+8470: 
+8471: Assignment Status
+8472: 
+8473: Progress
+8474: 
+8475: Teacher Comments
+8476: 
+8477: 
+8478: لیکن انہیں کلاس میں مداخلت کی اجازت نہیں ہوگی۔
+8479: 
+8480: 
+8481: ---
+8482: 
+8483: 15B.14 Smart Notifications
+8484: 
+8485: Notifications جائیں گی:
+8486: 
+8487: Mobile
+8488: 
+8489: Email
+8490: 
+8491: SMS (اختیاری)
+8492: 
+8493: WhatsApp (اگر ادارہ فعال کرے)
+
+9030: Semester Wise
+9031: 
+9032: Year Wise
+9033: 
+9034: 
+9035: دیکھی جا سکے گی۔
+9036: 
+9037: AI بتا سکے گا:
+9038: 
+9039: "Student Mathematics میں کمزور ہے"
+9040: 
+9041: "Student Programming میں بہتر ہے"
+9042: 
+9043: 
+9044: ---
+9045: 
+9046: 15C.15 Parent Progress View
+9047: 
+9048: والدین دیکھ سکیں گے:
+9049: 
+9050: Result
+9051: 
+9052: Attendance
+9053: 
+9054: Homework
+9055: 
+9056: Teacher Feedback
+9057: 
+9058: Progress Report
+9059: 
+9060: 
+9061: 
+9062: ---
+9063: 
+9064: 15C.16 Report Card System
+9065: 
+9066: Automatic Report Card:
+9067: 
+9068: Student Information
+9069: 
+9070: Subjects
+9071: 
+9072: Marks
+9073: 
+9074: Grade
+9075: 
+9076: Attendance
+
+9333: Waiting List
+9334: 
+9335: Admission Letters
+9336: 
+9337: Student ID Generation
+9338: 
+9339: 
+9340: 
+9341: ---
+9342: 
+9343: 15D.4 Student Information System (SIS)
+9344: 
+9345: ہر طالب علم کا مکمل ریکارڈ:
+9346: 
+9347: Personal Information
+9348: 
+9349: Parents
+9350: 
+9351: Guardian
+9352: 
+9353: Address
+9354: 
+9355: Medical Information
+9356: 
+9357: Emergency Contact
+9358: 
+9359: Previous Education
+9360: 
+9361: Attendance
+9362: 
+9363: Academic History
+9364: 
+9365: Certificates
+9366: 
+9367: Fee Record
+9368: 
+9369: Disciplinary Record
+9370: 
+9371: 
+9372: 
+9373: ---
+9374: 
+9375: 15D.5 Human Resource (HR)
+9376: 
+9377: ادارہ اپنا مکمل عملہ Manage کرے گا۔
+9378: 
+9379: Roles:
+
+9636: Vaccination
+9637: 
+9638: Medical History
+9639: 
+9640: Emergency Cases
+9641: 
+9642: 
+9643: 
+9644: ---
+9645: 
+9646: 15D.15 Communication Center
+9647: 
+9648: ادارہ رابطہ کر سکے گا:
+9649: 
+9650: Students
+9651: 
+9652: Parents
+9653: 
+9654: Teachers
+9655: 
+9656: Staff
+9657: 
+9658: 
+9659: ذریعے:
+9660: 
+9661: Email
+9662: 
+9663: SMS
+9664: 
+9665: Push Notification
+9666: 
+9667: WhatsApp (اگر ادارہ فعال کرے)
+9668: 
+9669: 
+9670: 
+9671: ---
+9672: 
+9673: 15D.16 Complaint & Help Desk
+9674: 
+9675: ہر ادارے کا اپنا Help Desk ہوگا۔
+9676: 
+9677: Complaint Categories:
+9678: 
+9679: Academic
+9680: 
+
+9699: ---
+9700: 
+9701: 15D.17 Events & Activities
+9702: 
+9703: ادارہ Manage کرے گا:
+9704: 
+9705: Sports Day
+9706: 
+9707: Annual Function
+9708: 
+9709: Seminars
+9710: 
+9711: Workshops
+9712: 
+9713: Competitions
+9714: 
+9715: Parent Meetings
+9716: 
+9717: Convocation
+9718: 
+9719: 
+9720: 
+9721: ---
+9722: 
+9723: 15D.18 Permission & Staff Access
+9724: 
+9725: ادارے کا Owner خود فیصلہ کرے گا:
+9726: 
+9727: Accountant کیا دیکھ سکتا ہے؟
+9728: 
+9729: Teacher کیا Edit کر سکتا ہے؟
+9730: 
+9731: Coordinator کیا Manage کرے؟
+9732: 
+9733: Librarian کیا Access کرے؟
+9734: 
+9735: Receptionist کیا دیکھے؟
+9736: 
+9737: 
+9738: ہر Role کی اپنی Permission ہوگی۔
+9739: 
+9740: 
+9741: ---
+9742: 
+9743: 15D.19 AI Operations Assistant
+
+10572: 
+10573: ↓
+10574: 
+10575: Students
+10576: 
+10577: ↓
+10578: 
+10579: Operations
+10580: 
+10581: ↓
+10582: 
+10583: Finance
+10584: 
+10585: 
+10586: ---
+10587: 
+10588: Parent
+10589: 
+10590: Verification
+10591: 
+10592: ↓
+10593: 
+10594: Student Link
+10595: 
+10596: ↓
+10597: 
+10598: Progress Monitoring
+10599: 
+10600: ↓
+10601: 
+10602: Communication
+10603: 
+10604: 
+10605: ---
+10606: 
+10607: 15S.5 AI Integration Philosophy
+10608: 
+10609: CareerZ کسی مخصوص AI پر منحصر نہیں ہوگا۔
+10610: 
+10611: ہر ادارہ اپنی مرضی سے:
+10612: 
+10613: ChatGPT
+10614: 
+10615: Claude
+10616: 
+
+10648: 
+10649: ---
+10650: 
+10651: Department Level
+10652: 
+10653: Department Head
+10654: 
+10655: 
+10656: ---
+10657: 
+10658: User Level
+10659: 
+10660: Teacher
+10661: 
+10662: Student
+10663: 
+10664: Parent
+10665: 
+10666: Staff
+10667: 
+10668: ہر سطح پر مکمل Permission Control ہوگا۔
+10669: 
+10670: 
+10671: ---
+10672: 
+10673: 15S.7 Security Architecture
+10674: 
+10675: ہر Module پر:
+10676: 
+10677: Authentication
+10678: 
+10679: ↓
+10680: 
+10681: Authorization
+10682: 
+10683: ↓
+10684: 
+10685: Logging
+10686: 
+10687: ↓
+10688: 
+10689: Audit Trail
+10690: 
+10691: ↓
+10692: 
+
+10988: 16A.2 Super Admin Dashboard
+10989: 
+10990: لاگ ان کرتے ہی Super Admin کے سامنے Live Dashboard ہوگا۔
+10991: 
+10992: اس میں درج ذیل Widgets ہوں گے:
+10993: 
+10994: Platform Statistics
+10995: 
+10996: Total Countries
+10997: 
+10998: Total Institutions
+10999: 
+11000: Total Students
+11001: 
+11002: Total Teachers
+11003: 
+11004: Total Parents
+11005: 
+11006: Total Employers
+11007: 
+11008: Total Agents
+11009: 
+11010: Total Courses
+11011: 
+11012: Total Jobs
+11013: 
+11014: Total Scholarships
+11015: 
+11016: Total Active Users
+11017: 
+11018: 
+11019: 
+11020: ---
+11021: 
+11022: Today's Activity
+11023: 
+11024: New Registrations
+11025: 
+11026: New Institutions
+11027: 
+11028: New Admissions
+11029: 
+11030: New Courses
+11031: 
+11032: New Jobs
+
+11388: 
+11389: 
+11390: 
+11391: 
+11392: ---
+11393: 
+11394: PART 16B — Global Platform Management & Universal Secure Transaction System (GPMS + CUST-DRE)
+11395: 
+11396: 16B.1 Vision
+11397: 
+11398: CareerZ صرف ایک تعلیمی پلیٹ فارم نہیں بلکہ ایک Global Education Financial & Transaction Ecosystem ہوگا۔
+11399: 
+11400: اس کا مقصد:
+11401: 
+11402: دنیا کے کسی بھی ملک کے User کو محفوظ لین دین کی سہولت دینا۔
+11403: 
+11404: Buyer، Seller، Institution، Teacher، Student اور Parent سب کو یکساں تحفظ دینا۔
+11405: 
+11406: کسی بھی قسم کے مالی یا ڈیجیٹل فراڈ کو کم سے کم کرنا۔
+11407: 
+11408: عالمی معیار (Enterprise Grade) کا Transaction System فراہم کرنا۔
+11409: 
+11410: 
+11411: 
+11412: ---
+11413: 
+11414: 16B.2 Global Platform Management
+11415: 
+11416: Super Admin دنیا بھر کے لیے Manage کرے گا:
+11417: 
+11418: Countries
+11419: 
+11420: Languages
+11421: 
+11422: Currencies
+11423: 
+11424: Time Zones
+11425: 
+11426: Academic Calendars
+11427: 
+11428: Country Policies
+11429: 
+11430: Tax Rules
+11431: 
+11432: Payment Rules
+
+11492: Visa
+11493: 
+11494: Mastercard
+11495: 
+11496: ACH
+11497: 
+11498: 
+11499: 
+11500: ---
+11501: 
+11502: 16B.5 Universal Wallet System
+11503: 
+11504: ہر User کے لیے Wallet ہوگا۔
+11505: 
+11506: Student Wallet
+11507: 
+11508: Parent Wallet
+11509: 
+11510: Teacher Wallet
+11511: 
+11512: Institution Wallet
+11513: 
+11514: Employer Wallet
+11515: 
+11516: Agent Wallet
+11517: 
+11518: Platform Wallet (صرف Super Admin)
+11519: 
+11520: 
+11521: ہر Wallet میں:
+11522: 
+11523: Available Balance
+11524: 
+11525: Pending Balance
+11526: 
+11527: Hold Amount
+11528: 
+11529: Transaction History
+11530: 
+11531: Receipts
+11532: 
+11533: Refund History
+11534: 
+11535: 
+11536: 
+
+11850: Platform Fee
+11851: 
+11852: Settlement
+11853: 
+11854: 
+11855: مکمل کرے گا۔
+11856: 
+11857: 
+11858: ---
+11859: 
+11860: 16B.19 Commission Privacy
+11861: 
+11862: Platform Commission
+11863: 
+11864: صرف Super Admin دیکھ سکے گا۔
+11865: 
+11866: کوئی Institution، Teacher، Student یا Parent کبھی نہیں دیکھ سکے گا کہ Platform نے کتنا کمیشن لیا۔
+11867: 
+11868: انہیں صرف اپنی رسید اور اپنی ادائیگی نظر آئے گی۔
+11869: 
+11870: 
+11871: ---
+11872: 
+11873: 16B.20 Financial Transparency
+11874: 
+11875: ہر User کو اپنی:
+11876: 
+11877: Receipts
+11878: 
+11879: Payments
+11880: 
+11881: Refunds
+11882: 
+11883: Wallet History
+11884: 
+11885: 
+11886: نظر آئے گی۔
+11887: 
+11888: لیکن Platform کا اندرونی مالی نظام (Internal Revenue Structure) مکمل طور پر Hidden رہے گا۔
+11889: 
+11890: 
+11891: ---
+11892: 
+11893: ⭐ Golden Rule — Part 16B
+11894: 
+
+12406: مثلاً:
+12407: 
+12408: Super Admin
+12409: 
+12410: Finance Admin
+12411: 
+12412: Security Admin
+12413: 
+12414: Institution Owner
+12415: 
+12416: School Principal
+12417: 
+12418: Teacher
+12419: 
+12420: Student
+12421: 
+12422: Parent
+12423: 
+12424: Employer
+12425: 
+12426: 
+12427: ہر Role صرف اپنے اختیارات تک محدود ہوگا۔
+12428: 
+12429: 
+12430: ---
+12431: 
+12432: 16D.7 Permission Audit
+12433: 
+12434: ہر Permission Change محفوظ ہوگی۔
+12435: 
+12436: Record ہوگا:
+12437: 
+12438: کس نے Permission دی؟
+12439: 
+12440: کس نے ہٹائی؟
+12441: 
+12442: کب؟
+12443: 
+12444: کیوں؟
+12445: 
+12446: 
+12447: یہ Record Delete نہیں ہوگا۔
+12448: 
+12449: 
+12450: ---
+
+12464: Child Protection Rules
+12465: 
+12466: Data Retention Policies
+12467: 
+12468: 
+12469: Country-wise Compliance Rules Admin Panel سے Manage کیے جا سکیں گے۔
+12470: 
+12471: 
+12472: ---
+12473: 
+12474: 16D.9 Child Safety & Protection
+12475: 
+12476: کیونکہ Platform پر بچے بھی ہوں گے:
+12477: 
+12478: Child Accounts کے لیے اضافی Security
+12479: 
+12480: Parent Control
+12481: 
+12482: Safe Communication Rules
+12483: 
+12484: Abuse Reporting
+12485: 
+12486: AI Content Monitoring
+12487: 
+12488: 
+12489: کوئی بھی Adult بغیر مناسب اجازت کے بچے سے Direct رابطہ نہیں کر سکے گا۔
+12490: 
+12491: 
+12492: ---
+12493: 
+12494: 16D.10 Reporting & Complaint Center
+12495: 
+12496: ہر User درج ذیل کی Report کر سکے گا:
+12497: 
+12498: Fake Institution
+12499: 
+12500: Fake Teacher
+12501: 
+12502: Fake Student
+12503: 
+12504: Fake Job
+12505: 
+12506: Fake Course
+12507: 
+12508: Harassment
+
+12760: 16E.6 Automation Engine
+12761: 
+12762: ہر ادارہ اپنے Workflow خود بنا سکے گا۔
+12763: 
+12764: مثلاً:
+12765: 
+12766: Admission Approval
+12767: 
+12768: Fee Reminder
+12769: 
+12770: Certificate Generation
+12771: 
+12772: Attendance Alerts
+12773: 
+12774: Exam Notifications
+12775: 
+12776: Parent Notifications
+12777: 
+12778: 
+12779: Automation Rules Admin Panel سے بنائے جا سکیں گے۔
+12780: 
+12781: 
+12782: ---
+12783: 
+12784: 16E.7 Feature Flag System
+12785: 
+12786: نئے Features سب کے لیے ایک ساتھ فعال نہیں ہوں گے۔
+12787: 
+12788: Super Admin فیصلہ کرے گا:
+12789: 
+12790: Beta Feature
+12791: 
+12792: Pilot Feature
+12793: 
+12794: Country Specific Feature
+12795: 
+12796: Institution Specific Feature
+12797: 
+12798: 
+12799: کون سا Feature کس کے لیے فعال ہوگا۔
+12800: 
+12801: 
+12802: ---
+12803: 
+12804: 16E.8 Global Scaling Center
+
+14256: 
+14257: لیکن سب ایک ہی مرکزی CareerZ Platform پر ہوں گے۔
+14258: 
+14259: 
+14260: ---
+14261: 
+14262: 17A.9 Universal Identity System
+14263: 
+14264: ہر User کی ایک ہی Global CareerZ ID ہوگی۔
+14265: 
+14266: اسی ID سے وہ:
+14267: 
+14268: Student
+14269: 
+14270: Teacher
+14271: 
+14272: Parent
+14273: 
+14274: Employee
+14275: 
+14276: Freelancer
+14277: 
+14278: Job Seeker
+14279: 
+14280: Institution Owner
+14281: 
+14282: 
+14283: یا ایک سے زیادہ کردار ادا کر سکے گا، بغیر الگ الگ Accounts بنائے۔
+14284: 
+14285: 
+14286: ---
+14287: 
+14288: 17A.10 Event-Driven Architecture
+14289: 
+14290: Platform میں اہم Events خودکار طور پر دوسرے Modules کو اطلاع دیں گے۔
+14291: 
+14292: مثلاً:
+14293: 
+14294: Student Admission
+14295: 
+14296: Fee Paid
+14297: 
+14298: Certificate Issued
+14299: 
+14300: Teacher Hired
+
+14564: Courses
+14565: 
+14566: Subjects
+14567: 
+14568: Classes
+14569: 
+14570: Sections
+14571: 
+14572: Academic Session
+14573: 
+14574: Timetable
+14575: 
+14576: Students
+14577: 
+14578: Teachers
+14579: 
+14580: Parents
+14581: 
+14582: Attendance
+14583: 
+14584: 
+14585: جب یہ مکمل ہوگا تو LMS کی بنیاد تیار ہو جائے گی۔
+14586: 
+14587: 
+14588: ---
+14589: 
+14590: 17B.7 Phase 5 — Communication Foundation
+14591: 
+14592: اس میں:
+14593: 
+14594: Internal Messaging
+14595: 
+14596: Email
+14597: 
+14598: Notifications
+14599: 
+14600: Push Notifications
+14601: 
+14602: Announcements
+14603: 
+14604: Institution Notices
+14605: 
+14606: 
+14607: 
+14608: ---
+
+14891: Exams
+14892: 
+14893: Results
+14894: 
+14895: Certificates
+14896: 
+14897: 
+14898: 
+14899: ---
+14900: 
+14901: Group 4 — Student Database
+14902: 
+14903: اس میں:
+14904: 
+14905: Student Profile
+14906: 
+14907: Parents
+14908: 
+14909: Academic History
+14910: 
+14911: Enrollment
+14912: 
+14913: Performance
+14914: 
+14915: Skills
+14916: 
+14917: CV Builder
+14918: 
+14919: Portfolio
+14920: 
+14921: 
+14922: 
+14923: ---
+14924: 
+14925: Group 5 — Teacher Database
+14926: 
+14927: اس میں:
+14928: 
+14929: Teacher Profile
+14930: 
+14931: Qualifications
+14932: 
+14933: Experience
+14934: 
+14935: Certifications
+
+15085: Cyber Events
+15086: 
+15087: 
+15088: 
+15089: ---
+15090: 
+15091: 17C.4 Universal CareerZ ID
+15092: 
+15093: ہر User کو صرف ایک Global CareerZ ID ملے گی۔
+15094: 
+15095: اسی ID کے ذریعے وہ:
+15096: 
+15097: Student
+15098: 
+15099: Teacher
+15100: 
+15101: Parent
+15102: 
+15103: Employee
+15104: 
+15105: Institution Owner
+15106: 
+15107: Freelancer
+15108: 
+15109: Job Seeker
+15110: 
+15111: 
+15112: یا ایک سے زیادہ کردار ادا کر سکے گا۔
+15113: 
+15114: 
+15115: ---
+15116: 
+15117: 17C.5 Institution Isolation
+15118: 
+15119: ہر ادارے کا Data الگ منطقی (Logical) ماحول میں ہوگا۔
+15120: 
+15121: مثلاً:
+15122: 
+15123: School A کا Student کبھی School B کے Data تک رسائی حاصل نہیں کر سکے گا۔
+15124: 
+15125: ہر Institution صرف اپنا Data دیکھ سکے گا۔
+15126: 
+15127: صرف Super Admin کو Global View حاصل ہوگا۔
+15128: 
+15129: 
+
+15402: 
+15403: ہر جگہ ایک جیسا انداز ہوگا تاکہ User کو نیا Interface سیکھنے کی ضرورت نہ پڑے۔
+15404: 
+15405: 
+15406: ---
+15407: 
+15408: 17D.4 Universal Navigation System
+15409: 
+15410: ہر User کو صرف اس کے کردار (Role) کے مطابق Menu نظر آئے گا۔
+15411: 
+15412: مثلاً:
+15413: 
+15414: Student
+15415: 
+15416: Teacher
+15417: 
+15418: Parent
+15419: 
+15420: Institution Owner
+15421: 
+15422: Staff
+15423: 
+15424: Super Admin
+15425: 
+15426: 
+15427: ہر Dashboard الگ ہوگا لیکن Navigation کا اصول ایک جیسا رہے گا۔
+15428: 
+15429: 
+15430: ---
+15431: 
+15432: 17D.5 Dashboard Philosophy
+15433: 
+15434: ہر Dashboard میں:
+15435: 
+15436: Welcome Area
+15437: 
+15438: Quick Actions
+15439: 
+15440: Notifications
+15441: 
+15442: Recent Activities
+15443: 
+15444: Analytics
+15445: 
+15446: Calendar
+
+15576: Exams
+15577: 
+15578: Grade Book
+15579: 
+15580: Student Progress
+15581: 
+15582: AI Teaching Tools (اگر استعمال کرے)
+15583: 
+15584: Earnings
+15585: 
+15586: Reports
+15587: 
+15588: 
+15589: 
+15590: ---
+15591: 
+15592: 17D.11 Parent Experience
+15593: 
+15594: Parents کے لیے:
+15595: 
+15596: بچوں کی حاضری
+15597: 
+15598: نتائج
+15599: 
+15600: ہوم ورک
+15601: 
+15602: فیس کی صورتحال
+15603: 
+15604: نوٹیفکیشن
+15605: 
+15606: اساتذہ سے رابطہ
+15607: 
+15608: 
+15609: ایک الگ Dashboard میں ہوگا۔
+15610: 
+15611: 
+15612: ---
+15613: 
+15614: 17D.12 Super Admin Experience
+15615: 
+15616: Super Admin Dashboard میں:
+15617: 
+15618: Live Platform Status
+15619: 
+15620: Revenue
+15621: 
+15622: Institutions
+
+15730: تمام Dashboards Design ہو جائیں۔
+15731: 
+15732: Navigation واضح ہو۔
+15733: 
+15734: Accessibility مکمل ہو۔
+15735: 
+15736: Responsive Testing مکمل ہو۔
+15737: 
+15738: User Journey آسان اور منطقی ہو۔
+15739: 
+15740: 
+15741: 
+15742: ---
+15743: 
+15744: ⭐ Golden Rule — Part 17D
+15745: 
+15746: > CareerZ کا Frontend اور User Experience اس اصول پر تیار کیا جائے گا کہ ہر User، چاہے وہ Student، Teacher، Parent، Institution Owner یا Super Admin ہو، کم سے کم Steps میں اپنا کام مکمل کر سکے۔ پورا Platform Mobile-First، Responsive، Accessible، Fast، Secure اور Consistent ہوگا، جبکہ ہر Dashboard User کے کردار کے مطابق خودکار طور پر ترتیب دیا جائے گا تاکہ بہترین اور آسان تجربہ فراہم کیا جا سکے۔
+15747: 
+15748: 
+15749: 
+15750: 
+15751: ---
+15752: 
+15753: PART 17E — AI Integration & Automation Architecture
+15754: 
+15755: 17E.1 Vision
+15756: 
+15757: CareerZ ایک AI-Ready Platform ہوگا، لیکن AI-Dependent Platform نہیں ہوگا۔
+15758: 
+15759: اس کا مطلب:
+15760: 
+15761: اگر کوئی Institution AI استعمال کرنا چاہے تو مکمل سہولت ہوگی۔
+15762: 
+15763: اگر کوئی AI استعمال نہ کرنا چاہے تو بھی Platform 100٪ صحیح کام کرے گا۔
+15764: 
+15765: 
+15766: AI ہمیشہ ایک اختیاری (Optional) Enhancement ہوگا، لازمی حصہ نہیں۔
+15767: 
+15768: 
+15769: ---
+15770: 
+15771: 17E.2 Core AI Philosophy
+15772: 
+15773: CareerZ خود AI کمپنی نہیں ہوگا۔
+15774: 
+
+16023: 
+16024: یہ صرف اسی Institution کو نظر آئے گا۔
+16025: 
+16026: 
+16027: ---
+16028: 
+16029: 17E.12 AI Automation Engine
+16030: 
+16031: Institution خود Automation بنا سکے گا۔
+16032: 
+16033: مثلاً:
+16034: 
+16035: اگر Student غیر حاضر ہو:
+16036: 
+16037: ↓
+16038: 
+16039: Parent کو Notification۔
+16040: 
+16041: اگر Assignment Upload ہو:
+16042: 
+16043: ↓
+16044: 
+16045: Teacher کو اطلاع۔
+16046: 
+16047: اگر Fee جمع ہو:
+16048: 
+16049: ↓
+16050: 
+16051: Receipt خودکار طور پر بن جائے۔
+16052: 
+16053: 
+16054: ---
+16055: 
+16056: 17E.13 AI Learning Analytics
+16057: 
+16058: AI تجزیہ کرے گا:
+16059: 
+16060: کون سا Student کمزور ہے۔
+16061: 
+16062: کون سا Subject مشکل ہے۔
+16063: 
+16064: کون سا Teacher بہترین نتائج دے رہا ہے۔
+16065: 
+16066: کس Course میں Dropout زیادہ ہے۔
+16067: 
+
+16978: 
+16979: ---
+16980: 
+16981: ⭐ Golden Rule — Part 17G
+16982: 
+16983: > CareerZ کی Development، Testing، Documentation، Deployment اور Maintenance ہمیشہ ایک ہی Enterprise-Level Governance Framework کے تحت ہوگی۔ کوئی بھی AI، Developer یا Team Member منظور شدہ Architecture، Coding Standards، Security Policies اور Documentation کے بغیر کسی Module میں تبدیلی نہیں کرے گا۔ ہر نئی تبدیلی مرحلہ وار Review، Testing اور Approval کے بعد ہی Platform کا حصہ بنے گی، تاکہ CareerZ طویل مدت تک مستحکم، محفوظ، قابلِ توسیع (Scalable) اور قابلِ اعتماد (Reliable) رہے۔
+16984: 
+16985: 
+16986: 
+16987: 
+16988: ---
+16989: 
+16990: PART 18 — CareerZ Platform Operations & Financial Governance
+16991: 
+16992: 18.1 Vision
+16993: 
+16994: CareerZ ایک Trust-Based، Secure، Transparent اور Self-Governed Platform ہوگا جہاں تمام مالی، انتظامی اور کاروباری قوانین واضح ہوں گے۔
+16995: 
+16996: 
+16997: ---
+16998: 
+16999: 18.2 Transaction Policy (Final)
+17000: 
+17001: Platform کے اندر Transaction کی مکمل Protection ہوگی۔
+17002: 
+17003: Platform سے باہر Transaction کی اجازت ہوگی لیکن وہ User کی اپنی ذمہ داری ہوگی۔
+17004: 
+17005: CareerZ ایسی Transaction کی کوئی ذمہ داری قبول نہیں کرے گا۔
+17006: 
+17007: Escrow، Refund، Dispute Resolution اور Financial Protection صرف Platform Transactions پر ہوگی۔
+17008: 
+17009: 
+17010: 
+17011: ---
+17012: 
+17013: 18.3 Trust Score Engine
+17014: 
+17015: ہر User، Teacher، Student، Institution اور Business کا ایک Dynamic Trust Score ہوگا۔
+17016: 
+17017: Trust Score درج ذیل چیزوں پر بنے گا:
+17018: 
+17019: Identity Verification
+17020: 
+17021: Institution Verification
+17022: 
+
+17522: 
+17523: صرف Founder اور Development Team۔
+17524: 
+17525: 
+17526: ---
+17527: 
+17528: Phase 2 — Closed Beta
+17529: 
+17530: محدود تعداد میں:
+17531: 
+17532: Schools
+17533: 
+17534: Teachers
+17535: 
+17536: Students
+17537: 
+17538: Parents
+17539: 
+17540: 
+17541: 
+17542: ---
+17543: 
+17544: Phase 3 — Country Launch
+17545: 
+17546: ایک یا چند ممالک میں مکمل Launch۔
+17547: 
+17548: 
+17549: ---
+17550: 
+17551: Phase 4 — Global Launch
+17552: 
+17553: تمام ممالک کے لیے Platform دستیاب ہوگا۔
+17554: 
+17555: 
+17556: ---
+17557: 
+17558: 20.4 Go-Live Checklist
+17559: 
+17560: Live ہونے سے پہلے:
+17561: 
+17562: تمام Modules فعال ہوں۔
+17563: 
+17564: Backups تیار ہوں۔
+17565: 
+17566: Monitoring فعال ہو۔
+
+18224: ✅ Governance Documents
+18225: 
+18226: ✅ Development Documents
+18227: 
+18228: ✅ Deployment Documents
+18229: 
+18230: ✅ Operational Documents
+18231: 
+18232: 
+18233: مکمل ہو چکے ہیں۔
+18234: 
+18235: 
+18236: ---
+18237: 
+18238: 21.15 Final Mission Statement
+18239: 
+18240: > CareerZ کا مقصد دنیا کا ایسا محفوظ، ذہین (AI-Powered)، قابلِ اعتماد اور عالمی پلیٹ فارم بنانا ہے جہاں ہر طالب علم، استاد، والدین، ادارہ، کاروبار اور پیشہ ور ایک ہی Ecosystem میں تعلیم، روزگار، ہنر، مالی لین دین اور ترقی کے مواقع حاصل کر سکے۔
+18241: 
+18242: 
+18243: 
+18244: 
+18245: ---
+18246: 
+18247: CareerZ Phase A1 — Core System Architecture (Master System Architecture)
+18248: 
+18249: 1. مقصد (Purpose)
+18250: 
+18251: یہ CareerZ کے پورے پلیٹ فارم کا بنیادی ڈھانچہ (Foundation) ہوگا۔ کوئی بھی Module براہِ راست دوسرے Module سے نہیں جڑے گا بلکہ ایک مرکزی Architecture کے ذریعے کام کرے گا، تاکہ Platform تیز، محفوظ، قابلِ توسیع (Scalable) اور آسانی سے Maintain ہو سکے۔
+18252: 
+18253: 
+18254: ---
+18255: 
+18256: 2. Core Architecture Layers
+18257: 
+18258: CareerZ کو 8 بنیادی Layers میں تقسیم کیا جائے گا:
+18259: 
+18260: Layer 1 — Presentation Layer (Frontend)
+18261: 
+18262: یہ وہ حصہ ہوگا جو User دیکھے گا۔
+18263: 
+18264: اس میں:
+18265: 
+18266: Website
+18267: 
+18268: Mobile App (Android)
+
+18585: 
+18586: ہر User ایک ہی Account سے تمام Modules استعمال کر سکے گا۔
+18587: 
+18588: 
+18589: ---
+18590: 
+18591: 2. Universal Account System
+18592: 
+18593: ایک User صرف ایک Master Account رکھے گا۔
+18594: 
+18595: اسی Account سے وہ:
+18596: 
+18597: Student
+18598: 
+18599: Teacher
+18600: 
+18601: Parent
+18602: 
+18603: Freelancer
+18604: 
+18605: Job Seeker
+18606: 
+18607: Employer
+18608: 
+18609: Institution Owner
+18610: 
+18611: Seller
+18612: 
+18613: Buyer
+18614: 
+18615: Mentor
+18616: 
+18617: Consultant
+18618: 
+18619: 
+18620: یا ایک سے زیادہ کردار (Roles) استعمال کر سکے گا۔
+18621: 
+18622: بار بار نئے Account بنانے کی ضرورت نہیں ہوگی۔
+18623: 
+18624: 
+18625: ---
+18626: 
+18627: 3. User Categories
+18628: 
+18629: CareerZ درج ذیل بنیادی User Types کو سپورٹ کرے گا:
+18630: 
+18631: Individual Users
+18632: 
+18633: Student
+18634: 
+18635: Teacher
+18636: 
+18637: Parent
+18638: 
+18639: Job Seeker
+18640: 
+18641: Freelancer
+18642: 
+18643: Professional
+18644: 
+18645: Researcher
+18646: 
+18647: 
+18648: Organization Users
+18649: 
+18650: School
+18651: 
+18652: College
+18653: 
+18654: University
+18655: 
+18656: Madrasa
+18657: 
+18658: Academy
+18659: 
+18660: Tuition Center
+18661: 
+18662: Training Institute
+18663: 
+18664: Company
+18665: 
+
+19686: > CareerZ کا Career & Marketplace System تعلیم، روزگار، فری لانسنگ، خرید و فروخت اور پیشہ ورانہ خدمات کو ایک محفوظ، AI-Powered اور Trust-Based Ecosystem میں جوڑے گا، جہاں ہر Transaction، Hiring اور Service کا مقصد صرف کاروبار نہیں بلکہ اعتماد، شفافیت اور طویل مدتی ترقی ہوگا۔
+19687: 
+19688: 
+19689: 
+19690: 
+19691: ---
+19692: 
+19693: CareerZ Phase A5 — Financial Architecture (Enterprise Financial System)
+19694: 
+19695: یہ پورے CareerZ Platform کا سب سے حساس اور اہم حصہ ہے، کیونکہ تمام مالی لین دین اسی نظام کے ذریعے ہوگا۔
+19696: 
+19697: 
+19698: ---
+19699: 
+19700: 1. مقصد (Purpose)
+19701: 
+19702: CareerZ کا Financial System ایک Secure, Transparent, AI-Monitored اور Enterprise-Level Financial Engine ہوگا، جو دنیا کے مختلف ممالک، کرنسیوں اور ادائیگی کے طریقوں کو سپورٹ کرے گا۔
+19703: 
+19704: 
+19705: ---
+19706: 
+19707: 2. Core Financial Modules
+19708: 
+19709: مالی نظام درج ذیل Modules پر مشتمل ہوگا:
+19710: 
+19711: Wallet System
+19712: 
+19713: Escrow System
+19714: 
+19715: Payment Gateway
+19716: 
+19717: Subscription System
+19718: 
+19719: Fees Management
+19720: 
+19721: Salary Management
+19722: 
+19723: Commission Engine
+19724: 
+19725: Tax Engine
+19726: 
+19727: Refund Engine
+19728: 
+19729: Financial Reports
+19730: 
+
+20342: 
+20343: 1. مقصد (Purpose)
+20344: 
+20345: CareerZ کا Communication System صرف Chat نہیں ہوگا بلکہ ایک مکمل Secure Communication Ecosystem ہوگا، جہاں تمام رابطے محفوظ، منظم، قابلِ نگرانی (Audit جہاں ضروری ہو) اور صارف کے کنٹرول میں ہوں گے۔
+20346: 
+20347: 
+20348: ---
+20349: 
+20350: 2. Universal Messaging System
+20351: 
+20352: ہر Verified User درج ذیل کے ساتھ رابطہ کر سکے گا (Permissions کے مطابق):
+20353: 
+20354: Student ↔ Teacher
+20355: 
+20356: Student ↔ Institution
+20357: 
+20358: Parent ↔ Teacher
+20359: 
+20360: Parent ↔ Institution
+20361: 
+20362: Teacher ↔ Teacher
+20363: 
+20364: Institution ↔ Institution
+20365: 
+20366: Employer ↔ Candidate
+20367: 
+20368: Buyer ↔ Seller
+20369: 
+20370: Freelancer ↔ Client
+20371: 
+20372: Platform Support ↔ User
+20373: 
+20374: 
+20375: ہر User کو بلا وجہ ہر کسی کو Message کرنے کی اجازت نہیں ہوگی؛ Privacy Rules اور Permissions لاگو ہوں گی۔
+20376: 
+20377: 
+20378: ---
+20379: 
+20380: 3. Chat System
+20381: 
+20382: Chat میں:
+20383: 
+20384: One-to-One Chat
+20385: 
+20386: Group Chat
+20387: 
+20388: Institution Chat
+
+20441: 
+20442: اہم اصول: اگر کوئی فائل Marketplace یا Digital Product کے طور پر فروخت ہو رہی ہے تو وہ Chat میں مفت Share نہیں کی جا سکے گی، تاکہ Revenue Protection برقرار رہے۔
+20443: 
+20444: 
+20445: ---
+20446: 
+20447: 5. Voice Communication
+20448: 
+20449: Platform سپورٹ کرے گا:
+20450: 
+20451: Voice Call
+20452: 
+20453: Institution Call
+20454: 
+20455: Teacher Consultation
+20456: 
+20457: Parent Meeting
+20458: 
+20459: AI Voice Assistant
+20460: 
+20461: 
+20462: جہاں ضرورت ہو وہاں Call Recording صرف واضح اطلاع اور متعلقہ قوانین کے مطابق ہوگی۔
+20463: 
+20464: 
+20465: ---
+20466: 
+20467: 6. Video Communication
+20468: 
+20469: Video System میں:
+20470: 
+20471: One-to-One Video
+20472: 
+20473: Group Meeting
+20474: 
+20475: Live Classroom
+20476: 
+20477: Webinar
+20478: 
+20479: Interview Room
+20480: 
+20481: Parent-Teacher Meeting
+20482: 
+20483: 
+20484: خصوصیات:
+20485: 
+20486: Screen Sharing
+20487: 
+20488: Whiteboard
+20489: 
+20490: Recording (Permissions کے ساتھ)
+20491: 
+20492: Waiting Room
+20493: 
+20494: Attendance
+20495: 
+20496: 
+20497: 
+20498: ---
+20499: 
+20500: 7. Smart Notifications
+20501: 
+20502: Notifications کی اقسام:
+20503: 
+20504: Course Updates
+20505: 
+20506: Assignment Alerts
+20507: 
+20508: Exam Alerts
+20509: 
+
+22512: 
+22513: 
+22514: ---
+22515: 
+22516: Institution APIs
+22517: 
+22518: Schools
+22519: 
+22520: Colleges
+22521: 
+22522: Universities
+22523: 
+22524: Teachers
+22525: 
+22526: Students
+22527: 
+22528: Parents
+22529: 
+22530: Departments
+22531: 
+22532: 
+22533: 
+22534: ---
+22535: 
+22536: Education APIs
+22537: 
+22538: Courses
+22539: 
+22540: Subjects
+22541: 
+22542: Lessons
+22543: 
+22544: Exams
+22545: 
+22546: Attendance
+22547: 
+22548: Certificates
+22549: 
+22550: Results
+22551: 
+22552: 
+22553: 
+22554: ---
+22555: 
+22556: Career APIs
+
+22682: Session Validation
+22683: 
+22684: 
+22685: 
+22686: ---
+22687: 
+22688: 6. API Permissions
+22689: 
+22690: ہر API کے لیے Role-Based Access ہوگا۔
+22691: 
+22692: مثلاً:
+22693: 
+22694: Student
+22695: 
+22696: Teacher
+22697: 
+22698: Parent
+22699: 
+22700: Institution Admin
+22701: 
+22702: Employer
+22703: 
+22704: Seller
+22705: 
+22706: Buyer
+22707: 
+22708: Super Admin
+22709: 
+22710: 
+22711: ہر Role صرف اپنی اجازت والی APIs استعمال کر سکے گا۔
+22712: 
+22713: 
+22714: ---
+22715: 
+22716: 7. API Response Standard
+22717: 
+22718: تمام APIs ایک ہی Format میں جواب دیں گی۔
+22719: 
+22720: مثلاً:
+22721: 
+22722: Success Status
+22723: 
+22724: Message
+22725: 
+22726: Data
+
+23001: Manage کرے گی:
+23002: 
+23003: Schools
+23004: 
+23005: Colleges
+23006: 
+23007: Universities
+23008: 
+23009: Branches
+23010: 
+23011: Departments
+23012: 
+23013: Staff
+23014: 
+23015: Students
+23016: 
+23017: Parents
+23018: 
+23019: 
+23020: 
+23021: ---
+23022: 
+23023: 6. Education & LMS Service
+23024: 
+23025: Manage کرے گی:
+23026: 
+23027: Courses
+23028: 
+23029: Subjects
+23030: 
+23031: Lessons
+23032: 
+23033: Classes
+23034: 
+23035: Live Sessions
+23036: 
+23037: Attendance
+23038: 
+23039: Assignments
+23040: 
+23041: Exams
+23042: 
+23043: Results
+23044: 
+23045: Certificates
+
+23454: Attendance
+23455: 
+23456: Assignments
+23457: 
+23458: Exams
+23459: 
+23460: Students
+23461: 
+23462: Earnings
+23463: 
+23464: AI Teacher Tools
+23465: 
+23466: 
+23467: 
+23468: ---
+23469: 
+23470: Parent Portal
+23471: 
+23472: بچوں کی Progress
+23473: 
+23474: Attendance
+23475: 
+23476: Fees
+23477: 
+23478: Reports
+23479: 
+23480: Teacher Communication
+23481: 
+23482: 
+23483: 
+23484: ---
+23485: 
+23486: Institution Portal
+23487: 
+23488: Students
+23489: 
+23490: Teachers
+23491: 
+23492: Finance
+23493: 
+23494: Courses
+23495: 
+23496: Reports
+23497: 
+23498: AI Analytics
+
+24144: 
+24145: یہ پورے Platform کی بنیاد ہوگی۔
+24146: 
+24147: 
+24148: ---
+24149: 
+24150: 4. Stage 2 — Core Platform
+24151: 
+24152: اس کے بعد:
+24153: 
+24154: Institution Management
+24155: 
+24156: Student Management
+24157: 
+24158: Teacher Management
+24159: 
+24160: Parent Management
+24161: 
+24162: Profile Management
+24163: 
+24164: Dashboard System
+24165: 
+24166: 
+24167: 
+24168: ---
+24169: 
+24170: 5. Stage 3 — Education Core
+24171: 
+24172: پھر:
+24173: 
+24174: Courses
+24175: 
+24176: Subjects
+24177: 
+24178: Classes
+24179: 
+24180: Lessons
+24181: 
+24182: Live Classes
+24183: 
+24184: Attendance
+24185: 
+24186: Assignments
+24187: 
+24188: Exams
+
+24718: 
+24719: 
+24720: ---
+24721: 
+24722: 2. Education (Core LMS)
+24723: 
+24724: Schools
+24725: 
+24726: Colleges
+24727: 
+24728: Universities
+24729: 
+24730: Teachers
+24731: 
+24732: Students
+24733: 
+24734: Parents
+24735: 
+24736: Courses
+24737: 
+24738: Classes
+24739: 
+24740: Assignments
+24741: 
+24742: Exams
+24743: 
+24744: Certificates
+24745: 
+24746: 
+24747: 
+24748: ---
+24749: 
+24750: 3. Communication
+24751: 
+24752: Chat
+24753: 
+24754: Notifications
+24755: 
+24756: Email
+24757: 
+24758: Video Classes
+24759: 
+24760: Voice Calls
+24761: 
+24762: 
+
+25104: Security
+25105: 
+25106: Admin
+25107: 
+25108: 
+25109: 
+25110: ---
+25111: 
+25112: A3 — User Ecosystem
+25113: 
+25114: Users:
+25115: 
+25116: Student
+25117: 
+25118: Teacher
+25119: 
+25120: Parent
+25121: 
+25122: Institution
+25123: 
+25124: Employer
+25125: 
+25126: Seller
+25127: 
+25128: Buyer
+25129: 
+25130: Admin
+25131: 
+25132: 
+25133: 
+25134: ---
+25135: 
+25136: A4 — Global Expansion Architecture
+25137: 
+25138: شامل:
+25139: 
+25140: Countries
+25141: 
+25142: Languages
+25143: 
+25144: Currencies
+25145: 
+25146: Time Zones
+25147: 
+25148: Regional Rules
+
+25954: Permissions
+25955: 
+25956: Security Checks
+25957: 
+25958: 
+25959: 
+25960: ---
+25961: 
+25962: Step 3 — User System
+25963: 
+25964: بنایا جائے گا:
+25965: 
+25966: Student Profile
+25967: 
+25968: Teacher Profile
+25969: 
+25970: Parent Profile
+25971: 
+25972: Institution Profile
+25973: 
+25974: 
+25975: 
+25976: ---
+25977: 
+25978: Step 4 — Admin Foundation
+25979: 
+25980: بنایا جائے گا:
+25981: 
+25982: Admin Dashboard
+25983: 
+25984: User Management
+25985: 
+25986: System Settings
+25987: 
+25988: 
+25989: 
+25990: ---
+25991: 
+25992: Step 5 — Education Core
+25993: 
+25994: بنایا جائے گا:
+25995: 
+25996: Institution Setup
+25997: 
+25998: Courses
+
+26312: Profile بنانا
+26313: 
+26314: Courses بنانا
+26315: 
+26316: Classes لینا
+26317: 
+26318: Students Manage کرنا
+26319: 
+26320: Assignments دینا
+26321: 
+26322: Earnings دیکھنا
+26323: 
+26324: 
+26325: 
+26326: ---
+26327: 
+26328: 3. Parent
+26329: 
+26330: کام:
+26331: 
+26332: بچوں کو Add کرنا
+26333: 
+26334: Progress دیکھنا
+26335: 
+26336: Attendance دیکھنا
+26337: 
+26338: Reports دیکھنا
+26339: 
+26340: 
+26341: 
+26342: ---
+26343: 
+26344: 4. Institution
+26345: 
+26346: کام:
+26347: 
+26348: School/College/Academy بنانا
+26349: 
+26350: Teachers Add کرنا
+26351: 
+26352: Students Manage کرنا
+26353: 
+26354: Courses Manage کرنا
+26355: 
+26356: Reports دیکھنا
+
+26936: 
+26937: 
+26938: ---
+26939: 
+26940: F4 — Role & Permission System
+26941: 
+26942: مقصد:
+26943: 
+26944: ہر User کو صرف اس کے اختیار والے Features دینا۔
+26945: 
+26946: Roles:
+26947: 
+26948: Student
+26949: 
+26950: Teacher
+26951: 
+26952: Parent
+26953: 
+26954: Institution
+26955: 
+26956: Admin
+26957: 
+26958: 
+26959: Features:
+26960: 
+26961: Permission Rules
+26962: 
+26963: Access Control
+26964: 
+26965: Dashboard Routing
+26966: 
+26967: 
+26968: Output:
+26969: 
+26970: ✅ Secure Role Management
+26971: 
+26972: 
+26973: ---
+26974: 
+26975: F5 — Institution Module
+26976: 
+26977: مقصد:
+26978: 
+26979: تعلیمی اداروں کا بنیادی نظام۔
+26980: 
+
+28704: · ✅ کوئی بھی باہر کا صارف (اگر رجسٹرڈ ہو)
+28705: 
+28706: ---
+28707: 
+28708: 2. حاضری کے چار طریقے (Multi-Mode Attendance)
+28709: 
+28710: تفصیل:
+28711: طلباء حاضری لگانے کے لیے 4 مختلف طریقے استعمال کر سکیں گے۔
+28712: 
+28713: کیسے کام کرے گا:
+28714: 
+28715: 1. آن لائن لاگ ان: جب طالب علم کلاس میں داخل ہو تو خودکار حاضری۔
+28716: 2. فنگر پرنٹ: انگلی کا نشان لگا کر حاضری۔
+28717: 3. چہرے کی شناخت: کیمرے کے سامنے چہرہ دکھا کر حاضری۔
+28718: 4. ریٹینا اسکین: آنکھ کا اسکین کر کے حاضری (مستقبل کے لیے)۔
+28719: 
+28720: اضافی: حاضری کی ماہانہ رپورٹ اور والدین کو خودکار اطلاع بھی ہوگی۔
+28721: 
+28722: کس کو استعمال کرنے کی اجازت ہے؟
+28723: 
+28724: · ✅ سٹوڈنٹ (اپنی حاضری لگائے گا)
+28725: · ✅ ٹیچر (اپنی اور طلباء کی حاضری دیکھ سکے گا)
+28726: · ✅ ادارہ (تمام حاضری دیکھ سکے گا)
+28727: · ❌ باہر کا کوئی بھی صارف استعمال نہیں کر سکے گا۔
+28728: 
+28729: ---
+28730: 
+28731: 3. ورچوئل کیمپس ٹور (Virtual Campus Tour)
+28732: 
+28733: تفصیل:
+28734: طلباء گھر بیٹھے 3D ورچوئل کیمپس میں گھوم سکیں گے۔
+28735: 
+28736: کیسے کام کرے گا:
+28737: 
+28738: · ہر ادارہ اپنا 3D کیمپس بنا سکے گا (عمارت، کلاس رومز، لائبریری، وغیرہ)۔
+28739: · طلباء VR/AR کے ذریعے اس میں گھوم سکیں گے۔
+28740: · یہ فیچر مستقبل کے لیے ہے، جب VR عام ہو جائے گا۔
+28741: 
+28742: کس کو استعمال کرنے کی اجازت ہے؟
+28743: 
+28744: · ✅ سٹوڈنٹ (دیکھ سکے گا)
+28745: · ✅ والدین (دیکھ سکیں گے)
+28746: · ✅ باہر کا کوئی بھی صارف (اگر عوام کے لیے کھلا ہو)
+28747: · ❌ ٹیچر اور ادارہ بھی دیکھ سکتے ہیں (مگر یہ فیچر سٹوڈنٹ کے لیے ہے)
+28748: 
+28749: ---
+28750: 
+28751: 4. ورچوئل اسٹوڈنٹ آئی ڈی (Virtual Student ID)
+28752: 
+28753: تفصیل:
+28754: ہر طالب علم کو ایک ڈیجیٹل آئی ڈی ملے گی جسے QR کوڈ کے ذریعے تصدیق کیا جا سکے گا۔
+28755: 
+28756: کیسے کام کرے گا:
+28757: 
+28758: · آئی ڈی میں نام، ادارہ، کلاس، اور تصویر ہوگی۔
+28759: · QR کوڈ اسکین کر کے کوئی بھی آئی ڈی کی تصدیق کر سکے گا۔
+28760: · آئی ڈی کو PDF میں ڈاؤن لوڈ بھی کیا جا سکے گا۔
+28761: 
+28762: کس کو استعمال کرنے کی اجازت ہے؟
+28763: 
+28764: · ✅ سٹوڈنٹ (اپنی آئی ڈی دیکھ سکے گا)
+28765: · ✅ والدین (بچے کی آئی ڈی دیکھ سکیں گے)
+28766: · ✅ ادارہ (تمام طلباء کی آئی ڈی دیکھ سکے گا)
+28767: · ✅ کوئی بھی باہر کا صارف (QR کوڈ اسکین کر کے تصدیق کر سکے گا)
+28768: 
+28769: ---
+28770: 
+28771: 5. ورچوئل PTM (پیرنٹ ٹیچر میٹنگ)
+28772: 
+28773: تفصیل:
+28774: والدین اور ٹیچر آن لائن ویڈیو کال کے ذریعے ملاقات کر سکیں گے۔
+28775: 
+28776: کیسے کام کرے گا:
+28777: 
+28778: · والدین ویڈیو کال کے ذریعے ٹیچر سے مل سکیں گے۔
+28779: · اس میں اسکرین شیئرنگ اور ڈیجیٹل رپورٹ کارڈ شامل ہوگا۔
+28780: · ملاقات کا وقت پہلے سے بک کیا جا سکے گا۔
+28781: 
+28782: کس کو استعمال کرنے کی اجازت ہے؟
+28783: 
+28784: · ✅ سٹوڈنٹ (والدین کو اطلاع دے سکے گا)
+28785: · ✅ والدین (براہِ راست استعمال کریں گے)
+28786: · ✅ ٹیچر (ملاقات میں شامل ہوں گے)
+28787: · ✅ ادارہ (ملاقات کا انتظام کر سکے گا)
+28788: · ❌ باہر کا کوئی بھی صارف استعمال نہیں کر سکے گا۔
+28789: 
+28790: ---
+28791: 
+28792: 6. ورچوئل کیریئر فیئر (Virtual Career Fair)
+28793: 
+28794: تفصیل:
+28795: طلباء گھر بیٹھے مختلف اداروں (کمپنیاں، یونیورسٹیاں) کے نمائندوں سے آن لائن بات کر سکیں گے۔
+28796: 
+28797: کیسے کام کرے گا:
+28798: 
+28799: · مختلف ادارے آن لائن اسٹال لگا سکیں گے۔
+28800: · طلباء ویڈیو کال کے ذریعے نمائندوں سے بات کر سکیں گے۔
+28801: · وہ آن لائن انٹرویو بھی دے سکیں گے۔
+28802: 
+28803: کس کو استعمال کرنے کی اجازت ہے؟
+28804: 
+28805: · ✅ سٹوڈنٹ (حصہ لے سکے گا)
+28806: · ✅ باہر کی کمپنیاں / یونیورسٹیاں (اسٹال لگا سکیں گی)
+28807: · ✅ ادارہ (اپنے طلباء کو بھیج سکے گا)
+28808: · ❌ عام باہر کے صارفین (صرف طلباء اور ادارے)
+28809: 
+28810: ---
+28811: 
+28812: 7. ورچوئل اسپورٹس اور ایونٹس (Virtual Sports & Events)
+28813: 
+
+28824: 
+28825: · ✅ سٹوڈنٹ (حصہ لے سکے گا)
+28826: · ✅ ٹیچر (منعقد کر سکے گا)
+28827: · ✅ ادارہ (منعقد کر سکے گا)
+28828: · ❌ باہر کا کوئی بھی صارف (صرف طلباء اور ادارے)
+28829: 
+28830: ---
+28831: 
+28832: 8. ورچوئل اسکول نیوز لیٹر (Virtual School Newsletter)
+28833: 
+28834: تفصیل:
+28835: ہر ادارہ اپنا ماہانہ نیوز لیٹر بنا سکتا ہے جس میں ادارے کی خبریں، طلباء کی کامیابیاں، اور آنے والے ایونٹس ہوں گے۔
+28836: 
+28837: کیسے کام کرے گا:
+28838: 
+28839: · ادارہ نیوز لیٹر لکھے گا اور شائع کرے گا۔
+28840: · یہ نیوز لیٹر تمام طلباء اور والدین کو بھیجا جائے گا۔
+28841: · نیوز لیٹر کو PDF میں ڈاؤن لوڈ بھی کیا جا سکے گا۔
+28842: 
+28843: کس کو استعمال کرنے کی اجازت ہے؟
+28844: 
+28845: · ✅ سٹوڈنٹ (دیکھ سکے گا)
+28846: · ✅ والدین (دیکھ سکیں گے)
+28847: · ✅ ادارہ (بنا سکے گا)
+28848: · ❌ باہر کا کوئی بھی صارف (صرف طلباء، والدین، اور ادارے)
+28849: 
+28850: ---
+28851: 
+28852: 9. ورچوئل اسکول میگزین (Virtual School Magazine)
+28853: 
+28854: تفصیل:
+28855: طلباء اپنے مضامین، شاعری، آرٹ ورک، اور تحریریں شائع کر سکیں گے۔
+28856: 
+28857: کیسے کام کرے گا:
+28858: 
+28859: · طلباء اپنا مواد جمع کرا سکیں گے۔
+28860: · ادارہ اسے ڈیجیٹل میگزین کی شکل میں جاری کرے گا۔
+28861: · تمام طلباء اور والدین اسے دیکھ سکیں گے۔
+28862: 
+28863: کس کو استعمال کرنے کی اجازت ہے؟
+28864: 
+28865: · ✅ سٹوڈنٹ (مضامین لکھ سکے گا، آرٹ ورک جمع کرا سکے گا)
+28866: · ✅ ٹیچر (منتخب کر سکے گا، ایڈٹ کر سکے گا)
+28867: · ✅ ادارہ (شائع کر سکے گا)
+28868: · ✅ والدین (دیکھ سکیں گے)
+28869: · ❌ باہر کا کوئی بھی صارف (صرف طلباء اور ادارے)
+28870: 
+28871: ---
+28872: 
+28873: 10. ورچوئل اسکول سٹور (Virtual School Store)
+28874: 
+28875: تفصیل:
+28876: ادارہ اپنی یونیفارم، کتابیں، اسٹیشنری، اور دیگر اشیاء آن لائن فروخت کر سکے گا۔
+28877: 
+28878: کیسے کام کرے گا:
+28879: 
+28880: · ادارہ اپنی اشیاء آن لائن اسٹور پر ڈالے گا۔
+28881: · طلباء گھر بیٹھے آرڈر کر سکیں گے۔
+28882: · ادائیگی والیٹ کے ذریعے ہوگی۔
+28883: 
+28884: کس کو استعمال کرنے کی اجازت ہے؟
+28885: 
+28886: · ✅ سٹوڈنٹ (خرید سکے گا)
+28887: · ✅ والدین (بچے کے لیے خرید سکیں گے)
+28888: · ✅ ادارہ (بیچ سکے گا)
+28889: · ❌ باہر کا کوئی بھی صارف (صرف طلباء، والدین، اور ادارے)
+28890: 
+28891: ---
+28892: 
+28893: 11. ورچوئل اسکول ٹرانسپورٹ (Virtual School Transport)
+28894: 
+28895: تفصیل:
+28896: اگر کوئی ادارہ فزیکل بھی چلا رہا ہے تو وہ بسوں کی GPS ٹریکنگ فراہم کر سکے گا۔
+28897: 
+28898: کیسے کام کرے گا:
+28899: 
+28900: · ہر بس میں GPS ڈیوائس لگائی جائے گی۔
+28901: · والدین گھر بیٹھے بس کا لائیو راستہ دیکھ سکیں گے۔
+28902: · بچے کے اٹھنے اور چھوڑنے کا وقت بھی دکھائی دے گا۔
+28903: 
+28904: کس کو استعمال کرنے کی اجازت ہے؟
+28905: 
+28906: · ✅ سٹوڈنٹ (دیکھ سکے گا)
+28907: · ✅ والدین (دیکھ سکیں گے)
+28908: · ✅ ادارہ (منظم کر سکے گا)
+28909: · ❌ باہر کا کوئی بھی صارف (صرف طلباء، والدین، اور ادارے)
+28910: 
+28911: ---
+28912: 
+28913: 12. AI سے نوٹس بنانا (AI Notes Generator)
+28914: 
+28915: تفصیل:
+28916: AI خود بخود اسباق کے اہم نکات نکال کر مختصر نوٹس بنا دے گا۔
+28917: 
+28918: کیسے کام کرے گا:
+28919: 
+28920: · استاد یا طالب علم سبق کا مواد AI کو دے گا۔
+28921: · AI اہم نکات نکال کر مختصر نوٹس بنا دے گا۔
+28922: · یہ نوٹس PDF میں ڈاؤن لوڈ کیا جا سکے گا۔
+28923: 
+28924: کس کو استعمال کرنے کی اجازت ہے؟
+28925: 
+28926: · ✅ سٹوڈنٹ (استعمال کر سکے گا)
+28927: · ✅ ٹیچر (استعمال کر سکے گا)
+28928: · ✅ ادارہ (استعمال کر سکے گا)
+28929: · ❌ باہر کا کوئی بھی صارف (صرف رجسٹرڈ صارفین)
+28930: 
+28931: ---
+28932: 
+28933: 13. وائس کنٹرول (Voice Control)
+28934: 
+28935: تفصیل:
+28936: طالب علم آواز کے ذریعے ویب سائٹ کو کنٹرول کر سکے گا۔
+28937: 
+
+29147: ---
+29148: 
+29149: 24. AI ادارہ تجزیہ کار (AI Institution Analyzer) - سٹوڈنٹ ورژن
+29150: 
+29151: تفصیل:
+29152: AI طالب علم کی کارکردگی، حاضری، اور نتائج کا تجزیہ کرے گا اور رپورٹ بنا کر دے گا۔
+29153: 
+29154: کیسے کام کرے گا:
+29155: 
+29156: · AI طالب علم کے تمام اعداد و شمار کا تجزیہ کرے گا۔
+29157: · وہ رپورٹ بنا کر طالب علم کو دے گا۔
+29158: · اس میں بہتری کی تجاویز بھی ہوں گی۔
+29159: 
+29160: کس کو استعمال کرنے کی اجازت ہے؟
+29161: 
+29162: · ✅ سٹوڈنٹ (اپنی رپورٹ دیکھ سکے گا)
+29163: · ✅ والدین (بچے کی رپورٹ دیکھ سکیں گے)
+29164: · ✅ ٹیچر (دیکھ سکے گا)
+29165: · ✅ ادارہ (دیکھ سکے گا)
+29166: · ❌ باہر کا کوئی بھی صارف (صرف طالب علم اور اس کے متعلقین)
+29167: 
+29168: ---
+29169: 
+29170: 25. AI ڈراپ آؤٹ پیش گوئی (AI Dropout Prediction) - سٹوڈنٹ ورژن
+29171: 
+29172: تفصیل:
+29173: AI طالب علم کی حاضری، نتائج، اور رویے کا تجزیہ کرے گا اور اگر ڈراپ آؤٹ کے امکانات ہوں تو الرٹ دے گا۔
+29174: 
+29175: کیسے کام کرے گا:
+29176: 
+29177: · AI حاضری، نتائج، اور رویے کا تجزیہ کرے گا۔
+29178: · اگر ڈراپ آؤٹ کے امکانات ہوں تو الرٹ جائے گا۔
+29179: · اس سے طالب علم اور ادارہ بروقت اقدامات کر سکیں گے۔
+29180: 
+29181: کس کو استعمال کرنے کی اجازت ہے؟
+29182: 
+29183: · ✅ سسٹم (خودکار طور پر کام کرے گا)
+29184: · ✅ سٹوڈنٹ (الرٹ دیکھ سکے گا)
+29185: · ✅ والدین (الرٹ دیکھ سکیں گے)
+29186: · ✅ ٹیچر (الرٹ دیکھ سکے گا)
+29187: · ✅ ادارہ (الرٹ دیکھ سکے گا)
+29188: · ❌ باہر کا کوئی بھی صارف (صرف طالب علم اور اس کے متعلقین)
+29189: 
+29190: ---
+29191: 
+29192: خلاصہ (ایک نظر میں)
+29193: 
+29194: نمبر فیچر سٹوڈنٹ ٹیچر ادارہ والدین باہر
+29195: 1 اوپن مارکیٹ پلیس ✅ ✅ ✅ ❌ ✅
+29196: 2 حاضری کے چار طریقے ✅ ✅ ✅ ❌ ❌
+29197: 3 ورچوئل کیمپس ٹور ✅ ✅ ✅ ✅ ✅
+29198: 4 ورچوئل اسٹوڈنٹ آئی ڈی ✅ ❌ ✅ ✅ ✅
+29199: 5 ورچوئل PTM ✅ ✅ ✅ ✅ ❌
+29200: 6 ورچوئل کیریئر فیئر ✅ ❌ ✅ ❌ ✅
+29201: 7 ورچوئل اسپورٹس اور ایونٹس ✅ ✅ ✅ ❌ ❌
+29202: 8 ورچوئل اسکول نیوز لیٹر ✅ ❌ ✅ ✅ ❌
+29203: 9 ورچوئل اسکول میگزین ✅ ✅ ✅ ✅ ❌
+29204: 10 ورچوئل اسکول سٹور ✅ ❌ ✅ ✅ ❌
+29205: 11 ورچوئل اسکول ٹرانسپورٹ ✅ ❌ ✅ ✅ ❌
+29206: 12 AI سے نوٹس بنانا ✅ ✅ ✅ ❌ ❌
+29207: 13 وائس کنٹرول ✅ ✅ ✅ ❌ ✅
+29208: 14 ذاتی نوعیت کا لرننگ پاتھ ✅ ✅ ✅ ❌ ❌
+29209: 15 آف لائن موڈ ✅ ✅ ✅ ❌ ✅
+29210: 16 گمنام سوالات ✅ ❌ ❌ ❌ ❌
+29211: 17 کلاس انرجی میٹر ✅ ✅ ✅ ❌ ❌
+29212: 18 فوری پول ✅ ✅ ✅ ❌ ❌
+29213: 19 ADAPTIVE TESTING ✅ ✅ ✅ ❌ ❌
+29214: 20 وائس بیسڈ امتحان ✅ ✅ ✅ ❌ ❌
+29215: 21 AI گروپ بنانے والا ✅ ✅ ✅ ❌ ❌
+29216: 22 سمارٹ سرچ ✅ ✅ ✅ ❌ ❌
+29217: 23 AI چیٹنگ ڈیٹیکٹر ✅ ✅ ✅ ❌ ❌
+29218: 24 AI ادارہ تجزیہ کار (سٹوڈنٹ ورژن) ✅ ✅ ✅ ✅ ❌
+29219: 25 AI ڈراپ آؤٹ پیش گوئی (سٹوڈنٹ ورژن) ✅ ✅ ✅ ✅ ❌
+29220: 
+29221: ---
+29222: بالکل! اب میں ٹیچر ڈیش بورڈ کو شروع سے آخر تک مختصر مگر واضح تفصیل کے ساتھ لکھ رہا ہوں۔
+
+29304: کس کو استعمال کرنے کی اجازت ہے؟
+29305: 
+29306: · ✅ صرف ٹیچر
+29307: 
+29308: ---
+29309: 
+29310: 5. طلباء کی فہرست (کلاس وائز)
+29311: 
+29312: تفصیل:
+29313: ٹیچر ہر کلاس کے طلباء کی مکمل فہرست دیکھ سکے گا۔
+29314: 
+29315: کیا شامل ہوگا؟
+29316: 
+29317: · طالب علم کا نام، تصویر، رول نمبر
+29318: · حاضری (کل کتنے دن حاضر، کتنے غیر حاضر)
+29319: · نمبر / گریڈ (مختلف مضامین میں)
+29320: · والدین کا رابطہ
+29321: · نوٹس (اگر کوئی خاص بات ہو)
+29322: 
+29323: کس کو استعمال کرنے کی اجازت ہے؟
+29324: 
+29325: · ✅ ٹیچر
+29326: · ✅ ادارہ (دیکھ سکے گا)
+29327: 
+29328: ---
+29329: 
+29330: 6. حاضری کا نظام (طلباء کی)
+29331: 
+29332: تفصیل:
+29333: ٹیچر طلباء کی حاضری لگا سکے گا اور رپورٹ دیکھ سکے گا۔
+29334: 
+29335: حاضری کے طریقے:
+29336: 
+29337: 1. مینوئل: ٹیچر خود ناموں کے سامنے حاضر / غیر حاضر کا نشان لگائے۔
+29338: 2. QR کوڈ: طلباء QR کوڈ اسکین کریں اور حاضری خودکار ہو جائے۔
+29339: 3. چہرے کی شناخت: (اگر ڈیوائس موجود ہو)
+29340: 4. آن لائن لاگ ان: اگر کلاس آن لائن ہو تو خودکار حاضری۔
+29341: 
+29342: رپورٹس:
+29343: 
+29344: · روزانہ کی حاضری
+29345: · ماہانہ حاضری
+29346: · کون سے طلباء اکثر غیر حاضر ہیں
+29347: 
+29348: کس کو استعمال کرنے کی اجازت ہے؟
+29349: 
+29350: · ✅ ٹیچر (لگا سکے گا)
+29351: · ✅ ادارہ (دیکھ سکے گا)
+29352: · ✅ والدین (اپنے بچے کی حاضری دیکھ سکیں گے)
+29353: 
+29354: ---
+29355: 
+29356: 7. اپنی حاضری (ٹیچر کی)
+29357: 
+29358: تفصیل:
+29359: ٹیچر خود اپنی حاضری لگا سکے گا اور ادارہ اسے دیکھ سکے گا۔
+29360: 
+29361: حاضری کے طریقے:
+29362: 
+29363: 1. آن لائن لاگ ان: جب ٹیچر کلاس میں داخل ہو تو خودکار حاضری۔
+29364: 2. فنگر پرنٹ: انگلی کا نشان لگا کر حاضری۔
+29365: 3. چہرے کی شناخت: کیمرے کے سامنے چہرہ دکھا کر حاضری۔
+29366: 4. ریٹینا اسکین: آنکھ کا اسکین کر کے حاضری (مستقبل کے لیے)۔
+29367: 
+29368: رپورٹس:
+29369: 
+29370: · ماہانہ حاضری رپورٹ
+29371: · تنخواہ سے تعلق (اگر غیر حاضر ہو تو کٹوتی)
+29372: 
+29373: کس کو استعمال کرنے کی اجازت ہے؟
+29374: 
+29375: · ✅ ٹیچر (لگا سکے گا)
+29376: · ✅ ادارہ (دیکھ سکے گا)
+29377: 
+29378: ---
+29379: 
+29380: 8. ہوم ورک / اسائنمنٹ
+29381: 
+29382: تفصیل:
+29383: ٹیچر طلباء کو ہوم ورک اور اسائنمنٹ دے سکے گا اور جمع شدہ اسائنمنٹس دیکھ سکے گا۔
+29384: 
+29385: کیا شامل ہوگا؟
+29386: 
+29387: · نیا اسائنمنٹ بنانا (عنوان، تفصیل، آخری تاریخ)
+29388: · فائل اٹیچ کرنا (PDF، Word، تصویر)
+29389: · طلباء کی سبمیشن دیکھنا
+29390: · نمبر دینا اور فیڈ بیک دینا
+29391: 
+29392: کس کو استعمال کرنے کی اجازت ہے؟
+29393: 
+29394: · ✅ ٹیچر (بنا سکے گا، چیک کر سکے گا)
+29395: · ✅ سٹوڈنٹ (دیکھ سکے گا، جمع کرا سکے گا)
+29396: · ✅ والدین (دیکھ سکیں گے)
+29397: 
+29398: ---
+29399: 
+29400: 9. امتحانات کا نظام
+29401: 
+29402: تفصیل:
+29403: ٹیچر کوئز، ٹیسٹ، اور بڑے امتحانات بنا سکے گا۔
+29404: 
+29405: کیا شامل ہوگا؟
+29406: 
+29407: · کوئز (MCQs، مختصر سوالات)
+29408: · باقاعدہ امتحان (تفصیلی سوالات)
+29409: · ٹائمر (امتحان کا وقت مقرر کرنا)
+29410: · رینڈمائزیشن (ہر طالب علم کو مختلف سوالات)
+29411: · خودکار چیکنگ (MCQs کے لیے)
+29412: · دستی چیکنگ (تفصیلی سوالات کے لیے)
+29413: 
+29414: کس کو استعمال کرنے کی اجازت ہے؟
+29415: 
+29416: · ✅ ٹیچر (بنا سکے گا)
+29417: · ✅ سٹوڈنٹ (امتحان دے سکے گا)
+29418: · ✅ ادارہ (دیکھ سکے گا)
+29419: 
+29420: ---
+29421: 
+29422: 10. نتائج / گریڈ
+29423: 
+29424: تفصیل:
+29425: ٹیچر طلباء کے نمبر اور گریڈ داخل کر سکے گا۔
+29426: 
+29427: کیا شامل ہوگا؟
+29428: 
+29429: · نمبر داخل کرنا (ہر طالب علم کے لیے)
+29430: · خودکار گریڈ کیلکولیشن (A, B, C, وغیرہ)
+29431: · رپورٹ کارڈ تیار کرنا
+29432: · طلباء کو نتائج بھیجنا (والدین کو بھی)
+29433: 
+29434: کس کو استعمال کرنے کی اجازت ہے؟
+29435: 
+29436: · ✅ ٹیچر (داخل کر سکے گا)
+29437: · ✅ سٹوڈنٹ (دیکھ سکے گا)
+29438: · ✅ والدین (دیکھ سکیں گے)
+29439: · ✅ ادارہ (دیکھ سکے گا)
+29440: 
+29441: ---
+29442: 
+29443: 11. مواد (مواد) اپ لوڈ
+29444: 
+29445: تفصیل:
+29446: ٹیچر اپنی نوٹس، سلائیڈز، ویڈیوز، اور پی ڈی ایف اپ لوڈ کر سکے گا۔
+29447: 
+29448: کیا شامل ہوگا؟
+29449: 
+29450: · فائل اپ لوڈ (کسی بھی قسم کی)
+29451: · موضوع کے لحاظ سے ترتیب دینا
+29452: · طلباء کو مواد بھیجنا
+29453: · مواد کو عوام کے لیے کھولنا یا صرف کلاس تک محدود رکھنا
+29454: 
+29455: کس کو استعمال کرنے کی اجازت ہے؟
+29456: 
+29457: · ✅ ٹیچر (اپ لوڈ کر سکے گا)
+29458: · ✅ سٹوڈنٹ (دیکھ سکے گا، ڈاؤن لوڈ کر سکے گا)
+29459: · ✅ ادارہ (دیکھ سکے گا)
+29460: 
+29461: ---
+29462: 
+29463: 12. لائیو کلاس (پانچ موڈز)
+29464: 
+29465: تفصیل:
+29466: ٹیچر پانچ مختلف طریقوں سے کلاس لے سکے گا، جس میں سے کوئی بھی انتخاب کر سکتا ہے۔
+
+29483: 
+29484: موڈ 4: ویڈیو پلے بیک موڈ
+29485: 
+29486: · ٹیچر پہلے سے ریکارڈ شدہ ویڈیوز چلا سکے گا۔
+29487: 
+29488: موڈ 5: جدید AI موڈ (اختیاری)
+29489: 
+29490: · AI سے گرافکس، تھری ڈی، اینیمیشن، ویڈیوز بنا سکے گا۔
+29491: · وائس کنٹرول، جسچر کنٹرول، آئی ٹریکنگ استعمال کر سکے گا۔
+29492: 
+29493: نوٹ: ٹیچر کو کسی بھی موڈ کو استعمال کرنے پر مجبور نہیں کیا جائے گا۔ ڈیفالٹ موڈ سادہ پروجیکٹر ہوگا۔
+29494: 
+29495: کس کو استعمال کرنے کی اجازت ہے؟
+29496: 
+29497: · ✅ ٹیچر (کلاس لے سکے گا)
+29498: · ✅ سٹوڈنٹ (دیکھ سکے گا)
+29499: · ✅ والدین (اگر اجازت ہو تو دیکھ سکیں گے)
+29500: 
+29501: ---
+29502: 
+29503: 13. طلباء سے رابطہ
+29504: 
+29505: تفصیل:
+29506: ٹیچر طلباء اور والدین کو میسج بھیج سکے گا۔
+29507: 
+29508: کیا شامل ہوگا؟
+29509: 
+29510: · انفرادی میسج (ایک طالب علم کو)
+29511: · گروپ میسج (پوری کلاس کو)
+29512: · فائل اٹیچ کرنا (نوٹس، اسائنمنٹ)
+29513: · والدین کو اطلاع بھیجنا (حاضری، نتائج، رویہ)
+29514: 
+29515: کس کو استعمال کرنے کی اجازت ہے؟
+29516: 
+29517: · ✅ ٹیچر (بھیج سکے گا)
+29518: · ✅ سٹوڈنٹ (وصول کر سکے گا)
+29519: · ✅ والدین (وصول کر سکیں گے)
+29520: 
+29521: ---
+29522: 
+29523: 14. والدین سے ملاقات (PTM)
+29524: 
+29525: تفصیل:
+29526: ٹیچر والدین کے ساتھ آن لائن ملاقات کا وقت بک کر سکے گا۔
+29527: 
+29528: کیا شامل ہوگا؟
+29529: 
+29530: · وقت کا انتخاب (تاریخ اور وقت)
+29531: · ویڈیو کال لنک بنانا
+29532: · طالب علم کی رپورٹ کارڈ شیئر کرنا
+29533: · ملاقات کی یاد دہانی (خودکار نوٹیفکیشن)
+29534: 
+29535: کس کو استعمال کرنے کی اجازت ہے؟
+29536: 
+29537: · ✅ ٹیچر (بک کر سکے گا)
+29538: · ✅ والدین (شامل ہو سکیں گے)
+29539: 
+29540: ---
+29541: 
+29542: 15. تنخواہ اور مالیات
+29543: 
+29544: تفصیل:
+29545: ٹیچر کو اس کی مکمل مالی معلومات دکھائی دے گی۔
+29546: 
+29547: کیا شامل ہوگا؟
+29548: 
+29549: · کل تنخواہ: ماہانہ مقررہ تنخواہ
+29550: · موصول شدہ: اب تک کتنی تنخواہ مل چکی ہے
+29551: · بقایا: کتنی تنخواہ باقی ہے (مہینے کے لحاظ سے)
+29552: · ادھار / قرض: اس نے ادارے کو کتنا ادھار دیا ہے، اس نے طلباء کو کتنا ادھار دیا ہے
+29553: · کٹوتیاں: اگر کوئی کٹوتی ہوئی ہے (جیسے ٹیکس، جرمانہ)
+29554: · ماہانہ گراف: آمدنی کا گراف (جیسے بینک کی ایپ)
+29555: 
+29556: پرائیویسی: یہ تمام معلومات صرف ٹیچر کو دکھائی دیں گی، کسی اور کو نہیں۔
+29557: 
+29558: کس کو استعمال کرنے کی اجازت ہے؟
+29559: 
+29560: · ✅ صرف ٹیچر
+29561: 
+29562: ---
+29563: 
+29564: 16. کارکردگی کا جائزہ
+29565: 
+29566: تفصیل:
+
+29651: 
+29652: · وائس کنٹرول: ٹیچر آواز سے کہے گا "اگلی سلائیڈ" اور وہ تبدیل ہو جائے گی۔
+29653: · جسچر کنٹرول: ٹیچر ہاتھ ہلا کر سلائیڈز تبدیل کر سکے گا۔
+29654: · آئی ٹریکنگ: ٹیچر کی آنکھوں کی حرکت سے اسکرین کنٹرول ہوگی۔
+29655: 
+29656: نوٹ: یہ تمام فیچرز اختیاری ہیں۔ ٹیچر انہیں آن یا آف کر سکے گا۔
+29657: 
+29658: کس کو استعمال کرنے کی اجازت ہے؟
+29659: 
+29660: · ✅ ٹیچر (استعمال کر سکے گا)
+29661: 
+29662: ---
+29663: 
+29664: 21. چیٹنگ سسٹم
+29665: 
+29666: تفصیل:
+29667: ٹیچر طلباء، والدین، اور دوسرے اساتذہ سے چیٹ کر سکے گا۔
+29668: 
+29669: کیا شامل ہوگا؟
+29670: 
+29671: · انفرادی چیٹ
+29672: · گروپ چیٹ (پوری کلاس)
+29673: · فائل شیئرنگ
+29674: · پرائیویسی (صرف متعلقہ لوگ چیٹ کر سکیں)
+29675: 
+29676: کس کو استعمال کرنے کی اجازت ہے؟
+29677: 
+29678: · ✅ ٹیچر (استعمال کر سکے گا)
+29679: · ✅ سٹوڈنٹ (استعمال کر سکے گا)
+29680: · ✅ والدین (استعمال کر سکیں گے)
+29681: 
+29682: ---
+29683: 
+29684: 22. نوٹیفکیشن سینٹر
+29685: 
+29686: تفصیل:
+29687: ٹیچر کو تمام اہم اطلاعات ایک جگہ دکھائی دیں گی۔
+29688: 
+29689: کیا شامل ہوگا؟
+29690: 
+29691: · کلاس کی تبدیلی
+29692: · نئی اسائنمنٹ
+29693: · طالب علم کی سبمیشن
+29694: · والدین کا پیغام
+29695: · تنخواہ کی ادائیگی
+29696: · باقی تنخواہ کی یاد دہانی
+29697: 
+29698: کس کو استعمال کرنے کی اجازت ہے؟
+29699: 
+29700: · ✅ صرف ٹیچر
+29701: 
+29702: ---
+29703: 
+29704: 23. پرائیویٹ پرسنل انفارمیشن
+29705: 
+29706: تفصیل:
+29707: ٹیچر کی تمام ذاتی معلومات صرف اسے دکھائی دیں گی۔
+29708: 
+29709: کیا شامل ہوگا؟
+29710: 
+29711: · شناختی کارڈ (CNIC، پاسپورٹ)
+29712: · بینک اکاؤنٹ کی تفصیلات
+29713: · تنخواہ کا ریکارڈ
+29714: · ادھار / قرض کا ریکارڈ
+29715: · ذاتی نوٹس
+29716: 
+29717: پرائیویسی: کسی اور کو (ادارے کے مالک، دوسرے ٹیچر، طلباء) یہ معلومات نہیں دکھائی جائیں گی۔
+29718: 
+29719: کس کو استعمال کرنے کی اجازت ہے؟
+29720: 
+29721: · ✅ صرف ٹیچر
+29722: 
+29723: ---
+29724: 
+29725: خلاصہ (ایک نظر میں)
+29726: 
+29727: نمبر فیچر کس کو استعمال کرنے کی اجازت ہے؟
+29728: 1 مرکزی صفحہ صرف ٹیچر
+29729: 2 پروفائل صرف ٹیچر
+29730: 3 ٹائیم ٹیبل صرف ٹیچر
+29731: 4 میری کلاسز صرف ٹیچر
+29732: 5 طلباء کی فہرست ٹیچر + ادارہ
+29733: 6 حاضری (طلباء کی) ٹیچر + ادارہ + والدین
+29734: 7 اپنی حاضری (ٹیچر کی) ٹیچر + ادارہ
+29735: 8 ہوم ورک / اسائنمنٹ ٹیچر + سٹوڈنٹ + والدین
+29736: 9 امتحانات ٹیچر + سٹوڈنٹ + ادارہ
+29737: 10 نتائج / گریڈ ٹیچر + سٹوڈنٹ + والدین + ادارہ
+29738: 11 مواد اپ لوڈ ٹیچر + سٹوڈنٹ + ادارہ
+29739: 12 لائیو کلاس (5 موڈز) ٹیچر + سٹوڈنٹ + والدین (اگر اجازت ہو)
+29740: 13 طلباء سے رابطہ ٹیچر + سٹوڈنٹ + والدین
+29741: 14 والدین سے ملاقات (PTM) ٹیچر + والدین
+29742: 15 تنخواہ اور مالیات صرف ٹیچر
+29743: 16 کارکردگی کا جائزہ ٹیچر + ادارہ
+29744: 17 ریسورس لائبریری صرف ٹیچر
+29745: 18 AI ٹیچر اسسٹنٹ صرف ٹیچر
+29746: 19 AI کریٹو ٹیچر ٹیچر + سٹوڈنٹ
+29747: 20 جدید کلاس کنٹرول (اختیاری) صرف ٹیچر
+29748: 21 چیٹنگ سسٹم ٹیچر + سٹوڈنٹ + والدین
+29749: 22 نوٹیفکیشن سینٹر صرف ٹیچر
+29750: 23 پرائیویٹ پرسنل انفارمیشن صرف ٹیچر
+29751: 
+29752: ---
+29753: 
+29754: نوٹ (یاد رکھیں)
+29755: 
+29756: · چیٹنگ کا فیچر پہلے سے موجود ہے، اسے تبدیل نہیں کرنا۔
+29757: · تمام جدید فیچرز (AI، وائس، جسچر، آئی ٹریکنگ) اختیاری ہیں، ٹیچر کو مجبور نہیں کیا جائے گا۔
+29758: · ڈیفالٹ موڈ سادہ پروجیکٹر / وائٹ بورڈ ہوگا۔
+29759: · تنخواہ اور پرائیویٹ معلومات صرف ٹیچر کو دکھائی دیں گی۔
+29760: 
+29761: ---
+29762: 
+29763: والدین ڈیش بورڈ - مکمل دستاویز
+29764: 
+29765: ---
+29766: 
+29767: 1. مرکزی صفحہ (Dashboard Home)
+29768: 
+29769: تفصیل:
+29770: لاگ ان کرتے ہی والدین / گارڈین کو ایک مرکزی صفحہ دکھائی دے گا جس میں تمام بچوں کی اہم معلومات ایک نظر میں ہوں گی۔
+29771: 
+29772: کیا دکھائی دے گا؟
+29773: 
+29774: · تمام بچوں کی فہرست (نام، کلاس، سکول)
+29775: · آج کی حاضری (کون حاضر، کون غیر حاضر)
+29776: · آنے والے امتحانات
+29777: · بقایا فیس (اگر کوئی ہو)
+29778: · اساتذہ کے پیغامات
+29779: · نوٹیفکیشنز
+29780: 
+29781: کس کو استعمال کرنے کی اجازت ہے؟
+29782: 
+29783: · ✅ والدین / گارڈین / سربراہ (صرف اپنے بچے)
+29784: 
+29785: ---
+29786: 
+29787: 2. بچوں کی فہرست (Children Management)
+29788: 
+29789: تفصیل:
+29790: والدین / گارڈین اپنے تمام بچوں کی فہرست دیکھ سکیں گے اور کسی بھی بچے کی تفصیلات دیکھ سکیں گے۔
+29791: 
+29792: کیا شامل ہوگا؟
+29793: 
+29794: · بچے کا نام، تصویر، عمر، کلاس
+29795: · سکول / ادارے کا نام
+29796: · رول نمبر
+29797: · کلاس ٹیچر کا نام
+29798: · رابطہ نمبر
+29799: 
+29800: کس کو استعمال کرنے کی اجازت ہے؟
+29801: 
+29802: · ✅ والدین / گارڈین (صرف اپنے بچے)
+29803: 
+29804: ---
+29805: 
+29806: 3. حاضری دیکھنا (Attendance View)
+29807: 
+29808: تفصیل:
+29809: والدین / گارڈین اپنے بچے کی حاضری دیکھ سکیں گے۔
+29810: 
+29811: کیا شامل ہوگا؟
+29812: 
+29813: · آج کی حاضری (حاضر / غیر حاضر)
+29814: · ماہانہ حاضری کا خلاصہ (کتنے دن حاضر، کتنے غیر حاضر)
+29815: · حاضری کا گراف (بصری طور پر)
+29816: · اگر بچہ غیر حاضر ہو تو وجہ (اگر ٹیچر نے بتائی ہو)
+29817: · حاضری کی رپورٹ (PDF میں ڈاؤن لوڈ)
+29818: 
+29819: کس کو استعمال کرنے کی اجازت ہے؟
+29820: 
+29821: · ✅ والدین / گارڈین (صرف اپنے بچے)
+29822: 
+29823: ---
+29824: 
+29825: 4. نتائج / گریڈ دیکھنا (Results / Grades)
+29826: 
+29827: تفصیل:
+29828: والدین / گارڈین اپنے بچے کے نتائج اور گریڈ دیکھ سکیں گے۔
+29829: 
+29830: کیا شامل ہوگا؟
+29831: 
+29832: · تمام مضامین کے نمبر اور گریڈ
+29833: · امتحانات کے نتائج (ماہانہ، سمسٹر، سالانہ)
+29834: · پوزیشن / رینک (اگر کلاس میں ہو)
+29835: · کمزور اور مضبوط مضامین
+29836: · رپورٹ کارڈ (PDF میں ڈاؤن لوڈ)
+29837: 
+29838: کس کو استعمال کرنے کی اجازت ہے؟
+29839: 
+29840: · ✅ والدین / گارڈین (صرف اپنے بچے)
+29841: 
+29842: ---
+29843: 
+29844: 5. ہوم ورک / اسائنمنٹ دیکھنا
+29845: 
+29846: تفصیل:
+29847: والدین / گارڈین اپنے بچے کے ہوم ورک اور اسائنمنٹس دیکھ سکیں گے۔
+29848: 
+29849: کیا شامل ہوگا؟
+29850: 
+29851: · تمام اسائنمنٹس کی فہرست (عنوان، تفصیل، آخری تاریخ)
+29852: · کون سی اسائنمنٹ جمع ہوئی، کون سی باقی ہے
+29853: · اسائنمنٹ پر ملے ہوئے نمبر
+29854: · ٹیچر کا فیڈ بیک
+29855: 
+29856: کس کو استعمال کرنے کی اجازت ہے؟
+29857: 
+29858: · ✅ والدین / گارڈین (صرف اپنے بچے)
+29859: 
+29860: ---
+29861: 
+29862: 6. امتحانات کا شیڈول
+29863: 
+29864: تفصیل:
+29865: والدین / گارڈین اپنے بچے کے امتحانات کا شیڈول دیکھ سکیں گے۔
+29866: 
+29867: کیا شامل ہوگا؟
+29868: 
+29869: · آنے والے امتحانات کی فہرست (تاریخ، وقت، مضمون)
+29870: · امتحانات کے اوقات کار
+29871: · امتحانی مرکز (اگر فزیکل ہو) یا لنک (اگر آن لائن ہو)
+29872: · امتحانات کی تیاری کے لیے ہدایات
+29873: 
+29874: کس کو استعمال کرنے کی اجازت ہے؟
+29875: 
+29876: · ✅ والدین / گارڈین (صرف اپنے بچے)
+29877: 
+29878: ---
+29879: 
+29880: 7. فیس کا نظام (Fee Management)
+29881: 
+29882: تفصیل:
+29883: والدین / گارڈین اپنے بچے کی فیس دیکھ سکیں گے اور آن لائن ادائیگی کر سکیں گے۔
+29884: 
+29885: کیا شامل ہوگا؟
+29886: 
+29887: · کل فیس (ماہانہ، سمسٹر، سالانہ)
+29888: · ادا شدہ فیس (تاریخ اور رقم)
+29889: · بقایا فیس (اگر کوئی ہو)
+29890: · آن لائن ادائیگی کا بٹن (والیٹ، کارڈ، بینک ٹرانسفر)
+29891: · رسید (PDF میں ڈاؤن لوڈ)
+29892: 
+29893: نوٹ: اگر بچہ ایک سے زیادہ اداروں (سکول، ٹیوشن، اکیڈمی) میں پڑھتا ہے تو ہر ادارے کی فیس الگ الگ دکھائی دے گی۔
+29894: 
+29895: کس کو استعمال کرنے کی اجازت ہے؟
+29896: 
+29897: · ✅ والدین / گارڈین (صرف اپنے بچے)
+29898: · ✅ طالب علم خود (اگر والدین نہ ہوں) - یہ فیچر سٹوڈنٹ ڈیش بورڈ میں بھی ہے۔
+29899: 
+29900: ---
+29901: 
+29902: 8. ٹیچر سے رابطہ (Teacher Communication)
+29903: 
+29904: تفصیل:
+29905: والدین / گارڈین اپنے بچے کے ٹیچر کو میسج بھیج سکیں گے۔
+29906: 
+29907: کیا شامل ہوگا؟
+29908: 
+29909: · انفرادی میسج (صرف ٹیچر کو)
+29910: · فائل اٹیچ کرنا (اگر ضرورت ہو)
+29911: · میسج کی ہسٹری (پرانے میسج دیکھ سکیں گے)
+29912: 
+29913: کس کو استعمال کرنے کی اجازت ہے؟
+29914: 
+29915: · ✅ والدین / گارڈین (بھیج سکیں گے)
+29916: · ✅ ٹیچر (وصول کر سکے گا)
+29917: 
+29918: ---
+29919: 
+29920: 9. والدین ٹیچر میٹنگ (PTM)
+29921: 
+29922: تفصیل:
+29923: والدین / گارڈین ٹیچر کے ساتھ آن لائن ملاقات کا وقت بک کر سکیں گے۔
+29924: 
+29925: کیا شامل ہوگا؟
+29926: 
+29927: · ٹیچر کی دستیابی (تاریخ اور وقت)
+29928: · ویڈیو کال لنک بنانا
+29929: · ملاقات کی یاد دہانی (خودکار نوٹیفکیشن)
+29930: · ملاقات کے بعد کا خلاصہ (اگر ٹیچر لکھے)
+29931: 
+29932: کس کو استعمال کرنے کی اجازت ہے؟
+29933: 
+29934: · ✅ والدین / گارڈین (بک کر سکیں گے)
+29935: · ✅ ٹیچر (شامل ہو سکے گا)
+29936: 
+29937: ---
+29938: 
+29939: 10. بچے کا ٹائیم ٹیبل
+29940: 
+29941: تفصیل:
+29942: والدین / گارڈین اپنے بچے کا ہفتہ وار ٹائیم ٹیبل دیکھ سکیں گے۔
+29943: 
+29944: کیا شامل ہوگا؟
+29945: 
+29946: · دن (پیر تا جمعہ)
+29947: · وقت (شروع اور ختم)
+29948: · سبجیکٹ کا نام
+29949: · کلاس / سیکشن
+29950: · روم نمبر (اگر فزیکل ہو) یا میٹنگ لنک (اگر آن لائن ہو)
+29951: 
+29952: کس کو استعمال کرنے کی اجازت ہے؟
+29953: 
+29954: · ✅ والدین / گارڈین (صرف اپنے بچے)
+29955: 
+29956: ---
+29957: 
+29958: 11. بچے کی کارکردگی کا جائزہ
+29959: 
+29960: تفصیل:
+29961: والدین / گارڈین اپنے بچے کی مجموعی کارکردگی دیکھ سکیں گے۔
+29962: 
+29963: کیا شامل ہوگا؟
+29964: 
+29965: · تعلیمی کارکردگی (نمبر، گریڈ، رینک)
+29966: · حاضری (کتنے دن حاضر، کتنے غیر حاضر)
+29967: · رویہ (اگر ٹیچر نے کوئی نوٹس دیا ہو)
+29968: · اساتذہ کی رائے (فیڈ بیک)
+29969: · بہتری کے لیے تجاویز
+29970: 
+29971: کس کو استعمال کرنے کی اجازت ہے؟
+29972: 
+29973: · ✅ والدین / گارڈین (صرف اپنے بچے)
+29974: 
+29975: ---
+29976: 
+29977: 12. اسکول / ادارے کی معلومات
+29978: 
+29979: تفصیل:
+29980: والدین / گارڈین اپنے بچے کے اسکول / ادارے کی معلومات دیکھ سکیں گے۔
+29981: 
+29982: کیا شامل ہوگا؟
+29983: 
+29984: · اسکول کا نام، پتہ، رابطہ نمبر
+29985: · اسکول کا لوگو اور برانڈنگ
+29986: · اسکول کے اعلانات اور نیوز
+29987: · اسکول کا کیلنڈر (چھٹیاں، ایونٹس)
+29988: 
+29989: کس کو استعمال کرنے کی اجازت ہے؟
+29990: 
+29991: · ✅ والدین / گارڈین (صرف اپنے بچے کا اسکول)
+29992: 
+29993: ---
+29994: 
+29995: 13. بچے کا ڈیجیٹل پورٹ فولیو
+29996: 
+29997: تفصیل:
+29998: والدین / گارڈین اپنے بچے کا ڈیجیٹل پورٹ فولیو دیکھ سکیں گے۔
+29999: 
+30000: کیا شامل ہوگا؟
+30001: 
+30002: · سرٹیفکیٹس (کورسز، امتحانات)
+30003: · ایوارڈز (اگر کوئی حاصل کیے ہوں)
+30004: · کامیابیاں (مقابلوں، اسپورٹس)
+30005: · تصاویر (اگر ادارے نے اپ لوڈ کی ہوں)
+30006: 
+30007: کس کو استعمال کرنے کی اجازت ہے؟
+30008: 
+30009: · ✅ والدین / گارڈین (صرف اپنے بچے)
+30010: 
+30011: ---
+30012: 
+30013: 14. نوٹیفکیشن سینٹر
+30014: 
+30015: تفصیل:
+30016: والدین / گارڈین کو تمام اہم اطلاعات ایک جگہ دکھائی دیں گی۔
+30017: 
+30018: کیا شامل ہوگا؟
+30019: 
+30020: · بچے کی حاضری (غیر حاضر ہونے پر)
+30021: · نئے نتائج
+30022: · آنے والے امتحانات
+30023: · فیس کی یاد دہانی
+30024: · اساتذہ کے پیغامات
+30025: · اسکول کے اعلانات
+30026: 
+30027: کس کو استعمال کرنے کی اجازت ہے؟
+30028: 
+30029: · ✅ والدین / گارڈین
+30030: 
+30031: ---
+30032: 
+30033: 15. چیٹنگ سسٹم (مکمل تفصیل)
+30034: 
+30035: تفصیل:
+30036: والدین / گارڈین اسکول، ٹیچر، اور دوسرے والدین سے چیٹ کر سکیں گے (جہاں اجازت ہو)۔
+30037: 
+30038: ---
+30039: 
+30040: چیٹ سسٹم کی خصوصیات:
+30041: 
+30042: نمبر فیچر تفصیل
+30043: 1 انفرادی چیٹ والدین / گارڈین صرف اپنے بچے کے ٹیچر کو چیٹ کر سکیں گے۔
+30044: 2 گروپ چیٹ والدین / گارڈین پیرنٹس گروپ میں شامل ہو سکیں گے (اگر ادارے نے بنایا ہو)۔
+30045: 3 فائل شیئرنگ والدین / گارڈین تصاویر، پی ڈی ایف، اور دستاویزات شیئر کر سکیں گے۔
+30046: 4 پرائیویسی صرف متعلقہ لوگ چیٹ کر سکیں گے (والدین → ٹیچر، والدین → اسکول)۔
+30047: 5 چیٹ کا ریکارڈ تمام چیٹس محفوظ ہوں گی۔
+30048: 6 شکایت پر دیکھنا چیٹس صرف شکایت کی صورت میں منتظم (Admin) دیکھ سکے گا۔
+30049: 7 غلط الفاظ کا فلٹر چیٹ میں غلط الفاظ خودکار طور پر ڈیٹیکٹ ہوں گے اور رپورٹ بنے گی۔
+30050: 8 چیٹ کی ٹائم لائن ہر چیٹ کی تاریخ اور وقت محفوظ ہوگی۔
+30051: 9 کوئی الرٹ نہیں پرائیویٹ چیٹس پر کوئی الرٹ، فلاگ، یا نوٹیفکیشن نہیں جائے گا (جب تک شکایت نہ ہو)۔
+30052: 
+30053: ---
+30054: 
+30055: چیٹ سسٹم کے ذریعے ممکنہ مسائل اور ان کا حل:
+30056: 
+30057: مسئلہ حل
+30058: گالی گلوچ فلٹر خودکار طور پر ڈیٹیکٹ کرے گا اور رپورٹ بنے گی۔
+30059: ہراسمنٹ متاثرہ شخص شکایت کر سکے گا، منتظم چیٹ دیکھ سکے گا۔
+30060: غلط تعلقات چیٹ کا ریکارڈ محفوظ رہے گا، ثبوت کے طور پر استعمال ہو سکے گا۔
+30061: جعلی شکایت اگر کوئی جھوٹی شکایت کرے تو اس کے خلاف کارروائی ہو سکے گی (کیونکہ ریکارڈ موجود ہے)۔
+30062: پولیس کیس پوری چیٹ کی ہسٹری ثبوت کے طور پر فراہم کی جا سکے گی۔
+30063: 
+30064: ---
+30065: 
+30066: چیٹ سسٹم میں کس کو کس سے چیٹ کرنے کی اجازت ہے؟
+30067: 
+30068: نمبر چیٹ کرنے والا کس سے چیٹ کر سکتا ہے؟
+30069: 1 والدین / گارڈین ✅ اپنے بچے کا ٹیچر
+30070: 2 والدین / گارڈین ✅ اسکول / ادارہ
+30071: 3 والدین / گارڈین ✅ دوسرے والدین (اگر گروپ میں ہوں)
+30072: 4 والدین / گارڈین ❌ دوسرے بچوں کے ٹیچر (نہیں کر سکتے)
+30073: 5 والدین / گارڈین ❌ دوسرے بچوں کے والدین (نہیں کر سکتے)
+30074: 
+30075: ---
+30076: 
+30077: چیٹ سسٹم کی پرائیویسی اور سیکیورٹی:
+30078: 
+30079: نمبر اصول تفصیل
+30080: 1 تمام چیٹس محفوظ ہر چیٹ کا ریکارڈ ڈیٹا بیس میں محفوظ ہوگا۔
+30081: 2 صرف متعلقہ لوگ دیکھ سکیں عام دنوں میں صرف چیٹ کرنے والے ہی اپنی چیٹ دیکھ سکیں گے۔
+30082: 3 شکایت پر منتظم دیکھ سکے گا اگر کوئی شکایت آئے تو ادارے کا منتظم چیٹ دیکھ سکے گا۔
+30083: 4 سپر ایڈمن (آپ) دیکھ سکیں گے سنگین معاملات میں سپر ایڈمن چیٹ دیکھ سکے گا۔
+30084: 5 پولیس کیس کے لیے ثبوت پوری چیٹ کی ہسٹری ثبوت کے طور پر فراہم کی جا سکے گی۔
+30085: 6 غلط الفاظ کا فلٹر خودکار فلٹر غلط الفاظ کو ڈیٹیکٹ کرے گا اور رپورٹ بنائے گا۔
+30086: 7 کوئی غیر ضروری الرٹ نہیں جب تک کوئی شکایت نہ ہو، کوئی الرٹ یا نوٹیفکیشن نہیں جائے گا۔
+30087: 
+30088: ---
+30089: 
+30090: چیٹ سسٹم - تمام ڈیش بورڈز کے لیے یکساں:
+30091: 
+30092: یہ چیٹ سسٹم پوری ویب سائٹ کے لیے ایک ہی ہوگا، چاہے وہ کوئی بھی ڈیش بورڈ ہو:
+30093: 
+30094: ڈیش بورڈ چیٹ کی اجازت
+30095: سٹوڈنٹ ڈیش بورڈ ✅ سٹوڈنٹ ↔ ٹیچر, سٹوڈنٹ ↔ ایڈمن
+30096: ٹیچر ڈیش بورڈ ✅ ٹیچر ↔ سٹوڈنٹ, ٹیچر ↔ والدین, ٹیچر ↔ ایڈمن
+30097: والدین ڈیش بورڈ ✅ والدین ↔ ٹیچر, والدین ↔ ایڈمن, والدین ↔ دوسرے والدین (گروپ میں)
+30098: ایڈمن ڈیش بورڈ ✅ ایڈمن ↔ ٹیچر, ایڈمن ↔ سٹوڈنٹ, ایڈمن ↔ والدین
+30099: سپر ایڈمن ڈیش بورڈ ✅ سپر ایڈمن ↔ تمام (صرف ضرورت پڑنے پر)
+30100: 
+30101: ---
+30102: 
+30103: 16. والیٹ / ادائیگیوں کا ریکارڈ
+30104: 
+30105: تفصیل:
+30106: والدین / گارڈین اپنی تمام ادائیگیوں کا ریکارڈ دیکھ سکیں گے۔
+30107: 
+30108: کیا شامل ہوگا؟
+30109: 
+30110: · تمام ادائیگیوں کی فہرست (تاریخ، رقم، تفصیل)
+30111: · بقایا ادائیگیاں (اگر کوئی ہوں)
+30112: · رسید (PDF میں ڈاؤن لوڈ)
+30113: · والیٹ بیلنس (اگر کوئی کریڈٹ ہو)
+30114: 
+30115: کس کو استعمال کرنے کی اجازت ہے؟
+30116: 
+30117: · ✅ والدین / گارڈین
+30118: 
+30119: ---
+30120: 
+30121: 17. پرائیویٹ پرسنل انفارمیشن
+30122: 
+30123: تفصیل:
+30124: والدین / گارڈین کی تمام ذاتی معلومات صرف انہیں دکھائی دیں گی۔
+30125: 
+30126: کیا شامل ہوگا؟
+30127: 
+30128: · شناختی کارڈ (CNIC، پاسپورٹ)
+30129: · بینک اکاؤنٹ کی تفصیلات
+30130: · بچوں کی معلومات (صرف ان کے بچے)
+30131: · ادائیگیوں کا ریکارڈ
+30132: · ذاتی نوٹس
+30133: 
+30134: پرائیویسی: کسی اور کو یہ معلومات نہیں دکھائی جائیں گی۔
+30135: 
+30136: کس کو استعمال کرنے کی اجازت ہے؟
+30137: 
+30138: · ✅ والدین / گارڈین
+30139: 
+30140: ---
+30141: 
+30142: خلاصہ (ایک نظر میں)
+30143: 
+30144: نمبر فیچر کس کو استعمال کرنے کی اجازت ہے؟
+30145: 1 مرکزی صفحہ صرف والدین / گارڈین
+30146: 2 بچوں کی فہرست صرف والدین / گارڈین
+30147: 3 حاضری دیکھنا صرف والدین / گارڈین
+30148: 4 نتائج / گریڈ دیکھنا صرف والدین / گارڈین
+30149: 5 ہوم ورک / اسائنمنٹ دیکھنا صرف والدین / گارڈین
+30150: 6 امتحانات کا شیڈول صرف والدین / گارڈین
+30151: 7 فیس کا نظام صرف والدین / گارڈین + طالب علم (خود)
+30152: 8 ٹیچر سے رابطہ والدین / گارڈین + ٹیچر
+30153: 9 والدین ٹیچر میٹنگ (PTM) والدین / گارڈین + ٹیچر
+30154: 10 بچے کا ٹائیم ٹیبل صرف والدین / گارڈین
+30155: 11 بچے کی کارکردگی کا جائزہ صرف والدین / گارڈین
+30156: 12 اسکول / ادارے کی معلومات صرف والدین / گارڈین
+30157: 13 بچے کا ڈیجیٹل پورٹ فولیو صرف والدین / گارڈین
+30158: 14 نوٹیفکیشن سینٹر صرف والدین / گارڈین
+30159: 15 چیٹنگ سسٹم والدین / گارڈین + ٹیچر + اسکول
+30160: 16 والیٹ / ادائیگیوں کا ریکارڈ صرف والدین / گارڈین
+30161: 17 پرائیویٹ پرسنل انفارمیشن صرف والدین / گارڈین
+30162: 
+30163: ---
+30164: 
+30165: نوٹ (یاد رکھیں)
+30166: 
+30167: · والدین / گارڈین / سربراہ سب ایک ہی ڈیش بورڈ استعمال کریں گے۔
+30168: · والدین صرف اپنے بچوں کی معلومات دیکھ سکیں گے، کسی اور کے بچے کی نہیں۔
+30169: · چیٹ سسٹم پوری ویب سائٹ کے لیے یکساں ہوگا (سٹوڈنٹ، ٹیچر، والدین، ایڈمن، سپر ایڈمن)۔
+30170: · تمام چیٹس محفوظ ہوں گی اور صرف شکایت کی صورت میں دیکھی جا سکیں گی۔
+30171: · پرائیویسی کا مکمل خیال رکھا جائے گا۔
+30172: · غلط الفاظ کا فلٹر خودکار ہوگا۔
+30173: 
+30174: ---
+30175: _________________________________________________________________________________________________________________________________________
+30176:                                               ادارے کے مالک (Admin) ڈیش بورڈ
+30177: _________________________________________________________________________________________________________________________________________
+30178: 1. مرکزی صفحہ (Dashboard Home)
+30179: 
+30180: تفصیل:
+30181: لاگ ان کرتے ہی ادارے کے مالک کو ایک مرکزی صفحہ دکھائی دے گا جس میں تمام اہم معلومات اور گرافس ایک نظر میں ہوں گے۔
+30182: 
+30183: کیا دکھائی دے گا؟
+30184: 
+30185: اعداد و شمار (Statistics):
+30186: 
+30187: · کل طلباء (کتنے داخل ہیں)
+30188: · کل اساتذہ
+30189: · کل عملہ
+30190: · آج کی حاضری (طلباء اور عملے کی)
+30191: · آمدنی (ماہانہ فیس کا خلاصہ)
+30192: · بقایا جات (کس نے فیس نہیں دی)
+30193: 
+30194: گرافس (Graphs):
+30195: 
+30196: · طلباء کی تعداد کا گراف (سال بہ سال)
+30197: · آمدنی کا گراف (ماہانہ)
+
+30336: · ✅ صرف ادارے کا مالک / منتظم
+30337: · ✅ اکاؤنٹنٹ (اگر اجازت دی گئی ہو)
+30338: 
+30339: ---
+30340: 
+30341: 7. حاضری کا نظام (Attendance Management)
+30342: 
+30343: تفصیل:
+30344: ادارے کا مالک طلباء اور عملے کی حاضری دیکھ سکے گا۔
+30345: 
+30346: کیا شامل ہوگا؟
+30347: 
+30348: · طلباء کی حاضری (کلاس وائز)
+30349: · عملے کی حاضری (تمام ملازمین کی)
+30350: · حاضری کی رپورٹس (روزانہ، ماہانہ)
+30351: · غیر حاضر طلباء / عملے کی فہرست
+30352: · والدین کو خودکار اطلاع (اگر طالب علم غیر حاضر ہو)
+30353: 
+30354: گرافس:
+30355: 
+30356: · طلباء کی حاضری کا گراف (کلاس وائز) - مرکزی صفحہ پر بھی
+30357: · عملے کی حاضری کا گراف (ماہانہ)
+30358: · ماہانہ حاضری کا گراف (موازنہ)
+30359: 
+30360: کس کو استعمال کرنے کی اجازت ہے؟
+30361: 
+30362: · ✅ صرف ادارے کا مالک / منتظم
+30363: 
+30364: ---
+30365: 
+30366: 8. امتحانات کا نظام (Examination Management)
+30367: 
+30368: تفصیل:
+30369: ادارے کا مالک تمام امتحانات کو Manage کر سکے گا۔
+30370: 
+30371: کیا شامل ہوگا؟
+30372: 
+30373: · امتحانات کا شیڈول بنانا
+30374: · امتحانات کی اقسام (کوئز، ماہانہ، سمسٹر، سالانہ)
+30375: · پرچے بنانا (AI کی مدد سے یا دستی)
+30376: · امتحانات کا انعقاد (آن لائن یا فزیکل)
+30377: · نتائج کا اعلان
+30378: · رپورٹ کارڈ بنانا
+30379: 
+30380: گرافس:
+
+30574: · اساتذہ کی ریٹنگ کا گراف
+30575: · سہولیات کی ریٹنگ کا گراف
+30576: 
+30577: پرپل کاؤ کیوں ہے؟
+30578: طلباء کی خفیہ رائے سے ادارے کو بہتری کے مواقع ملیں گے۔
+30579: 
+30580: کس کو استعمال کرنے کی اجازت ہے؟
+30581: 
+30582: · ✅ طلباء (فیڈ بیک دے سکیں گے)
+30583: · ✅ ادارے کا مالک / منتظم (دیکھ سکے گا)
+30584: 
+30585: ---
+30586: 
+30587: 17. ایمرجنسی نوٹیفکیشن (Emergency Notification) - (نیا)
+30588: 
+30589: تفصیل:
+30590: ایمرجنسی میں تمام والدین اور طلباء کو فوری اطلاع بھیجی جا سکے گی۔
+30591: 
+30592: نوٹیفکیشن کی اقسام:
+30593: 
+30594: · تحریری پیغام (ٹیکسٹ)
+30595: · آواز (آڈیو ریکارڈنگ)
+30596: · ویڈیو پیغام
+30597: · تصاویر
+30598: · فائل اٹیچمنٹ (PDF، Word)
+30599: · لنک شیئرنگ
+30600: 
+30601: پرپل کاؤ کیوں ہے؟
+30602: یہ فیچر حفاظت اور اعتماد کو بڑھاتا ہے۔
+30603: 
+30604: کس کو استعمال کرنے کی اجازت ہے؟
+30605: 
+30606: · ✅ صرف ادارے کا مالک / منتظم
+30607: 
+30608: ---
+30609: 
+30610: 18. کمیونیکیشن سینٹر (Communication Center)
+30611: 
+30612: تفصیل:
+30613: ادارہ طلباء، والدین، اور عملے کو پیغام بھیج سکے گا۔
+30614: 
+30615: کیا شامل ہوگا؟
+30616: 
+30617: · تمام طلباء کو اطلاع
+30618: · تمام والدین کو اطلاع
+30619: · تمام عملے کو اطلاع
+30620: · گروپس میں پیغام بھیجنا
+30621: · اعلانات کرنا
+30622: 
+30623: نوٹیفکیشن کی اقسام: تحریر، آواز، ویڈیو، تصاویر، فائل، لنک
+30624: 
+30625: کس کو استعمال کرنے کی اجازت ہے؟
+30626: 
+30627: · ✅ صرف ادارے کا مالک / منتظم
+30628: 
+30629: ---
+30630: 
+30631: 19. برانڈنگ اور ترتیبات (Branding & Settings)
+30632: 
+30633: تفصیل:
+30634: ادارہ اپنی شناخت خود منتخب کر سکے گا۔
+30635: 
+30636: کیا شامل ہوگا؟
+30637: 
+30638: · لوگو اپ لوڈ کرنا
+30639: · رنگ منتخب کرنا
+30640: · نام اور تفصیلات
+30641: · رابطہ کی معلومات
+30642: · سوشل میڈیا لنکس
+30643: 
+30644: کس کو استعمال کرنے کی اجازت ہے؟
+30645: 
+30646: · ✅ صرف ادارے کا مالک / منتظم
+30647: 
+30648: ---
+30649: 
+30650: 20. چیٹنگ سسٹم (Chat System)
+30651: 
+30652: تفصیل:
+30653: ادارے کا مالک تمام لوگوں سے چیٹ کر سکے گا (ضرورت کے مطابق)۔
+30654: 
+30655: کیا شامل ہوگا؟
+30656: 
+30657: · ٹیچرز سے چیٹ
+30658: · طلباء سے چیٹ
+30659: · والدین سے چیٹ
+30660: · عملے سے چیٹ
+30661: · گروپ چیٹ
+30662: 
+30663: پرائیویسی: تمام چیٹس محفوظ ہوں گی اور صرف شکایت کی صورت میں دیکھی جا سکیں گی۔
+30664: 
+30665: کس کو استعمال کرنے کی اجازت ہے؟
+30666: 
+30667: · ✅ ادارے کا مالک / منتظم
+30668: · ✅ ٹیچرز
+30669: · ✅ طلباء (صرف اپنے ٹیچر اور ایڈمن سے)
+30670: · ✅ والدین (صرف اپنے بچے کے ٹیچر اور ایڈمن سے)
+30671: 
+30672: ---
+30673: 
+30674: 21. نوٹیفکیشن سینٹر (Notification Center)
+30675: 
+30676: تفصیل:
+30677: ادارے کے مالک کو تمام اہم اطلاعات ایک جگہ دکھائی دیں گی۔
+30678: 
+30679: کیا شامل ہوگا؟
+30680: 
+30681: · نئے طلباء کا اندراج
+30682: · بقایا فیس
+30683: · عملے کی حاضری
+30684: · امتحانات کے نتائج
+30685: · اساتذہ کی درخواستیں
+30686: · نظام کی اطلاعات
+30687: 
+30688: کس کو استعمال کرنے کی اجازت ہے؟
+30689: 
+30690: · ✅ صرف ادارے کا مالک / منتظم
+30691: 
+30692: ---
+30693: 
+30694: 22. پرائیویٹ پرسنل انفارمیشن (Private Personal Information)
+30695: 
+30696: تفصیل:
+30697: ادارے کے مالک کی تمام ذاتی معلومات صرف اسے دکھائی دیں گی۔
+30698: 
+
+31043: حاضری کے طریقے:
+31044: 
+31045: 1. مینوئل: ٹیچر خود ناموں کے سامنے حاضر / غیر حاضر کا نشان لگائے۔
+31046: 2. QR کوڈ: طلباء QR کوڈ اسکین کریں اور حاضری خودکار ہو جائے۔
+31047: 3. چہرے کی شناخت: (اگر ڈیوائس موجود ہو)
+31048: 4. آن لائن لاگ ان: اگر کلاس آن لائن ہو تو خودکار حاضری۔
+31049: 5. فنگر پرنٹ: انگلی کا نشان لگا کر حاضری۔
+31050: 6. ریٹینا اسکین: آنکھ کا اسکین کر کے حاضری (مستقبل کے لیے)۔
+31051: 
+31052: رپورٹس:
+31053: 
+31054: · روزانہ کی حاضری
+31055: · ماہانہ حاضری
+31056: · کلاس وائز حاضری
+31057: · عملے کی حاضری
+31058: · غیر حاضر طلباء کی فہرست
+31059: · والدین کو خودکار اطلاع (اگر طالب علم غیر حاضر ہو)
+31060: 
+31061: گرافس:
+31062: 
+31063: · طلباء کی حاضری کا گراف (کلاس وائز)
+31064: · عملے کی حاضری کا گراف (ماہانہ)
+31065: · ماہانہ حاضری کا گراف (موازنہ)
+31066: 
+31067: کس کو استعمال کرنے کی اجازت ہے؟
+31068: 
+31069: · ✅ صرف ادارے کا مالک / منتظم
+31070: · ✅ اساتذہ (طلباء کی حاضری لگا سکیں گے)
+31071: 
+31072: ---
+31073: 
+31074: 12. فیس کا نظام (Fee Management)
+31075: 
+31076: تفصیل:
+31077: ادارے کا مالک طلباء کی فیس کو Manage کر سکے گا۔
+31078: 
+31079: کیا شامل ہوگا؟
+31080: 
+31081: · فیس کی شرحیں مقرر کرنا (ماہانہ، سمسٹر، سالانہ)
+31082: · مختلف کلاسز کے لیے مختلف فیس
+31083: · طلباء کی فیس دیکھنا (کس نے دی، کس نے نہیں)
+31084: · بقایا فیس کی فہرست
+31085: · فیس جمع کرنا (آن لائن یا آف لائن)
+31086: · رسید بنانا (PDF میں ڈاؤن لوڈ)
+31087: · فیس کی رپورٹس
+
+31124: 
+31125: ---
+31126: 
+31127: 14. امتحانات کا نظام (Examination Management)
+31128: 
+31129: تفصیل:
+31130: ادارے کا مالک تمام امتحانات کو Manage کر سکے گا۔
+31131: 
+31132: کیا شامل ہوگا؟
+31133: 
+31134: · امتحانات کا شیڈول بنانا
+31135: · امتحانات کی اقسام (کوئز، ماہانہ، سمسٹر، سالانہ)
+31136: · پرچے بنانا (AI کی مدد سے یا دستی)
+31137: · امتحانات کا انعقاد (آن لائن یا فزیکل)
+31138: · نتائج کا اعلان
+31139: · رپورٹ کارڈ بنانا
+31140: · طلباء کو نتائج بھیجنا (والدین کو بھی)
+31141: 
+31142: گرافس:
+31143: 
+31144: · نتائج کا گراف (کلاس وائز)
+31145: · مضامین کا گراف (اوسط نمبر)
+31146: · پاس فیصد کا گراف (سال بہ سال)
+31147: 
+31148: کس کو استعمال کرنے کی اجازت ہے؟
+31149: 
+31150: · ✅ صرف ادارے کا مالک / منتظم
+31151: · ✅ اساتذہ (اگر اجازت دی گئی ہو)
+31152: 
+31153: ---
+31154: 
+31155: 15. سرٹیفکیٹس اور ڈگریاں (Certificates & Degrees)
+31156: 
+31157: تفصیل:
+31158: ادارے کا مالک سرٹیفکیٹس، ڈپلومے، اور ڈگریاں جاری کر سکے گا۔
+31159: 
+31160: کیا شامل ہوگا؟
+31161: 
+31162: · سرٹیفکیٹ کا ڈیزائن (لوگو، نام، تاریخ)
+31163: · طالب علم کو سرٹیفکیٹ جاری کرنا
+31164: · سرٹیفکیٹ کی تصدیق (QR کوڈ)
+31165: · سرٹیفکیٹ کی کاپی (PDF میں ڈاؤن لوڈ)
+31166: 
+31167: گرافس:
+31168: 
+
+31225: کس کو استعمال کرنے کی اجازت ہے؟
+31226: 
+31227: · ✅ صرف ادارے کا مالک / منتظم
+31228: 
+31229: ---
+31230: 
+31231: 18. AI ڈراپ آؤٹ پیش گوئی (AI Dropout Prediction)
+31232: 
+31233: تفصیل:
+31234: AI بتائے گا کہ کون سے طالب علم ڈراپ آؤٹ ہو سکتے ہیں۔
+31235: 
+31236: کیا شامل ہوگا؟
+31237: 
+31238: · طلباء کی فہرست (جن کے ڈراپ آؤٹ کے امکانات ہیں)
+31239: · ڈراپ آؤٹ کی وجوہات (حاضری، نتائج، رویے)
+31240: · بچاؤ کی تجاویز (کس طرح روکا جا سکتا ہے)
+31241: · والدین کو خودکار اطلاع (اگر ڈراپ آؤٹ کے امکانات ہوں)
+31242: 
+31243: گرافس:
+31244: 
+31245: · ڈراپ آؤٹ کے امکانات کا گراف (کلاس وائز)
+31246: · ڈراپ آؤٹ کی وجوہات کا گراف
+31247: 
+31248: پرپل کاؤ کیوں ہے؟
+31249: یہ فیچر کسی اور پلیٹ فارم پر نہیں ہے۔
+31250: 
+31251: کس کو استعمال کرنے کی اجازت ہے؟
+31252: 
+31253: · ✅ صرف ادارے کا مالک / منتظم
+31254: 
+31255: ---
+31256: 
+31257: 19. مارکیٹ کی پیش گوئی (Market Forecasting)
+31258: 
+31259: تفصیل:
+31260: AI بتائے گا کہ مستقبل میں کون سے کورسز کی مانگ ہوگی۔
+31261: 
+31262: کیا شامل ہوگا؟
+31263: 
+31264: · موجودہ رجحانات
+31265: · مستقبل کی مانگ
+31266: · نئے کورسز کی تجاویز
+31267: · مسابقتی تجزیہ
+31268: · مارکیٹ میں اپنی پوزیشن
+31269: 
+
+31298: · اساتذہ کی ریٹنگ کا گراف
+31299: · سہولیات کی ریٹنگ کا گراف
+31300: 
+31301: پرپل کاؤ کیوں ہے؟
+31302: طلباء کی خفیہ رائے سے ادارے کو بہتری کے مواقع ملیں گے۔
+31303: 
+31304: کس کو استعمال کرنے کی اجازت ہے؟
+31305: 
+31306: · ✅ طلباء (فیڈ بیک دے سکیں گے)
+31307: · ✅ ادارے کا مالک / منتظم (دیکھ سکے گا)
+31308: 
+31309: ---
+31310: 
+31311: 21. ایمرجنسی نوٹیفکیشن (Emergency Notification)
+31312: 
+31313: تفصیل:
+31314: ایمرجنسی میں تمام والدین اور طلباء کو فوری اطلاع بھیجی جا سکے گی۔
+31315: 
+31316: نوٹیفکیشن کی اقسام:
+31317: 
+31318: · تحریری پیغام (ٹیکسٹ)
+31319: · آواز (آڈیو ریکارڈنگ)
+31320: · ویڈیو پیغام
+31321: · تصاویر
+31322: · فائل اٹیچمنٹ (PDF، Word)
+31323: · لنک شیئرنگ
+31324: 
+31325: پرپل کاؤ کیوں ہے؟
+31326: یہ فیچر حفاظت اور اعتماد کو بڑھاتا ہے۔
+31327: 
+31328: کس کو استعمال کرنے کی اجازت ہے؟
+31329: 
+31330: · ✅ صرف ادارے کا مالک / منتظم
+31331: 
+31332: ---
+31333: 
+31334: 22. کمیونیکیشن سینٹر (Communication Center)
+31335: 
+31336: تفصیل:
+31337: ادارہ طلباء، والدین، اور عملے کو پیغام بھیج سکے گا۔
+31338: 
+31339: کیا شامل ہوگا؟
+31340: 
+31341: · تمام طلباء کو اطلاع
+31342: · تمام والدین کو اطلاع
+31343: · تمام عملے کو اطلاع
+31344: · گروپس میں پیغام بھیجنا
+31345: · اعلانات کرنا
+31346: 
+31347: نوٹیفکیشن کی اقسام: تحریر، آواز، ویڈیو، تصاویر، فائل، لنک
+31348: 
+31349: کس کو استعمال کرنے کی اجازت ہے؟
+31350: 
+31351: · ✅ صرف ادارے کا مالک / منتظم
+31352: 
+31353: ---
+31354: 
+31355: 23. چیٹنگ سسٹم (Chat System)
+31356: 
+31357: تفصیل:
+31358: ادارے کا مالک تمام لوگوں سے چیٹ کر سکے گا (ضرورت کے مطابق)۔
+31359: 
+31360: کیا شامل ہوگا؟
+31361: 
+31362: · ٹیچرز سے چیٹ
+31363: · طلباء سے چیٹ
+31364: · والدین سے چیٹ
+31365: · عملے سے چیٹ
+31366: · گروپ چیٹ
+31367: 
+31368: پرائیویسی: تمام چیٹس محفوظ ہوں گی اور صرف شکایت کی صورت میں دیکھی جا سکیں گی۔
+31369: 
+31370: کس کو استعمال کرنے کی اجازت ہے؟
+31371: 
+31372: · ✅ ادارے کا مالک / منتظم
+31373: · ✅ ٹیچرز
+31374: · ✅ طلباء (صرف اپنے ٹیچر اور ایڈمن سے)
+31375: · ✅ والدین (صرف اپنے بچے کے ٹیچر اور ایڈمن سے)
+31376: 
+31377: ---
+31378: 
+31379: 24. نوٹیفکیشن سینٹر (Notification Center)
+31380: 
+31381: تفصیل:
+31382: ادارے کے مالک کو تمام اہم اطلاعات ایک جگہ دکھائی دیں گی۔
+31383: 
+31384: کیا شامل ہوگا؟
+31385: 
+31386: · نئے طلباء کا اندراج
+31387: · بقایا فیس
+31388: · عملے کی حاضری
+31389: · امتحانات کے نتائج
+31390: · اساتذہ کی درخواستیں
+31391: · نظام کی اطلاعات
+31392: 
+31393: کس کو استعمال کرنے کی اجازت ہے؟
+31394: 
+31395: · ✅ صرف ادارے کا مالک / منتظم
+31396: 
+31397: ---
+31398: 
+31399: 25. پرائیویٹ پرسنل انفارمیشن (Private Personal Information)
+31400: 
+31401: تفصیل:
+31402: ادارے کے مالک کی تمام ذاتی معلومات صرف اسے دکھائی دیں گی۔
+31403: 
+
+31751: حاضری کے طریقے:
+31752: 
+31753: 1. مینوئل: ٹیچر خود ناموں کے سامنے حاضر / غیر حاضر کا نشان لگائے۔
+31754: 2. QR کوڈ: طلباء QR کوڈ اسکین کریں اور حاضری خودکار ہو جائے۔
+31755: 3. چہرے کی شناخت: (اگر ڈیوائس موجود ہو)
+31756: 4. آن لائن لاگ ان: اگر کلاس آن لائن ہو تو خودکار حاضری۔
+31757: 5. فنگر پرنٹ: انگلی کا نشان لگا کر حاضری۔
+31758: 6. ریٹینا اسکین: آنکھ کا اسکین کر کے حاضری (مستقبل کے لیے)۔
+31759: 
+31760: رپورٹس:
+31761: 
+31762: · روزانہ کی حاضری
+31763: · ماہانہ حاضری
+31764: · کلاس وائز حاضری
+31765: · عملے کی حاضری
+31766: · غیر حاضر طلباء کی فہرست
+31767: · والدین کو خودکار اطلاع (اگر طالب علم غیر حاضر ہو)
+31768: 
+31769: گرافس:
+31770: 
+31771: · طلباء کی حاضری کا گراف (کلاس وائز)
+31772: · عملے کی حاضری کا گراف (ماہانہ)
+31773: · ماہانہ حاضری کا گراف (موازنہ)
+31774: 
+31775: کس کو استعمال کرنے کی اجازت ہے؟
+31776: 
+31777: · ✅ صرف ادارے کا مالک / منتظم
+31778: · ✅ اساتذہ (طلباء کی حاضری لگا سکیں گے)
+31779: 
+31780: ---
+31781: 
+31782: 12. فیس کا نظام (Fee Management)
+31783: 
+31784: تفصیل:
+31785: ادارے کا مالک طلباء کی فیس کو Manage کر سکے گا۔
+31786: 
+31787: کیا شامل ہوگا؟
+31788: 
+31789: · فیس کی شرحیں مقرر کرنا (ماہانہ، سمسٹر، سالانہ)
+31790: · مختلف کلاسز کے لیے مختلف فیس
+31791: · طلباء کی فیس دیکھنا (کس نے دی، کس نے نہیں)
+31792: · بقایا فیس کی فہرست
+31793: · فیس جمع کرنا (آن لائن یا آف لائن)
+31794: · رسید بنانا (PDF میں ڈاؤن لوڈ)
+31795: · فیس کی رپورٹس
+
+31832: 
+31833: ---
+31834: 
+31835: 14. امتحانات کا نظام (Examination Management)
+31836: 
+31837: تفصیل:
+31838: ادارے کا مالک تمام امتحانات کو Manage کر سکے گا۔
+31839: 
+31840: کیا شامل ہوگا؟
+31841: 
+31842: · امتحانات کا شیڈول بنانا
+31843: · امتحانات کی اقسام (کوئز، ماہانہ، سمسٹر، سالانہ)
+31844: · پرچے بنانا (AI کی مدد سے یا دستی)
+31845: · امتحانات کا انعقاد (آن لائن یا فزیکل)
+31846: · نتائج کا اعلان
+31847: · رپورٹ کارڈ بنانا
+31848: · طلباء کو نتائج بھیجنا (والدین کو بھی)
+31849: 
+31850: گرافس:
+31851: 
+31852: · نتائج کا گراف (کلاس وائز)
+31853: · مضامین کا گراف (اوسط نمبر)
+31854: · پاس فیصد کا گراف (سال بہ سال)
+31855: 
+31856: کس کو استعمال کرنے کی اجازت ہے؟
+31857: 
+31858: · ✅ صرف ادارے کا مالک / منتظم
+31859: · ✅ اساتذہ (اگر اجازت دی گئی ہو)
+31860: 
+31861: ---
+31862: 
+31863: 15. سرٹیفکیٹس اور ڈگریاں (Certificates & Degrees)
+31864: 
+31865: تفصیل:
+31866: ادارے کا مالک سرٹیفکیٹس، ڈپلومے، اور ڈگریاں جاری کر سکے گا۔
+31867: 
+31868: کیا شامل ہوگا؟
+31869: 
+31870: · سرٹیفکیٹ کا ڈیزائن (لوگو، نام، تاریخ)
+31871: · طالب علم کو سرٹیفکیٹ جاری کرنا
+31872: · سرٹیفکیٹ کی تصدیق (QR کوڈ)
+31873: · سرٹیفکیٹ کی کاپی (PDF میں ڈاؤن لوڈ)
+31874: 
+31875: گرافس:
+31876: 
+
+31933: کس کو استعمال کرنے کی اجازت ہے؟
+31934: 
+31935: · ✅ صرف ادارے کا مالک / منتظم
+31936: 
+31937: ---
+31938: 
+31939: 18. AI ڈراپ آؤٹ پیش گوئی (AI Dropout Prediction)
+31940: 
+31941: تفصیل:
+31942: AI بتائے گا کہ کون سے طالب علم ڈراپ آؤٹ ہو سکتے ہیں۔
+31943: 
+31944: کیا شامل ہوگا؟
+31945: 
+31946: · طلباء کی فہرست (جن کے ڈراپ آؤٹ کے امکانات ہیں)
+31947: · ڈراپ آؤٹ کی وجوہات (حاضری، نتائج، رویے)
+31948: · بچاؤ کی تجاویز (کس طرح روکا جا سکتا ہے)
+31949: · والدین کو خودکار اطلاع (اگر ڈراپ آؤٹ کے امکانات ہوں)
+31950: 
+31951: گرافس:
+31952: 
+31953: · ڈراپ آؤٹ کے امکانات کا گراف (کلاس وائز)
+31954: · ڈراپ آؤٹ کی وجوہات کا گراف
+31955: 
+31956: پرپل کاؤ کیوں ہے؟
+31957: یہ فیچر کسی اور پلیٹ فارم پر نہیں ہے۔
+31958: 
+31959: کس کو استعمال کرنے کی اجازت ہے؟
+31960: 
+31961: · ✅ صرف ادارے کا مالک / منتظم
+31962: 
+31963: ---
+31964: 
+31965: 19. مارکیٹ کی پیش گوئی (Market Forecasting)
+31966: 
+31967: تفصیل:
+31968: AI بتائے گا کہ مستقبل میں کون سے کورسز کی مانگ ہوگی۔
+31969: 
+31970: کیا شامل ہوگا؟
+31971: 
+31972: · موجودہ رجحانات
+31973: · مستقبل کی مانگ
+31974: · نئے کورسز کی تجاویز
+31975: · مسابقتی تجزیہ
+31976: · مارکیٹ میں اپنی پوزیشن
+31977: 
+
+32006: · اساتذہ کی ریٹنگ کا گراف
+32007: · سہولیات کی ریٹنگ کا گراف
+32008: 
+32009: پرپل کاؤ کیوں ہے؟
+32010: طلباء کی خفیہ رائے سے ادارے کو بہتری کے مواقع ملیں گے۔
+32011: 
+32012: کس کو استعمال کرنے کی اجازت ہے؟
+32013: 
+32014: · ✅ طلباء (فیڈ بیک دے سکیں گے)
+32015: · ✅ ادارے کا مالک / منتظم (دیکھ سکے گا)
+32016: 
+32017: ---
+32018: 
+32019: 21. ایمرجنسی نوٹیفکیشن (Emergency Notification)
+32020: 
+32021: تفصیل:
+32022: ایمرجنسی میں تمام والدین اور طلباء کو فوری اطلاع بھیجی جا سکے گی۔
+32023: 
+32024: نوٹیفکیشن کی اقسام:
+32025: 
+32026: · تحریری پیغام (ٹیکسٹ)
+32027: · آواز (آڈیو ریکارڈنگ)
+32028: · ویڈیو پیغام
+32029: · تصاویر
+32030: · فائل اٹیچمنٹ (PDF، Word)
+32031: · لنک شیئرنگ
+32032: 
+32033: پرپل کاؤ کیوں ہے؟
+32034: یہ فیچر حفاظت اور اعتماد کو بڑھاتا ہے۔
+32035: 
+32036: کس کو استعمال کرنے کی اجازت ہے؟
+32037: 
+32038: · ✅ صرف ادارے کا مالک / منتظم
+32039: 
+32040: ---
+32041: 
+32042: 22. کمیونیکیشن سینٹر (Communication Center)
+32043: 
+32044: تفصیل:
+32045: ادارہ طلباء، والدین، اور عملے کو پیغام بھیج سکے گا۔
+32046: 
+32047: کیا شامل ہوگا؟
+32048: 
+32049: · تمام طلباء کو اطلاع
+32050: · تمام والدین کو اطلاع
+32051: · تمام عملے کو اطلاع
+32052: · گروپس میں پیغام بھیجنا
+32053: · اعلانات کرنا
+32054: 
+32055: نوٹیفکیشن کی اقسام: تحریر، آواز، ویڈیو، تصاویر، فائل، لنک
+32056: 
+32057: کس کو استعمال کرنے کی اجازت ہے؟
+32058: 
+32059: · ✅ صرف ادارے کا مالک / منتظم
+32060: 
+32061: ---
+32062: 
+32063: 23. چیٹنگ سسٹم (Chat System)
+32064: 
+32065: تفصیل:
+32066: ادارے کا مالک تمام لوگوں سے چیٹ کر سکے گا (ضرورت کے مطابق)۔
+32067: 
+32068: کیا شامل ہوگا؟
+32069: 
+32070: · ٹیچرز سے چیٹ
+32071: · طلباء سے چیٹ
+32072: · والدین سے چیٹ
+32073: · عملے سے چیٹ
+32074: · گروپ چیٹ
+32075: 
+32076: پرائیویسی: تمام چیٹس محفوظ ہوں گی اور صرف شکایت کی صورت میں دیکھی جا سکیں گی۔
+32077: 
+32078: کس کو استعمال کرنے کی اجازت ہے؟
+32079: 
+32080: · ✅ ادارے کا مالک / منتظم
+32081: · ✅ ٹیچرز
+32082: · ✅ طلباء (صرف اپنے ٹیچر اور ایڈمن سے)
+32083: · ✅ والدین (صرف اپنے بچے کے ٹیچر اور ایڈمن سے)
+32084: 
+32085: ---
+32086: 
+32087: 24. نوٹیفکیشن سینٹر (Notification Center)
+32088: 
+32089: تفصیل:
+32090: ادارے کے مالک کو تمام اہم اطلاعات ایک جگہ دکھائی دیں گی۔
+32091: 
+32092: کیا شامل ہوگا؟
+32093: 
+32094: · نئے طلباء کا اندراج
+32095: · بقایا فیس
+32096: · عملے کی حاضری
+32097: · امتحانات کے نتائج
+32098: · اساتذہ کی درخواستیں
+32099: · نظام کی اطلاعات
+32100: 
+32101: کس کو استعمال کرنے کی اجازت ہے؟
+32102: 
+32103: · ✅ صرف ادارے کا مالک / منتظم
+32104: 
+32105: ---
+32106: 
+32107: 25. پرائیویٹ پرسنل انفارمیشن (Private Personal Information)
+32108: 
+32109: تفصیل:
+32110: ادارے کے مالک کی تمام ذاتی معلومات صرف اسے دکھائی دیں گی۔
+32111: 
+
+32277: ---
+32278: 
+32279: 6. AI اور AI اسسٹنٹ کی اقسام (Types)
+32280: 
+32281: نمبر قسم تفصیل
+32282: 1 باہر کا AI / AI اسسٹنٹ صارف ChatGPT، Claude، Gemini، Grok، Perplexity، یا کوئی اور AI استعمال کر سکتا ہے۔
+32283: 2 صارف کا اپنا AI / AI اسسٹنٹ اگر صارف نے اپنا خود کا AI بنا رکھا ہے تو وہ اسے بھی استعمال کر سکتا ہے۔
+32284: 3 کوئی AI / AI اسسٹنٹ نہیں صارف چاہے تو کوئی AI یا AI اسسٹنٹ استعمال نہ کرے۔
+32285: 
+32286: ---
+32287: 
+32288: 7. ہر ڈیش بورڈ میں AI اور AI اسسٹنٹ کے کام
+32289: 
+32290: ڈیش بورڈ AI / AI اسسٹنٹ کیا کر سکے گا؟
+32291: سٹوڈنٹ - سوالات کے جواب دینا - نوٹس بنانا - مشق کے لیے سوالات بنانا - کلاس کا خلاصہ بنانا - امتحان کی تیاری میں مدد کرنا
+32292: ٹیچر - نوٹس بنانا - سوالات بنانا - اسائنمنٹ بنانا - طلباء کی کارکردگی کا تجزیہ کرنا - کلاس کا خلاصہ بنانا
+32293: والدین - بچے کی کارکردگی کا خلاصہ دینا - حاضری کی رپورٹ دینا - نتائج کا تجزیہ دینا
+32294: انسٹیٹیوشن - ادارے کی کارکردگی کا تجزیہ کرنا - مالیاتی مشورہ دینا - طلباء کی ڈراپ آؤٹ پیش گوئی کرنا - مارکیٹ کے رجحانات بتانا
+32295: ایجنٹ - بہترین امیدوار تجویز کرنا - جاب کی تفصیل بہتر بنانا - امیدواروں کو فلٹر کرنا - مارکیٹ کے رجحانات بتانا
+32296: ڈونر - بہترین درخواستوں کا انتخاب کرنا - اثر کی رپورٹ بنانا - مستقبل کے عطیات کی پیش گوئی کرنا
+32297: سپر ایڈمن - پورے پلیٹ فارم کا تجزیہ کرنا - سیکیورٹی الرٹس دینا - مالیاتی رپورٹس بنانا - نظام کی کارکردگی کا جائزہ لینا
+32298: 
+32299: ---
+32300: 
+32301: 8. AI اور AI اسسٹنٹ کی حفاظت (Security)
+32302: 
+32303: نمبر حفاظتی اقدام تفصیل
+32304: 1 API Key محفوظ API Key کو Encrypt کر کے محفوظ کیا جائے گا۔
+32305: 2 صرف اپنے ڈیٹا تک محدود AI / AI اسسٹنٹ صرف اپنے ڈیٹا تک رسائی رکھے گا (دوسروں کا نہیں)۔
+32306: 3 اجازت کا نظام ہر کردار کو مخصوص اجازتیں دی جائیں گی۔
+32307: 4 آڈٹ لاگ AI / AI اسسٹنٹ کی ہر سرگرمی کا ریکارڈ رکھا جائے گا۔
+32308: 5 اختیاری صارف چاہے تو AI / AI اسسٹنٹ استعمال کرے، چاہے نہ کرے۔
+32309: 
+32310: ---
+32311: 
+32312: 9. AI اور AI اسسٹنٹ کی سیٹنگ (Settings)
+32313: 
+32314: ہر ڈیش بورڈ میں ایک سیٹنگ پیج ہوگا جہاں صارف AI اور AI اسسٹنٹ کو کنفیگر کر سکے گا۔
+32315: 
+32316: نمبر آپشن تفصیل
+32317: 1 AI / AI اسسٹنٹ آن/آف صارف AI / AI اسسٹنٹ کو آن یا آف کر سکے گا۔
+32318: 2 API Key ڈالنا صارف اپنی API Key ڈال سکے گا۔
+32319: 3 AI کا انتخاب صارف اپنی پسند کا AI منتخب کر سکے گا (اگر ایک سے زیادہ ہوں)۔
+32320: 4 API Key بدلنا صارف چاہے تو API Key بدل سکتا ہے۔
+32321: 5 API Key ہٹانا صارف چاہے تو API Key ہٹا سکتا ہے (AI / AI اسسٹنٹ بند کرنے کے لیے)۔
+
+32378: 12 کیا ہمارے سرورز پر بوجھ پڑے گا؟ نہیں، کیونکہ AI باہر ہے۔
+32379: 
+32380: ---
+32381: _________________________________________________________________________________________________________________________________________
+32382: سپر ایڈمن ڈیش بورڈ - مکمل دستاویز (اپ ڈیٹ شدہ)
+32383: _________________________________________________________________________________________________________________________________________
+32384: 
+32385: ---
+32386: 
+32387: 1. مرکزی صفحہ (Dashboard Home)
+32388: 
+32389: تفصیل:
+32390: سپر ایڈمن کو ایک Live Dashboard دکھائی دے گا جس میں پوری ویب سائٹ کی حالت ایک نظر میں ہوگی۔
+32391: 
+32392: اعداد و شمار (Statistics):
+32393: 
+32394: · کل صارفین (Students، Teachers، Parents، Institutions، Agents، Donors)
+32395: · کل آن لائن صارفین (Live)
+32396: · کل ادارے (Schools، Colleges، Universities، Academies، Madaris، Tuition Centers)
+32397: · کل ممالک (Active Countries)
+32398: · کل زبانیں (Active Languages)
+32399: · کل کرنسیاں (Active Currencies)
+32400: · کل کمائی (Total Revenue)
+32401: · آج کی کمائی (Today's Revenue)
+32402: · اس ماہ کی کمائی (Monthly Revenue)
+32403: · زیر التواء درخواستیں (Pending Requests)
+32404: · کل شکایات (Total Complaints)
+32405: · کل کمنٹس (Total Comments)
+32406: · کل ریٹنگز (Total Ratings)
+32407: 
+32408: گرافس:
+32409: 
+32410: · ماہانہ کمائی کا گراف
+32411: · صارفین کی تعداد کا گراف (مہینہ وار)
+32412: · اداروں کی تعداد کا گراف (ملک وائز)
+32413: · شکایات کا گراف (ماہانہ)
+32414: · ریٹنگز کا گراف (ادارہ وائز)
+32415: 
+32416: ورلڈ میپ:
+32417: 
+32418: · دنیا کا نقشہ جس پر ہر ملک میں صارفین، ادارے، اور سرگرمیاں دکھائی دیں۔
+32419: 
+32420: نوٹیفکیشنز:
+32421: 
+32422: · نئے رجسٹرڈ ادارے

@@ -1,0 +1,2 @@
+const fs=require('fs'),root='D:/Career-Z-backend/src/';const p=root+'controllers/parent.controller.js';let s=fs.readFileSync(p,'utf8');s="require('../models/FeeSchedule');\n"+s;s=s.replace("viewHealth===true||giveConsent===true", "viewHealth===true||giveConsent===true||req.body.observeClassroom===true");fs.writeFileSync(p,s);
+fs.writeFileSync('audit/test-email-only.cjs',`const r=require('node:module').createRequire('D:/Career-Z-backend/package.json');r('./src/services/email.service').sendEmail=async()=>({skipped:true});`);

@@ -1,0 +1,11 @@
+const fs=require('fs'),p='src/components/CareerZLiveClassroom.jsx';let s=fs.readFileSync(p,'utf8').replace(/\r\n/g,'\n');
+s=s.replace('role, onJoined, onLeave, onError })','role, observeStudentId, onJoined, onLeave, onError })');
+s=s.replace('const outgoing = screenStreamRef.current',"if(role==='observer'){peer.addTransceiver('audio',{direction:'recvonly'});peer.addTransceiver('video',{direction:'recvonly'});}\n    const outgoing = screenStreamRef.current");
+s=s.replace("{ sessionId: session._id, group }", "{ sessionId: session._id, group,observeStudentId:role==='observer'?observeStudentId:undefined }");
+s=s.replace('`/live-classes/${session._id}/rtc-config`','`/live-classes/${session._id}/rtc-config${role===\'observer\'?\'?observeChild=\'+encodeURIComponent(observeStudentId):\'\'}`');
+s=s.replace('let stream;\n        try { stream',"let stream;\n        if(role==='observer'){stream=new MediaStream();setCameraOn(false);setMicOn(false);}else try { stream");
+s=s.replace("if (role !== 'teacher' && configuration.policy?.cameraRequired", "if (role === 'student' && configuration.policy?.cameraRequired");
+s=s.replace("{ sessionId: session._id }, (reply)","{ sessionId: session._id,observeStudentId:role==='observer'?observeStudentId:undefined }, (reply)");
+s=s.replace("if (session.mode === 'physical') return",`if(role==='observer')return <section className="card"><h3>{session.title}</h3><p>Read-only guardian observation · {status}</p><button className="btn" onClick={onLeave}>Stop observing</button><div style={{display:'grid',gap:12,gridTemplateColumns:'repeat(auto-fit,minmax(min(100%,280px),1fr))',marginTop:16}}>{Object.entries(remoteStreams).map(([id,stream])=><VideoTile key={id} stream={stream} name={participants.find(p=>p.userId===id)?.name||'Class participant'}/>)}</div>{!Object.keys(remoteStreams).length&&<p>Waiting for classroom media. Your camera and microphone stay off.</p>}</section>;
+  if (session.mode === 'physical') return`);
+fs.writeFileSync(p,s);console.log('Guardian classroom viewer uses receive-only media and no participation controls.');

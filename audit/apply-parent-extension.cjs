@@ -1,0 +1,21 @@
+const fs=require('fs');const root='D:/Career-Z-backend/';function edit(p,f){fs.writeFileSync(root+p,f(fs.readFileSync(root+p,'utf8')));}
+fs.copyFileSync('audit/family.controller.stage.cjs',root+'src/controllers/family.controller.js');
+for(const [name,fields] of [
+ ['FamilyConsentRequest',"institution:{type:mongoose.Schema.Types.ObjectId,ref:'Institution',required:true},student:{type:mongoose.Schema.Types.ObjectId,ref:'User',required:true},createdBy:{type:mongoose.Schema.Types.ObjectId,ref:'User',required:true},event:{type:mongoose.Schema.Types.ObjectId,ref:'InstitutionEvent'},type:String,title:String,details:String,expiresAt:Date,status:{type:String,enum:['open','cancelled'],default:'open'}"],
+ ['FamilyObservation',"institution:{type:mongoose.Schema.Types.ObjectId,ref:'Institution',required:true},student:{type:mongoose.Schema.Types.ObjectId,ref:'User',required:true},actor:{type:mongoose.Schema.Types.ObjectId,ref:'User',required:true},type:{type:String,enum:['progress','behavior','discipline','emergency','achievement']},text:String"],
+ ['FamilyAlert',"key:{type:String,unique:true},student:{type:mongoose.Schema.Types.ObjectId,ref:'User'},kind:String,delivered:{type:Boolean,default:false}"],
+])fs.writeFileSync(root+'src/models/'+name+'.js',`const mongoose=require('mongoose');const schema=new mongoose.Schema({${fields}},{timestamps:true});module.exports=mongoose.model('${name}',schema);`);
+edit('src/models/ParentPermission.js',s=>s.replace("type: { type: String, enum:","request:{type:mongoose.Schema.Types.ObjectId,ref:'FamilyConsentRequest'}, institution:{type:mongoose.Schema.Types.ObjectId,ref:'Institution'}, history:[{decision:String,signedName:String,at:Date}],\n    type: { type: String, enum:").replace("module.exports =", "parentPermissionSchema.index({request:1,parent:1},{unique:true,partialFilterExpression:{request:{$type:'objectId'}}});\nmodule.exports ="));
+edit('src/models/Attendance.js',s=>s.replace("'late', 'excused'","'late', 'excused', 'half_day'"));
+edit('src/controllers/parent.controller.js',s=>s.replace("'data.contactNumber':phone","'fields.contactNumber':phone,role:'parent'"));
+edit('src/routes/parent.routes.js',s=>s.replace("router.use(protect);","router.use(protect);\nconst family=require('../controllers/family.controller');\nrouter.get('/wallet',family.wallet);\nrouter.get('/children/:studentId/overview',family.overview);\nrouter.post('/consent-requests/:id/respond',family.respondConsent);"));
+edit('src/routes/institution.routes.js',s=>s.replace("router.get('/:id/parents',", "const familyCtrl=require('../controllers/family.controller');\nrouter.get('/:institutionId/family/consent-requests',familyCtrl.institutionRequests);\nrouter.post('/:institutionId/family/consent-requests',familyCtrl.requestConsent);\nrouter.post('/:institutionId/family/observations',familyCtrl.observation);\nrouter.patch('/family/consent-requests/:id/cancel',familyCtrl.cancelConsent);\nrouter.get('/:id/parents',"));
+edit('src/controllers/ptm.controller.js',s=>{
+ const a=s.indexOf('async function getChildTeachers('),b=s.indexOf('// Spec:',a);s=s.slice(0,a)+"async function getChildTeachers(studentId){return require('../services/familyAccess.service').teachers(studentId);}\n\n"+s.slice(b);
+ s=s.replace("if (decision === 'confirmed') {","if (decision === 'confirmed') {\n    await assertApprovedParentOfStudent(meeting.parent,meeting.student);\n    if(!(await getChildTeachers(meeting.student)).some(t=>String(t.teacher._id)===String(meeting.teacher)))throw new AppError('Teacher relationship ended.',403);");
+ s=s.replace("if (meeting.mode === 'video') meeting.meetingLink = meetingLink || '';","if (meeting.mode === 'video') { if(meetingLink&&!/^https:\/\//i.test(meetingLink))throw new AppError('Use an HTTPS meeting link.',422);meeting.meetingLink=meetingLink||'https://meet.jit.si/careerz-ptm-'+require('crypto').randomBytes(18).toString('hex'); }");
+ s=s.replace("else meeting.location = location || '';","else {if(!String(location||'').trim())throw new AppError('Physical meeting location required.',422);meeting.location=location.trim();}");
+ s=s.replace("meetingLink: schedule.meetingLink,","meetingLink: schedule.meetingLink || (schedule.mode==='video'?'https://meet.jit.si/careerz-ptm-'+require('crypto').randomBytes(18).toString('hex'):''),");
+ return s;
+});
+console.log('Parent extension applied');
