@@ -40,9 +40,10 @@ export default function VerifyCertificate() {
         )}
 
         {!state.loading && state.cert && (
-          <div style={styles.validBox}>
-            <div style={styles.validIcon}><FaCircleCheck aria-hidden="true" /></div>
-            <h2 style={styles.validTitle}>Certificate Verified</h2>
+          <div style={state.cert.status === 'revoked' ? { ...styles.validBox, borderColor: '#ef4444', background: 'rgba(239,68,68,0.08)' } : styles.validBox}>
+            {state.cert.status === 'revoked'
+              ? <h2 role="alert" style={{ ...styles.validTitle, color: '#ef4444' }}>Certificate revoked — no longer valid</h2>
+              : <><div style={styles.validIcon}><FaCircleCheck aria-hidden="true" /></div><h2 style={styles.validTitle}>Certificate Verified</h2></>}
             <dl style={styles.detailList}>
               <dt style={styles.dt}>Title</dt>
               <dd style={styles.dd}>{state.cert.title}</dd>
@@ -50,6 +51,7 @@ export default function VerifyCertificate() {
               <dd style={styles.dd}>{state.cert.studentName}</dd>
               <dt style={styles.dt}>Issued by</dt>
               <dd style={styles.dd}>{state.cert.institutionName}</dd>
+              {state.cert.type === 'internship' && <><dt style={styles.dt}>Internship period</dt><dd style={styles.dd}>{new Date(state.cert.startDate).toLocaleDateString()} – {new Date(state.cert.endDate).toLocaleDateString()}{state.cert.hours ? ` · ${state.cert.hours} hours` : ''}</dd></>}
               <dt style={styles.dt}>Issue date</dt>
               <dd style={styles.dd}>
                 {state.cert.issueDate ? new Date(state.cert.issueDate).toLocaleDateString() : '—'}

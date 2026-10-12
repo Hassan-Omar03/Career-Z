@@ -4,6 +4,7 @@ import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { FaArrowLeft } from 'react-icons/fa6';
 import AuthNavbar from '../components/AuthNavbar';
 import PasswordField from '../components/PasswordField';
+import { passwordError } from '../utils/passwordPolicy';
 import { resetPassword } from '../api/auth';
 
 export default function ResetPassword() {
@@ -23,7 +24,7 @@ export default function ResetPassword() {
     const next = {};
     if (!email.trim()) next.email = 'Email is required.';
     if (!code.trim()) next.code = 'Enter the reset code from your email.';
-    if (!password || password.length < 8) next.password = 'Password must be at least 8 characters.';
+    if (passwordError(password)) next.password = passwordError(password);
     if (!confirm || confirm !== password) next.confirm = 'Passwords do not match.';
     setErrors(next);
     return Object.keys(next).length === 0;

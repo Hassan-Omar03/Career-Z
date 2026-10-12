@@ -56,6 +56,8 @@ import { startJazzCashCheckout, getJazzCashConfig, jazzCashResultMessage } from 
 import { usePaymentRecovery } from '../hooks/usePaymentRecovery';
 import { isPlatformUploadAvailable, uploadToPlatformStorage } from '../utils/platformUpload';
 import AppDialogHost from '../components/AppDialogHost';
+import { passwordError } from '../utils/passwordPolicy';
+import { CvVersions, CvAutofillButton, CareerRoadmapPanel, MyInternshipCertificates, IssueInternshipCertificate, InstitutionInternshipCertificate } from '../components/dashboard/CareerTools';
 import { showConfirm, showPrompt } from '../utils/appDialog';
 import CareerZLiveClassroom from '../components/CareerZLiveClassroom';
 import TransportNavigationMap from '../components/TransportNavigationMap';
@@ -652,7 +654,7 @@ function StudentWorkspace({ tab, user, onFlash, onChanged, onNavigate }) {
   if (tab === 'attendance') return <StudentAttendancePanel onFlash={onFlash} />;
   if (tab === 'classes') return <><StudentScheduledLiveClasses user={user} onFlash={onFlash} /><StudentLiveClassBanner onFlash={onFlash} /><TimetableView onFlash={onFlash} url="/students/me/timetable" /></>;
   if (tab === 'jobs') return <StudentJobsPanel onFlash={onFlash} user={user} />;
-  if (tab === 'certificates') return <StudentCertificatesPanel onFlash={onFlash} />;
+  if (tab === 'certificates') return <><StudentCertificatesPanel onFlash={onFlash} /><MyInternshipCertificates onFlash={onFlash} /></>;
   if (tab === 'digitalLocker') return <StudentDigitalLockerPanel onFlash={onFlash} />;
   if (tab === 'studentId') return <StudentDigitalIdPanel onFlash={onFlash} />;
   if (tab === 'learningAnalytics') return <StudentLearningAnalyticsPanel onFlash={onFlash} />;
@@ -2548,6 +2550,8 @@ function StudentJobsPanel({ onFlash, user }) {
     { key: 'offers', label: 'Job Offers' },
     { key: 'referrals', label: 'Institution Referrals' },
     { key: 'resume', label: 'CV/Resume Builder' },
+    { key: 'cvVersions', label: 'CV Versions' },
+    { key: 'roadmap', label: 'Career Roadmap' },
     { key: 'coverLetters', label: 'Cover Letters' },
     { key: 'portfolio', label: 'Portfolio' },
     { key: 'tools', label: 'Career Tools' },
@@ -2577,6 +2581,8 @@ function StudentJobsPanel({ onFlash, user }) {
       {sub === 'offers' && <JobOffersPanel onFlash={onFlash} />}
       {sub === 'referrals' && <StudentReferralsPanel onFlash={onFlash} />}
       {sub === 'resume' && <ResumeEditorPanel onFlash={onFlash} />}
+      {sub === 'cvVersions' && <CvVersions onFlash={onFlash} />}
+      {sub === 'roadmap' && <CareerRoadmapPanel onFlash={onFlash} />}
       {sub === 'coverLetters' && <CoverLettersPanel />}
       {sub === 'portfolio' && <PortfolioPanel onFlash={onFlash} onNavigate={setSub} />}
       {sub === 'alerts' && <JobAlertsPanel onFlash={onFlash} />}
@@ -4631,6 +4637,10 @@ function ResumeEditorPanel({ onFlash }) {
 
   return (
     <SavedForm value={resume} onRestore={setResume} onSubmit={save} style={{ display: 'grid', gap: 18 }}>
+      <div className="flex items-center justify-between flex-wrap" style={{ gap: 10 }}>
+        <p className="text-xs" style={{ color: 'var(--ink-soft)', margin: 0 }}>Fill empty sections from your verified CareerZ records (school, certificates, internships, achievements). Nothing you wrote is replaced.</p>
+        <CvAutofillButton onFilled={setResume} onFlash={onFlash} />
+      </div>
       <div className="card" style={{ padding: 20 }}>
         <div className="flex items-center justify-between flex-wrap" style={{ gap: 14 }}>
           <div>
@@ -10972,7 +10982,7 @@ function InstitutionLiveClassesPanel({ onFlash }) {
       .catch((err) => { setSessions([]); onFlash(err.message); });
   }
   useEffect(() => { if (institutionId) load(institutionId); }, [institutionId]); // eslint-disable-line react-hooks/exhaustive-deps
-  return <div>
+  return <div className="institution-ui institution-live-ui">
     <h3 className="font-semibold mb-2">Live Class Monitoring</h3>
     <p className="text-xs mb-3" style={{ color: 'var(--ink-soft)' }}>Teachers schedule and run their own assigned classes. Institution management monitors the course, teacher, provider, timing and current status here.</p>
     {institutions.length > 1 && <select className="form-select mb-3" value={institutionId} onChange={(e) => setInstitutionId(e.target.value)}>{institutions.map((item) => <option key={item._id} value={item._id}>{item.name}</option>)}</select>}
@@ -13317,23 +13327,23 @@ function InstitutionPayrollPanel({ onFlash }) {
   const selectedEmployment = selectedTeacher?.employment;
 
   return (
-    <div>
+    <div className="institution-ui institution-payroll-ui">
       <h3 className="font-semibold mb-2">Payroll</h3>
-      <form onSubmit={generate} className="flex gap-2 items-end mb-4 flex-wrap">
-        <select className="form-select" required value={form.staffId} onChange={(e) => selectTeacher(e.target.value)} style={{ minWidth: 320 }}>
+      <form onSubmit={generate} className="institution-form-grid institution-payroll-form">
+        <label className="institution-field"><span>Staff member</span><select className="form-select" required value={form.staffId} onChange={(e) => selectTeacher(e.target.value)} style={{ minWidth: 320 }}>
           <option value="">Select teacher…</option>
           {staff.map((profile) => <option key={profile.user._id} value={profile.user._id}>{profile.user.fullName} · {profile.user.email} · {profile.qualifications?.[0]?.title || 'Qualification not added'}</option>)}
-        </select>
-        <input className="form-input" type="number" min="1" max="12" placeholder="Month" value={form.month} onChange={(e) => setForm({ ...form, month: e.target.value })} style={{ maxWidth: 90 }} />
-        <input className="form-input" type="number" placeholder="Year" value={form.year} onChange={(e) => setForm({ ...form, year: e.target.value })} style={{ maxWidth: 100 }} />
-        <input className="form-input" type="number" placeholder="Basic Salary" required value={form.basicSalary} onChange={(e) => setForm({ ...form, basicSalary: e.target.value })} style={{ maxWidth: 140 }} />
-        <input className="form-input" type="number" placeholder="Bonuses" value={form.bonuses} onChange={(e) => setForm({ ...form, bonuses: e.target.value })} style={{ maxWidth: 110 }} />
-        <input className="form-input" type="number" placeholder="Overtime" value={form.overtimeAmount} onChange={(e) => setForm({ ...form, overtimeAmount: e.target.value })} style={{ maxWidth: 110 }} />
-        <input className="form-input" type="number" placeholder="Allowances" value={form.allowances} onChange={(e) => setForm({ ...form, allowances: e.target.value })} style={{ maxWidth: 120 }} />
-        <input className="form-input" type="number" placeholder="Commission" value={form.commissionAmount} onChange={(e) => setForm({ ...form, commissionAmount: e.target.value })} style={{ maxWidth: 120 }} />
-        <input className="form-input" type="number" placeholder="Deductions" value={form.deductions} onChange={(e) => setForm({ ...form, deductions: e.target.value })} style={{ maxWidth: 120 }} />
-        <input className="form-input" type="number" placeholder="Tax" value={form.taxAmount} onChange={(e) => setForm({ ...form, taxAmount: e.target.value })} style={{ maxWidth: 100 }} />
-        <select className="form-select" value={form.currency} onChange={(e) => setForm({ ...form, currency: e.target.value })} style={{ maxWidth: 100 }}>{['PKR', 'USD', 'GBP', 'SAR', 'AED'].map((currency) => <option key={currency}>{currency}</option>)}</select>
+        </select></label>
+        <label className="institution-field"><span>Month</span><input className="form-input" type="number" min="1" max="12" placeholder="Month" value={form.month} onChange={(e) => setForm({ ...form, month: e.target.value })} style={{ maxWidth: 90 }} /></label>
+        <label className="institution-field"><span>Year</span><input className="form-input" type="number" placeholder="Year" value={form.year} onChange={(e) => setForm({ ...form, year: e.target.value })} style={{ maxWidth: 100 }} /></label>
+        <label className="institution-field"><span>Basic salary</span><input className="form-input" type="number" placeholder="Basic Salary" required value={form.basicSalary} onChange={(e) => setForm({ ...form, basicSalary: e.target.value })} style={{ maxWidth: 140 }} /></label>
+        <label className="institution-field"><span>Bonuses</span><input className="form-input" type="number" placeholder="Bonuses" value={form.bonuses} onChange={(e) => setForm({ ...form, bonuses: e.target.value })} style={{ maxWidth: 110 }} /></label>
+        <label className="institution-field"><span>Overtime</span><input className="form-input" type="number" placeholder="Overtime" value={form.overtimeAmount} onChange={(e) => setForm({ ...form, overtimeAmount: e.target.value })} style={{ maxWidth: 110 }} /></label>
+        <label className="institution-field"><span>Allowances</span><input className="form-input" type="number" placeholder="Allowances" value={form.allowances} onChange={(e) => setForm({ ...form, allowances: e.target.value })} style={{ maxWidth: 120 }} /></label>
+        <label className="institution-field"><span>Commission</span><input className="form-input" type="number" placeholder="Commission" value={form.commissionAmount} onChange={(e) => setForm({ ...form, commissionAmount: e.target.value })} style={{ maxWidth: 120 }} /></label>
+        <label className="institution-field"><span>Deductions</span><input className="form-input" type="number" placeholder="Deductions" value={form.deductions} onChange={(e) => setForm({ ...form, deductions: e.target.value })} style={{ maxWidth: 120 }} /></label>
+        <label className="institution-field"><span>Tax</span><input className="form-input" type="number" placeholder="Tax" value={form.taxAmount} onChange={(e) => setForm({ ...form, taxAmount: e.target.value })} style={{ maxWidth: 100 }} /></label>
+        <label className="institution-field"><span>Currency</span><select className="form-select" value={form.currency} onChange={(e) => setForm({ ...form, currency: e.target.value })} style={{ maxWidth: 100 }}>{['PKR', 'USD', 'GBP', 'SAR', 'AED'].map((currency) => <option key={currency}>{currency}</option>)}</select></label>
         <button type="submit" className="btn btn-primary">Generate Payslip</button>
         <button type="button" className="btn" onClick={generateMonthly}>Generate Monthly Payroll</button>
         <button type="button" className="btn" onClick={downloadTaxReport}>Download Tax Report</button>
@@ -13396,7 +13406,7 @@ function InstitutionTeachersPanel({ onFlash }) {
   if (!institution) return <p className="admin-notice">Register an institution first (My Institution tab).</p>;
 
   return (
-    <div>
+    <div className="institution-ui institution-directory-ui">
       <h3 className="font-semibold mb-2">Teacher Management</h3>
       <Table
         headers={['Name', 'Email', 'Subjects', 'Experience', 'Status', 'Action']}
@@ -13454,7 +13464,7 @@ function InstitutionStudentsPanel({ onFlash }) {
   if (!institution) return <p className="admin-notice">Register an institution first (My Institution tab).</p>;
 
   return (
-    <div>
+    <div className="institution-ui institution-directory-ui">
       <h3 className="font-semibold mb-2">Student Management</h3>
       {membershipRequests.length > 0 && <div className="card" style={{ padding: 16, marginBottom: 18 }}><h4 className="font-semibold mb-2">Membership Requests</h4>{membershipRequests.map((request) => <div key={request._id} className="flex items-center justify-between flex-wrap" style={{ gap: 10, padding: '9px 0', borderBottom: '1px solid var(--sand-line)' }}><span><strong>{request.student?.fullName}</strong> · {request.requestedAction || request.status}{request.targetInstitution?.name ? ` → ${request.targetInstitution.name}` : ''}{request.reason ? ` · ${request.reason}` : ''}</span><span className="flex gap-2"><button type="button" className="btn btn-primary" onClick={() => reviewMembership(request._id, 'approve')}>Approve</button><button type="button" className="btn" onClick={() => reviewMembership(request._id, 'reject')}>Reject</button></span></div>)}</div>}
       <Table
@@ -13557,7 +13567,7 @@ function InstitutionParentsPanel({ onFlash }) {
   if (!institution) return <p className="admin-notice">Register an institution first (My Institution tab).</p>;
 
   return (
-    <div>
+    <div className="institution-ui institution-parents-ui">
       <h3 className="font-semibold mb-2">Parent Management</h3>
       {feedback && (
         <div className="card" style={{ padding: 14, marginBottom: 16 }}>
@@ -13743,6 +13753,7 @@ function InstitutionPlacementPanel({ onFlash }) {
           empty="No referrals yet."
         />
       </div>
+      <InstitutionInternshipCertificate institutionId={institution._id} StudentSelect={InstitutionStudentSelect} onFlash={onFlash} />
     </div>
   );
 }
@@ -13763,9 +13774,9 @@ function InstitutionAttendancePanel({ onFlash }) {
 
   const s = data.summary;
   return (
-    <div>
-      <h3 className="font-semibold mb-2">Student Attendance</h3>
-      <div className="flex gap-4 mb-4 flex-wrap">
+    <div className="institution-ui institution-attendance-ui">
+      <section className="institution-record-card"><h3 className="font-semibold mb-2">Student Attendance</h3>
+      <div className="institution-attendance-stats">
         <span className="text-sm">Present: <strong>{s.present}</strong></span>
         <span className="text-sm">Absent: <strong>{s.absent}</strong></span>
         <span className="text-sm">Late: <strong>{s.late}</strong></span>
@@ -13777,7 +13788,7 @@ function InstitutionAttendancePanel({ onFlash }) {
         empty="No attendance records yet."
       />
 
-      <h3 className="font-semibold mb-2" style={{ marginTop: 32 }}>Staff Attendance</h3>
+      </section><section className="institution-record-card"><h3 className="font-semibold mb-2" style={{ marginTop: 32 }}>Staff Attendance</h3>
       <p className="text-xs mb-3" style={{ color: 'var(--ink-soft)' }}>Real self-check-ins from teachers/staff (each checks in themselves, once per day) — not biometric/GPS, which this app has no device access to.</p>
       <Table
         headers={['Staff', 'Date', 'Checked In At', 'Status']}
@@ -13789,6 +13800,7 @@ function InstitutionAttendancePanel({ onFlash }) {
         ])}
         empty="No staff check-ins yet."
       />
+      </section>
     </div>
   );
 }
@@ -14032,7 +14044,7 @@ function InstitutionFeesPanel({ onFlash }) {
   ];
 
   return (
-    <div>
+    <div className="institution-ui institution-fees-ui">
       <nav className="cz-tabbar" style={{ marginBottom: 18 }}>
         {SECTIONS.map((s) => <button key={s.key} type="button" aria-pressed={section === s.key} className={`cz-tab${section === s.key ? ' active' : ''}`} onClick={() => setSection(s.key)}>{s.label}</button>)}
       </nav>
@@ -14278,7 +14290,7 @@ function FeeCollectionCharts({ institutionId, onFlash }) {
   }, [institutionId]); // eslint-disable-line react-hooks/exhaustive-deps
 
   return (
-    <div className="grid" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: 16, marginTop: 16 }}>
+    <div className="grid institution-fee-charts" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: 16, marginTop: 16 }}>
       <div className="card" style={{ padding: 16 }}>
         <strong className="text-sm">Monthly Income</strong>
         <SimpleBarChart data={collection} labelKey="period" valueKey="collected" />
@@ -14306,7 +14318,7 @@ function FeeOverviewSection({ institutionId, onFlash }) {
   ];
   return (
     <div>
-      <div className="grid" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: 12 }}>
+      <div className="grid institution-fee-metrics" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: 12 }}>
         {cards.map(([label, value]) => (
           <div key={label} className="card" style={{ padding: 16 }}>
             <p className="text-xs" style={{ color: 'var(--ink-soft)' }}>{label}</p>
@@ -14913,22 +14925,22 @@ function InstitutionAdmissionsPanel({ onFlash }) {
   if (!institution) return <p className="admin-notice">Register an institution first (My Institution tab).</p>;
 
   return (
-    <div>
+    <div className="institution-ui institution-admissions-ui">
       <div className="admin-section">
         <div className="admin-section-heading"><div><h2>Programs, Departments & Degree Fees</h2><p>Institution defines the complete degree fee, installments and class section. Accepted students are assigned to this section and its courses.</p></div></div>
-        <form onSubmit={createProgram} className="flex gap-2 items-end flex-wrap mb-3">
-          <input className="form-input" placeholder="Program (e.g. BS Computer Science)" required value={programForm.name} onChange={(e) => setProgramForm({ ...programForm, name: e.target.value })} />
-          <input className="form-input" placeholder="Department" required value={programForm.department} onChange={(e) => setProgramForm({ ...programForm, department: e.target.value })} />
-          <select className="form-select" required value={programForm.classSection} onChange={(e) => setProgramForm({ ...programForm, classSection: e.target.value })}><option value="">Select class/section</option>{sections.map((s) => <option key={s._id} value={s._id}>{s.name} ({s.academicYear || 'year not set'})</option>)}</select>
-          <input className="form-input" type="number" min="1" placeholder="Terms" value={programForm.durationTerms} onChange={(e) => setProgramForm({ ...programForm, durationTerms: e.target.value })} style={{ maxWidth: 90 }} />
-          <input className="form-input" type="number" min="0" placeholder="Admission fee" value={programForm.admissionFee} onChange={(e) => setProgramForm({ ...programForm, admissionFee: e.target.value })} />
-          <input className="form-input" type="number" min="1" placeholder="Total degree tuition" required value={programForm.totalTuitionFee} onChange={(e) => setProgramForm({ ...programForm, totalTuitionFee: e.target.value })} />
-          <input className="form-input" type="number" min="1" placeholder="Installments" value={programForm.installments} onChange={(e) => setProgramForm({ ...programForm, installments: e.target.value })} style={{ maxWidth: 110 }} />
-          <input className="form-input" placeholder="Currency" value={programForm.currency} onChange={(e) => setProgramForm({ ...programForm, currency: e.target.value.toUpperCase() })} style={{ maxWidth: 90 }} />
-        <div className="flex gap-3 flex-wrap mb-3" style={{ flexBasis: '100%' }}>
+        <form onSubmit={createProgram} className="institution-form-grid">
+          <label className="institution-field"><span>Program name</span><input className="form-input" placeholder="Program (e.g. BS Computer Science)" required value={programForm.name} onChange={(e) => setProgramForm({ ...programForm, name: e.target.value })} /></label>
+          <label className="institution-field"><span>Department</span><input className="form-input" placeholder="Department" required value={programForm.department} onChange={(e) => setProgramForm({ ...programForm, department: e.target.value })} /></label>
+          <label className="institution-field"><span>Class / section</span><select className="form-select" required value={programForm.classSection} onChange={(e) => setProgramForm({ ...programForm, classSection: e.target.value })}><option value="">Select class/section</option>{sections.map((s) => <option key={s._id} value={s._id}>{s.name} ({s.academicYear || 'year not set'})</option>)}</select></label>
+          <label className="institution-field"><span>Number of terms</span><input className="form-input" type="number" min="1" placeholder="Terms" value={programForm.durationTerms} onChange={(e) => setProgramForm({ ...programForm, durationTerms: e.target.value })} style={{ maxWidth: 90 }} /></label>
+          <label className="institution-field"><span>Admission fee</span><input className="form-input" type="number" min="0" placeholder="Admission fee" value={programForm.admissionFee} onChange={(e) => setProgramForm({ ...programForm, admissionFee: e.target.value })} /></label>
+          <label className="institution-field"><span>Total degree tuition</span><input className="form-input" type="number" min="1" placeholder="Total degree tuition" required value={programForm.totalTuitionFee} onChange={(e) => setProgramForm({ ...programForm, totalTuitionFee: e.target.value })} /></label>
+          <label className="institution-field"><span>Installments</span><input className="form-input" type="number" min="1" placeholder="Installments" value={programForm.installments} onChange={(e) => setProgramForm({ ...programForm, installments: e.target.value })} style={{ maxWidth: 110 }} /></label>
+          <label className="institution-field"><span>Currency</span><input className="form-input" placeholder="Currency" value={programForm.currency} onChange={(e) => setProgramForm({ ...programForm, currency: e.target.value.toUpperCase() })} style={{ maxWidth: 90 }} /></label>
+        <div className="institution-fee-options">
           {['exam', 'hostel', 'transport', 'library', 'activity'].map((type) => {
             const item = programForm.additionalFees[type];
-            return <div key={type} className="border border-[var(--sand-line)] rounded-xl p-2" style={{ minWidth: 190 }}>
+            return <div key={type} className="institution-fee-option">
               <label className="flex gap-2 items-center text-sm"><input type="checkbox" checked={item.enabled} onChange={(e) => setProgramForm({ ...programForm, additionalFees: { ...programForm.additionalFees, [type]: { ...item, enabled: e.target.checked } } })} /> Charge {type.charAt(0).toUpperCase() + type.slice(1)} fee?</label>
               {item.enabled && <input className="form-input mt-2" type="number" min="0" placeholder={`${type} fee amount`} required value={item.amount} onChange={(e) => setProgramForm({ ...programForm, additionalFees: { ...programForm.additionalFees, [type]: { ...item, amount: e.target.value } } })} />}
               {type === 'hostel' && item.enabled && <>
@@ -14945,17 +14957,17 @@ function InstitutionAdmissionsPanel({ onFlash }) {
       </div>
       <div className="admin-section">
         <div className="admin-section-heading"><div><h2>Online Admission Test Builder</h2><p>Create one reusable test and assign it to applicants. MCQs are graded automatically.</p></div></div>
-        <form onSubmit={createOnlineTest} style={{ display: 'grid', gap: 10 }}>
-          <div className="flex gap-2 flex-wrap">
-            <input className="form-input" placeholder="Test title" value={testBuilder.title} onChange={(e) => setTestBuilder({ ...testBuilder, title: e.target.value })} required />
-            <input className="form-input" placeholder="Program / Grade" value={testBuilder.program} onChange={(e) => setTestBuilder({ ...testBuilder, program: e.target.value })} />
-            <input className="form-input" placeholder="Subject" value={testBuilder.subject} onChange={(e) => setTestBuilder({ ...testBuilder, subject: e.target.value })} />
-            <input className="form-input" type="number" min="1" max="240" aria-label="Duration minutes" value={testBuilder.durationMinutes} onChange={(e) => setTestBuilder({ ...testBuilder, durationMinutes: e.target.value })} style={{ maxWidth: 130 }} />
-            <input className="form-input" type="number" min="0" max="100" aria-label="Passing percentage" value={testBuilder.passingPercent} onChange={(e) => setTestBuilder({ ...testBuilder, passingPercent: e.target.value })} style={{ maxWidth: 130 }} />
+        <form onSubmit={createOnlineTest} className="institution-test-builder">
+          <div className="institution-form-grid">
+            <label className="institution-field"><span>Test title</span><input className="form-input" placeholder="Test title" value={testBuilder.title} onChange={(e) => setTestBuilder({ ...testBuilder, title: e.target.value })} required /></label>
+            <label className="institution-field"><span>Program / grade</span><input className="form-input" placeholder="Program / Grade" value={testBuilder.program} onChange={(e) => setTestBuilder({ ...testBuilder, program: e.target.value })} /></label>
+            <label className="institution-field"><span>Subject</span><input className="form-input" placeholder="Subject" value={testBuilder.subject} onChange={(e) => setTestBuilder({ ...testBuilder, subject: e.target.value })} /></label>
+            <label className="institution-field"><span>Duration (minutes)</span><input className="form-input" type="number" min="1" max="240" aria-label="Duration minutes" value={testBuilder.durationMinutes} onChange={(e) => setTestBuilder({ ...testBuilder, durationMinutes: e.target.value })} style={{ maxWidth: 130 }} /></label>
+            <label className="institution-field"><span>Passing score (%)</span><input className="form-input" type="number" min="0" max="100" aria-label="Passing percentage" value={testBuilder.passingPercent} onChange={(e) => setTestBuilder({ ...testBuilder, passingPercent: e.target.value })} style={{ maxWidth: 130 }} /></label>
           </div>
-          <textarea className="form-input" rows={2} placeholder="Instructions" value={testBuilder.instructions} onChange={(e) => setTestBuilder({ ...testBuilder, instructions: e.target.value })} />
+          <label className="institution-field"><span>Instructions</span><textarea className="form-input" rows={2} placeholder="Instructions" value={testBuilder.instructions} onChange={(e) => setTestBuilder({ ...testBuilder, instructions: e.target.value })} /></label>
           {testBuilder.questions.map((q, qi) => (
-            <div key={qi} className="card" style={{ padding: 12 }}>
+            <div key={qi} className="card institution-question-card">
               <div className="flex gap-2 items-center"><strong className="text-xs">Question {qi + 1}</strong>{testBuilder.questions.length > 1 && <button type="button" className="btn" onClick={() => setTestBuilder({ ...testBuilder, questions: testBuilder.questions.filter((_, i) => i !== qi) })}>Remove</button>}</div>
               <input className="form-input mt-2" placeholder="Question text" value={q.text} onChange={(e) => updateQuestion(qi, { text: e.target.value })} required />
               <div className="grid grid-cols-1 md:grid-cols-2" style={{ gap: 8, marginTop: 8 }}>
@@ -14964,15 +14976,15 @@ function InstitutionAdmissionsPanel({ onFlash }) {
               <div className="flex gap-2 items-center mt-2"><span className="text-xs">Correct answer:</span><CustomSelect value={String(q.correctOption)} onChange={(v) => updateQuestion(qi, { correctOption: Number(v) })} ariaLabel="Correct answer" options={q.options.map((_, i) => ({ value: String(i), label: `Option ${i + 1}` }))} /><input className="form-input" type="number" min="1" aria-label="Question marks" value={q.marks} onChange={(e) => updateQuestion(qi, { marks: e.target.value })} style={{ maxWidth: 90 }} /></div>
             </div>
           ))}
-          <div className="flex gap-2"><button type="button" className="btn" onClick={() => setTestBuilder({ ...testBuilder, questions: [...testBuilder.questions, { text: '', options: ['', '', '', ''], correctOption: 0, marks: 1 }] })}>+ Add Question</button><button type="submit" className="btn btn-primary">Publish Test</button></div>
+          <div className="institution-form-actions"><button type="button" className="btn" onClick={() => setTestBuilder({ ...testBuilder, questions: [...testBuilder.questions, { text: '', options: ['', '', '', ''], correctOption: 0, marks: 1 }] })}>+ Add Question</button><button type="submit" className="btn btn-primary">Publish Test</button></div>
         </form>
       </div>
       <div className="admin-section">
         <div className="admin-section-heading"><div><h2>Offline Admission Entry</h2><p>Register a walk-in applicant who doesn't have an account yet.</p></div></div>
-        <form onSubmit={addOffline} className="flex gap-3 items-end mb-3 flex-wrap">
-          <input className="form-input" placeholder="Applicant name" value={form.applicantName} onChange={(e) => setForm({ ...form, applicantName: e.target.value })} required />
-          <input className="form-input" type="email" placeholder="Applicant email" value={form.applicantEmail} onChange={(e) => setForm({ ...form, applicantEmail: e.target.value })} required />
-          <input className="form-input" placeholder="Program / Grade applying for" value={form.program} onChange={(e) => setForm({ ...form, program: e.target.value })} required />
+        <form onSubmit={addOffline} className="institution-form-grid institution-offline-grid">
+          <label className="institution-field"><span>Applicant name</span><input className="form-input" placeholder="Applicant name" value={form.applicantName} onChange={(e) => setForm({ ...form, applicantName: e.target.value })} required /></label>
+          <label className="institution-field"><span>Applicant email</span><input className="form-input" type="email" placeholder="Applicant email" value={form.applicantEmail} onChange={(e) => setForm({ ...form, applicantEmail: e.target.value })} required /></label>
+          <label className="institution-field"><span>Program / grade</span><input className="form-input" placeholder="Program / Grade applying for" value={form.program} onChange={(e) => setForm({ ...form, program: e.target.value })} required /></label>
           <button type="submit" className="btn btn-primary">Add Entry</button>
         </form>
       </div>
@@ -16714,19 +16726,20 @@ function InstitutionStaffPanel({ onFlash }) {
   if (!institution) return <p className="admin-notice">Register an institution first (My Institution tab).</p>;
 
   return (
-    <div>
-      <form onSubmit={addStaffMember} className="flex gap-3 items-end mb-3 flex-wrap">
-        <PersonPicker
+    <div className="institution-ui institution-staff-ui">
+      <div className="institution-card-heading"><h2>Staff management</h2><p>Manage your team, roles and access permissions.</p></div>
+      <form onSubmit={addStaffMember} className="institution-form-grid institution-staff-form">
+        <div className="institution-field"><span>Staff member</span><PersonPicker
           selected={selectedStaffUser}
           placeholder="Search staff member by name or email"
           onPick={(u) => { setSelectedStaffUser(u); setForm({ ...form, userId: u._id }); }}
           onClear={() => { setSelectedStaffUser(null); setForm({ ...form, userId: '' }); }}
-        />
-        <select className="form-select" value={form.role} onChange={(e) => setForm({ ...form, role: e.target.value })}>
+        /></div>
+        <label className="institution-field"><span>Role</span><select className="form-select" value={form.role} onChange={(e) => setForm({ ...form, role: e.target.value })}>
           {['teacher', 'warden', 'accountant', 'librarian', 'principal', 'coordinator', 'representative', 'staff'].map((r) => <option key={r} value={r}>{r}</option>)}
-        </select>
-        <input className="form-input" placeholder="Designation (e.g. Senior Admissions Officer)" value={form.designation} onChange={(e) => setForm({ ...form, designation: e.target.value })} style={{ maxWidth: 220 }} />
-        <input className="form-input" placeholder="Department (optional)" value={form.department} onChange={(e) => setForm({ ...form, department: e.target.value })} style={{ maxWidth: 160 }} />
+        </select></label>
+        <label className="institution-field"><span>Designation</span><input className="form-input" placeholder="Designation (e.g. Senior Admissions Officer)" value={form.designation} onChange={(e) => setForm({ ...form, designation: e.target.value })} style={{ maxWidth: 220 }} /></label>
+        <label className="institution-field"><span>Department</span><input className="form-input" placeholder="Department (optional)" value={form.department} onChange={(e) => setForm({ ...form, department: e.target.value })} style={{ maxWidth: 160 }} /></label>
         {form.role === 'representative' && (
           <label className="flex items-center gap-2 text-xs"><input type="checkbox" checked={form.canApprove} onChange={(e) => setForm({ ...form, canApprove: e.target.checked })} /> Can finalize (accept/reject) applications</label>
         )}
@@ -16830,9 +16843,9 @@ function InstitutionHiringPanel({ institutionId, onFlash }) {
   const STATUS_TAG = { offered: 'pending', active: 'approved', accepted: 'approved', declined: 'rejected', resigned: 'pending', terminated: 'rejected' };
 
   return (
-    <div className="admin-section" style={{ marginTop: 20 }}>
+    <div className="admin-section institution-hiring-ui" style={{ marginTop: 20 }}>
       <div className="admin-section-heading"><div><h2>Find Teachers</h2><p>Browse teachers who've made themselves discoverable, then send an offer — no need to already know their User ID.</p></div></div>
-      <form onSubmit={(e) => { e.preventDefault(); loadDirectory(); }} className="flex gap-3 items-end mb-4 flex-wrap">
+      <form onSubmit={(e) => { e.preventDefault(); loadDirectory(); }} className="institution-directory-search">
         <input className="form-input" placeholder="Search by subject or keyword" value={directoryQuery} onChange={(e) => setDirectoryQuery(e.target.value)} style={{ minWidth: 220, flex: 1 }} />
         <button type="submit" className="btn">Search</button>
       </form>
@@ -16859,23 +16872,23 @@ function InstitutionHiringPanel({ institutionId, onFlash }) {
       </div>
 
       <div className="admin-section-heading"><div><h2>Hiring — Job Offers</h2><p>A formal offer the teacher must accept before they're added as staff (contract terms are a plain-text record, not a legal document).</p></div></div>
-      <form ref={offerFormRef} onSubmit={sendOffer} className="flex gap-3 items-end mb-4 flex-wrap">
-        <input className="form-input" placeholder="Teacher's User ID" required value={form.teacherUserId} onChange={(e) => setForm({ ...form, teacherUserId: e.target.value })} />
-        <select className="form-select" value={form.role} onChange={(e) => setForm({ ...form, role: e.target.value })}>
+      <form ref={offerFormRef} onSubmit={sendOffer} className="institution-form-grid institution-offer-form">
+        <label className="institution-field"><span>Teacher account</span><input className="form-input" placeholder="Teacher's User ID" required value={form.teacherUserId} onChange={(e) => setForm({ ...form, teacherUserId: e.target.value })} /></label>
+        <label className="institution-field"><span>Role</span><select className="form-select" value={form.role} onChange={(e) => setForm({ ...form, role: e.target.value })}>
           {['teacher', 'warden', 'accountant', 'librarian', 'principal', 'coordinator', 'representative', 'staff'].map((r) => <option key={r} value={r}>{r}</option>)}
-        </select>
-        <input className="form-input" placeholder="Designation" value={form.designation} onChange={(e) => setForm({ ...form, designation: e.target.value })} style={{ maxWidth: 180 }} />
-        <input className="form-input" placeholder="Department" value={form.department} onChange={(e) => setForm({ ...form, department: e.target.value })} style={{ maxWidth: 150 }} />
-        <input className="form-input" placeholder="Contract terms (salary, hours...)" value={form.contractTerms} onChange={(e) => setForm({ ...form, contractTerms: e.target.value })} style={{ minWidth: 220, flex: 1 }} />
+        </select></label>
+        <label className="institution-field"><span>Designation</span><input className="form-input" placeholder="Designation" value={form.designation} onChange={(e) => setForm({ ...form, designation: e.target.value })} style={{ maxWidth: 180 }} /></label>
+        <label className="institution-field"><span>Department</span><input className="form-input" placeholder="Department" value={form.department} onChange={(e) => setForm({ ...form, department: e.target.value })} style={{ maxWidth: 150 }} /></label>
+        <label className="institution-field"><span>Contract terms</span><input className="form-input" placeholder="Contract terms (salary, hours...)" value={form.contractTerms} onChange={(e) => setForm({ ...form, contractTerms: e.target.value })} style={{ minWidth: 220, flex: 1 }} /></label>
         <label className="text-xs flex items-center" style={{ gap: 8, minWidth: 220 }}>
           {form.contractDocumentUrl ? <a href={form.contractDocumentUrl} target="_blank" rel="noreferrer">Contract uploaded — view</a> : 'Signed contract document'}
           <input type="file" accept=".pdf,.doc,.docx,image/*" disabled={uploadingContract} onChange={(e) => uploadContractFile(e.target.files?.[0])} style={{ fontSize: 11 }} />
         </label>
-        <select className="form-select" value={form.salaryType} onChange={(e) => setForm({ ...form, salaryType: e.target.value })}><option value="monthly">Monthly salary</option><option value="commission">Commission</option><option value="hybrid">Monthly + commission</option></select>
-        {form.salaryType !== 'commission' && <input className="form-input" type="number" min="0" placeholder="Monthly salary" value={form.monthlySalary} onChange={(e) => setForm({ ...form, monthlySalary: e.target.value })} style={{ maxWidth: 150 }} />}
-        <select className="form-select" value={form.salaryCurrency} onChange={(e) => setForm({ ...form, salaryCurrency: e.target.value })} style={{ maxWidth: 100 }}>{['PKR', 'USD', 'GBP', 'SAR', 'AED'].map((currency) => <option key={currency}>{currency}</option>)}</select>
-        <input className="form-input" type="number" min="0" max="100" placeholder="Tax %" value={form.taxPercent} onChange={(e) => setForm({ ...form, taxPercent: e.target.value })} style={{ maxWidth: 100 }} />
-        {form.salaryType !== 'monthly' && <input className="form-input" type="number" min="0" max="100" placeholder="Commission %" value={form.commissionPercent} onChange={(e) => setForm({ ...form, commissionPercent: e.target.value })} style={{ maxWidth: 140 }} />}
+        <label className="institution-field"><span>Salary type</span><select className="form-select" value={form.salaryType} onChange={(e) => setForm({ ...form, salaryType: e.target.value })}><option value="monthly">Monthly salary</option><option value="commission">Commission</option><option value="hybrid">Monthly + commission</option></select></label>
+        {form.salaryType !== 'commission' && <label className="institution-field"><span>Monthly salary</span><input className="form-input" type="number" min="0" placeholder="Monthly salary" value={form.monthlySalary} onChange={(e) => setForm({ ...form, monthlySalary: e.target.value })} style={{ maxWidth: 150 }} /></label>}
+        <label className="institution-field"><span>Currency</span><select className="form-select" value={form.salaryCurrency} onChange={(e) => setForm({ ...form, salaryCurrency: e.target.value })} style={{ maxWidth: 100 }}>{['PKR', 'USD', 'GBP', 'SAR', 'AED'].map((currency) => <option key={currency}>{currency}</option>)}</select></label>
+        <label className="institution-field"><span>Tax (%)</span><input className="form-input" type="number" min="0" max="100" placeholder="Tax %" value={form.taxPercent} onChange={(e) => setForm({ ...form, taxPercent: e.target.value })} style={{ maxWidth: 100 }} /></label>
+        {form.salaryType !== 'monthly' && <label className="institution-field"><span>Commission (%)</span><input className="form-input" type="number" min="0" max="100" placeholder="Commission %" value={form.commissionPercent} onChange={(e) => setForm({ ...form, commissionPercent: e.target.value })} style={{ maxWidth: 140 }} /></label>}
         <button type="submit" className="btn btn-primary">Send Offer</button>
       </form>
       <Table
@@ -17052,23 +17065,23 @@ function InstitutionClassesPanel({ onFlash }) {
   if (!institution) return <p className="admin-notice">Register an institution first (My Institution tab).</p>;
 
   return (
-    <div>
-      <h3 className="font-semibold mb-2">Campuses</h3>
-      <form onSubmit={createCampus} className="flex gap-3 items-end mb-4 flex-wrap">
-        <input className="form-input" placeholder="Campus name" value={campusForm.name} onChange={(e) => setCampusForm({ ...campusForm, name: e.target.value })} required />
-        <input className="form-input" placeholder="Address" value={campusForm.address} onChange={(e) => setCampusForm({ ...campusForm, address: e.target.value })} />
+    <div className="institution-ui institution-classes-ui">
+      <section className="institution-class-section"><h3 className="font-semibold mb-2">Campuses</h3>
+      <form onSubmit={createCampus} className="institution-form-grid institution-class-form">
+        <label className="institution-field"><span>Campus name</span><input className="form-input" placeholder="Campus name" value={campusForm.name} onChange={(e) => setCampusForm({ ...campusForm, name: e.target.value })} required /></label>
+        <label className="institution-field"><span>Address</span><input className="form-input" placeholder="Address" value={campusForm.address} onChange={(e) => setCampusForm({ ...campusForm, address: e.target.value })} /></label>
         <button type="submit" className="btn btn-primary">Add Campus</button>
       </form>
       <Table headers={['Name', 'Address']} rows={campuses.map((c) => [c.name, c.address || '—'])} empty="No campuses yet." />
 
-      <h3 className="font-semibold mb-2 mt-6">Class Sections</h3>
-      <form onSubmit={createSection} className="flex gap-3 items-end mb-4 flex-wrap">
-        <input className="form-input" placeholder="Name (e.g. Grade 10 - A)" value={sectionForm.name} onChange={(e) => setSectionForm({ ...sectionForm, name: e.target.value })} required />
-        <input className="form-input" placeholder="Academic year" value={sectionForm.academicYear} onChange={(e) => setSectionForm({ ...sectionForm, academicYear: e.target.value })} />
-        <select className="form-select" value={sectionForm.classTeacher} onChange={(e) => setSectionForm({ ...sectionForm, classTeacher: e.target.value })} aria-label="Class teacher">
+      </section><section className="institution-class-section"><h3 className="font-semibold mb-2 mt-6">Class Sections</h3>
+      <form onSubmit={createSection} className="institution-form-grid institution-class-form">
+        <label className="institution-field"><span>Section name</span><input className="form-input" placeholder="Name (e.g. Grade 10 - A)" value={sectionForm.name} onChange={(e) => setSectionForm({ ...sectionForm, name: e.target.value })} required /></label>
+        <label className="institution-field"><span>Academic year</span><input className="form-input" placeholder="Academic year" value={sectionForm.academicYear} onChange={(e) => setSectionForm({ ...sectionForm, academicYear: e.target.value })} /></label>
+        <label className="institution-field"><span>Class teacher (optional)</span><select className="form-select" value={sectionForm.classTeacher} onChange={(e) => setSectionForm({ ...sectionForm, classTeacher: e.target.value })} aria-label="Class teacher">
           <option value="">Class teacher (optional)</option>
           {teachers.map((t) => <option key={t.user._id} value={t.user._id}>{t.user.fullName}</option>)}
-        </select>
+        </select></label>
         <button type="submit" className="btn btn-primary">Add Section</button>
       </form>
       {teachers.length === 0 && <p className="text-xs mb-3" style={{ color: 'var(--ink-soft)' }}>No teachers linked yet — add one as staff (Staff & HR tab, role "teacher") before you can pick a class teacher.</p>}
@@ -17087,7 +17100,7 @@ function InstitutionClassesPanel({ onFlash }) {
         empty="No class sections yet."
       />
 
-      <h3 className="font-semibold mb-2 mt-6">Course Academic Assignments</h3>
+      </section><section className="institution-class-section"><h3 className="font-semibold mb-2 mt-6">Course Academic Assignments</h3>
       <p className="admin-notice">Link every course to its real subject, class/section and teacher. Timetable and examinations use this assignment automatically.</p>
       <Table
         headers={['Course', 'Subject', 'Class / Section', 'Teacher', 'Credits', 'Semester / Term', 'Action']}
@@ -17097,34 +17110,34 @@ function InstitutionClassesPanel({ onFlash }) {
         })}
         empty="No institution courses found. Create an institution course first."
       />
-      <details style={{ marginTop: 16 }}><summary>Course study settings and approvals</summary><LearningCenter workspace="institution" embedded onFlash={onFlash} renderLessonExtras={l => <LessonMetadata lessonId={l._id} canReview onFlash={onFlash} />} /></details>
+      </section><details className="institution-study-settings" style={{ marginTop: 16 }}><summary>Course study settings and approvals</summary><LearningCenter workspace="institution" embedded onFlash={onFlash} renderLessonExtras={l => <LessonMetadata lessonId={l._id} canReview onFlash={onFlash} />} /></details>
 
       {sections.length > 0 && (
         <>
-          <h3 className="font-semibold mb-2 mt-6">Timetable</h3>
+          <section className="institution-class-section institution-timetable"><h3 className="font-semibold mb-2 mt-6">Timetable</h3>
           <select className="form-select" value={timetableSection} onChange={(e) => { setTimetableSection(e.target.value); setEntryForm({ teacher: '', course: '', dayOfWeek: 'mon', startTime: '', endTime: '', room: '', meetingLink: '' }); }} style={{ maxWidth: 360, marginBottom: 16 }} aria-label="Select class section">
             {sections.map((s) => <option key={s._id} value={s._id}>{s.name} ({courses.filter((course) => (course.classSection?._id || course.classSection) === s._id).length} course{courses.filter((course) => (course.classSection?._id || course.classSection) === s._id).length === 1 ? '' : 's'})</option>)}
           </select>
           {courses.filter((course) => (course.classSection?._id || course.classSection) === timetableSection).length === 0 && <div className="u-alert warning mb-3"><span className="u-alert-ic">!</span><div className="u-alert-body"><strong>No course assigned to this section</strong><p>Use Course Academic Assignments above to link a course, subject and teacher to this class section. A timetable slot cannot be created until then.</p></div></div>}
-          <form onSubmit={createEntry} className="flex gap-3 items-end mb-4 flex-wrap">
-            <select className="form-select" value={entryForm.course} onChange={(e) => {
+          <form onSubmit={createEntry} className="institution-form-grid institution-class-form">
+            <label className="institution-field"><span>Course / subject</span><select className="form-select" value={entryForm.course} onChange={(e) => {
               const selected = courses.find((course) => course._id === e.target.value);
               setEntryForm({ ...entryForm, course: e.target.value, teacher: selected?.teacher?._id || selected?.teacher || '' });
             }} required style={{ maxWidth: 250 }} aria-label="Course">
               <option value="">Select course / subject for this section</option>
               {courses.filter((course) => (course.classSection?._id || course.classSection) === timetableSection).map((course) => <option key={course._id} value={course._id}>{course.subject || course.title} — {course.title}</option>)}
-            </select>
-            <select className="form-select" value={entryForm.dayOfWeek} onChange={(e) => setEntryForm({ ...entryForm, dayOfWeek: e.target.value })}>
+            </select></label>
+            <label className="institution-field"><span>Day</span><select className="form-select" value={entryForm.dayOfWeek} onChange={(e) => setEntryForm({ ...entryForm, dayOfWeek: e.target.value })}>
               {Object.entries(DOW_LABEL).map(([v, l]) => <option key={v} value={v}>{l}</option>)}
-            </select>
-            <input className="form-input" type="time" value={entryForm.startTime} onChange={(e) => setEntryForm({ ...entryForm, startTime: e.target.value })} required />
-            <input className="form-input" type="time" value={entryForm.endTime} onChange={(e) => setEntryForm({ ...entryForm, endTime: e.target.value })} required />
-            <input className="form-input" placeholder="Room (optional, for physical classes)" value={entryForm.room} onChange={(e) => setEntryForm({ ...entryForm, room: e.target.value })} style={{ maxWidth: 180 }} />
-            <select className="form-select" value={entryForm.teacher} onChange={(e) => setEntryForm({ ...entryForm, teacher: e.target.value })} style={{ maxWidth: 180 }} aria-label="Teacher">
+            </select></label>
+            <label className="institution-field"><span>Start time</span><input className="form-input" type="time" value={entryForm.startTime} onChange={(e) => setEntryForm({ ...entryForm, startTime: e.target.value })} required /></label>
+            <label className="institution-field"><span>End time</span><input className="form-input" type="time" value={entryForm.endTime} onChange={(e) => setEntryForm({ ...entryForm, endTime: e.target.value })} required /></label>
+            <label className="institution-field"><span>Room (optional)</span><input className="form-input" placeholder="Room (optional, for physical classes)" value={entryForm.room} onChange={(e) => setEntryForm({ ...entryForm, room: e.target.value })} style={{ maxWidth: 180 }} /></label>
+            <label className="institution-field"><span>Teacher</span><select className="form-select" value={entryForm.teacher} onChange={(e) => setEntryForm({ ...entryForm, teacher: e.target.value })} style={{ maxWidth: 180 }} aria-label="Teacher">
               <option value="">Select teacher</option>
               {teachers.map((t) => <option key={t.user._id} value={t.user._id}>{t.user.fullName}</option>)}
-            </select>
-            <input className="form-input" placeholder="Meeting link (optional, for online classes)" value={entryForm.meetingLink} onChange={(e) => setEntryForm({ ...entryForm, meetingLink: e.target.value })} style={{ maxWidth: 240 }} />
+            </select></label>
+            <label className="institution-field"><span>Meeting link (optional)</span><input className="form-input" placeholder="Meeting link (optional, for online classes)" value={entryForm.meetingLink} onChange={(e) => setEntryForm({ ...entryForm, meetingLink: e.target.value })} style={{ maxWidth: 240 }} /></label>
             <button type="submit" className="btn btn-primary">{editingEntryId ? 'Save Changes' : 'Add Slot'}</button>
             {editingEntryId && <button type="button" className="btn" onClick={cancelEditEntry}>Cancel</button>}
           </form>
@@ -17141,6 +17154,7 @@ function InstitutionClassesPanel({ onFlash }) {
             ])}
             empty="No timetable entries for this section yet."
           />
+          </section>
         </>
       )}
     </div>
@@ -17593,6 +17607,9 @@ function EmployerJobsPanel({ onFlash }) {
                     <button type="button" className="btn" style={{ padding: '8px 14px', fontSize: '0.75rem' }} onClick={() => setInterviewFormFor(interviewFormFor === a._id ? null : a._id)}>Schedule Interview</button>
                   </div>
                 </div>
+                {a.status === 'hired' && jobs.find((j) => j._id === openJob)?.type === 'internship' && (
+                  <div style={{ borderTop: '1px solid var(--sand-line)', paddingTop: 12, marginTop: 12 }}><IssueInternshipCertificate applicationId={a._id} onFlash={onFlash} /></div>
+                )}
                 {interviewFormFor === a._id && (
                   <div className="flex items-end flex-wrap" style={{ gap: 12, borderTop: '1px solid var(--sand-line)', paddingTop: 14, marginTop: 14 }}>
                     <label className="text-xs" style={{ color: 'var(--ink-soft)', fontWeight: 600 }}>Date/Time
@@ -17711,7 +17728,7 @@ function ReceivedDonationsPanel({ onFlash }) {
     try { await apiRequest(`/scholarships/received/sponsorships/${sponsorship._id}/payments/${payment._id}`, { method: 'PATCH', body: { decision, rejectionReason } }); onFlash(`Sponsorship payment ${decision === 'verify' ? 'verified' : 'rejected'}.`, 'success'); load(); } catch (err) { onFlash(err.message); }
   }
   if (donations === null || sponsorships === null) return <p className="admin-notice">Loading...</p>;
-  return <div><h3 className="font-semibold mb-2">Received Donations</h3><p className="text-xs mb-3" style={{ color: 'var(--ink-soft)' }}>A reported payment is counted only after you verify that the money reached you.</p>
+  return <div className="institution-ui institution-donations-ui"><h3 className="font-semibold mb-2">Received Donations</h3><p className="text-xs mb-3" style={{ color: 'var(--ink-soft)' }}>A reported payment is counted only after you verify that the money reached you.</p>
     <Table headers={['Donor', 'Request', 'Amount', 'Method / Reference', 'Proof', 'Status', 'Action']} rows={donations.map((d) => [
       d.donor?.fullName || 'Donor', d.fundingRequest?.title || '—', `${d.currency} ${d.amount}`, `${d.paymentMethod} · ${d.paymentReference || '—'}`,
       d.paymentProofUrl ? <a className="btn" href={d.paymentProofUrl} target="_blank" rel="noreferrer">View proof</a> : '—',
@@ -22418,7 +22435,7 @@ function InstitutionPanel({ onFlash, onChanged }) {
   }
 
   return (
-    <div>
+    <div className="institution-ui institution-profile-ui">
       {!mine && (
         <form onSubmit={submit} className="space-y-3 mb-6 max-w-md">
           <input className="form-input" placeholder="Name" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} />
@@ -22433,15 +22450,15 @@ function InstitutionPanel({ onFlash, onChanged }) {
       <Table headers={['Name', 'Type', 'Verification']} rows={list.map((i) => [i.name, i.type, <Tag status={i.verificationStatus} />])} empty="No institutions yet." />
 
       {mine && editForm && (
-        <SavedForm key={mine._id} value={editForm} onRestore={setEditForm} onSubmit={saveDetails} className="space-y-3 mt-6 max-w-md">
-          <h3 className="font-semibold mb-1">Institution Details</h3>
-          <input className="form-input" placeholder="City" value={editForm.city} onChange={(e) => setEditForm({ ...editForm, city: e.target.value })} />
-          <input className="form-input" placeholder="Address" value={editForm.address} onChange={(e) => setEditForm({ ...editForm, address: e.target.value })} />
-          <textarea className="form-input" placeholder="Description" rows={3} value={editForm.description} onChange={(e) => setEditForm({ ...editForm, description: e.target.value })} />
-          <input className="form-input" placeholder="Contact email" value={editForm.contactEmail} onChange={(e) => setEditForm({ ...editForm, contactEmail: e.target.value })} />
-          <input className="form-input" placeholder="Contact phone" value={editForm.contactPhone} onChange={(e) => setEditForm({ ...editForm, contactPhone: e.target.value })} />
-          <input className="form-input" placeholder="Website" value={editForm.website} onChange={(e) => setEditForm({ ...editForm, website: e.target.value })} />
-          <textarea className="form-input" placeholder="Admission requirements" rows={3} value={editForm.admissionRequirements} onChange={(e) => setEditForm({ ...editForm, admissionRequirements: e.target.value })} />
+        <SavedForm key={mine._id} value={editForm} onRestore={setEditForm} onSubmit={saveDetails} className="institution-details-card">
+          <div className="institution-card-heading"><h3>Institution details</h3><p>Contact information and admission details for your institution.</p></div>
+          <label className="institution-field"><span>City</span><input className="form-input" placeholder="City" value={editForm.city} onChange={(e) => setEditForm({ ...editForm, city: e.target.value })} /></label>
+          <label className="institution-field"><span>Address</span><input className="form-input" placeholder="Address" value={editForm.address} onChange={(e) => setEditForm({ ...editForm, address: e.target.value })} /></label>
+          <label className="institution-field"><span>Description</span><textarea className="form-input" placeholder="Description" rows={3} value={editForm.description} onChange={(e) => setEditForm({ ...editForm, description: e.target.value })} /></label>
+          <label className="institution-field"><span>Contact email</span><input className="form-input" placeholder="Contact email" value={editForm.contactEmail} onChange={(e) => setEditForm({ ...editForm, contactEmail: e.target.value })} /></label>
+          <label className="institution-field"><span>Contact phone</span><input className="form-input" placeholder="Contact phone" value={editForm.contactPhone} onChange={(e) => setEditForm({ ...editForm, contactPhone: e.target.value })} /></label>
+          <label className="institution-field"><span>Website</span><input className="form-input" placeholder="Website" value={editForm.website} onChange={(e) => setEditForm({ ...editForm, website: e.target.value })} /></label>
+          <label className="institution-field"><span>Admission requirements</span><textarea className="form-input" placeholder="Admission requirements" rows={3} value={editForm.admissionRequirements} onChange={(e) => setEditForm({ ...editForm, admissionRequirements: e.target.value })} /></label>
           <label className="block text-xs" style={{ color: 'var(--ink-soft)' }}>Admission deadline
             <input type="date" className="form-input" value={editForm.admissionDeadline} onChange={(e) => setEditForm({ ...editForm, admissionDeadline: e.target.value })} />
           </label>
@@ -23636,6 +23653,7 @@ function SettingsPanel({ user, onFlash, onChanged }) {
 
   async function changePassword(e) {
     e.preventDefault();
+    if (passwordError(pwForm.newPassword)) { onFlash(passwordError(pwForm.newPassword)); return; }
     if (pwForm.newPassword !== pwForm.confirmPassword) { onFlash('New passwords do not match.'); return; }
     try {
       await apiRequest('/users/me/password', { method: 'PATCH', body: { currentPassword: pwForm.currentPassword, newPassword: pwForm.newPassword } });

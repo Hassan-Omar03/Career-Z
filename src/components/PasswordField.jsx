@@ -1,5 +1,6 @@
 import { FaEye, FaEyeSlash } from 'react-icons/fa6';
 import { useState } from 'react';
+import { PASSWORD_RULES } from '../utils/passwordPolicy';
 
 function scorePassword(pw) {
   let score = 0;
@@ -62,6 +63,12 @@ export default function PasswordField({
             <div className="password-strength-bar" style={{ width: level.width, background: level.color }} />
           </div>
           <span className="password-strength-label">{value ? level.text : ''}</span>
+          <ul className="password-rules" aria-label="Password requirements">
+            {PASSWORD_RULES.map((rule) => {
+              const met = rule.test(value || '');
+              return <li key={rule.id} className={met ? 'met' : ''}><span aria-hidden="true">{met ? '✓' : '○'}</span> {rule.label}<span className="sr-only">{met ? ' (done)' : ' (required)'}</span></li>;
+            })}
+          </ul>
         </>
       )}
       {error && <div className="form-error show">{error}</div>}

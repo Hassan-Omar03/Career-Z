@@ -2,10 +2,13 @@ import BrandLogo from '../components/BrandLogo';
 import PageSeo from '../components/PageSeo';
 import SiteFooter from '../components/SiteFooter';
 import { FaGraduationCap, FaUsers, FaChalkboardUser, FaSchool, FaHandshake, FaHeart, FaStore, FaArrowLeft } from 'react-icons/fa6';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import AuthNavbar from '../components/AuthNavbar';
 import PasswordField from '../components/PasswordField';
+import { passwordError } from '../utils/passwordPolicy';
+import SearchSelect from '../components/SearchSelect';
+import { loadCountries, loadCities } from '../utils/geo';
 import { useAuth } from '../context/AuthContext';
 
 // Account kinds that change which documents and profile fields are mandatory.
@@ -17,29 +20,6 @@ const SUBTYPES = {
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
-const COUNTRY_CITY = {
-  'Saudi Arabia': ['Riyadh', 'Jeddah', 'Dammam', 'Mecca', 'Medina'],
-  'United Arab Emirates': ['Dubai', 'Abu Dhabi', 'Sharjah', 'Ajman'],
-  Pakistan: ['Lahore', 'Karachi', 'Islamabad', 'Faisalabad', 'Rawalpindi'],
-  India: ['Mumbai', 'Delhi', 'Bangalore', 'Hyderabad', 'Chennai'],
-  'United Kingdom': ['London', 'Manchester', 'Birmingham', 'Edinburgh'],
-  'United States': ['New York', 'Los Angeles', 'Chicago', 'Houston'],
-  Canada: ['Toronto', 'Vancouver', 'Montreal', 'Calgary'],
-  Australia: ['Sydney', 'Melbourne', 'Brisbane', 'Perth'],
-  Germany: ['Berlin', 'Munich', 'Frankfurt', 'Hamburg'],
-  France: ['Paris', 'Lyon', 'Marseille', 'Toulouse'],
-  Egypt: ['Cairo', 'Alexandria', 'Giza', 'Luxor'],
-  Nigeria: ['Lagos', 'Abuja', 'Ibadan', 'Kano'],
-  'South Africa': ['Johannesburg', 'Cape Town', 'Durban', 'Pretoria'],
-  Kenya: ['Nairobi', 'Mombasa', 'Kisumu'],
-  China: ['Beijing', 'Shanghai', 'Shenzhen', 'Guangzhou'],
-  Japan: ['Tokyo', 'Osaka', 'Yokohama', 'Nagoya'],
-  Singapore: ['Singapore'],
-  Malaysia: ['Kuala Lumpur', 'Penang', 'Johor Bahru'],
-  Indonesia: ['Jakarta', 'Surabaya', 'Bandung'],
-  Brazil: ['São Paulo', 'Rio de Janeiro', 'Brasília'],
-  Turkey: ['Istanbul', 'Ankara', 'Izmir']
-};
 
 const ROLE_OPTIONS = [
   { value: 'student', icon: FaGraduationCap, label: 'Student' },
@@ -65,6 +45,20 @@ export default function Signup() {
   const [serverError, setServerError] = useState('');
   const [success, setSuccess] = useState(false);
   const [submitting, setSubmitting] = useState(false);
+  const [countries, setCountries] = useState([]);
+  const [cities, setCities] = useState([]);
+  const [citiesLoading, setCitiesLoading] = useState(false);
+
+  useEffect(() => { loadCountries().then(setCountries).catch(() => setServerError('Could not load the country list. Refresh the page.')); }, []);
+  useEffect(() => {
+    const code = countries.find((c) => c.name === form.country)?.code;
+    setCities([]);
+    if (!code) return;
+    let live = true;
+    setCitiesLoading(true);
+    loadCities(code).then((list) => { if (live) setCities(list); }).finally(() => { if (live) setCitiesLoading(false); });
+    return () => { live = false; };
+  }, [form.country, countries]);
 
   function update(field, value) {
     setForm((f) => ({ ...f, [field]: value }));
@@ -76,7 +70,7 @@ export default function Signup() {
     if (!form.email.trim()) next.email = 'Email is required.';
     else if (!EMAIL_RE.test(form.email)) next.email = 'Enter a valid email address.';
     if(form.accountType==='student'){if(!form.parentName.trim())next.parentName='Parent / guardian name is required.';if(!['father','mother','guardian'].includes(form.parentRelationship))next.parentRelationship='Choose your relationship.';if(!EMAIL_RE.test(form.parentEmail.trim()))next.parentEmail='Enter your parent / guardian email.';else if(form.parentEmail.trim().toLowerCase()===form.email.trim().toLowerCase())next.parentEmail='Use your parent email, different from your own email.';}
-    if (!form.password || form.password.length < 8) next.password = 'Password must be at least 8 characters.';
+    if (passwordError(form.password)) next.password = passwordError(form.password);
     if (!form.confirmPassword || form.confirmPassword !== form.password) next.confirmPassword = 'Passwords do not match.';
     if (!form.country) next.country = 'Select your country.';
     if (!form.city) next.city = 'Select your city.';
@@ -114,7 +108,6 @@ export default function Signup() {
     }
   }
 
-  const cities = COUNTRY_CITY[form.country] || [];
 
   return (
     <>
@@ -205,31 +198,18 @@ export default function Signup() {
               </fieldset>
 
               <div className="form-row-split">
-                <div className="form-group">
-                  <label htmlFor="signup-country">Country <span className="vf-req">*</span></label>
-                  <select
-                    className="form-select" id="signup-country" required aria-invalid={Boolean(errors.country && !form.country)}
-                    value={form.country}
-                    onChange={(e) => setForm((f) => ({ ...f, country: e.target.value, city: '' }))}
-                  >
-                    <option value="">Select Country</option>
-                    {Object.keys(COUNTRY_CITY).sort().map((c) => (
-                      <option key={c} value={c}>{c}</option>
-                    ))}
-                  </select>
-                  {errors.country && !form.country && <div className="form-error show">{errors.country}</div>}
-                </div>
-                <div className="form-group">
-                  <label htmlFor="signup-city">City <span className="vf-req">*</span></label>
-                  <select
-                    className="form-select" id="signup-city" required disabled={cities.length === 0} aria-invalid={Boolean(errors.city && !form.city)}
-                    value={form.city} onChange={(e) => update('city', e.target.value)}
-                  >
-                    <option value="">Select City</option>
-                    {cities.map((c) => <option key={c} value={c}>{c}</option>)}
-                  </select>
-                  {errors.city && !form.city && <div className="form-error show">{form.country ? errors.city : 'Select your country first, then your city.'}</div>}
-                </div>
+                <SearchSelect
+                  id="signup-country" label="Country" required placeholder="Search country…"
+                  value={form.country} options={countries.map((c) => c.name)} loading={!countries.length}
+                  onChange={(name) => setForm((f) => ({ ...f, country: name, city: '' }))}
+                  error={errors.country && !form.country ? errors.country : ''}
+                />
+                <SearchSelect
+                  id="signup-city" label="City" required allowCustom placeholder={form.country ? 'Search city…' : 'Choose a country first'}
+                  value={form.city} options={cities} loading={citiesLoading} disabled={!form.country}
+                  onChange={(name) => update('city', name)} emptyText="No matching city — type its name to add it"
+                  error={errors.city && !form.city ? (form.country ? errors.city : 'Select your country first, then your city.') : ''}
+                />
               </div>
 
               <div className="signup-consents">

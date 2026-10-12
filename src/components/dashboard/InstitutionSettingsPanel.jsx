@@ -25,7 +25,7 @@ export default function InstitutionSettingsPanel({ institution, onFlash }) {
     e.preventDefault();
     setSaving(true);
     try {
-      const body = { classroom: s.classroom, branding: s.branding, pages: s.pages, subdomain: s.subdomain || '', timezone: s.timezone, workingDays: s.workingDays, schoolHours: s.schoolHours };
+      const body = { classroom: s.classroom, branding: s.branding, pages: s.pages, subdomain: s.subdomain || '', timezone: s.timezone, workingDays: s.workingDays, schoolHours: s.schoolHours, workingHoursPolicy: { ptm: Boolean(s.workingHoursPolicy?.ptm), liveClasses: Boolean(s.workingHoursPolicy?.liveClasses) } };
       setS(await apiRequest(`/institutions/${institution._id}/settings`, { method: 'PUT', body }));
       onFlash?.('Institution settings saved.', 'success'); return true;
     } catch (err) { onFlash?.(err.message); } finally { setSaving(false); }
@@ -33,10 +33,10 @@ export default function InstitutionSettingsPanel({ institution, onFlash }) {
 
   const publicUrl = s.subdomain ? `${window.location.origin}/i/${s.subdomain}` : null;
   return (
-    <SavedForm key={institution._id} value={s} onRestore={setS} onSubmit={save} style={{ display: 'grid', gap: 16, maxWidth: 760 }}>
+    <SavedForm key={institution._id} value={s} onRestore={setS} onSubmit={save} className="institution-ui institution-settings-ui">
       <h3 className="font-semibold">Institute Settings</h3>
 
-      <section className="card" style={{ padding: 16, display: 'grid', gap: 8 }}>
+      <section className="card institution-settings-card">
         <strong>Classroom recording</strong>
         {POLICIES.map(([value, label]) => (
           <label key={value} className="text-sm flex items-center gap-2"><input type="radio" name="recording-policy" checked={s.classroom?.recordingPolicy === value} onChange={() => patch('classroom.recordingPolicy', value)} /> {label}</label>
@@ -45,7 +45,7 @@ export default function InstitutionSettingsPanel({ institution, onFlash }) {
         <label className="text-xs">Delete recordings after (days, 0 = keep)<input className="form-input" type="number" min="0" max="3650" value={s.classroom?.recordingRetentionDays ?? 0} onChange={(e) => patch('classroom.recordingRetentionDays', Number(e.target.value))} style={{ width: 120, marginTop: 4 }} /></label>
       </section>
 
-      <section className="card" style={{ padding: 16, display: 'grid', gap: 8 }}>
+      <section className="card institution-settings-card">
         <strong>Branding & theme</strong>
         <div className="flex gap-3 flex-wrap items-center">
           <label className="text-xs">Primary colour<input type="color" value={s.branding?.primaryColor || '#123c2f'} onChange={(e) => patch('branding.primaryColor', e.target.value)} style={{ display: 'block', marginTop: 4 }} /></label>
@@ -56,7 +56,7 @@ export default function InstitutionSettingsPanel({ institution, onFlash }) {
         <div style={{ borderRadius: 10, padding: 12, color: '#fff', background: `linear-gradient(135deg, ${s.branding?.primaryColor || '#123c2f'}, ${s.branding?.accentColor || '#d4a017'})` }}><strong>{institution.name}</strong>{s.branding?.tagline ? ` — ${s.branding.tagline}` : ''}</div>
       </section>
 
-      <section className="card" style={{ padding: 16, display: 'grid', gap: 8 }}>
+      <section className="card institution-settings-card">
         <strong>Public address & pages</strong>
         <label className="text-xs">Subdomain<input className="form-input" placeholder="e.g. gcuf" value={s.subdomain || ''} onChange={(e) => patch('subdomain', e.target.value.toLowerCase())} style={{ marginTop: 4 }} /></label>
         {publicUrl && <p className="text-xs">Public page: <a href={publicUrl} target="_blank" rel="noreferrer">{publicUrl}</a> (or <strong>{s.subdomain}.careerz.pk</strong> once the domain is connected)</p>}
@@ -74,20 +74,25 @@ export default function InstitutionSettingsPanel({ institution, onFlash }) {
         <button type="button" className="btn" style={{ justifySelf: 'start' }} onClick={() => patch('pages', [...(s.pages || []), { title: '', slug: '', body: '', published: false }])}>+ Add page</button>
       </section>
 
-      <section className="card" style={{ padding: 16, display: 'grid', gap: 8 }}>
+      <section className="card institution-settings-card">
         <strong>Timezone & working week</strong>
-        <select className="form-select" value={s.timezone} onChange={(e) => patch('timezone', e.target.value)} style={{ maxWidth: 260 }}>
+        <label className="institution-field"><span>Timezone</span><select className="form-select" value={s.timezone} onChange={(e) => patch('timezone', e.target.value)} style={{ maxWidth: 260 }}>
           {[...new Set([s.timezone, ...TIMEZONES])].map((tz) => <option key={tz} value={tz}>{tz}</option>)}
-        </select>
-        <div className="flex gap-3 flex-wrap">
+        </select></label>
+        <div className="institution-working-days">
           {DAYS.map((d, i) => (
             <label key={d} className="text-sm flex items-center gap-1"><input type="checkbox" checked={(s.workingDays || []).includes(i)} onChange={() => patch('workingDays', (s.workingDays || []).includes(i) ? s.workingDays.filter((x) => x !== i) : [...(s.workingDays || []), i].sort())} /> {d}</label>
           ))}
         </div>
-        <div className="flex gap-3">
+        <div className="institution-hours-grid">
           <label className="text-xs">School day starts<input className="form-input" type="time" value={s.schoolHours?.start || '08:00'} onChange={(e) => patch('schoolHours.start', e.target.value)} style={{ marginTop: 4 }} /></label>
           <label className="text-xs">Ends<input className="form-input" type="time" value={s.schoolHours?.end || '14:00'} onChange={(e) => patch('schoolHours.end', e.target.value)} style={{ marginTop: 4 }} /></label>
         </div>
+        <fieldset className="institution-working-days" style={{ border: 0, padding: 0, margin: 0 }}>
+          <legend className="text-xs" style={{ fontWeight: 600 }}>Only allow these inside working days and hours (in the timezone above)</legend>
+          <label className="text-sm flex items-center gap-1"><input type="checkbox" checked={Boolean(s.workingHoursPolicy?.ptm)} onChange={(e) => patch('workingHoursPolicy.ptm', e.target.checked)} /> Parent-teacher meetings</label>
+          <label className="text-sm flex items-center gap-1"><input type="checkbox" checked={Boolean(s.workingHoursPolicy?.liveClasses)} onChange={(e) => patch('workingHoursPolicy.liveClasses', e.target.checked)} /> Live classes</label>
+        </fieldset>
       </section>
 
       <button type="submit" className="btn btn-primary" style={{ justifySelf: 'start' }} disabled={saving}>{saving ? 'Saving...' : 'Save settings'}</button>

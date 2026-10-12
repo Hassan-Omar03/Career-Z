@@ -1,6 +1,8 @@
 import { useEffect, useMemo, useState } from 'react';
 import { FaFloppyDisk, FaCircleCheck, FaPen } from 'react-icons/fa6';
 import { saveProfile } from '../../api/onboarding';
+import SearchSelect from '../SearchSelect';
+import { loadCountries, loadCities } from '../../utils/geo';
 
 const PATTERNS = {
   cnic: [/^\d{5}-?\d{7}-?\d$/, 'Enter 13 digits, e.g. 35202-1234567-1.'],
@@ -73,7 +75,26 @@ export default function RoleProfileForm({ roleStatus, onSaved, onFlash, complete
     } finally { setBusy(false); }
   }
 
+  // Country/city use the same searchable lists as signup; a city missing from the list can be typed.
+  const [countries, setCountries] = useState([]);
+  const [cities, setCities] = useState([]);
+  const hasPlace = fields.some((f) => f.key === 'country');
+  useEffect(() => { if (hasPlace) loadCountries().then(setCountries).catch(() => {}); }, [hasPlace]);
+  useEffect(() => {
+    const code = countries.find((c) => c.name.toLowerCase() === String(values.country || '').trim().toLowerCase())?.code;
+    if (!code) { setCities([]); return undefined; }
+    let live = true; loadCities(code).then((list) => { if (live) setCities(list); });
+    return () => { live = false; };
+  }, [values.country, countries]);
+
   function input(f) {
+    if (hasPlace && (f.key === 'country' || f.key === 'city')) {
+      const isCountry = f.key === 'country';
+      return <SearchSelect id={`pf-${f.key}`} value={values[f.key] || ''} options={isCountry ? countries.map((c) => c.name) : cities} allowCustom={!isCountry}
+        loading={isCountry && !countries.length} disabled={!isCountry && !values.country}
+        placeholder={isCountry ? 'Search country…' : values.country ? 'Search city…' : 'Choose a country first'}
+        onChange={(v) => setValues((cur) => (isCountry ? { ...cur, country: v, ...(v !== cur.country ? { city: '' } : {}) } : { ...cur, city: v }))} />;
+    }
     const common = { id: `pf-${f.key}`, className: f.type === 'select' ? 'form-select' : 'form-input', 'aria-invalid': Boolean(errors[f.key] || (showMissing && f.required && !filled(f))), value: values[f.key] ?? '', onChange: (e) => setValues((v) => ({ ...v, [f.key]: e.target.value })) };
     if (f.sensitive && values[f.key] === MASK) {
       return <div className="vf-masked"><span>Saved · ending in {f.last4 || '••••'}</span><button type="button" className="btn btn-ghost vf-small" onClick={() => setValues((v) => ({ ...v, [f.key]: '' }))}><FaPen aria-hidden="true" /> Change</button></div>;

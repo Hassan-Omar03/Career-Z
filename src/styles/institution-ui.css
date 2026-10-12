@@ -1,0 +1,262 @@
+/* Institution screens: presentation only, scoped to the panels in this design pass. */
+.institution-ui {
+  --institution-surface: var(--paper-raised, #fff);
+  --institution-tint: color-mix(in srgb, var(--forest, #104d3d) 4%, var(--institution-surface));
+  min-width: 0;
+  color: var(--ink);
+  line-height: 1.55;
+}
+.institution-ui :is(h2, h3) { margin: 0; letter-spacing: -.025em; }
+.institution-ui h2 { font-size: 23px; line-height: 1.25; }
+.institution-ui h3 { font-size: 19px; line-height: 1.35; }
+.institution-ui p { line-height: 1.65; }
+.institution-card-heading { margin-bottom: 24px; }
+.institution-card-heading p, .institution-ui .admin-section-heading p {
+  margin: 8px 0 0; max-width: 78ch; color: var(--ink-soft); font-size: 13px;
+}
+.institution-ui .admin-section-heading { margin-bottom: 24px; }
+.institution-ui .admin-section {
+  padding: 28px; margin: 0 0 28px; border: 1px solid var(--sand-line);
+  border-radius: 20px; background: var(--institution-surface);
+}
+.institution-ui .card { background: var(--institution-surface); }
+.institution-ui .form-input, .institution-ui .form-select {
+  min-width: 0; min-height: 46px; width: 100%; border-radius: 10px;
+  padding: 11px 13px; font-size: 14px; line-height: 1.5;
+  border: 1px solid var(--sand-line); background-color: var(--institution-surface);
+}
+.institution-ui textarea.form-input { min-height: 100px; resize: vertical; }
+.institution-field { display: flex; flex-direction: column; gap: 8px; min-width: 0; }
+.institution-field > span, .institution-ui label:not(:has(input[type="checkbox"],input[type="radio"])) {
+  color: var(--ink-soft); font-size: 12px; font-weight: 600; line-height: 1.5;
+}
+.institution-field > :is(input,select,textarea) { max-width: none !important; min-width: 0 !important; }
+.institution-form-grid {
+  display: grid !important; grid-template-columns: repeat(4,minmax(0,1fr));
+  align-items: end; gap: 20px !important; margin: 0 0 28px !important;
+}
+.institution-form-grid > .btn { justify-self: start; min-height: 44px; }
+.institution-ui .btn { min-height: 38px; border-radius: 10px; font-size: 13px; font-weight: 600; }
+.institution-ui .btn-primary { padding: 11px 20px; }
+.institution-ui :is(button,a,input,select,textarea):focus-visible { outline: 2px solid var(--emerald); outline-offset: 3px; }
+.institution-ui input:is([type="checkbox"],[type="radio"]) { flex: 0 0 auto; margin: 0; }
+.institution-ui label:has(> input[type="checkbox"],> input[type="radio"]) {
+  display: flex !important; align-items: flex-start; gap: 10px; line-height: 1.6;
+}
+.institution-ui label > input:is([type="checkbox"],[type="radio"]) { margin-top: 2px; }
+
+/* Table surfaces have their own scroll area; the page itself never grows sideways. */
+.institution-ui .account-table-wrap {
+  max-width: 100%; overflow-x: auto; border: 1px solid var(--sand-line);
+  border-radius: 14px; background: var(--institution-surface); margin-top: 20px;
+}
+.institution-ui .account-table-wrap table { width: 100%; min-width: 740px; border-collapse: collapse; }
+.institution-ui .account-table-wrap th {
+  padding: 15px 18px !important; background: var(--institution-tint); color: var(--ink-soft);
+  font-size: 10px; letter-spacing: .065em; line-height: 1.5; white-space: nowrap;
+  border-bottom: 1px solid var(--sand-line);
+}
+.institution-ui .account-table-wrap td {
+  padding: 20px 18px !important; vertical-align: top; font-size: 13px;
+  line-height: 1.65; border-bottom: 1px solid var(--sand-line); background: var(--institution-surface);
+}
+.institution-ui .account-table-wrap tr:last-child td { border-bottom: 0; }
+.institution-ui .account-table-wrap tbody tr:hover td { background: var(--institution-tint); }
+.institution-ui .account-table-wrap td:first-child { font-weight: 600; }
+.institution-ui .account-table-wrap td .text-xs { font-weight: 400; margin-top: 5px; line-height: 1.6; }
+.institution-ui .account-table-wrap td:last-child { min-width: 110px; }
+.institution-ui .account-table-wrap td .btn { margin: 2px 4px 4px 0; white-space: nowrap; }
+.institution-ui .account-table-wrap td .saved-form { padding: 0; margin: 0; border: 0; background: transparent; }
+.institution-ui .account-table-wrap .saved-form-toolbar { margin: 0; }
+.institution-directory-ui > h3 { margin-bottom: 20px; }
+.institution-directory-ui, .institution-profile-ui > .account-table-wrap { margin-bottom: 24px; }
+
+/* Saved institution details stay legible without looking like an editable form. */
+.institution-details-card {
+  position: relative; padding: 28px; border: 1px solid var(--sand-line);
+  border-radius: 20px; background: var(--institution-surface); margin-top: 28px;
+}
+.institution-details-card > .saved-form-toolbar { position: absolute; top: 24px; right: 24px; margin: 0; }
+.institution-details-card > .saved-form-fields {
+  display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: 22px 28px;
+}
+.institution-details-card .institution-card-heading { grid-column: 1 / -1; margin: 0 90px 4px 0; }
+.institution-details-card .institution-field:has(textarea) { grid-column: 1 / -1; }
+.institution-details-card .saved-form-fields > .btn { justify-self: start; }
+.institution-details-card.saved-form-view .saved-form-fields :is(input,select,textarea):disabled {
+  background: var(--institution-tint) !important; border-color: var(--sand-line) !important; border-radius: 8px;
+  min-height: 46px; padding: 12px 14px;
+}
+.institution-details-card.saved-form-view textarea:disabled { min-height: 84px; resize: none; }
+.institution-details-card .saved-form-fields > label:not(.institution-field) { display: grid; gap: 8px; }
+
+.institution-fee-options {
+  grid-column: 1 / -1; display: grid; grid-template-columns: repeat(5,minmax(0,1fr));
+  gap: 12px; padding: 20px 0 4px; border-top: 1px solid var(--sand-line);
+}
+.institution-fee-option { padding: 14px; border: 1px solid var(--sand-line); border-radius: 12px; background: var(--institution-tint); min-width: 0; }
+.institution-fee-option label { font-size: 12px; }
+.institution-fee-option .form-input { margin-top: 12px; }
+.institution-test-builder { display: grid; gap: 22px; }
+.institution-test-builder > .institution-form-grid { margin-bottom: 0 !important; grid-template-columns: repeat(6,minmax(0,1fr)); }
+.institution-test-builder > .institution-form-grid > .institution-field:nth-child(-n+3) { grid-column: span 2; }
+.institution-test-builder > .institution-form-grid > .institution-field:nth-child(n+4) { grid-column: span 3; }
+.institution-question-card { padding: 22px; display: grid; gap: 12px; border-radius: 14px; background: var(--institution-tint) !important; }
+.institution-question-card > .flex:first-child { justify-content: space-between; }
+.institution-question-card > .flex:last-child { flex-wrap: wrap; gap: 12px; padding-top: 8px; }
+.institution-form-actions { display: flex; gap: 12px; flex-wrap: wrap; padding-top: 4px; }
+.institution-offline-grid { grid-template-columns: repeat(3,minmax(0,1fr)) auto; margin-bottom: 0 !important; }
+.institution-staff-form { padding: 24px; border: 1px solid var(--sand-line); border-radius: 18px; background: var(--institution-surface); }
+.institution-staff-form > label:has(input[type="checkbox"]) { grid-column: span 2; padding: 14px; background: var(--institution-tint); border-radius: 10px; }
+.institution-staff-form > .btn { grid-column: 1 / -1; }
+.institution-directory-search { display: flex; align-items: end; gap: 12px; margin-bottom: 20px; }
+.institution-hiring-ui > .grid { margin-top: 20px; }
+.institution-hiring-ui > .grid > .card { padding: 22px !important; display: flex; flex-direction: column; align-items: start; gap: 8px; }
+.institution-hiring-ui > .grid > .card > .btn { margin-top: auto; }
+.institution-hiring-ui > .grid + .admin-section-heading { border-top: 1px solid var(--sand-line); padding-top: 28px; margin-top: 28px; }
+.institution-offer-form { padding: 24px; background: var(--institution-tint); border: 1px solid var(--sand-line); border-radius: 14px; grid-template-columns: repeat(3,minmax(0,1fr)); }
+.institution-offer-form > label:has(input[type="file"]) { min-width: 0 !important; display: grid; gap: 8px !important; }
+.institution-offer-form input[type="file"] { max-width: 100%; padding: 10px; border: 1px dashed var(--sand-line); border-radius: 10px; background: var(--institution-surface); }
+.institution-offer-form input[type="file"]::file-selector-button { padding: 7px 10px; border: 0; border-radius: 6px; margin-right: 10px; color: var(--forest); background: var(--institution-tint); }
+
+.institution-settings-ui { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: 24px; max-width: none; }
+.institution-settings-ui > .saved-form-toolbar, .institution-settings-ui h3, .institution-settings-ui > .saved-form-fields > .btn { grid-column: 1 / -1; }
+.institution-settings-ui > .saved-form-toolbar { margin-bottom: -12px; }
+.institution-settings-card { padding: 24px; display: grid; align-content: start; gap: 18px; border-radius: 18px; min-width: 0; }
+.institution-settings-card > strong { font-size: 16px; padding-bottom: 14px; border-bottom: 1px solid var(--sand-line); }
+.institution-settings-card > label { line-height: 1.65; }
+.institution-settings-card .form-input, .institution-settings-card .form-select { margin-top: 6px; }
+.institution-settings-card .institution-field .form-select { margin-top: 0; max-width: none !important; }
+.institution-working-days { display: flex; gap: 8px; flex-wrap: wrap; padding: 6px 0; }
+.institution-working-days label { padding: 9px 11px; border: 1px solid var(--sand-line); border-radius: 9px; font-size: 12px; background: var(--institution-surface); }
+.institution-working-days label:has(input:checked) { background: var(--institution-tint); border-color: color-mix(in srgb, var(--forest) 35%,var(--sand-line)); }
+.institution-hours-grid { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: 16px; }
+.institution-settings-ui.saved-form-view .saved-form-fields :is(input:not([type="color"]),select,textarea):not([type="checkbox"]):not([type="radio"]):disabled {
+  border-color: var(--sand-line); background: var(--institution-tint); border-radius: 8px;
+}
+.institution-family-ui, .institution-policy-ui {
+  display: grid; gap: 20px; padding: 28px !important; margin: 28px 0;
+  border: 1px solid var(--sand-line); border-radius: 20px; background: var(--institution-surface);
+}
+.institution-family-ui > h2, .institution-policy-ui > h2 { font-size: 22px; }
+.institution-family-ui form:not(.saved-form) { gap: 20px !important; grid-template-columns: repeat(3,minmax(0,1fr)) !important; }
+.institution-family-ui form > label, .institution-policy-ui label { display: grid; gap: 8px; min-width: 0; }
+.institution-family-ui > .saved-form, .institution-policy-ui .saved-form { display: grid; gap: 16px; }
+.institution-policy-ui .saved-form-fields > p { margin: 8px 0 20px; padding: 14px 18px; border-left: 3px solid var(--forest); background: var(--institution-tint); color: var(--ink-soft); font-size: 13px; }
+.institution-policy-ui .saved-form-fields > label:last-of-type { max-width: 460px; }
+.institution-policy-ui.saved-form-view .form-input, .institution-policy-ui .saved-form-view .form-input:disabled { background: var(--institution-tint); border-color: var(--sand-line); }
+.institution-parents-ui > .space-y-3 { display: grid; gap: 20px; }
+.institution-parents-ui > .space-y-3 > .card { padding: 24px !important; }
+.institution-parents-ui .card > .flex:has(>span) { gap: 12px; margin-top: 18px !important; }
+.institution-parents-ui .card > .flex > span:has(details) { flex-wrap: wrap; border-radius: 12px !important; padding: 14px 16px !important; border: 1px solid var(--sand-line); }
+.institution-parents-ui .card > .flex:has(input) { margin-top: 20px !important; padding-top: 18px; border-top: 1px solid var(--sand-line); gap: 12px; }
+.institution-parents-ui details { max-width: 100%; }
+
+@media (max-width: 1100px) {
+  .institution-form-grid, .institution-offline-grid { grid-template-columns: repeat(2,minmax(0,1fr)); }
+  .institution-fee-options { grid-template-columns: repeat(3,minmax(0,1fr)); }
+  .institution-settings-ui { grid-template-columns: minmax(0,1fr); }
+}
+@media (max-width: 640px) {
+  .institution-ui .admin-section, .institution-details-card, .institution-settings-card,
+  .institution-family-ui, .institution-policy-ui, .institution-staff-form { padding: 20px !important; border-radius: 14px; }
+  .institution-form-grid, .institution-offline-grid, .institution-offer-form,
+  .institution-details-card > .saved-form-fields, .institution-family-ui form:not(.saved-form) { grid-template-columns: minmax(0,1fr) !important; }
+  .institution-staff-form > label:has(input[type="checkbox"]) { grid-column: auto; }
+  .institution-fee-options { grid-template-columns: minmax(0,1fr); padding-top: 16px; }
+  .institution-test-builder > .institution-form-grid { grid-template-columns: minmax(0,1fr); }
+  .institution-test-builder > .institution-form-grid > .institution-field { grid-column: auto !important; }
+  .institution-question-card { padding: 16px; }
+  .institution-question-card > .grid { grid-template-columns: minmax(0,1fr); }
+  .institution-details-card > .saved-form-toolbar { top: 18px; right: 18px; }
+  .institution-details-card .institution-card-heading { margin-right: 70px; }
+  .institution-ui h2 { font-size: 21px; }
+  .institution-ui .account-table-wrap table { min-width: 720px; }
+  .institution-ui .account-table-wrap td { padding: 16px 14px !important; }
+  .institution-parents-ui .card > .flex > span:has(details) { width: 100%; }
+  .institution-parents-ui .card > .flex:has(input) > input { min-width: 0 !important; flex-basis: 100% !important; }
+}
+/* Classes, timetable and embedded course workspace; same screenshot reference lock. */
+.institution-class-section { padding: 28px; margin-bottom: 28px; border: 1px solid var(--sand-line); border-radius: 20px; background: var(--institution-surface); min-width: 0; }
+.institution-class-section > h3 { margin: 0 0 24px !important; }
+.institution-class-form { margin-bottom: 24px !important; }
+.institution-class-section:first-child .institution-class-form { grid-template-columns: repeat(2,minmax(0,1fr)) auto; }
+.institution-timetable > .form-select { max-width: 100% !important; width: min(100%,540px); }
+.institution-classes-ui .admin-notice { padding: 16px 18px; border-left: 3px solid var(--forest); border-radius: 8px; margin: 0 0 20px; background: var(--institution-tint); font-size: 13px; }
+.institution-classes-ui td .saved-form { min-width: 0 !important; }
+.institution-classes-ui td .saved-form:not(.saved-form-view) { min-width: 240px !important; padding: 14px; background: var(--institution-tint); border-radius: 10px; }
+.institution-classes-ui td .saved-form-fields { display: grid; gap: 14px; }
+.institution-classes-ui td .saved-form-fields[style*="none"] { display: none; }
+.institution-classes-ui td .saved-form-fields label { display: grid; gap: 6px; }
+.institution-study-settings { padding: 24px; margin-bottom: 28px; background: var(--institution-surface); border: 1px solid var(--sand-line); border-radius: 20px; min-width: 0; }
+.institution-study-settings > summary { font-size: 17px; font-weight: 600; cursor: pointer; }
+.institution-study-settings[open] > summary { padding-bottom: 22px; margin-bottom: 24px; border-bottom: 1px solid var(--sand-line); }
+.institution-study-settings > section { display: flex; flex-wrap: wrap; align-items: start; gap: 18px 12px; min-width: 0; }
+.institution-study-settings > section > :is(label,p,h3,details,form,article,section,div) { flex-basis: 100%; min-width: 0; }
+.institution-study-settings label { display: grid; gap: 8px; text-transform: none; }
+.institution-study-settings label:has(input[type="checkbox"]) { display: flex; align-items: start; gap: 10px; }
+.institution-study-settings details { padding: 18px 20px; border: 1px solid var(--sand-line); border-radius: 12px; background: var(--institution-tint); }
+.institution-study-settings details > summary { cursor: pointer; font-size: 14px; font-weight: 600; }
+.institution-study-settings details[open] > summary { margin-bottom: 20px; }
+.institution-study-settings .saved-form { padding: 20px; border: 1px solid var(--sand-line); border-radius: 12px; background: var(--institution-surface); width: 100%; }
+.institution-study-settings .saved-form-toolbar { margin-bottom: 18px; }
+.institution-study-settings .saved-form-fields { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: 20px 24px; }
+.institution-study-settings .saved-form-fields > .btn { justify-self: start; }
+.institution-study-settings .saved-form-view .form-input:disabled,
+.institution-study-settings .saved-form-view .form-select:disabled { background: var(--institution-tint) !important; border-color: var(--sand-line) !important; }
+.institution-study-settings input[type="file"] { width: 100%; max-width: 100%; padding: 14px; border: 1px dashed var(--sand-line); border-radius: 10px; }
+.institution-study-settings input[type="file"]::file-selector-button { padding: 8px 12px; margin-right: 12px; border: 0; border-radius: 6px; background: var(--institution-tint); color: var(--forest); }
+.institution-study-settings article { padding: 24px !important; border: 1px solid var(--sand-line); border-radius: 14px; margin: 0 !important; background: var(--institution-surface); overflow-wrap: anywhere; }
+.institution-study-settings article > h3 { margin-bottom: 12px; }
+.institution-study-settings article .btn { margin: 6px 8px 8px 0; }
+.institution-study-settings article p { margin: 12px 0; }
+.institution-study-settings article input[type="range"] { margin: 0 12px; vertical-align: middle; }
+@media(max-width: 900px) { .institution-class-section:first-child .institution-class-form { grid-template-columns: repeat(2,minmax(0,1fr)); } }
+@media(max-width: 640px) {
+ .institution-class-section,.institution-study-settings { padding: 20px; border-radius: 14px; }
+ .institution-class-section:first-child .institution-class-form,.institution-study-settings .saved-form-fields { grid-template-columns: minmax(0,1fr); }
+ .institution-study-settings details,.institution-study-settings .saved-form,.institution-study-settings article { padding: 16px !important; }
+}
+/* Monitoring and finance screens follow the existing institution reference. */
+.institution-live-ui,.institution-donations-ui { padding: 28px; background: var(--institution-surface); border: 1px solid var(--sand-line); border-radius: 20px; }
+.institution-live-ui > h3,.institution-donations-ui > h3,.institution-payroll-ui > h3 { margin-bottom: 10px; }
+.institution-live-ui > p,.institution-donations-ui > p { max-width: 90ch; margin: 0 0 24px; }
+.institution-donations-ui > h4 { border-top: 1px solid var(--sand-line); padding-top: 28px; margin: 28px 0 18px !important; font-size: 18px; }
+.institution-record-card { padding: 28px; background: var(--institution-surface); border: 1px solid var(--sand-line); border-radius: 20px; margin-bottom: 28px; min-width: 0; }
+.institution-record-card > h3 { margin: 0 0 18px !important; }
+.institution-record-card > p { margin-bottom: 24px; max-width: 90ch; }
+.institution-attendance-stats { display: grid; grid-template-columns: repeat(4,minmax(0,1fr)); gap: 16px; margin: 22px 0 26px; }
+.institution-attendance-stats > span { padding: 18px 20px; border: 1px solid var(--sand-line); border-radius: 12px; background: var(--institution-tint); color: var(--ink-soft); }
+.institution-attendance-stats strong { display: block; font-size: 28px; margin-top: 6px; color: var(--forest); line-height: 1.2; }
+.institution-attendance-stats > span:nth-child(2) strong { color: var(--rose,#bd594a); }
+.institution-payroll-form { padding: 24px; margin-top: 22px; border: 1px solid var(--sand-line); border-radius: 18px; background: var(--institution-surface); }
+.institution-payroll-form > .institution-field:first-child { grid-column: span 2; }
+.institution-payroll-form > .btn { margin-top: 4px; }
+.institution-fees-ui .cz-tabbar { display: flex; flex-wrap: wrap; gap: 6px; padding: 10px; border-radius: 14px; margin-bottom: 26px !important; }
+.institution-fees-ui .cz-tab { padding: 10px 15px; min-height: 42px; font-size: 13px; border-radius: 9px; }
+.institution-fee-metrics { grid-template-columns: repeat(4,minmax(0,1fr)) !important; gap: 18px !important; }
+.institution-fee-metrics > .card { padding: 22px !important; border-radius: 14px; min-width: 0; }
+.institution-fee-metrics p { margin: 0 0 10px; font-size: 12px; }
+.institution-fee-metrics strong { font-size: 29px !important; line-height: 1.2; font-variant-numeric: tabular-nums; }
+.institution-fee-charts { grid-template-columns: repeat(3,minmax(0,1fr)) !important; gap: 20px !important; margin-top: 26px !important; }
+.institution-fee-charts > .card { padding: 24px !important; border-radius: 16px; min-width: 0; }
+.institution-fee-charts > .card > strong { display: block; min-height: 44px; font-size: 14px; line-height: 1.5; margin-bottom: 22px; }
+.institution-fee-charts > .card > div { padding: 12px 0 6px !important; gap: 18px !important; border-bottom: 1px solid var(--sand-line); }
+.institution-fee-charts > .card > div > div { min-width: 68px !important; }
+.institution-fee-charts > .card > div > div > span { font-variant-numeric: tabular-nums; }
+.institution-fees-ui label { display: grid; gap: 8px; min-width: 0; }
+.institution-fees-ui .card:has(>label) { gap: 16px !important; padding: 22px !important; border-radius: 14px; }
+@media(max-width:1000px) { .institution-fee-charts { grid-template-columns: minmax(0,1fr) !important; } .institution-fee-metrics { grid-template-columns: repeat(2,minmax(0,1fr)) !important; } }
+@media(max-width:640px) {
+ .institution-live-ui,.institution-donations-ui,.institution-record-card,.institution-payroll-form { padding: 20px; border-radius: 14px; }
+ .institution-attendance-stats { grid-template-columns: repeat(2,minmax(0,1fr)); gap: 10px; }
+ .institution-attendance-stats > span { padding: 14px; font-size: 12px; }
+ .institution-payroll-form > .institution-field:first-child { grid-column: auto; }
+ .institution-fee-metrics { gap: 12px !important; }
+ .institution-fee-metrics > .card { padding: 16px !important; }
+ .institution-fee-metrics strong { font-size: 24px !important; }
+ .institution-fees-ui .form-input,.institution-fees-ui .form-select { min-width: 0 !important; max-width: 100%; }
+ .institution-fees-ui .card:has(>label) > label { flex: 1 1 100%; }
+}
+/* Leave headroom for the tallest bar's value label. */
+.institution-fee-charts > .card > div { height: 200px !important; }
