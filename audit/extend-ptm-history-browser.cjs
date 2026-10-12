@@ -1,0 +1,6 @@
+const fs=require('node:fs');const p='audit/observation-followup-browser.cjs';let s=fs.readFileSync(p,'utf8');const marker=" assert.equal(browserErrors.length,0,browserErrors.join('; '));";
+s=s.replace(marker,`
+ await ev(\`(async()=>{window.History=(await import('/src/components/dashboard/PtmHistory.jsx')).default;root.render(h(History,{meeting:{createdAt:'2026-10-12T12:00:00Z',student:{fullName:'Mohammad Omar'},teacher:{fullName:'Hasan'},institution:{name:'GCUF'},subject:'Math',observation:{type:'discipline',subject:'Math',text:'Homework issue'},history:[{status:'pending',actor:{fullName:'Test Parent'},at:'2026-10-12T12:00:00Z',scheduledFor:'2026-10-15T12:00:00Z'},{status:'confirmed',actor:{fullName:'Hasan'},at:'2026-10-12T13:00:00Z',scheduledFor:'2026-10-15T12:00:00Z'}]}}));})()\`);await wait();
+ await ev("document.querySelector('#test summary').click()");await wait();assert.match(await ev("document.querySelector('#test').innerText"),/Test Parent/);assert.match(await ev("document.querySelector('#test').innerText"),/confirmed/);assert.equal(await ev('document.documentElement.scrollWidth<=innerWidth'),true);
+ shot=await call('Page.captureScreenshot',{format:'png',captureBeyondViewport:true});fs.writeFileSync('audit/ptm-history-mobile.png',Buffer.from(shot.data,'base64'));
+`+marker);fs.writeFileSync(p,s);

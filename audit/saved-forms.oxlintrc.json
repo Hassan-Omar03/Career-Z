@@ -1,0 +1,5 @@
+{
+  "env": { "browser": true, "es2022": true },
+  "globals": { "structuredClone": "readonly" },
+  "rules": { "no-undef": "error", "no-unreachable": "error" }
+}

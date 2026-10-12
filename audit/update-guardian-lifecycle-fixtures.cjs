@@ -1,0 +1,6 @@
+const fs=require('node:fs'),file='audit/parent-lifecycle.test.cjs';let s=fs.readFileSync(file,'utf8');
+s=s.replace("const names=['User'","const names=['GuardianProof','User'");
+const original="const link=()=>m.ParentChildLink.create({parent:p._id,student:s._id,requestedBy:p._id,status:'approved',relationship:'guardian'});";
+const updated="async function verifyLink(row){await m.GuardianProof.create({link:row._id,institution:i._id,submittedBy:p._id,status:'approved',reviewer:o._id});await m.ParentChildLink.updateOne({_id:row._id},{$push:{institutionVerifications:{institution:i._id,verified:true,actor:o._id,at:new Date()}}});return row;}\nconst link=async()=>verifyLink(await m.ParentChildLink.create({parent:p._id,student:s._id,requestedBy:p._id,status:'approved',relationship:'guardian'}));";
+if(!s.includes(original))throw Error('Missing fixture');s=s.replace(original,updated);
+s=s.replace("assert.equal((await call(parent.myLinkRequests,s)).data.length,1);assert.equal((await call(family.overview,p,{studentId:String(s._id)})).status,200);","assert.equal((await call(parent.myLinkRequests,s)).data.length,1);assert.equal((await call(family.overview,p,{studentId:String(s._id)})).status,403);await verifyLink(await m.ParentChildLink.findById(id));assert.equal((await call(family.overview,p,{studentId:String(s._id)})).status,200);");fs.writeFileSync(file,s);

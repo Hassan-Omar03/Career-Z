@@ -1,0 +1,26 @@
+const fs=require('node:fs');
+function edit(path,fn){fs.writeFileSync(path,fn(fs.readFileSync(path,'utf8')));}
+edit('src/api/auth.js',s=>s.replace('accountType, subtype })','accountType, subtype, parentEmail, parentName, parentRelationship })').replace('acceptedTerms, accountType, subtype }','acceptedTerms, accountType, subtype, parentEmail, parentName, parentRelationship }'));
+edit('src/pages/Signup.jsx',s=>{
+ s=s.replace("accountType: 'student', subtype:","parentEmail:'', parentName:'', parentRelationship:'guardian', accountType: 'student', subtype:");
+ s=s.replace('    if (!form.password ||',"    if(form.accountType==='student'){if(!EMAIL_RE.test(form.parentEmail.trim()))next.parentEmail='Enter your parent / guardian email.';else if(form.parentEmail.trim().toLowerCase()===form.email.trim().toLowerCase())next.parentEmail='Use your parent email, different from your own email.';}\n    if (!form.password ||");
+ s=s.replace('        accountType: form.accountType,',"        accountType: form.accountType,\n        ...(form.accountType==='student'?{parentEmail:form.parentEmail,parentName:form.parentName,parentRelationship:form.parentRelationship}:{}),");
+ const mark='              <div className="form-row-split">';
+ s=s.replace(mark,`              {form.accountType==='student'&&<fieldset className="form-group"><legend>Parent / guardian details</legend><p className="form-hint">Your enrolled institute will use these details to invite your parent. School records open after account approval and guardian verification.</p><label htmlFor="signup-parent-email">Parent / guardian email *</label><input className="form-input" type="email" id="signup-parent-email" required value={form.parentEmail} onChange={e=>update('parentEmail',e.target.value)} placeholder="parent@example.com"/>{errors.parentEmail&&<div className="form-error show">{errors.parentEmail}</div>}<label htmlFor="signup-parent-name">Parent / guardian name</label><input className="form-input" id="signup-parent-name" value={form.parentName} onChange={e=>update('parentName',e.target.value)}/><label htmlFor="signup-parent-relation">Relationship</label><select className="form-select" id="signup-parent-relation" value={form.parentRelationship} onChange={e=>update('parentRelationship',e.target.value)}>{['father','mother','guardian'].map(v=><option key={v}>{v}</option>)}</select></fieldset>}
+`+mark);return s;
+});
+edit('src/components/dashboard/FamilyCenter.jsx',s=>{
+ s=s.replace("value={invite.studentId} onChange={e=>setInvite({...invite,studentId:e.target.value})}","value={invite.studentId} onChange={e=>{const student=students.find(s=>s.user?._id===e.target.value);setInvite({studentId:e.target.value,parentEmail:student?.parentEmail||'',relationship:student?.parentRelationship||'guardian'});}}");
+ s=s.replace('<label>Registered parent email<input className="form-input" type="email" required value={invite.parentEmail} onChange={e=>setInvite({...invite,parentEmail:e.target.value})}/></label>','<label>Parent email supplied by student<input className="form-input" type="email" readOnly required value={invite.parentEmail} placeholder="Choose a student first"/>{invite.studentId&&!invite.parentEmail&&<p>Ask the student to add their parent email in My Profile.</p>}</label>');
+ s=s.replace('value={invite.relationship} onChange={e=>setInvite({...invite,relationship:e.target.value})}', 'value={invite.relationship} disabled');
+ s=s.replace('disabled={busy||!institution}>Send family invitation','disabled={busy||!institution||!invite.parentEmail}>Send family invitation');return s;
+});
+edit('src/pages/Dashboard.jsx',s=>{
+ s=s.replace("guardianContact: p.guardianContact || '',","guardianContact: p.guardianContact || '',\n        parentEmail:p.parentEmail||'',parentName:p.parentName||'',parentRelationship:p.parentRelationship||'guardian',");
+ s=s.replace('          guardianContact: form.guardianContact,','          guardianContact: form.guardianContact,\n          parentEmail:form.parentEmail,parentName:form.parentName,parentRelationship:form.parentRelationship,');
+ const mark='<label className="block text-xs" style={{ color: \'var(--ink-soft)\' }}>Guardian Contact';
+ s=s.replace(mark,`<label className="block text-xs" style={{color:'var(--ink-soft)'}}>Parent / guardian email<input required type="email" className="form-input" value={form.parentEmail} onChange={e=>setForm({...form,parentEmail:e.target.value})}/></label><label className="block text-xs" style={{color:'var(--ink-soft)'}}>Parent / guardian name<input className="form-input" value={form.parentName} onChange={e=>setForm({...form,parentName:e.target.value})}/></label><label className="block text-xs" style={{color:'var(--ink-soft)'}}>Relationship<select className="form-select" value={form.parentRelationship} onChange={e=>setForm({...form,parentRelationship:e.target.value})}>{['father','mother','guardian'].map(v=><option key={v}>{v}</option>)}</select></label>
+        `+mark);return s;
+});
+// Existing synthetic fixtures now carry the admission contact needed by school invitations.
+for(const path of ['audit/parent-completion.test.cjs','audit/parent-lifecycle.test.cjs'])edit(path,s=>s.replace('user:s._id,primaryInstitution:i._id','user:s._id,parentEmail:p.email,parentRelationship:\'guardian\',primaryInstitution:i._id'));

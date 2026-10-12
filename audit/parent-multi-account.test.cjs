@@ -40,6 +40,16 @@ test('two guardians, a sponsor and two children at different schools are linked 
   assert.equal((await api(parent,'PATCH',`/parents/link-requests/${req.body.data._id}/respond`,{decision:'approved'})).status,403,'requester approved own request');
   assert.equal((await api(child,'PATCH',`/parents/link-requests/${req.body.data._id}/respond`,{decision:'approved'})).status,200);
   links[parent+child]=req.body.data._id;
+  assert.equal((await api(parent,'GET',`/parents/children/${u[child]._id}/results`)).status,403,'student consent must not unlock school records');
+  if(relationship!=='sponsor'){
+    const school=child==='ChildOne'?A:B,owner=child==='ChildOne'?'OwnerA':'OwnerB';
+    const url=`/parents/links/${req.body.data._id}/schools/${school._id}/proof`;
+    const documents=['guardian_id','relationship_proof'].map(kind=>({kind,name:kind+'.pdf',mime:'application/pdf',data:Buffer.from('%PDF-1.4 TEST SAMPLE').toString('base64')}));
+    assert.equal((await api(parent,'PUT',url,{documents})).status,200);
+    assert.equal((await api(parent,'GET',`/parents/children/${u[child]._id}/results`)).status,403,'pending proof must keep records locked');
+    assert.equal((await api(owner,'POST',url+'/review',{decision:'approved',reason:'Synthetic test admission match',admissionMatched:true})).status,200);
+    assert.equal((await api(parent,'GET',`/parents/children/${u[child]._id}/results`)).status,200);
+  }
  }
  const mother=(await api('Mother','GET','/parents/children')).body.data;assert.deepEqual(ids(mother).sort(),[String(u.ChildOne._id),String(u.ChildTwo._id)].sort());
  assert.deepEqual(ids((await api('Father','GET','/parents/children')).body.data),[String(u.ChildOne._id)]);
@@ -77,6 +87,8 @@ test('transfer from School A to School B moves school access with the child',asy
  await model('StudentInstitutionMembership').updateOne({student:u.ChildOne._id,institution:A._id},{status:'withdrawn'});
  await model('StudentInstitutionMembership').create({student:u.ChildOne._id,institution:B._id,status:'active'});
  await model('StudentProfile').updateOne({user:u.ChildOne._id},{primaryInstitution:B._id});
+ assert.equal((await api('Mother','GET',`/parents/children/${u.ChildOne._id}/results`)).status,403,'new school requires its own guardian approval');
+ for(const parent of ['Mother','Father']){const l=await model('ParentChildLink').findOne({parent:u[parent]._id,student:u.ChildOne._id});await model('GuardianProof').create({link:l._id,institution:B._id,submittedBy:u[parent]._id,status:'approved',reviewer:u.OwnerB._id});await model('ParentChildLink').updateOne({_id:l._id},{$push:{institutionVerifications:{institution:B._id,verified:true,actor:u.OwnerB._id,at:new Date()}}});}
  const dirA=JSON.stringify((await api('OwnerA','GET',`/institutions/${A._id}/parents`)).body);assert.ok(!dirA.includes('Father'),'old school still lists the transferred child’s guardian');
  const dirB=JSON.stringify((await api('OwnerB','GET',`/institutions/${B._id}/parents`)).body);assert.ok(dirB.includes('Father'),'new school does not list the guardian');
  const kids=(await api('Father','GET','/parents/children')).body.data;const schools=JSON.stringify(kids[0].student?.institutions||[]);assert.ok(schools.includes('School B')&&!schools.includes('School A'),schools);

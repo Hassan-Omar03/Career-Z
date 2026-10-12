@@ -1,0 +1,1 @@
+const fs=require('node:fs');const p='audit/parent-lifecycle.test.cjs';let s=fs.readFileSync(p,'utf8');s=s.replace("type:'progress',text:'Practice fractions'","type:'progress',courseId:String(c._id),text:'Practice fractions'").replace("type:'progress',text:'Revise fractions'","type:'progress',courseId:String(c._id),text:'Revise fractions'");fs.writeFileSync(p,s);
