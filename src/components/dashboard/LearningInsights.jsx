@@ -1,3 +1,4 @@
+import SavedForm from '../shared/SavedForm';
 import { useEffect, useState } from 'react';
 import { apiRequest } from '../../api/client';
 
@@ -17,8 +18,13 @@ export function VideoEditor({ lesson, onChange }) {
 
 export function ReviewerSettings({ id, busy, onChange, onError }) {
   const [data, setData] = useState(null);
-  useEffect(() => { let alive = true; apiRequest(`/learning/${id}/reviewers`).then(value => { if (alive) setData(value); }).catch(onError); return () => { alive = false; }; }, [id, busy]);
-  return data && <details><summary>Department and principal reviewers</summary><p>Reviewers must already belong to the institution. The institution owner grants and revokes these roles.</p>{data.staff.filter(s => s.user).map(s => <div key={s.user._id}><strong>{s.user.fullName}</strong>{[['department', 'content:review:department', 'Department reviewer'], ['principal', 'content:review:principal', 'Principal reviewer']].map(([field, permission, label]) => <label key={field} style={{ display: 'block' }}><input type="checkbox" disabled={!data.canGrant || busy} checked={s.permissions.includes(permission)} onChange={e => onChange(s.user._id, { [field]: e.target.checked })} />{label}</label>)}</div>)}</details>;
+  useEffect(() => { let alive = true; setData(null); apiRequest(`/learning/${id}/reviewers`).then(value => { if (alive) setData({...value,staff:value.staff.map(row=>({...row,originalPermissions:[...row.permissions]}))}); }).catch(onError); return () => { alive = false; }; }, [id]);
+  function change(user,permission,on) { setData(prev=>({...prev,staff:prev.staff.map(row=>row.user?._id===user?{...row,permissions:on?[...new Set([...row.permissions,permission])]:row.permissions.filter(p=>p!==permission)}:row)})); }
+  return data && <details><summary>Department and principal reviewers</summary><p>Reviewers must already belong to the institution. The institution owner grants and revokes these roles.</p><SavedForm key={id} canEdit={data.canGrant} value={data} onRestore={setData} onSubmit={async()=>{
+    const rows=data.staff.filter(row=>row.user&&JSON.stringify(row.permissions)!==JSON.stringify(row.originalPermissions));
+    for(const row of rows){const result=await onChange(row.user._id,{department:row.permissions.includes('content:review:department'),principal:row.permissions.includes('content:review:principal')});if(result!==true)return false;}
+    setData(prev=>({...prev,staff:prev.staff.map(row=>({...row,originalPermissions:[...row.permissions]}))}));return true;
+  }}>{data.staff.filter(row=>row.user).map(row=><div key={row.user._id}><strong>{row.user.fullName}</strong>{[['department','content:review:department','Department reviewer'],['principal','content:review:principal','Principal reviewer']].map(([field,permission,label])=><label key={field} style={{display:'block'}}><input type="checkbox" disabled={!data.canGrant||busy} checked={row.permissions.includes(permission)} onChange={e=>change(row.user._id,permission,e.target.checked)}/>{label}</label>)}</div>)}<button type="submit" className="btn btn-primary" disabled={busy}>Save reviewers</button></SavedForm></details>;
 }
 
 export function TranslationDraft({ lesson, institutionId, onDraft, onError }) {

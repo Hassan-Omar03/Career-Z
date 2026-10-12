@@ -80,6 +80,15 @@
 .vf-tabs button.active .vf-muted { color: rgba(255, 255, 255, .8); }
 
 .vf-profile { display: grid; gap: 18px; }
+.vf-saved-value { padding: 10px 0; min-height: 40px; color: var(--ink); white-space: pre-wrap; overflow-wrap: anywhere; }
+.saved-form-toolbar { display: flex; justify-content: flex-end; gap: 10px; }
+.saved-form-toolbar:empty { display: none; }
+.saved-form-fields { display: contents; border: 0; padding: 0; margin: 0; min-width: 0; }
+.saved-form-view .saved-form-fields button, .saved-form-view .saved-form-fields input[type="file"] { display: none; }
+.saved-form-view .saved-form-fields :is(input:not([type="checkbox"]):not([type="radio"]):not([type="color"]):not([type="range"]), textarea, select):disabled { opacity: 1; color: var(--ink); -webkit-text-fill-color: var(--ink); background: transparent; border-color: transparent; box-shadow: none; cursor: default; }
+.saved-form-view .saved-form-fields :is(input[type="checkbox"], input[type="radio"]):disabled { opacity: 1; cursor: default; }
+.saved-form-view .saved-form-fields select:disabled { appearance: none; background-image: none; }
+.saved-form-view .saved-form-fields textarea { resize: none; }
 .vf-percent { display: grid; gap: 8px; }
 .vf-percent-head { display: flex; justify-content: space-between; gap: 10px; flex-wrap: wrap; align-items: baseline; }
 .vf-fields { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 4px 16px; }

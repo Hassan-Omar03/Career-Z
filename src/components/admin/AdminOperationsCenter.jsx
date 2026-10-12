@@ -1,3 +1,4 @@
+import SavedForm from '../shared/SavedForm';
 import { useEffect, useState } from 'react';
 import { apiRequest } from '../../api/client';
 import { showPrompt } from '../../utils/appDialog';
@@ -19,11 +20,11 @@ function SettingsPanel({ section, onFlash }) {
   const [text, setText] = useState('');
   useEffect(() => { apiRequest('/admin-ops/settings').then((data) => { setAll(data); setText(JSON.stringify(data[section], null, 2)); }).catch((e) => onFlash(e.message)); }, [section]);
   async function save() {
-    try { const value = JSON.parse(text); const saved = await apiRequest(`/admin-ops/settings/${section}`, { method: 'PATCH', body: value }); setAll({ ...all, [section]: saved }); onFlash(`${section} settings saved.`, 'success'); }
+    try { const value = JSON.parse(text); const saved = await apiRequest(`/admin-ops/settings/${section}`, { method: 'PATCH', body: value }); setAll({ ...all, [section]: saved }); onFlash(`${section} settings saved.`, 'success'); return true; }
     catch (e) { onFlash(e instanceof SyntaxError ? 'Settings JSON is invalid.' : e.message); }
   }
   if (!all) return <p role="status">Loading…</p>;
-  return <div className="card" style={{ padding: 18 }}><h4 style={{ textTransform: 'capitalize' }}>{section}</h4><p className="text-xs mb-2" style={{ color: 'var(--ink-soft)' }}>These values are versioned in the platform settings store. Emergency switches are enforced by their consuming modules.</p><JsonEditor value={text} onChange={setText} /><button className="btn btn-primary mt-2" type="button" onClick={save}>Save settings</button></div>;
+  return <SavedForm key={section} value={text} onRestore={setText} onSubmit={save} className="card" style={{ padding: 18 }}><h4 style={{ textTransform: 'capitalize' }}>{section}</h4><p className="text-xs mb-2" style={{ color: 'var(--ink-soft)' }}>These values are versioned in the platform settings store. Emergency switches are enforced by their consuming modules.</p><JsonEditor value={text} onChange={setText} /><button className="btn btn-primary mt-2" type="submit">Save settings</button></SavedForm>;
 }
 
 function ResourcePanel({ type, label, onFlash }) {

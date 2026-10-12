@@ -158,7 +158,7 @@ export default function CareerZLiveClassroom({ session, user, role, observeStude
 
     (async () => {
       try {
-        const configuration = await apiRequest(`/live-classes/${session._id}/rtc-config${role==='observer'?'?observeChild='+encodeURIComponent(observeStudentId):''}`);
+        const configuration = await apiRequest(session.ptmId ? `/ptm/${session.ptmId}/video` : `/live-classes/${session._id}/rtc-config${role==='observer'?'?observeChild='+encodeURIComponent(observeStudentId):''}`);
         rtcConfigRef.current = { iceServers: configuration.iceServers };
         let stream;
         if(role==='observer'){stream=new MediaStream();setCameraOn(false);setMicOn(false);}else try { stream = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: true }, video: { width: { ideal: 1280 }, height: { ideal: 720 } } }); }
@@ -278,7 +278,7 @@ export default function CareerZLiveClassroom({ session, user, role, observeStude
     <div className="card" style={{ overflow: 'hidden', padding: 0 }}>
       <div className="flex items-center justify-between" style={{ padding: 16, borderBottom: '1px solid var(--sand-line)', gap: 12 }}>
         <div><strong>{session.title}</strong><p className="text-xs" style={{ color: 'var(--ink-soft)' }}>{session.course?.title} · {status} · {participants.length + 1} connected</p></div>
-        <button type="button" className="btn" onClick={onLeave} style={{ color: 'var(--rose)' }}>Leave Classroom</button>
+        <button type="button" className="btn" onClick={onLeave} style={{ color: 'var(--rose)' }}>{session.ptmId ? 'Leave Meeting' : 'Leave Classroom'}</button>
       </div>
       <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 3fr) minmax(260px, 1fr)', gap: 14, padding: 14, background: '#0d1715' }}>
         <div>
@@ -298,7 +298,7 @@ export default function CareerZLiveClassroom({ session, user, role, observeStude
         <aside style={{ background: '#fff', borderRadius: 14, padding: 12, display: 'flex', flexDirection: 'column', minHeight: 430 }}>
           <strong>Class chat</strong>
           {classEnergy?.total > 0 && <div className="text-xs" style={{ marginTop: 8, padding: 8, borderRadius: 8, background: 'var(--sand)' }}><strong>Energy: {classEnergy.average}%</strong> · {classEnergy.attentiveCount}/{classEnergy.total} focused{role === 'teacher' && classEnergy.roster?.length > 0 && <div>{classEnergy.roster.map((row) => <span key={row.userId} style={{ display: 'block', color: row.attentive ? 'var(--emerald)' : 'var(--rose)' }}>{row.name}: {row.attentive ? 'Focused' : 'Distracted'}</span>)}</div>}</div>}
-          {poll ? <div style={{ marginTop: 8, padding: 8, borderRadius: 8, background: 'var(--sand)' }}><strong className="text-xs">{poll.question}</strong>{poll.options.map((option) => <button key={option.index} type="button" className={myVote === option.index ? 'btn btn-primary' : 'btn'} disabled={role === 'teacher' || poll.status === 'closed' || myVote !== null} onClick={() => votePoll(option.index)} style={{ display: 'block', width: '100%', marginTop: 5 }}>{option.text} · {option.votes}</button>)}{role === 'teacher' && poll.status === 'open' && <button type="button" className="btn" onClick={closePoll} style={{ marginTop: 6 }}>Close Poll</button>}</div> : role === 'teacher' && <form onSubmit={createPoll} style={{ marginTop: 8 }}><input className="form-input" required placeholder="Live poll question" value={pollQuestion} onChange={(e) => setPollQuestion(e.target.value)} />{pollOptions.map((option, index) => <input key={index} className="form-input" required placeholder={`Option ${index + 1}`} value={option} onChange={(e) => setPollOptions((current) => current.map((item, i) => i === index ? e.target.value : item))} style={{ marginTop: 5 }} />)}<button type="submit" className="btn" style={{ marginTop: 5 }}>Launch Poll</button></form>}
+          {poll ? <div style={{ marginTop: 8, padding: 8, borderRadius: 8, background: 'var(--sand)' }}><strong className="text-xs">{poll.question}</strong>{poll.options.map((option) => <button key={option.index} type="button" className={myVote === option.index ? 'btn btn-primary' : 'btn'} disabled={role === 'teacher' || poll.status === 'closed' || myVote !== null} onClick={() => votePoll(option.index)} style={{ display: 'block', width: '100%', marginTop: 5 }}>{option.text} · {option.votes}</button>)}{role === 'teacher' && poll.status === 'open' && <button type="button" className="btn" onClick={closePoll} style={{ marginTop: 6 }}>Close Poll</button>}</div> : role === 'teacher' && !session.ptmId && <form onSubmit={createPoll} style={{ marginTop: 8 }}><input className="form-input" required placeholder="Live poll question" value={pollQuestion} onChange={(e) => setPollQuestion(e.target.value)} />{pollOptions.map((option, index) => <input key={index} className="form-input" required placeholder={`Option ${index + 1}`} value={option} onChange={(e) => setPollOptions((current) => current.map((item, i) => i === index ? e.target.value : item))} style={{ marginTop: 5 }} />)}<button type="submit" className="btn" style={{ marginTop: 5 }}>Launch Poll</button></form>}
           <div style={{ flex: 1, overflowY: 'auto', margin: '10px 0', maxHeight: 420 }}>
             {participants.filter((p) => p.raised).map((p) => <p key={`hand-${p.userId}`} className="text-xs" style={{ color: 'var(--amber)' }}>✋ {p.name} raised a hand</p>)}
             {messages.length === 0 && <p className="text-xs" style={{ color: 'var(--ink-soft)' }}>No messages yet.</p>}
@@ -307,7 +307,7 @@ export default function CareerZLiveClassroom({ session, user, role, observeStude
           <form onSubmit={sendMessage} className="flex gap-2"><input className="form-input" disabled={role !== 'teacher' && !policy.chatAllowed} value={message} onChange={(e) => setMessage(e.target.value)} placeholder="Ask or reply…" /><button className="btn btn-primary" disabled={role !== 'teacher' && !policy.chatAllowed} type="submit">Send</button></form>
         </aside>
       </div>
-      <LiveLearningTools session={session} role={role} localStream={localStream} onGroupChange={switchGroup} onPolicyChange={applyPolicy} onError={onError} />
+      {!session.ptmId && <LiveLearningTools session={session} role={role} localStream={localStream} onGroupChange={switchGroup} onPolicyChange={applyPolicy} onError={onError} />}
     </div>
   );
 }

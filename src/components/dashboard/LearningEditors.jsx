@@ -1,3 +1,4 @@
+import SavedForm from '../shared/SavedForm';
 import { useEffect, useState } from 'react';
 
 export function ReviewControls({ item, kind, data, busy, onReview }) {
@@ -15,18 +16,18 @@ export function ReviewControls({ item, kind, data, busy, onReview }) {
 export function CourseMetadata({ course, busy, onSave, canSetPolicy }) {
   const [form, setForm] = useState({});
   useEffect(() => { setForm({ ...course, tags: (course.tags || []).join(', ') }); }, [course]);
-  return <details><summary>Course details and content permissions</summary><form style={{ display: 'grid', gap: 10 }} onSubmit={e => { e.preventDefault(); const fields = ['title', 'courseCode', 'description', 'level', 'language', 'duration', 'category', 'tags', 'coverImage', 'copyrightNotice', ...(canSetPolicy ? ['contentLicense', 'offlineDownloadAllowed'] : [])]; onSave({ ...Object.fromEntries(fields.map(field => [field, form[field]])), tags: form.tags.split(',').map(t => t.trim()).filter(Boolean) }); }}>
+  return <details><summary>Course details and content permissions</summary><SavedForm key={course._id} value={form} onRestore={setForm} style={{ display: 'grid', gap: 10 }} onSubmit={async e => { e.preventDefault(); const fields = ['title', 'courseCode', 'description', 'level', 'language', 'duration', 'category', 'tags', 'coverImage', 'copyrightNotice', ...(canSetPolicy ? ['contentLicense', 'offlineDownloadAllowed'] : [])]; return await onSave({ ...Object.fromEntries(fields.map(field => [field, form[field]])), tags: form.tags.split(',').map(t => t.trim()).filter(Boolean) }); }}>
     {['title', 'courseCode', 'description', 'level', 'language', 'duration', 'category', 'tags', 'coverImage', 'copyrightNotice'].map(field => <label key={field}>{({ courseCode: 'Course code', coverImage: 'Cover image URL', copyrightNotice: 'Copyright notice' })[field] || field}<input className="form-input" value={form[field] || ''} onChange={e => setForm({ ...form, [field]: e.target.value })} /></label>)}
     {canSetPolicy && <><label>License<select className="form-select" value={form.contentLicense || 'internal'} onChange={e => setForm({ ...form, contentLicense: e.target.value })}><option value="internal">Internal use only</option><option value="copyright">All rights reserved</option><option value="creative_commons">Creative Commons (specify terms in notice)</option><option value="commercial">Commercial license</option></select></label>
     <label><input type="checkbox" checked={form.offlineDownloadAllowed !== false} onChange={e => setForm({ ...form, offlineDownloadAllowed: e.target.checked })} />Allow offline downloads</label></>}
     <button className="btn" disabled={busy}>Save course details</button>
-  </form></details>;
+  </SavedForm></details>;
 }
 
 export function CurriculumUnit({ unit, busy, canManage, onSave, onRemove }) {
   const [title, setTitle] = useState(unit.title), [order, setOrder] = useState(unit.order || 0), [editing, setEditing] = useState(false);
   useEffect(() => { setTitle(unit.title); setOrder(unit.order || 0); }, [unit]);
-  return <div style={{ padding: 8 }}><strong>{unit.type}: {unit.title}</strong>{canManage && <>{editing ? <form onSubmit={e => { e.preventDefault(); onSave({ title, order }); setEditing(false); }}><input className="form-input" required value={title} onChange={e => setTitle(e.target.value)} /><label>Display order<input type="number" value={order} onChange={e => setOrder(Number(e.target.value))} /></label><button className="btn" disabled={busy}>Save unit</button><button className="btn" type="button" onClick={() => setEditing(false)}>Cancel</button></form> : <button className="btn" onClick={() => setEditing(true)} disabled={busy}>Edit unit</button>}<button className="btn" disabled={busy} onClick={onRemove}>Remove empty unit</button></>}</div>;
+  return <div style={{ padding: 8 }}><strong>{unit.type}: {unit.title}</strong>{canManage && <>{editing ? <form onSubmit={async e => { e.preventDefault(); if(await onSave({ title, order })===true)setEditing(false); }}><input className="form-input" required value={title} onChange={e => setTitle(e.target.value)} /><label>Display order<input type="number" value={order} onChange={e => setOrder(Number(e.target.value))} /></label><button className="btn" disabled={busy}>Save unit</button><button className="btn" type="button" onClick={() => {setTitle(unit.title);setOrder(unit.order||0);setEditing(false);}}>Cancel</button></form> : <button className="btn" onClick={() => setEditing(true)} disabled={busy}>Edit unit</button>}<button className="btn" disabled={busy} onClick={onRemove}>Remove empty unit</button></>}</div>;
 }
 
 const question = () => ({ question: '', options: ['', ''], answer: 0 });
@@ -52,4 +53,10 @@ export function ActivityBuilder({ lessons, busy, onSave, editing, onCancel }) {
     {['simulation', 'virtual_lab', 'game'].includes(form.type) && <label>Teacher-selected interactive resource URL<input className="form-input" type="url" pattern="https://.*" required placeholder="https://..." value={content.url || ''} onChange={e => change({ url: e.target.value })} /></label>}
     <button className="btn" disabled={busy}>Save activity</button>{editing && <button className="btn" type="button" onClick={onCancel}>Cancel edit</button>}
   </form>;
+}
+
+export function CoursePublishingPolicy({course,busy,onSave}) {
+ const [form,setForm]=useState({studyMode:course.studyMode,approvalWorkflow:course.approvalWorkflow});
+ useEffect(()=>{setForm({studyMode:course.studyMode,approvalWorkflow:course.approvalWorkflow});},[course]);
+ return <SavedForm key={course._id} value={form} onRestore={setForm} onSubmit={()=>onSave(form)} className="dash-card"><label>Class mode<select className="form-select" value={form.studyMode} disabled={busy} onChange={e=>setForm(prev=>({...prev,studyMode:e.target.value}))}>{['online','physical','hybrid','recorded','self_paced','ai'].map(m=><option key={m}>{m}</option>)}</select></label><label>Publishing policy<select className="form-select" value={form.approvalWorkflow} disabled={busy} onChange={e=>setForm(prev=>({...prev,approvalWorkflow:e.target.value}))}><option value="direct">Teacher publishes directly</option><option value="staged">Department → Principal approval</option></select></label><button type="submit" className="btn btn-primary" disabled={busy}>Save publishing policy</button></SavedForm>;
 }

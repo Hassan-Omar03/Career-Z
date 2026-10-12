@@ -1,3 +1,4 @@
+import SavedForm from '../shared/SavedForm';
 import { useEffect, useState } from 'react';
 import { apiRequest } from '../../api/client';
 
@@ -63,10 +64,10 @@ export default function MedicalHealth({ mode = 'student', onFlash }) {
     {manage && !loading && !institutions.length && <p>No institution available.</p>}
     {error && <p role="alert">{error} {button('Retry', () => setRevision(r => r + 1))}</p>}
     {loading && <p role="status">Loading health information…</p>}
-    {record && <form className="dash-card" onSubmit={e => { e.preventDefault(); run(async () => {
+    {record && <SavedForm key={mode+institution+student} value={record} onRestore={setRecord} canEdit={edit} className="dash-card" onSubmit={e => { e.preventDefault(); return run(async () => {
       const path = manage ? `${base}/students/${student}/health?institution=${institution}` : `/parents/children/${student}/health`;
       const body = Object.fromEntries(Object.keys(initial).map(key => [key, record[key]]));
-      await apiRequest(path, { method: 'PATCH', body }); onFlash('Health record saved.', 'success');
+      await apiRequest(path, { method: 'PATCH', body }); onFlash('Health record saved.', 'success'); return true;
     }); }}>
       <h3>Student health record</h3>
       <label>Blood group<select className="form-select" disabled={!edit} value={record.bloodGroup} onChange={e => change('bloodGroup', e.target.value)}>{['', 'A+', 'A-', 'B+', 'B-', 'AB+', 'AB-', 'O+', 'O-'].map(g => <option key={g} value={g}>{g || 'Not recorded'}</option>)}</select></label>
@@ -78,7 +79,7 @@ export default function MedicalHealth({ mode = 'student', onFlash }) {
       {!record.vaccinations.length && <p>No vaccination records.</p>}
       {edit && <>{button('Add vaccination', () => change('vaccinations', [...record.vaccinations, { name: '', date: '', notes: '' }]))}<button className="btn btn-primary" disabled={busy}>Save health record</button></>}
       <details><summary>Record change history</summary>{record.healthChanges?.map((h, i) => <p key={i}>{new Date(h.at).toLocaleString()} · Updated {h.fields.join(', ')}</p>)}{!record.healthChanges?.length && <p>No changes recorded yet.</p>}</details>
-    </form>}
+    </SavedForm>}
     {(manage || mode === 'teacher') && <form className="dash-card" onSubmit={e => { e.preventDefault(); run(async () => {
       const id = mode === 'teacher' ? teacherStudents.find(m => m._id === student)?.institution?._id : institution;
       const studentId = mode === 'teacher' ? teacherStudents.find(m => m._id === student)?.student?._id : student;

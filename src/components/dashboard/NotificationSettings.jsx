@@ -51,7 +51,7 @@ export function StaffPermissionsEditor({ institutionId, staff, onFlash, onSaved 
     } catch (err) { onFlash?.(err.message); } finally { setSaving(false); }
   }
 
-  if (!open) return <button type="button" className="btn" style={{ padding: '4px 10px', fontSize: '0.75rem' }} onClick={() => setOpen(true)}>Permissions</button>;
+  if (!open) return <button type="button" className="btn" style={{ padding: '4px 10px', fontSize: '0.75rem' }} onClick={() => { setSelected(new Set(staff.permissions || [])); setOpen(true); }}>Edit permissions</button>;
   return (
     <div style={{ display: 'grid', gap: 4, minWidth: 220 }}>
       {catalogue.map((c) => (

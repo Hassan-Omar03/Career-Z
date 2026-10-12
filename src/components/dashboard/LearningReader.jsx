@@ -1,3 +1,4 @@
+import SavedForm from '../shared/SavedForm';
 import { useEffect, useRef, useState } from 'react';
 import { loadDraft, saveDraft, queueVideoProgress, syncProgress } from '../../utils/offlineLearning';
 
@@ -41,8 +42,7 @@ export function LessonVideo({ lesson, canTrack = false, files }) {
 }
 
 export function AssignmentDraft({ assignment }) {
-  const [text, setText] = useState(''), [loaded, setLoaded] = useState(false), [error, setError] = useState('');
-  useEffect(() => { let alive = true; setLoaded(false); loadDraft(`assignment:${assignment._id}`).then(value => { if (alive) { setText(value); setLoaded(true); } }).catch(e => setError(e.message)); return () => { alive = false; }; }, [assignment._id]);
-  useEffect(() => { if (!loaded) return; const timer = setTimeout(() => saveDraft(`assignment:${assignment._id}`, text).catch(e => setError(e.message)), 300); return () => clearTimeout(timer); }, [text, loaded, assignment._id]);
-  return <details><summary>{assignment.title} — assignment draft</summary><p>{assignment.description}</p>{assignment.dueDate && <p>Due: {new Date(assignment.dueDate).toLocaleString()}</p>}<textarea className="form-input" aria-label={`Draft for ${assignment.title}`} rows={6} value={text} onChange={e => setText(e.target.value)} onBlur={() => saveDraft(`assignment:${assignment._id}`, text).catch(e => setError(e.message))} />{error && <p role="alert">{error}</p>}<p>Draft saved on this device. Open Assignments & Tests online to submit; the server checks deadlines and required files.</p><button className="btn" onClick={() => navigator.clipboard.writeText(text).catch(e => setError(e.message))}>Copy draft for submission</button></details>;
+  const [text, setText] = useState(''), [loaded, setLoaded] = useState(false), [saved, setSaved] = useState(false), [error, setError] = useState('');
+  useEffect(() => { let alive = true; setLoaded(false); loadDraft(`assignment:${assignment._id}`).then(value => { if (alive) { setText(value || ''); setSaved(Boolean(value)); setLoaded(true); } }).catch(e => setError(e.message)); return () => { alive = false; }; }, [assignment._id]);
+  return <details><summary>{assignment.title} — assignment draft</summary><p>{assignment.description}</p>{assignment.dueDate && <p>Due: {new Date(assignment.dueDate).toLocaleString()}</p>}{loaded&&<SavedForm key={assignment._id} saved={saved} value={text} onRestore={setText} editLabel="Edit draft" onSubmit={async()=>{try{await saveDraft(`assignment:${assignment._id}`,text);setSaved(true);setError('');return true;}catch(e){setError(e.message);}}}><textarea className="form-input" aria-label={`Draft for ${assignment.title}`} rows={6} value={text} onChange={e=>setText(e.target.value)}/><button type="submit" className="btn btn-primary">Save draft</button></SavedForm>}{error&&<p role="alert">{error}</p>}<p>Draft saved on this device. Open Assignments & Tests online to submit; the server checks deadlines and required files.</p><button type="button" className="btn" onClick={()=>navigator.clipboard.writeText(text).catch(e=>setError(e.message))}>Copy draft for submission</button></details>;
 }

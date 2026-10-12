@@ -37,7 +37,7 @@ export default function LessonMetadata({ lessonId, canEdit = false, canReview = 
           <label className="flex items-center gap-1"><input type="checkbox" checked={form.aiAssisted} onChange={(e) => setForm({ ...form, aiAssisted: e.target.checked })} /> AI-assisted</label>
           {form.aiAssisted && <input className="form-input" placeholder="How was AI used?" value={form.aiNote} onChange={(e) => setForm({ ...form, aiNote: e.target.value })} style={{ flex: '2 1 200px' }} />}
           <button type="submit" className="btn btn-primary" style={{ padding: '4px 10px' }}>Save</button>
-          <button type="button" className="btn" style={{ padding: '4px 10px' }} onClick={() => setEditing(false)}>Cancel</button>
+          <button type="button" className="btn" style={{ padding: '4px 10px' }} onClick={() => { setEditing(false); load(); }}>Cancel</button>
         </form>
       )}
     </div>

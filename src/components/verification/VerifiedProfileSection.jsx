@@ -7,7 +7,7 @@ import { StatusBadge } from './VerificationParts';
 // "My Profile" for a verified account type: the mandatory profile (editable) plus verification
 // status and a link to the private documents. Shown at the top of each workspace's profile tab.
 export default function VerifiedProfileSection({ role, onFlash }) {
-  const { accountStatus, refreshAccountStatus } = useAuth();
+  const { accountStatus, refreshAccountStatus, refreshProfile } = useAuth();
   const roleStatus = accountStatus?.roles?.find((r) => r.role === role);
   if (!roleStatus) return null;
   const others = accountStatus.roles.filter((r) => r.role !== role && !(r.status === 'approved' && r.profileCompleted));
@@ -29,7 +29,7 @@ export default function VerifiedProfileSection({ role, onFlash }) {
         </p>
       )}
       {roleStatus.status === 'approved'
-        ? <RoleProfileForm roleStatus={roleStatus} onFlash={onFlash} onSaved={refreshAccountStatus} completeLabel="Save profile" />
+        ? <RoleProfileForm key={role} roleStatus={roleStatus} onFlash={onFlash} onSaved={role==='student'?refreshProfile:refreshAccountStatus} completeLabel="Save profile" />
         : <p className="vf-banner vf-banner-warn">Your profile can be edited again after the admin team finishes re-verifying this account.</p>}
     </section>
   );

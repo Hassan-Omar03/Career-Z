@@ -1,3 +1,9 @@
+import TeacherSchedulePtm from '../components/dashboard/TeacherSchedulePtm';
+import PtmHistory from '../components/dashboard/PtmHistory';
+import SavedStatus from '../components/shared/SavedStatus';
+import SavedForm from '../components/shared/SavedForm';
+import ParentUpdates from '../components/dashboard/ParentUpdates';
+import StudentGuardians from '../components/dashboard/StudentGuardians';
 import GuardianProof from '../components/dashboard/GuardianProof';
 import FamilyChatPolicy from '../components/dashboard/FamilyChatPolicy';
 import {FamilyPolicy,StudentFamilyMeeting} from '../components/dashboard/FamilyPolicy';
@@ -498,7 +504,7 @@ export default function Dashboard() {
   const defaultWorkspace = (requestedWorkspace && available.includes(requestedWorkspace)) ? requestedWorkspace : (available[0] || 'student');
 
   const [activeWorkspace, setActiveWorkspace] = useState(defaultWorkspace);
-  const [activeTab, setActiveTab] = useState(location.search.includes('courseCheckout=success') && defaultWorkspace === 'student'
+  const [activeTab, setActiveTab] = useState(new URLSearchParams(location.search).has('ptm') && ['teacher','parent'].includes(defaultWorkspace) ? 'ptm' : location.search.includes('courseCheckout=success') && defaultWorkspace === 'student'
     ? 'courses' : WORKSPACES[defaultWorkspace].nav[0].key);
   // Lets any panel (e.g. Teacher -> Student Communication) jump straight into a conversation with
   // a specific, already-identified person instead of landing on Messages' generic "paste a User
@@ -606,7 +612,7 @@ export default function Dashboard() {
         {activeTab === 'messages' && <MessagesPanel onFlash={flash} user={user} restrictedStaffMessaging={isWardenOnly || isDriverOnly} initialUser={pendingMessageUser} onConsumedInitialUser={() => setPendingMessageUser(null)} />}
         {activeTab === 'notifications' && <NotificationsPanel onFlash={flash} />}
         {activeTab === 'calendar' && <CalendarPanel onFlash={flash} />}
-        {activeTab === 'settings' && (activeWorkspace !== 'admin' || isPlatformStaffOnly) && <SettingsPanel user={user} onFlash={flash} onChanged={refreshProfile} />}
+        {activeTab === 'settings' && (activeWorkspace !== 'admin' || isPlatformStaffOnly) && <><SettingsPanel user={user} onFlash={flash} onChanged={refreshProfile} />{activeWorkspace==='student'&&<><ProfilePanel user={user} onFlash={flash} onChanged={refreshProfile}/><RolesPanel onFlash={flash} onChanged={refreshProfile}/><SupportComplaintPanel onFlash={flash}/></>}</>}
         {activeTab === 'help' && <HelpCenterPanel onFlash={flash} />}
         {(!SHARED_TABS.includes(activeTab) || (activeWorkspace === 'admin' && activeTab === 'settings' && !isPlatformStaffOnly)) && (
           <>
@@ -636,7 +642,7 @@ function StudentWorkspace({ tab, user, onFlash, onChanged, onNavigate }) {
   if (tab === 'learningCenter') return <StudentPanel onFlash={onFlash} />;
   if (tab === 'offlineStudy') return <OfflineStudy onFlash={onFlash} />;
   if (tab === 'aiAssistant') return <StudentAiAssistantPanel onFlash={onFlash} />;
-  if (tab === 'profile') return <><ProfilePanel user={user} onFlash={onFlash} onChanged={onChanged} /><StudentAcademicProfilePanel onFlash={onFlash} onChanged={onChanged} /><RolesPanel onFlash={onFlash} onChanged={onChanged} /><SupportComplaintPanel onFlash={onFlash} /></>;
+  if (tab === 'profile') return null; // The unified student form is rendered above the workspace.
   if (tab === 'courses') return <StudentPanel onFlash={onFlash} />;
   if (tab === 'resourceLibrary') return <ResourceLibrary onFlash={onFlash} />;
   if (tab === 'wallet') return <StudentFeesPanel onFlash={onFlash} />;
@@ -1032,84 +1038,8 @@ function StudentCampusLifePanel({ onFlash }) {
   );
 }
 
-function StudentAcademicProfilePanel({ onFlash, onChanged }) {
-  const [profile, setProfile] = useState(null);
-  const [form, setForm] = useState(null);
-  const [saving, setSaving] = useState(false);
-
-  function load() {
-    apiRequest('/students/me').then((p) => {
-      setProfile(p);
-      setForm({
-        dateOfBirth: p.dateOfBirth ? p.dateOfBirth.slice(0, 10) : '',
-        program: p.program || '',
-        currentTerm: p.currentTerm || '',
-        guardianContact: p.guardianContact || '',
-        careerGoal: p.careerGoal || '',
-        skills: (p.skills || []).join(', '),
-        languages: (p.languages || []).join(', ')
-      });
-    }).catch((err) => onFlash(err.message));
-  }
-  useEffect(load, []); // eslint-disable-line react-hooks/exhaustive-deps
-
-  async function submit(e) {
-    e.preventDefault();
-    setSaving(true);
-    try {
-      await apiRequest('/students/me', {
-        method: 'PATCH',
-        body: {
-          dateOfBirth: form.dateOfBirth || null,
-          program: form.program,
-          currentTerm: form.currentTerm,
-          guardianContact: form.guardianContact,
-          careerGoal: form.careerGoal,
-          skills: form.skills.split(',').map((s) => s.trim()).filter(Boolean),
-          languages: form.languages.split(',').map((s) => s.trim()).filter(Boolean)
-        }
-      });
-      onFlash('Academic profile updated.', 'success');
-      onChanged?.();
-      load();
-    } catch (err) { onFlash(err.message); } finally { setSaving(false); }
-  }
-
-  if (!profile || !form) return <p role="status" className="admin-notice">Loading...</p>;
-
-  return (
-    <div className="admin-section admin-account-card" style={{ marginTop: 20 }}>
-      <div className="admin-section-heading"><div><h2>Academic Profile</h2><p>Program, term, date of birth and other details shown across your dashboard.</p></div><FaUser aria-hidden="true" /></div>
-      <form onSubmit={submit} className="space-y-3 max-w-lg">
-        <label className="block text-xs" style={{ color: 'var(--ink-soft)' }}>Date of Birth
-          <input type="date" className="form-input" value={form.dateOfBirth} onChange={(e) => setForm({ ...form, dateOfBirth: e.target.value })} />
-        </label>
-        <label className="block text-xs" style={{ color: 'var(--ink-soft)' }}>Program
-          <input className="form-input" placeholder="e.g. BS Computer Science" value={form.program} onChange={(e) => setForm({ ...form, program: e.target.value })} />
-        </label>
-        <label className="block text-xs" style={{ color: 'var(--ink-soft)' }}>Current Semester/Term
-          <input className="form-input" placeholder="e.g. Fall 2026" value={form.currentTerm} onChange={(e) => setForm({ ...form, currentTerm: e.target.value })} />
-        </label>
-        <label className="block text-xs" style={{ color: 'var(--ink-soft)' }}>Guardian Contact
-          <input className="form-input" placeholder="Phone or email" value={form.guardianContact} onChange={(e) => setForm({ ...form, guardianContact: e.target.value })} />
-        </label>
-        <label className="block text-xs" style={{ color: 'var(--ink-soft)' }}>Career Goal
-          <input className="form-input" placeholder="e.g. Software Engineer" value={form.careerGoal} onChange={(e) => setForm({ ...form, careerGoal: e.target.value })} />
-        </label>
-        <label className="block text-xs" style={{ color: 'var(--ink-soft)' }}>Skills (comma separated)
-          <input className="form-input" value={form.skills} onChange={(e) => setForm({ ...form, skills: e.target.value })} />
-        </label>
-        <label className="block text-xs" style={{ color: 'var(--ink-soft)' }}>Languages (comma separated)
-          <input className="form-input" value={form.languages} onChange={(e) => setForm({ ...form, languages: e.target.value })} />
-        </label>
-        <button type="submit" className="btn btn-primary" disabled={saving}>{saving ? 'Saving...' : 'Save Academic Profile'}</button>
-      </form>
-    </div>
-  );
-}
 
 const MEMBERSHIP_STATUS_TAG = { active: 'approved', graduated: 'approved', transferred: 'pending', withdrawn: 'rejected' };
-
 function StudentInstitutionsPanel({ onFlash }) {
   const [profile, setProfile] = useState(null);
   const [memberships, setMemberships] = useState(null);
@@ -2346,7 +2276,7 @@ function StudyGroupDetail({ groupId, user, onFlash, onBack }) {
     try { await apiRequest(`/study-groups/${groupId}/transfer-ownership`, { method: 'PATCH', body: { userId: uid } }); onFlash('Ownership transferred.', 'success'); load(); } catch (err) { onFlash(err.message); }
   }
   async function saveContribution() {
-    try { await apiRequest(`/study-groups/${groupId}/contribution`, { method: 'PATCH', body: { note: contributionNote } }); setContributionNote(''); onFlash('Contribution note saved.', 'success'); load(); } catch (err) { onFlash(err.message); }
+    try { await apiRequest(`/study-groups/${groupId}/contribution`, { method: 'PATCH', body: { note: contributionNote } }); onFlash('Contribution note saved.', 'success'); load(); return true; } catch (err) { onFlash(err.message); }
   }
   async function addTask(e) {
     e.preventDefault();
@@ -2551,10 +2481,10 @@ function StudyGroupDetail({ groupId, user, onFlash, onBack }) {
           </div>}
 
           <div className="card" style={{ padding: 16 }}>
-            <strong className="text-sm">My contribution</strong>
+<SavedForm key={groupId} saved={Boolean((group.contributions||[]).find(c=>String(c.user?._id||c.user)===String(user?._id))?.note)} value={contributionNote} onRestore={setContributionNote} onSubmit={saveContribution}><strong className="text-sm">My contribution</strong>
             <p className="text-xs" style={{ color: 'var(--ink-soft)', marginTop: 4 }}>Describe the work you personally completed. The teacher uses this during individual grading.</p>
             <textarea className="form-input" rows={3} style={{ marginTop: 8 }} placeholder="Example: I researched the topic and prepared slides 1–4." value={contributionNote} onChange={(e) => setContributionNote(e.target.value)} />
-            <button type="button" className="btn" disabled={!contributionNote.trim()} style={{ padding: '6px 14px', fontSize: '0.75rem', marginTop: 8 }} onClick={saveContribution}>Save My Contribution</button>
+            <button type="submit" className="btn" disabled={!contributionNote.trim()} style={{ padding: '6px 14px', fontSize: '0.75rem', marginTop: 8 }} >Save My Contribution</button></SavedForm>
           </div>
         </div>
       )}
@@ -4681,7 +4611,7 @@ function ResumeEditorPanel({ onFlash }) {
     e.preventDefault();
     try {
       await apiRequest('/resumes/me', { method: 'PATCH', body: resume });
-      onFlash('Resume saved.', 'success');
+      onFlash('Resume saved.', 'success'); return true;
     } catch (err) { onFlash(err.message); }
   }
 
@@ -4700,7 +4630,7 @@ function ResumeEditorPanel({ onFlash }) {
   const publicUrl = `${window.location.origin}/portfolio/${resume.user}`;
 
   return (
-    <form onSubmit={save} style={{ display: 'grid', gap: 18 }}>
+    <SavedForm value={resume} onRestore={setResume} onSubmit={save} style={{ display: 'grid', gap: 18 }}>
       <div className="card" style={{ padding: 20 }}>
         <div className="flex items-center justify-between flex-wrap" style={{ gap: 14 }}>
           <div>
@@ -4813,7 +4743,7 @@ function ResumeEditorPanel({ onFlash }) {
       </div>
 
       <button type="submit" className="btn btn-primary" style={{ padding: '8px 22px', fontSize: '0.85rem', justifySelf: 'start' }}>Save Resume</button>
-    </form>
+    </SavedForm>
   );
 }
 
@@ -5860,7 +5790,7 @@ function InventoryPanel({ onFlash }) {
       await apiRequest(`/marketplace/products/${id}`, { method: 'PATCH', body: { stock: Number(value) } });
       onFlash('Stock updated.', 'success');
       setStockEdits((prev) => { const next = { ...prev }; delete next[id]; return next; });
-      load();
+      load(); return true;
     } catch (err) { onFlash(err.message); }
   }
 
@@ -5913,10 +5843,10 @@ function InventoryPanel({ onFlash }) {
               rows={inventory.items.map((p) => [
                 p.title, p.category, p.stock,
                 <Tag status={PRODUCT_STATUS[p.status]?.tag} label={PRODUCT_STATUS[p.status]?.label} />,
-                <div className="flex gap-2">
+                <SavedForm key={p._id} showValues={false} value={stockEdits[p._id]??''} onRestore={v=>setStockEdits(prev=>({...prev,[p._id]:v}))} onSubmit={()=>updateStock(p._id)} className="flex gap-2">
                   <input className="form-input" type="number" min="0" style={{ padding: '4px 6px', fontSize: '0.72rem', width: 80 }} placeholder={String(p.stock)} value={stockEdits[p._id] ?? ''} onChange={(e) => setStockEdits({ ...stockEdits, [p._id]: e.target.value })} />
-                  <button type="button" className="btn" style={{ padding: '4px 10px', fontSize: '0.72rem' }} onClick={() => updateStock(p._id)}>Update</button>
-                </div>
+                  <button type="submit" className="btn" style={{ padding: '4px 10px', fontSize: '0.72rem' }}>Update</button>
+                </SavedForm>
               ])}
               empty="No physical listings yet."
             />
@@ -6762,8 +6692,8 @@ function SalaryPayoutProfilePanel({ onFlash }) {
   useEffect(() => { apiRequest('/institutions/payroll/payout-profile/me').then((data) => setForm({ preferredMethod: data.preferredMethod || 'platform_wallet', bank: data.bank || {}, mobileWallet: data.mobileWallet || {}, crypto: data.crypto || {} })).catch((err) => onFlash(err.message)); }, [onFlash]);
   if (!form) return <p className="admin-notice">Loading salary payout details...</p>;
   const setGroup = (group, key, value) => setForm((current) => ({ ...current, [group]: { ...current[group], [key]: value } }));
-  async function save(e) { e.preventDefault(); try { await apiRequest('/institutions/payroll/payout-profile/me', { method: 'PUT', body: form }); onFlash('Salary payout details saved.', 'success'); } catch (err) { onFlash(err.message); } }
-  return <form onSubmit={save} className="admin-section" style={{ marginTop: 18 }}>
+  async function save(e) { e.preventDefault(); try { await apiRequest('/institutions/payroll/payout-profile/me', { method: 'PUT', body: form }); onFlash('Salary payout details saved.', 'success'); return true; } catch (err) { onFlash(err.message); } }
+  return <SavedForm value={form} onRestore={setForm} onSubmit={save} className="admin-section" style={{ marginTop: 18 }}>
     <div className="admin-section-heading"><div><h2>Salary Payout Details</h2><p>Save once; institutions will see masked destinations when paying salary.</p></div></div>
     <div className="grid" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 10 }}>
       <label className="text-xs">Preferred method<select className="form-select" value={form.preferredMethod} onChange={(e) => setForm({ ...form, preferredMethod: e.target.value })}>{[['platform_wallet','CareerZ Wallet'],['stripe_transfer','Stripe Connect'],['bank_transfer','Bank transfer'],['mobile_wallet','Mobile wallet'],['crypto','Crypto wallet'],['cash','Cash']].map(([v,l]) => <option key={v} value={v}>{l}</option>)}</select></label>
@@ -6778,7 +6708,7 @@ function SalaryPayoutProfilePanel({ onFlash }) {
       <input className="form-input" placeholder="Crypto network (TRC20/ERC20)" value={form.crypto.network || ''} onChange={(e) => setGroup('crypto','network',e.target.value)} />
       <input className="form-input" placeholder="Crypto wallet address" value={form.crypto.address || ''} onChange={(e) => setGroup('crypto','address',e.target.value)} />
     </div><button className="btn btn-primary" style={{ marginTop: 12 }}>Save Payout Details</button>
-  </form>;
+  </SavedForm>;
 }
 
 // Real downloadable PDF invoice (unpaid) or receipt (paid) — same jsPDF pattern used for
@@ -9011,6 +8941,7 @@ function TeacherProfileDetailsPanel({ user, onFlash, onChanged }) {
       onFlash('Teaching profile updated.', 'success');
       onChanged?.();
       load();
+      return true;
     } catch (err) { onFlash(err.message); } finally { setSaving(false); }
   }
 
@@ -9020,6 +8951,7 @@ function TeacherProfileDetailsPanel({ user, onFlash, onChanged }) {
     <div className="admin-section admin-account-card" style={{ marginTop: 20 }}>
       <div className="admin-section-heading"><div><h2>Teaching Profile</h2><p>Subjects, experience and qualifications shown to institutions considering you as a class teacher.</p></div><FaChalkboardUser aria-hidden="true" /></div>
 
+      <SavedForm value={form} onRestore={setForm} onSubmit={submit} style={{ display: 'grid', gap: 16 }}>
       {/* Identity header — a teacher's photo + subjects is exactly what institutions and students
           see of them everywhere else (Find Teachers directory, course "Teacher:" byline), so this
           page — where they actually set that photo and those subjects — should show it too,
@@ -9043,7 +8975,7 @@ function TeacherProfileDetailsPanel({ user, onFlash, onChanged }) {
         </p>
       )}
 
-      <form onSubmit={submit} style={{ display: 'grid', gap: 16 }}>
+
         <div className="flex flex-wrap" style={{ gap: 14 }}>
           <label className="text-xs" style={{ color: 'var(--ink-soft)', fontWeight: 600, flex: '2 1 260px', minWidth: 0 }}>Subjects (comma separated)
             <input className="form-input" placeholder="e.g. Math, Physics" value={form.subjects} onChange={(e) => setForm({ ...form, subjects: e.target.value })} style={{ marginTop: 6 }} />
@@ -9078,13 +9010,24 @@ function TeacherProfileDetailsPanel({ user, onFlash, onChanged }) {
         </div>
 
         <button type="submit" className="btn btn-primary" style={{ padding: '8px 20px', justifySelf: 'start' }} disabled={saving}>{saving ? 'Saving...' : 'Save Teaching Profile'}</button>
-      </form>
+      </SavedForm>
     </div>
   );
 }
 
 function TeacherEarningsPanel({ onFlash }) {
   const [payslips, setPayslips] = useState(null);
+  const [payoutStatus, setPayoutStatus] = useState(null);
+  const [connecting, setConnecting] = useState(false);
+  useEffect(() => { apiRequest('/teachers/me/payout-status').then(setPayoutStatus).catch(() => setPayoutStatus(false)); }, []);
+  async function connectBank() {
+    setConnecting(true);
+    try {
+      const result = await apiRequest('/teachers/me/payout-onboarding', { method: 'POST' });
+      if (!result.url) throw new Error('Bank setup link could not be created.');
+      window.location.assign(result.url);
+    } catch (err) { onFlash(err.message); setConnecting(false); }
+  }
   useEffect(() => { apiRequest('/teachers/me/payslips').then(setPayslips).catch((err) => onFlash(err.message)); }, [onFlash]);
   async function reviewManualSalary(payslip, decision) {
     let rejectionReason = '';
@@ -9893,7 +9836,7 @@ function ExamSubmissionsView({ exam, submissions, onGrade }) {
         return (
           <div key={s._id} className="card" style={{ padding: 18, marginBottom: 14 }}>
             <div className="flex items-center justify-between">
-              <strong>{s.student?.fullName}</strong>
+              <strong>{s.student?.fullName}</strong><StudentGuardians studentId={s.student?._id}/>
               <span className="text-sm">{s.status === 'graded' ? `Final score: ${s.score}/${totalMarks || '—'}` : 'Teacher review pending'} · <Tag status={s.status === 'graded' ? 'approved' : 'pending'} label={s.status === 'graded' ? 'graded' : 'pending'} /></span>
             </div>
             <p className="text-sm" style={{ color: 'var(--ink-soft)', marginTop: 8 }}>Review every MCQ, short answer and long answer, then enter marks for each question.</p>
@@ -10061,7 +10004,7 @@ function TeacherStudentsPanel({ onFlash }) {
         <Table
           headers={['Name', 'Email', 'Lesson Progress', 'Overall Score', 'Completion', 'Action']}
           rows={enrollments.map((e) => [
-            e.student?.fullName, e.student?.email, `${e.progressPercent}%`, `${e.overallScore || 0}%`,
+            <div>{e.student?.fullName}<StudentGuardians studentId={e.student?._id}/></div>, e.student?.email, `${e.progressPercent}%`, `${e.overallScore || 0}%`,
             <Tag status={COMPLETION_STATUS_TAG[e.completionStatus] || 'pending'} label={COMPLETION_STATUS_LABEL[e.completionStatus] || e.completionStatus} />,
             <div className="flex gap-2"><button type="button" className="btn" style={{ padding: '4px 12px', fontSize: '0.72rem' }} onClick={() => openProfile(e)}>Academic Profile</button>{e.completionStatus === 'pending_approval' && <button type="button" className="btn btn-primary" style={{ padding: '4px 12px', fontSize: '0.72rem' }} onClick={() => approve(e.student?._id)}>Approve</button>}</div>
           ])}
@@ -10071,7 +10014,7 @@ function TeacherStudentsPanel({ onFlash }) {
       {profileView && (
         <div className="card" style={{ padding: 18, marginTop: 16 }}>
           <div className="flex justify-between items-center"><h4 className="font-semibold">{profileView.student?.fullName} — Academic Profile</h4><button type="button" className="btn" onClick={() => setProfileView(null)}>Close</button></div>
-          <div className="grid grid-cols-2 gap-3 mt-3"><p>Email: <strong>{profileView.student?.email}</strong></p><p>Course: <strong>{courses.find((course) => course._id === courseId)?.title}</strong></p><p>Lesson progress: <strong>{profileView.progressPercent}%</strong></p><p>Overall score: <strong>{profileView.overallScore || 0}%</strong></p><p>Completion: <strong>{COMPLETION_STATUS_LABEL[profileView.completionStatus] || profileView.completionStatus}</strong></p><p>Enrolled: <strong>{profileView.createdAt ? new Date(profileView.createdAt).toLocaleDateString() : '—'}</strong></p></div>
+          <StudentGuardians studentId={profileView.student?._id}/><div className="grid grid-cols-2 gap-3 mt-3"><p>Email: <strong>{profileView.student?.email}</strong></p><p>Course: <strong>{courses.find((course) => course._id === courseId)?.title}</strong></p><p>Lesson progress: <strong>{profileView.progressPercent}%</strong></p><p>Overall score: <strong>{profileView.overallScore || 0}%</strong></p><p>Completion: <strong>{COMPLETION_STATUS_LABEL[profileView.completionStatus] || profileView.completionStatus}</strong></p><p>Enrolled: <strong>{profileView.createdAt ? new Date(profileView.createdAt).toLocaleDateString() : '—'}</strong></p></div>
 
           <div style={{ marginTop: 16, paddingTop: 16, borderTop: '1px solid var(--sand-line)' }}>
             <p style={{ fontSize: 11, fontWeight: 700, letterSpacing: '.04em', textTransform: 'uppercase', color: 'var(--ink-soft)', marginBottom: 10 }}>Consolidated Timeline (all classes you teach this student)</p>
@@ -10149,7 +10092,7 @@ function IndependentTutoringPanel({ onFlash, courses }) {
         loading={links === null}
         headers={['Student', 'Course', 'Status', 'Action']}
         rows={(links || []).map((l) => [
-          l.student?.fullName || l.student?.email, l.course?.title,
+          <div>{l.student?.fullName || l.student?.email}<StudentGuardians studentId={l.student?._id}/></div>, l.course?.title,
           <Tag status={STATUS_TAG[l.status] || 'pending'} label={l.status} />,
           l.status === 'active' ? <button className="btn" style={{ padding: '4px 12px', fontSize: '0.75rem' }} onClick={() => setStatus(l._id, 'paused')}>Pause</button>
             : l.status === 'paused' ? <div className="flex gap-2"><button className="btn" style={{ padding: '4px 12px', fontSize: '0.75rem' }} onClick={() => setStatus(l._id, 'active')}>Resume</button><button className="btn" style={{ padding: '4px 12px', fontSize: '0.75rem' }} onClick={() => setStatus(l._id, 'completed')}>Complete</button></div>
@@ -10422,7 +10365,7 @@ function TeacherFaceAttendancePanel({ courseId, date, onFlash }) {
               const selected = String(selectedId) === String(student.studentId);
               return <button key={student.studentId} type="button" onClick={() => setSelectedId(student.studentId)} style={{ width: 112, padding: 8, borderRadius: 12, border: selected ? '2px solid var(--emerald)' : '1px solid var(--sand-line)', background: selected ? 'var(--sand)' : '#fff', textAlign: 'center' }}>
                 {student.profilePhoto ? <img src={student.profilePhoto} alt={student.fullName} style={{ width: 72, height: 72, borderRadius: 10, objectFit: 'cover', margin: '0 auto 6px' }} /> : <div style={{ width: 72, height: 72, borderRadius: 10, margin: '0 auto 6px', background: 'var(--sand)', display: 'grid', placeItems: 'center', fontSize: 24, fontWeight: 700 }}>{student.fullName?.[0]}</div>}
-                <span className="text-xs" style={{ fontWeight: 700 }}>{student.fullName}</span>
+                <span className="text-xs" style={{ fontWeight: 700 }}>{student.fullName}</span><StudentGuardians studentId={student.studentId}/>
               </button>;
             })}
           </div>
@@ -10457,7 +10400,7 @@ function TeacherFaceAttendancePanel({ courseId, date, onFlash }) {
           {remoteRequests.map((r) => (
             <div key={r._id} className="flex items-center justify-between flex-wrap" style={{ gap: 8, padding: '8px 12px', borderRadius: 10, background: 'var(--sand)' }}>
               <span className="text-sm">
-                <strong>{r.student?.fullName}</strong>{' '}
+                <strong>{r.student?.fullName}</strong><StudentGuardians studentId={r.student?._id}/>{' '}
                 <span style={{ color: r.distance <= 0.55 ? 'var(--emerald)' : 'var(--rose)', fontWeight: 600 }}>
                   {r.distance <= 0.55 ? 'Strong match' : 'Weak match'} (distance {r.distance.toFixed(2)})
                 </span>
@@ -10481,6 +10424,7 @@ function TeacherAttendancePanel({ onFlash }) {
   const [statuses, setStatuses] = useState({});
   const [reasons, setReasons] = useState({});
   const [history, setHistory] = useState([]);
+  const [historyLoaded, setHistoryLoaded] = useState(false);
   const [mode, setMode] = useState('manual');
 
   useEffect(() => {
@@ -10493,10 +10437,12 @@ function TeacherAttendancePanel({ onFlash }) {
   }, [courseId, onFlash]);
 
   function loadHistory() {
-    apiRequest('/teachers/me/attendance').then(setHistory).catch((err) => onFlash(err.message));
+    apiRequest('/teachers/me/attendance').then(rows=>{setHistory(rows);setHistoryLoaded(true);}).catch((err) => onFlash(err.message));
   }
   useEffect(loadHistory, []);
 
+  const savedSheet=history.find(h=>String(h.course?._id||h.course)===String(courseId)&&new Date(h.date).toISOString().slice(0,10)===date);
+  useEffect(()=>{const records=savedSheet?.records||[];setStatuses(Object.fromEntries(enrollments.map(en=>[en.student._id,records.find(r=>String(r.student?._id||r.student)===String(en.student._id))?.status||'present'])));setReasons(Object.fromEntries(records.map(r=>[String(r.student?._id||r.student),r.reason||''])));},[history,courseId,date,enrollments]);
   async function submit(e) {
     e.preventDefault();
     const records = enrollments.map((en) => ({
@@ -10507,7 +10453,7 @@ function TeacherAttendancePanel({ onFlash }) {
     try {
       await apiRequest('/teachers/me/attendance', { method: 'POST', body: { course: courseId, date, records } });
       onFlash('Attendance recorded.', 'success');
-      loadHistory();
+      loadHistory(); return true;
     } catch (err) { onFlash(err.message); }
   }
 
@@ -10530,8 +10476,8 @@ function TeacherAttendancePanel({ onFlash }) {
       {courseId && mode === 'qr' && <TeacherQrAttendancePanel courseId={courseId} date={date} onFlash={onFlash} />}
       {courseId && mode === 'face' && <TeacherFaceAttendancePanel courseId={courseId} date={date} onFlash={onFlash} />}
       {courseId && mode === 'gps' && <TeacherGpsAttendancePanel courseId={courseId} onFlash={onFlash} />}
-      {courseId && mode === 'manual' && enrollments.length > 0 && (
-        <form onSubmit={submit} className="card" style={{ padding: 20, marginBottom: 28 }}>
+      {courseId && mode === 'manual' && historyLoaded && enrollments.length > 0 && (
+        <SavedForm key={courseId+date+Boolean(savedSheet)} saved={Boolean(savedSheet)} value={{date,statuses,reasons}} onRestore={v=>{setDate(v.date);setStatuses(v.statuses);setReasons(v.reasons);}} onSubmit={submit} className="card" style={{ padding: 20, marginBottom: 28 }}>
           <div className="flex items-end flex-wrap" style={{ gap: 14, marginBottom: 18 }}>
             <label className="text-xs" style={{ color: 'var(--ink-soft)', fontWeight: 600 }}>Date
               <input type="date" className="form-input" value={date} onChange={(e) => setDate(e.target.value)} style={{ marginTop: 6 }} />
@@ -10546,7 +10492,7 @@ function TeacherAttendancePanel({ onFlash }) {
                   const status = statuses[en.student._id] || 'present';
                   return (
                     <tr key={en.student._id} className="border-b border-[var(--sand-line)] last:border-0">
-                      <td className="py-2 pr-4">{en.student.fullName}</td>
+                      <td className="py-2 pr-4">{en.student.fullName}<StudentGuardians studentId={en.student._id}/></td>
                       <td className="py-2 pr-4">
                         <select className="form-select" value={status} onChange={(e) => setStatuses({ ...statuses, [en.student._id]: e.target.value })}>
                           {['present', 'absent', 'late', 'excused', 'half_day'].map((s) => <option key={s} value={s}>{s}</option>)}
@@ -10563,7 +10509,7 @@ function TeacherAttendancePanel({ onFlash }) {
               </tbody>
             </table>
           </div>
-        </form>
+        </SavedForm>
       )}
       <h3 className="font-semibold" style={{ marginBottom: 14 }}>Attendance History</h3>
       <Table headers={['Date', 'Marked']} rows={history.map((h) => [new Date(h.date).toLocaleDateString(), `${h.records.length} students`])} empty="No attendance recorded yet." />
@@ -10675,7 +10621,7 @@ function TeacherHomeworkPanel({ onFlash }) {
                   {submissions === null && <p role="status" className="admin-notice">Loading student submissions…</p>}
                   {submissions?.length === 0 && <div className="admin-notice"><strong>No submissions received yet.</strong><p className="text-xs mt-2">The student may have submitted a different duplicate assignment. Keep one assignment and ask them to submit against this exact item.</p></div>}
                   {(submissions || []).map((s) => <article key={s._id} className="card" style={{ padding: 18 }}>
-                    <div className="flex items-start justify-between flex-wrap" style={{ gap: 10 }}><div><h4>{s.student?.fullName || 'Student'}</h4><p className="text-xs" style={{ color: 'var(--ink-soft)' }}>{s.student?.email || ''} · Submitted {s.submittedAt ? new Date(s.submittedAt).toLocaleString() : 'recently'}</p></div><div className="flex gap-2"><Tag status={s.status === 'graded' ? 'approved' : s.status === 'resubmit_requested' ? 'rejected' : 'pending'} label={s.status.replace('_', ' ')} />{s.late ? <Tag status="rejected" label="Late" /> : <Tag status="approved" label="On time" />}</div></div>
+                    <div className="flex items-start justify-between flex-wrap" style={{ gap: 10 }}><div><h4>{s.student?.fullName || 'Student'}</h4><StudentGuardians studentId={s.student?._id}/><p className="text-xs" style={{ color: 'var(--ink-soft)' }}>{s.student?.email || ''} · Submitted {s.submittedAt ? new Date(s.submittedAt).toLocaleString() : 'recently'}</p></div><div className="flex gap-2"><Tag status={s.status === 'graded' ? 'approved' : s.status === 'resubmit_requested' ? 'rejected' : 'pending'} label={s.status.replace('_', ' ')} />{s.late ? <Tag status="rejected" label="Late" /> : <Tag status="approved" label="On time" />}</div></div>
                     <div style={{ marginTop: 14, padding: 14, borderRadius: 10, background: 'var(--sand)' }}><strong className="text-sm">Student work</strong>{s.text ? <p className="text-sm mt-2" style={{ whiteSpace: 'pre-wrap', lineHeight: 1.6 }}>{s.text}</p> : <p className="text-xs mt-2" style={{ color: 'var(--ink-soft)' }}>Submitted as uploaded file.</p>}{(s.attachments || []).map((item, index) => <a key={index} href={item.url} target="_blank" rel="noreferrer" className="btn mt-2" style={{ display: 'inline-flex', marginRight: 8 }}>Open {item.name || 'attachment'} <FaArrowUpRightFromSquare aria-hidden="true" /></a>)}</div>
                     {s.status === 'graded' ? <div className="admin-notice" style={{ marginTop: 12 }}><strong>{['homework', 'worksheet'].includes(assignments.find((item) => item._id === openAssignment)?.type) ? 'Homework reviewed' : `Graded: ${s.marksObtained}/${assignments.find((item) => item._id === openAssignment)?.maxMarks}`}</strong>{s.feedback && <p className="text-xs mt-1">Feedback: {s.feedback}</p>}</div> : <div className="flex gap-2 flex-wrap items-center mt-3"><GradeForm usesMarks={!['homework', 'worksheet'].includes(assignments.find((item) => item._id === openAssignment)?.type)} maxMarks={assignments.find((item) => item._id === openAssignment)?.maxMarks} onSubmit={(marks, fb) => grade(s._id, marks, fb)} /><button type="button" className="btn" onClick={() => requestResubmit(s._id)}>Request revision</button></div>}
                   </article>)}
@@ -10745,7 +10691,7 @@ function TeacherResultsPanel({ onFlash }) {
           headers={['Student', 'Assessment', 'Term', 'Marks', 'Percentage', 'Grade', 'Source']}
           rows={results.map((result) => {
             const percentage = Number(result.totalMarks) > 0 ? (Number(result.marksObtained) / Number(result.totalMarks)) * 100 : 0;
-            return [<span><strong>{result.student?.fullName || 'Student'}</strong><br /><small>{result.student?.email || ''}</small></span>, result.exam?.title || result.subject || 'Offline result', result.term || '—', `${result.marksObtained}/${result.totalMarks}`, `${percentage.toFixed(2)}%`, result.grade || '—', result.exam ? <Tag status="approved" label="Online exam" /> : <Tag status="pending" label="Offline / paper" />];
+            return [<span><strong>{result.student?.fullName || 'Student'}</strong><StudentGuardians studentId={result.student?._id}/><br /><small>{result.student?.email || ''}</small></span>, result.exam?.title || result.subject || 'Offline result', result.term || '—', `${result.marksObtained}/${result.totalMarks}`, `${percentage.toFixed(2)}%`, result.grade || '—', result.exam ? <Tag status="approved" label="Online exam" /> : <Tag status="pending" label="Offline / paper" />];
           })}
           empty="No graded results recorded for this course yet."
         />
@@ -11094,7 +11040,7 @@ function ParentWorkspace({ tab, user, onFlash, onChanged, onNavigate,onMessageUs
   if (tab === 'teacherMessages') return <ParentTeacherMessagesPanel onFlash={onFlash} onNavigate={onNavigate} onMessageUser={onMessageUser}/>;
   if (tab === 'wallet') return <FamilyPayments onFlash={onFlash} />;
   if (tab === 'health') return <MedicalHealth mode="parent" onFlash={onFlash} />;
-  if (tab === 'permissions') return <><FamilyAcademic kind="permissions" onFlash={onFlash} /><ParentPermissionsPanel onFlash={onFlash} /></>;
+  if (tab === 'permissions') return <><FamilyAcademic kind="permissions" onFlash={onFlash} /></>;
   if (tab === 'ptm') return <ParentPtmPanel onFlash={onFlash} />;
   if (tab === 'aiAssistant') return <ParentAiAssistantPanel onFlash={onFlash} />;
   if (tab === 'transport') return <ParentTransportPanel onFlash={onFlash} />;
@@ -11604,7 +11550,7 @@ function PtmMeetingDetails({ meeting, myRole, onFlash, onChanged }) {
   }
   async function saveMinutes() {
     setSavingMinutes(true);
-    try { await apiRequest(`/ptm/${meeting._id}/minutes`, { method: 'PATCH', body: { minutes } }); onFlash('Minutes saved.', 'success'); onChanged(); } catch (err) { onFlash(err.message); } finally { setSavingMinutes(false); }
+    try { await apiRequest(`/ptm/${meeting._id}/minutes`, { method: 'PATCH', body: { minutes } }); onFlash('Minutes saved.', 'success'); onChanged(); return true; } catch (err) { onFlash(err.message); } finally { setSavingMinutes(false); }
   }
   async function addAction(e) {
     e.preventDefault();
@@ -11629,8 +11575,8 @@ function PtmMeetingDetails({ meeting, myRole, onFlash, onChanged }) {
     <div style={{ marginTop: 10, paddingTop: 10, borderTop: '1px solid var(--sand-line)' }}>
       {meeting.noShow && <Tag status="rejected" label="No-show" />}
       <label className="text-xs" style={{ display: 'block', color: 'var(--ink-soft)', fontWeight: 600, margin: '8px 0 4px' }}>Meeting Minutes</label>
-      <textarea className="form-input" rows={2} value={minutes} onChange={(e) => setMinutes(e.target.value)} placeholder="What was discussed..." />
-      <button type="button" className="btn" style={{ padding: '4px 10px', fontSize: '0.72rem', marginTop: 4 }} disabled={savingMinutes} onClick={saveMinutes}>Save Minutes</button>
+      <SavedForm key={meeting._id} saved={Boolean(meeting.minutes)} value={minutes} onRestore={setMinutes} onSubmit={saveMinutes}><textarea className="form-input" rows={2} value={minutes} onChange={(e) => setMinutes(e.target.value)} placeholder="What was discussed..." />
+      <button type="submit" className="btn" style={{ padding: '4px 10px', fontSize: '0.72rem', marginTop: 4 }} disabled={savingMinutes}>Save Minutes</button></SavedForm>
 
       <label className="text-xs" style={{ display: 'block', color: 'var(--ink-soft)', fontWeight: 600, margin: '10px 0 4px' }}>Follow-up Action Items</label>
       {(meeting.actionItems || []).map((item) => (
@@ -11655,7 +11601,7 @@ function ParentPtmPanel({ onFlash }) {
   const [children, setChildren] = useState(null);
   const [childId, setChildId] = useState('');
   const [teachers, setTeachers] = useState(null);
-  const [form, setForm] = useState({ teacherId: '', requestedDate: '', mode: 'video', notes: '' });
+  const [form, setForm] = useState({ teacherId: '', courseId: '', timetableId: '', contextKey: '', requestedDate: '', mode: 'video', notes: '' });
   const [meetings, setMeetings] = useState(null);
   const [recurring, setRecurring] = useState(null);
   const [expanded, setExpanded] = useState(null);
@@ -11669,20 +11615,26 @@ function ParentPtmPanel({ onFlash }) {
 
   useEffect(() => {
     if (!childId) return;
+    setForm({teacherId:'',courseId:'',timetableId:'',contextKey:'',requestedDate:'',mode:'video',notes:''});
     apiRequest(`/parents/children/${childId}/teachers`).then(setTeachers).catch((err) => onFlash(err.message));
     apiRequest(`/ptm/recurring/for-child/${childId}`).then(setRecurring).catch(() => setRecurring([]));
   }, [childId, onFlash]);
 
   function loadMeetings() { apiRequest('/ptm/mine').then(setMeetings).catch((err) => onFlash(err.message)); }
-  useEffect(loadMeetings, []);
+  useEffect(() => {
+    loadMeetings();
+    const timer=window.setInterval(loadMeetings,10000);
+    window.addEventListener('focus',loadMeetings);
+    return()=>{window.clearInterval(timer);window.removeEventListener('focus',loadMeetings);};
+  }, []);
 
   async function submitRequest(e) {
     e.preventDefault();
     if (!form.teacherId || !form.requestedDate) return onFlash('Pick a teacher and a date/time.');
     try {
-      await apiRequest('/ptm', { method: 'POST', body: { studentId: childId, ...form } });
+      await apiRequest('/ptm', { method: 'POST', body: { studentId: childId, ...form, requestedDate:new Date(form.requestedDate).toISOString() } });
       onFlash('Meeting request sent. Waiting for the teacher to confirm.', 'success');
-      setForm({ teacherId: '', requestedDate: '', mode: 'video', notes: '' });
+      setForm({ teacherId: '', courseId: '', timetableId: '', contextKey: '', requestedDate: '', mode: 'video', notes: '' });
       loadMeetings();
     } catch (err) { onFlash(err.message); }
   }
@@ -11722,7 +11674,7 @@ function ParentPtmPanel({ onFlash }) {
           <strong className="text-sm">Recurring Slots — Book Directly</strong>
           {recurring.map((s) => (
             <div key={s._id} className="flex items-center justify-between flex-wrap" style={{ gap: 8, padding: '6px 0' }}>
-              <span className="text-xs">{s.title} ({s.teacher?.fullName}) — {s.frequency}</span>
+              <span className="text-xs">{s.title} · {children.find(c=>c.id===childId)?.name} · {s.className||'Class not assigned'} · {s.subject||'Subject not recorded'} · {s.teacher?.fullName} · {s.institution?.name||'Independent teaching'} — {s.frequency}</span>
               <div className="flex gap-2 flex-wrap">
                 {s.upcoming.slice(0, 2).map((d) => (
                   <button key={d} type="button" className="btn" style={{ padding: '4px 10px', fontSize: '0.72rem' }} onClick={() => bookRecurring(s._id, d)}>{new Date(d).toLocaleDateString()}</button>
@@ -11739,8 +11691,8 @@ function ParentPtmPanel({ onFlash }) {
         {teachers?.length === 0 && <p className="admin-notice">No teachers found yet — this child's class timetable isn't set up.</p>}
         {teachers?.length > 0 && (
           <CustomSelect
-            value={form.teacherId} onChange={(v) => setForm({ ...form, teacherId: v })} ariaLabel="Teacher" minWidth="100%"
-            options={teachers.map((t) => ({ value: t.teacher._id, label: `${t.teacher.fullName}${t.subjects.length > 0 ? ` — ${t.subjects.join(', ')}` : ''}` }))}
+            value={form.contextKey} onChange={(v) => { const t=teachers.find(t=>[t.teacher._id,t.courseId,t.timetableId].join(':')===v); if(t)setForm({...form,contextKey:v,teacherId:t.teacher._id,courseId:t.courseId,timetableId:t.timetableId}); }} ariaLabel="Teacher" minWidth="100%"
+            options={teachers.map(t=>({value:[t.teacher._id,t.courseId,t.timetableId].join(':'),label:[t.teacher.fullName,t.subject,t.className||'Class not assigned',t.schoolName||'Independent teaching'].join(' · ')}))}
           />
         )}
         <input className="form-input" type="datetime-local" value={form.requestedDate} onChange={(e) => setForm({ ...form, requestedDate: e.target.value })} required />
@@ -11759,7 +11711,7 @@ function ParentPtmPanel({ onFlash }) {
               <div>
                 <strong className="text-sm">{m.teacher?.fullName || '—'}</strong>
                 <p className="text-xs" style={{ color: 'var(--ink-soft)' }}>{m.subject || '—'} · {new Date(m.confirmedDate || m.requestedDate).toLocaleString()} · {m.mode === 'video' ? 'Video' : 'In Person'}</p>
-                {m.status === 'confirmed' && <p className="text-xs mt-1">{m.mode === 'video' ? (m.meetingLink ? <a href={m.meetingLink} target="_blank" rel="noreferrer">Join Link</a> : 'Link pending') : (m.location || 'Location pending')}</p>}
+                {m.status === 'confirmed' && m.mode === 'physical' && <p className="text-xs mt-1">{m.location || 'Location pending'}</p>}
               </div>
               <Tag status={PTM_STATUS_TAG[m.status] || 'pending'} label={m.status} />
             </div>
@@ -11767,6 +11719,7 @@ function ParentPtmPanel({ onFlash }) {
               {['pending', 'confirmed'].includes(m.status) && <button className="btn" style={{ padding: '4px 10px', fontSize: '0.75rem', background: 'var(--sand-line)' }} onClick={() => cancelMeeting(m._id)}>Cancel</button>}
               {['confirmed', 'completed'].includes(m.status) && <button className="btn" style={{ padding: '4px 10px', fontSize: '0.75rem' }} onClick={() => setExpanded(expanded === m._id ? null : m._id)}>{expanded === m._id ? 'Hide' : 'Details'}</button>}
             </div>
+            <PtmHistory meeting={m} />
             {expanded === m._id && <PtmMeetingDetails meeting={m} myRole="parent" onFlash={onFlash} onChanged={loadMeetings} />}
           </div>
         ))}
@@ -11776,82 +11729,30 @@ function ParentPtmPanel({ onFlash }) {
   );
 }
 
-function TeacherRecurringPtmPanel({ onFlash }) {
-  const [schedules, setSchedules] = useState(null);
-  const [form, setForm] = useState({ title: '', frequency: 'monthly', dayOfWeek: 1, dayOfMonth: 15, time: '16:00', mode: 'video', meetingLink: '', location: '' });
 
-  function load() { apiRequest('/ptm/recurring/mine').then(setSchedules).catch(() => setSchedules([])); }
-  useEffect(load, []);
-
-  async function create(e) {
-    e.preventDefault();
-    try {
-      await apiRequest('/ptm/recurring', { method: 'POST', body: form });
-      onFlash('Recurring schedule created.', 'success');
-      setForm({ title: '', frequency: 'monthly', dayOfWeek: 1, dayOfMonth: 15, time: '16:00', mode: 'video', meetingLink: '', location: '' });
-      load();
-    } catch (err) { onFlash(err.message); }
-  }
-  async function toggleActive(id, active) {
-    try { await apiRequest(`/ptm/recurring/${id}`, { method: 'PATCH', body: { active } }); load(); } catch (err) { onFlash(err.message); }
-  }
-
-  return (
-    <div className="admin-section" style={{ marginTop: 20 }}>
-      <div className="admin-section-heading"><div><h2>Recurring PTM Schedule</h2><p>Set a repeating slot once — parents book directly into real upcoming dates.</p></div></div>
-      <form onSubmit={create} className="flex gap-2 items-end flex-wrap mb-4">
-        <input className="form-input" placeholder="Title" required value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })} style={{ maxWidth: 180 }} />
-        <select className="form-select" value={form.frequency} onChange={(e) => setForm({ ...form, frequency: e.target.value })}>
-          <option value="weekly">Weekly</option>
-          <option value="monthly">Monthly</option>
-        </select>
-        {form.frequency === 'weekly'
-          ? <select className="form-select" value={form.dayOfWeek} onChange={(e) => setForm({ ...form, dayOfWeek: Number(e.target.value) })}>
-              {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map((d, i) => <option key={d} value={i}>{d}</option>)}
-            </select>
-          : <input className="form-input" type="number" min="1" max="28" value={form.dayOfMonth} onChange={(e) => setForm({ ...form, dayOfMonth: Number(e.target.value) })} style={{ maxWidth: 90 }} placeholder="Day of month" />}
-        <input className="form-input" type="time" value={form.time} onChange={(e) => setForm({ ...form, time: e.target.value })} style={{ maxWidth: 120 }} />
-        <select className="form-select" value={form.mode} onChange={(e) => setForm({ ...form, mode: e.target.value })}>
-          <option value="video">Video</option>
-          <option value="physical">In Person</option>
-        </select>
-        {form.mode === 'video'
-          ? <input className="form-input" placeholder="Meeting link" value={form.meetingLink} onChange={(e) => setForm({ ...form, meetingLink: e.target.value })} style={{ minWidth: 160 }} />
-          : <input className="form-input" placeholder="Location" value={form.location} onChange={(e) => setForm({ ...form, location: e.target.value })} style={{ minWidth: 160 }} />}
-        <button type="submit" className="btn btn-primary">Create</button>
-      </form>
-      <Table
-        loading={schedules === null}
-        headers={['Title', 'Frequency', 'Time', 'Next Occurrences', 'Status', 'Action']}
-        rows={(schedules || []).map((s) => [
-          s.title, s.frequency, s.time,
-          s.upcoming.slice(0, 2).map((d) => new Date(d).toLocaleDateString()).join(', '),
-          <Tag status={s.active ? 'approved' : 'rejected'} label={s.active ? 'Active' : 'Inactive'} />,
-          <button className="btn" style={{ padding: '4px 10px', fontSize: '0.75rem' }} onClick={() => toggleActive(s._id, !s.active)}>{s.active ? 'Deactivate' : 'Activate'}</button>
-        ])}
-        empty="No recurring schedules yet."
-      />
-    </div>
-  );
-}
 
 function TeacherPtmPanel({ onFlash }) {
   const [meetings, setMeetings] = useState(null);
   const [respondFormFor, setRespondFormFor] = useState(null);
-  const [respondForm, setRespondForm] = useState({ confirmedDate: '', meetingLink: '', location: '' });
+  const [respondForm, setRespondForm] = useState({ confirmedDate: '', location: '' });
   const [expanded, setExpanded] = useState(null);
 
   function load() { apiRequest('/ptm/mine').then(setMeetings).catch((err) => onFlash(err.message)); }
-  useEffect(load, []);
+  useEffect(() => {
+    load();
+    const timer = window.setInterval(load, 10000);
+    window.addEventListener('focus', load);
+    return () => { window.clearInterval(timer); window.removeEventListener('focus', load); };
+  }, []);
 
   function startRespond(m) {
     setRespondFormFor(m._id);
-    setRespondForm({ confirmedDate: m.requestedDate ? m.requestedDate.slice(0, 16) : '', meetingLink: '', location: '' });
+    setRespondForm({ confirmedDate: m.requestedDate ? new Date(new Date(m.requestedDate).getTime() - new Date(m.requestedDate).getTimezoneOffset() * 60000).toISOString().slice(0, 16) : '', location: '' });
   }
 
   async function respond(m, decision) {
     try {
-      await apiRequest(`/ptm/${m._id}/respond`, { method: 'PATCH', body: { decision, ...respondForm } });
+      await apiRequest(`/ptm/${m._id}/respond`, { method: 'PATCH', body: { decision, ...respondForm, confirmedDate:respondForm.confirmedDate?new Date(respondForm.confirmedDate).toISOString():undefined } });
       onFlash(`Meeting ${decision}.`, 'success');
       setRespondFormFor(null);
       load();
@@ -11893,7 +11794,7 @@ function TeacherPtmPanel({ onFlash }) {
                   <input type="datetime-local" className="form-input" value={respondForm.confirmedDate} onChange={(e) => setRespondForm({ ...respondForm, confirmedDate: e.target.value })} style={{ marginTop: 6 }} />
                 </label>
                 {m.mode === 'video'
-                  ? <input className="form-input" placeholder="Meeting link" value={respondForm.meetingLink} onChange={(e) => setRespondForm({ ...respondForm, meetingLink: e.target.value })} style={{ flex: '1 1 200px', minWidth: 0 }} />
+                  ? <p className="text-xs">The existing video meeting setup is assigned automatically on confirmation.</p>
                   : <input className="form-input" placeholder="Location" value={respondForm.location} onChange={(e) => setRespondForm({ ...respondForm, location: e.target.value })} style={{ flex: '1 1 200px', minWidth: 0 }} />}
                 <button type="button" className="btn btn-primary" style={{ padding: '7px 14px', fontSize: '0.78rem' }} onClick={() => respond(m, 'confirmed')}>Confirm</button>
                 <button type="button" className="btn" style={{ padding: '7px 14px', fontSize: '0.78rem', background: 'var(--sand-line)' }} onClick={() => respond(m, 'declined')}>Decline</button>
@@ -11902,7 +11803,7 @@ function TeacherPtmPanel({ onFlash }) {
             )}
             {m.status === 'confirmed' && (
               <div className="flex items-center justify-between flex-wrap" style={{ marginTop: 10, gap: 10 }}>
-                <p className="text-xs">{new Date(m.confirmedDate).toLocaleString()} · {m.mode === 'video' ? (m.meetingLink || 'No link set') : (m.location || 'No location set')}</p>
+                <p className="text-xs">{new Date(m.confirmedDate).toLocaleString()} · {m.mode === 'video' ? 'Video meeting ready' : (m.location || 'No location set')}</p>
                 <div className="flex gap-2">
                   <button className="btn" style={{ padding: '5px 12px', fontSize: '0.75rem', background: 'var(--sand-line)' }} onClick={() => cancelMeeting(m._id)}>Cancel</button>
                   <button className="btn" style={{ padding: '5px 12px', fontSize: '0.75rem' }} onClick={() => setExpanded(expanded === m._id ? null : m._id)}>{expanded === m._id ? 'Hide' : 'Details'}</button>
@@ -11912,11 +11813,12 @@ function TeacherPtmPanel({ onFlash }) {
             {m.status === 'completed' && (
               <button className="btn" style={{ padding: '4px 10px', fontSize: '0.75rem', marginTop: 8 }} onClick={() => setExpanded(expanded === m._id ? null : m._id)}>{expanded === m._id ? 'Hide' : 'Minutes & Action Items'}</button>
             )}
+            <PtmHistory meeting={m} />
             {expanded === m._id && <PtmMeetingDetails meeting={m} myRole="teacher" onFlash={onFlash} onChanged={load} />}
           </div>
         ))}
       </div>
-      <TeacherRecurringPtmPanel onFlash={onFlash} />
+      <TeacherSchedulePtm onFlash={onFlash} onCreated={load} />
     </div>
   );
 }
@@ -11998,7 +11900,7 @@ function ParentChildPicker({ children, studentId, setStudentId }) {
   ) : selected ? (
     <div className="flex items-center" style={{ gap: 10, marginBottom: 18 }}>
       <span style={{ width: 32, height: 32, borderRadius: '50%', background: 'var(--emerald)', color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 700, fontSize: 13, flexShrink: 0 }}>{selected.student.fullName[0]}</span>
-      <strong className="text-sm">{selected.student.fullName}</strong>
+      <strong className="text-sm">{selected.student.fullName}</strong><StudentGuardians studentId={selected.student._id}/>
     </div>
   ) : null;
 }
@@ -12055,7 +11957,7 @@ function ParentHealthPanel({ onFlash }) {
           emergencyContact: { name: form.emergencyName, phone: form.emergencyPhone, relation: form.emergencyRelation }
         }
       });
-      onFlash('Health record updated.', 'success');
+      onFlash('Health record updated.', 'success'); return true;
     } catch (err) { onFlash(err.message); } finally { setSaving(false); }
   }
 
@@ -12078,7 +11980,7 @@ function ParentHealthPanel({ onFlash }) {
       <>
       <p className="text-xs" style={{ color: 'var(--ink-soft)', marginBottom: 16 }}>Only you and your child's authorized institution staff can see this — it is never shown publicly.</p>
       {!form ? <p role="status" className="admin-notice">Loading...</p> : (
-        <form onSubmit={save} style={{ display: 'grid', gap: 12, maxWidth: 440, padding: 18, border: '1px solid var(--sand-line)', borderRadius: 14 }}>
+        <SavedForm key={studentId} value={form} onRestore={setForm} onSubmit={save} style={{ display: 'grid', gap: 12, maxWidth: 440, padding: 18, border: '1px solid var(--sand-line)', borderRadius: 14 }}>
           <label className="text-xs" style={{ color: 'var(--ink-soft)', fontWeight: 600 }}>Blood Group
             <input className="form-input" value={form.bloodGroup} onChange={(e) => setForm({ ...form, bloodGroup: e.target.value })} style={{ marginTop: 6 }} placeholder="e.g. O+" />
           </label>
@@ -12100,7 +12002,7 @@ function ParentHealthPanel({ onFlash }) {
             </label>
           </div>
           <button type="submit" className="btn btn-primary" style={{ padding: '9px 20px', justifySelf: 'start' }} disabled={saving}>{saving ? 'Saving...' : 'Save Health Record'}</button>
-        </form>
+        </SavedForm>
       )}
       <h4 className="font-semibold mt-6 mb-2">Vaccination History</h4>
       <Table headers={['Vaccine', 'Date', 'Notes']} rows={extra.vaccinations.map((v) => [v.name, v.date ? new Date(v.date).toLocaleDateString() : '—', v.notes || '—'])} empty="No vaccination records on file." />
@@ -12218,6 +12120,8 @@ function ParentSummary({ onNavigate }) {
 
   if (error) return <div role="alert" className="admin-notice error">{error}</div>;
   if (!dash) return <p role="status" className="admin-notice">Loading your dashboard...</p>;
+  const verificationNotice=dash.pendingVerification?.length>0&&<div role="status" className="card" style={{padding:20,marginBottom:20}}><h2>School verification needed</h2><p>{dash.pendingVerification.map(c=>c.name).join(', ')}: private school records are locked until guardian documents are approved by the school.</p><button className="btn btn-primary" onClick={()=>onNavigate?.('children')}>Open My Children to submit documents</button></div>;
+  if (dash.children.length === 0 && dash.pendingVerification?.length) return verificationNotice;
   if (dash.children.length === 0) {
     return (
       <div className="student-empty-state" style={{ border: '1px solid var(--sand-line)', borderRadius: 18, minHeight: 200 }}>
@@ -12246,6 +12150,8 @@ function ParentSummary({ onNavigate }) {
 
   return (
     <>
+      {verificationNotice}
+      <ParentUpdates />
       {/* 1. Children Overview */}
       <div className="dash-section-title" style={{ marginTop: -12 }}><h2>Children Overview</h2></div>
       <div className="grid grid-cols-1 md:grid-cols-2" style={{ gap: 14 }}>
@@ -13533,9 +13439,9 @@ function InstitutionStudentsPanel({ onFlash }) {
   async function assignClass(profileId) {
     const e = edits[profileId] || {};
     try {
-      await apiRequest(`/institutions/students/${profileId}/status`, { method: 'PATCH', body: { classSection: e.classSection ?? undefined, rollNumber: e.rollNumber ?? undefined } });
+      await apiRequest(`/institutions/students/${profileId}/status`, { method: 'PATCH', body: { status: e.status ?? undefined, classSection: e.classSection ?? undefined, rollNumber: e.rollNumber ?? undefined } });
       onFlash('Class / roll number updated.', 'success');
-      load();
+      load(); return true;
     } catch (err) { onFlash(err.message); }
   }
 
@@ -13554,12 +13460,12 @@ function InstitutionStudentsPanel({ onFlash }) {
       <Table
         headers={['Name', 'Email', 'Roll No.', 'Class', 'Status', 'Action']}
         rows={(students || []).map((s) => {
-          const edit = edits[s._id] || { classSection: s.classSection?._id || '', rollNumber: s.rollNumber || '' };
+          const edit = edits[s._id] || { status: s.status, classSection: s.classSection?._id || '', rollNumber: s.rollNumber || '' };
           return [
-            s.user?.fullName, s.user?.email, s.rollNumber || '—', s.classSection?.name || '—',
+            <div>{s.user?.fullName}<StudentGuardians studentId={s.user?._id}/>{s.parentEmail&&<p className="text-xs">Student-provided guardian: {s.parentName||s.parentRelationship} · {s.parentEmail}</p>}</div>, s.user?.email, s.rollNumber || '—', s.classSection?.name || '—',
             <Tag status={s.status === 'active' ? 'approved' : s.status === 'suspended' ? 'rejected' : 'pending'} />,
-            <div className="flex gap-2 items-center flex-wrap">
-              <select className="form-input" value={s.status} onChange={(e) => changeStatus(s._id, e.target.value)} style={{ padding: '4px 8px', fontSize: '0.78rem' }}>
+            <SavedForm key={s._id} showValues={false} value={edit} onRestore={value=>setEdits(prev=>({...prev,[s._id]:value}))} onSubmit={()=>assignClass(s._id)} className="flex gap-2 items-center flex-wrap">
+              <select className="form-input" value={edit.status} onChange={(e) => setEdits(prev=>({...prev,[s._id]:{...edit,status:e.target.value}}))} style={{ padding: '4px 8px', fontSize: '0.78rem' }}>
                 {['active', 'suspended', 'graduated', 'transferred'].map((st) => <option key={st} value={st}>{st}</option>)}
               </select>
               <select className="form-input" value={edit.classSection} onChange={(e) => setEdits({ ...edits, [s._id]: { ...edit, classSection: e.target.value } })} style={{ padding: '4px 8px', fontSize: '0.78rem' }}>
@@ -13567,8 +13473,8 @@ function InstitutionStudentsPanel({ onFlash }) {
                 {sections.map((sec) => <option key={sec._id} value={sec._id}>{sec.name}</option>)}
               </select>
               <input className="form-input" placeholder="Roll No." value={edit.rollNumber} onChange={(e) => setEdits({ ...edits, [s._id]: { ...edit, rollNumber: e.target.value } })} style={{ padding: '4px 8px', fontSize: '0.78rem', width: 90 }} />
-              <button type="button" className="btn" style={{ padding: '4px 10px', fontSize: '0.72rem' }} onClick={() => assignClass(s._id)}>Save</button>
-            </div>
+              <button type="submit" className="btn" style={{ padding: '4px 10px', fontSize: '0.72rem' }}>Save</button>
+            </SavedForm>
           ];
         })}
         empty="No students linked to this institution yet."
@@ -15589,6 +15495,7 @@ function HostelAttendanceSection({ rooms, onFlash, readOnly = false }) {
 
   useEffect(() => {
     if (!roomId) { setRecords(null); return; }
+    setRecords(null);
     apiRequest(`/institution-ops/hostel-rooms/${roomId}/attendance?date=${date}`).then((saved) => {
       setRecords(saved);
       setStatuses(Object.fromEntries(saved.map((record) => [record.student?._id || record.student, record.status])));
@@ -15601,7 +15508,7 @@ function HostelAttendanceSection({ rooms, onFlash, readOnly = false }) {
     try {
       await apiRequest(`/institution-ops/hostel-rooms/${roomId}/attendance`, { method: 'POST', body: { date, entries } });
       onFlash('Attendance recorded.', 'success');
-      apiRequest(`/institution-ops/hostel-rooms/${roomId}/attendance?date=${date}`).then(setRecords);
+      setRecords(await apiRequest(`/institution-ops/hostel-rooms/${roomId}/attendance?date=${date}`)); return true;
     } catch (err) { onFlash(err.message); }
   }
 
@@ -15615,10 +15522,10 @@ function HostelAttendanceSection({ rooms, onFlash, readOnly = false }) {
           </select>
         </label>
         <label className="text-xs">Date<input type="date" className="form-input" style={{ marginTop: 4 }} value={date} onChange={(e) => setDate(e.target.value)} /></label>
-        {room && !readOnly && <button type="button" className="btn btn-primary" onClick={submit}>Save Attendance</button>}
+
       </div>
-      {room && (room.occupants || []).length > 0 && (
-        <Table
+      {room && records!==null && (room.occupants || []).length > 0 && (
+<SavedForm key={roomId+date+Boolean(records?.length)} saved={Boolean(records?.length)} canEdit={!readOnly} value={statuses} onRestore={setStatuses} onSubmit={submit}><Table
           headers={['Student', 'Status', 'Saved record']}
           rows={room.occupants.map((o) => {
             const existing = (records || []).find((rec) => (rec.student?._id || rec.student) === o._id);
@@ -15635,9 +15542,9 @@ function HostelAttendanceSection({ rooms, onFlash, readOnly = false }) {
             ];
           })}
           empty="No occupants in this room."
-        />
+        /><button type="submit" className="btn btn-primary">Save Attendance</button></SavedForm>
       )}
-      {room && records?.length > 0 && <p className="admin-notice" style={{ marginTop: 12 }}>Saved attendance loaded for <strong>{date}</strong>. {readOnly ? 'Institution monitoring is read-only; the assigned warden records daily attendance.' : 'Changing the status and saving again updates this record; it does not create a duplicate.'}</p>}
+      {room && records?.length > 0 && <p className="admin-notice" style={{ marginTop: 12 }}>Saved attendance loaded for <strong>{date}</strong>. {readOnly ? 'Institution monitoring is read-only; the assigned warden records daily attendance.' : 'Use Edit to update this saved record. Saving updates it without creating a duplicate.'}</p>}
       {room && readOnly && records?.length === 0 && <p className="admin-notice" style={{ marginTop: 12 }}>No attendance has been recorded by the assigned warden for <strong>{date}</strong>.</p>}
     </div>
   );
@@ -15946,6 +15853,7 @@ function VehicleManageSection({ vehicle, onFlash, onSaved }) {
       await apiRequest(`/institution-ops/vehicles/${vehicle._id}`, { method: 'PATCH', body: { stopPoints: stops.filter((s) => s.name.trim()), insuranceExpiry: insuranceExpiry || null, fitnessExpiry: fitnessExpiry || null } });
       onFlash('Route/vehicle details saved.', 'success');
       onSaved();
+      return true;
     } catch (err) { onFlash(err.message); }
   }
 
@@ -15973,7 +15881,7 @@ function VehicleManageSection({ vehicle, onFlash, onSaved }) {
     <div className="card" style={{ padding: 16, marginBottom: 16 }}>
       <strong className="text-sm">Manage {vehicle.vehicleNumber}</strong>
 
-      <h5 className="font-semibold mt-4 mb-2" style={{ fontSize: '0.82rem' }}>Route Stops</h5>
+<SavedForm key={vehicle._id} value={{stops,insuranceExpiry,fitnessExpiry}} onRestore={v=>{setStops(v.stops);setInsuranceExpiry(v.insuranceExpiry);setFitnessExpiry(v.fitnessExpiry);}} onSubmit={saveStopsAndDates}>      <h5 className="font-semibold mt-4 mb-2" style={{ fontSize: '0.82rem' }}>Route Stops</h5>
       {stops.map((s, i) => (
         <div key={i} className="flex gap-2 mb-2 items-end">
           <input className="form-input" placeholder="Stop name" value={s.name} onChange={(e) => setStops(stops.map((x, j) => j === i ? { ...x, name: e.target.value } : x))} />
@@ -15988,9 +15896,9 @@ function VehicleManageSection({ vehicle, onFlash, onSaved }) {
         <label className="text-xs">Insurance Expiry<input type="date" className="form-input" style={{ marginTop: 4 }} value={insuranceExpiry} onChange={(e) => setInsuranceExpiry(e.target.value)} /></label>
         <label className="text-xs">Fitness Expiry<input type="date" className="form-input" style={{ marginTop: 4 }} value={fitnessExpiry} onChange={(e) => setFitnessExpiry(e.target.value)} /></label>
       </div>
-      <button type="button" className="btn btn-primary mt-3" onClick={saveStopsAndDates}>Save Route / Dates</button>
+      <button type="submit" className="btn btn-primary mt-3">Save Route / Dates</button>
 
-      <h5 className="font-semibold mt-6 mb-2" style={{ fontSize: '0.82rem' }}>Fuel Log</h5>
+</SavedForm>      <h5 className="font-semibold mt-6 mb-2" style={{ fontSize: '0.82rem' }}>Fuel Log</h5>
       <div className="flex gap-2 items-end flex-wrap mb-2">
         <input className="form-input" type="number" placeholder="Liters" style={{ width: 100 }} value={fuelForm.liters} onChange={(e) => setFuelForm({ ...fuelForm, liters: e.target.value })} />
         <input className="form-input" type="number" placeholder="Cost/Liter" style={{ width: 100 }} value={fuelForm.costPerLiter} onChange={(e) => setFuelForm({ ...fuelForm, costPerLiter: e.target.value })} />
@@ -16258,7 +16166,7 @@ function InstitutionHealthPanel({ onFlash }) {
           emergencyContact: health.emergencyContact
         }
       });
-      onFlash('Student health record updated.', 'success');
+      onFlash('Student health record updated.', 'success'); return true;
     } catch (err) { onFlash(err.message); } finally { setSavingHealth(false); }
   }
 
@@ -16288,7 +16196,7 @@ function InstitutionHealthPanel({ onFlash }) {
           {students.map((student) => <option key={student.user?._id} value={student.user?._id}>{student.user?.fullName} {student.rollNumber ? `(${student.rollNumber})` : ''}</option>)}
         </select>
         {selectedStudent && !health && <p role="status" className="admin-notice">Loading health record...</p>}
-        {health && <form onSubmit={saveHealthRecord} className="space-y-3">
+        {health && <SavedForm key={selectedStudent} value={health} onRestore={setHealth} onSubmit={saveHealthRecord} className="space-y-3">
           <div className="flex gap-3 flex-wrap">
             <input className="form-input" placeholder="Blood group (e.g. O+)" value={health.bloodGroup} onChange={(e) => setHealth({ ...health, bloodGroup: e.target.value })} />
             <input className="form-input" placeholder="Allergies (comma-separated)" value={health.allergies} onChange={(e) => setHealth({ ...health, allergies: e.target.value })} style={{ minWidth: 280 }} />
@@ -16310,7 +16218,7 @@ function InstitutionHealthPanel({ onFlash }) {
             </div>)}
           </div>
           <button type="submit" className="btn btn-primary" disabled={savingHealth}>{savingHealth ? 'Saving...' : 'Save Health Record'}</button>
-        </form>}
+        </SavedForm>}
       </div>
       <div className="admin-section">
         <div className="admin-section-heading"><div><h2>Report a Health Incident</h2><p>Parent is automatically notified when you record an incident.</p></div></div>
@@ -17057,7 +16965,7 @@ function InstitutionClassesPanel({ onFlash }) {
     try {
       await apiRequest(`/institutions/${institution._id}/class-sections/${sectionId}`, { method: 'PATCH', body: { classTeacher: teacherId || null } });
       onFlash('Class teacher updated.', 'success');
-      load();
+      load(); return true;
     } catch (err) { onFlash(err.message); }
   }
 
@@ -17080,7 +16988,7 @@ function InstitutionClassesPanel({ onFlash }) {
     try {
       await apiRequest(`/institutions/${institution._id}/courses/${course._id}/academic-assignment`, { method: 'PATCH', body: edit });
       onFlash('Course linked to subject, section and teacher.', 'success');
-      load();
+      load(); return true;
     } catch (err) { onFlash(err.message); }
   }
 
@@ -17168,13 +17076,13 @@ function InstitutionClassesPanel({ onFlash }) {
         headers={['Name', 'Academic Year', 'Class Teacher', 'Action']}
         rows={sections.map((s) => [
           s.name, s.academicYear || '—', s.classTeacher?.fullName || 'Not assigned',
-          <div className="flex gap-2 items-center">
+          <SavedForm key={s._id} showValues={false} value={sectionTeacherEdits[s._id] ?? (s.classTeacher?._id || '')} onRestore={value=>setSectionTeacherEdits(prev=>({...prev,[s._id]:value}))} onSubmit={()=>assignClassTeacher(s._id)} className="flex gap-2 items-center">
             <select className="form-select" style={{ padding: '4px 8px', fontSize: '0.78rem' }} value={sectionTeacherEdits[s._id] ?? (s.classTeacher?._id || '')} onChange={(e) => setSectionTeacherEdits({ ...sectionTeacherEdits, [s._id]: e.target.value })}>
               <option value="">— none —</option>
               {teachers.map((t) => <option key={t.user._id} value={t.user._id}>{t.user.fullName}</option>)}
             </select>
-            <button type="button" className="btn" style={{ padding: '4px 10px', fontSize: '0.72rem' }} onClick={() => assignClassTeacher(s._id)}>Save</button>
-          </div>
+            <button type="submit" className="btn" style={{ padding: '4px 10px', fontSize: '0.72rem' }}>Save</button>
+          </SavedForm>
         ])}
         empty="No class sections yet."
       />
@@ -17185,7 +17093,7 @@ function InstitutionClassesPanel({ onFlash }) {
         headers={['Course', 'Subject', 'Class / Section', 'Teacher', 'Credits', 'Semester / Term', 'Action']}
         rows={courses.map((course) => {
           const edit = courseEdits[course._id] || { subject: course.subject || '', classSection: course.classSection?._id || '', teacher: course.teacher?._id || '', creditHours: course.creditHours || 3, academicTerm: course.academicTerm || '' };
-          return [course.title, <input className="form-input" style={{ minWidth: 170 }} placeholder="Subject name" value={edit.subject} onChange={(e) => setCourseEdits({ ...courseEdits, [course._id]: { ...edit, subject: e.target.value } })} />, <select className="form-select" style={{ minWidth: 190 }} value={edit.classSection} onChange={(e) => setCourseEdits({ ...courseEdits, [course._id]: { ...edit, classSection: e.target.value } })}><option value="">Select class / section</option>{sections.map((section) => <option key={section._id} value={section._id}>{section.name} · {section.academicYear || 'No session'}</option>)}</select>, <select className="form-select" style={{ minWidth: 160 }} value={edit.teacher} onChange={(e) => setCourseEdits({ ...courseEdits, [course._id]: { ...edit, teacher: e.target.value } })}><option value="">Select teacher</option>{teachers.map((teacher) => <option key={teacher.user._id} value={teacher.user._id}>{teacher.user.fullName}</option>)}</select>, <input type="number" min="0.5" max="12" step="0.5" className="form-input" style={{ width: 85 }} value={edit.creditHours} onChange={(e) => setCourseEdits({ ...courseEdits, [course._id]: { ...edit, creditHours: e.target.value } })} />, <input className="form-input" style={{ minWidth: 130 }} placeholder="Semester 1" value={edit.academicTerm} onChange={(e) => setCourseEdits({ ...courseEdits, [course._id]: { ...edit, academicTerm: e.target.value } })} />, <button type="button" className="btn btn-primary" onClick={() => saveCourseAssignment(course)}>Save assignment</button>];
+          return [course.title, course.subject || '—', course.classSection?.name || '—', course.teacher?.fullName || '—', course.creditHours || 3, course.academicTerm || '—', <SavedForm key={course._id} showValues={false} value={edit} onRestore={value=>setCourseEdits(prev=>({...prev,[course._id]:value}))} onSubmit={()=>saveCourseAssignment(course)} style={{display:'grid',gap:10,minWidth:220}}><label>Subject<input className="form-input" value={edit.subject} onChange={e=>setCourseEdits(prev=>({...prev,[course._id]:{...edit,subject:e.target.value}}))}/></label><label>Class / Section<select className="form-select" value={edit.classSection} onChange={e=>setCourseEdits(prev=>({...prev,[course._id]:{...edit,classSection:e.target.value}}))}><option value="">Select class</option>{sections.map(row=><option key={row._id} value={row._id}>{row.name}</option>)}</select></label><label>Teacher<select className="form-select" value={edit.teacher} onChange={e=>setCourseEdits(prev=>({...prev,[course._id]:{...edit,teacher:e.target.value}}))}><option value="">Select teacher</option>{teachers.map(row=><option key={row.user._id} value={row.user._id}>{row.user.fullName}</option>)}</select></label><label>Credits<input className="form-input" type="number" min="0.5" max="12" step="0.5" value={edit.creditHours} onChange={e=>setCourseEdits(prev=>({...prev,[course._id]:{...edit,creditHours:e.target.value}}))}/></label><label>Semester / Term<input className="form-input" value={edit.academicTerm} onChange={e=>setCourseEdits(prev=>({...prev,[course._id]:{...edit,academicTerm:e.target.value}}))}/></label><button type="submit" className="btn btn-primary">Save assignment</button></SavedForm>];
         })}
         empty="No institution courses found. Create an institution course first."
       />
@@ -18111,7 +18019,7 @@ function ActiveSponsorshipsPanel({ onFlash }) {
     try {
       await apiRequest(`/scholarships/sponsorships/${id}/status`, { method: 'PATCH', body: { status } });
       onFlash('Sponsorship status updated.', 'success');
-      load();
+      load(); return true;
     } catch (err) { onFlash(err.message); }
   }
 
@@ -18176,10 +18084,7 @@ function ActiveSponsorshipsPanel({ onFlash }) {
               </div>
               <div className="flex items-center flex-wrap" style={{ gap: 10, flexShrink: 0 }}>
                 <div style={{ minWidth: 150 }}>
-                  <CustomSelect
-                    value={s.status} onChange={(v) => changeStatus(s._id, v)} ariaLabel="Sponsorship status" minWidth="100%"
-                    options={Object.entries(SPONSORSHIP_STATUS).map(([val, meta]) => ({ value: val, label: meta.label }))}
-                  />
+                  <SavedStatus value={s.status} onSave={value=>changeStatus(s._id,value)} label="Sponsorship status" options={Object.entries(SPONSORSHIP_STATUS).map(([value,meta])=>({value,label:meta.label}))}/>
                 </div>
                 <button type="button" className="btn" style={{ padding: '8px 14px', fontSize: '0.75rem' }} onClick={() => (paymentFor === s._id ? setPaymentFor(null) : startPayment(s))}>Record Payment</button>
               </div>
@@ -18254,7 +18159,7 @@ function DonationHistoryPanel({ onFlash }) {
     try {
       await apiRequest(`/funding-requests/donations/${id}/status`, { method: 'PATCH', body: { status } });
       onFlash('Donation status updated.', 'success');
-      load();
+      load(); return true;
     } catch (err) { onFlash(err.message); }
   }
 
@@ -18274,10 +18179,7 @@ function DonationHistoryPanel({ onFlash }) {
           PAYMENT_METHOD_LABEL[d.paymentMethod] || d.paymentMethod,
           d.transactionId,
           <div style={{ minWidth: 140 }}>
-            <CustomSelect
-              value={d.status} onChange={(v) => changeStatus(d._id, v)} ariaLabel="Donation status" minWidth="100%"
-              options={Object.entries(DONATION_STATUS).map(([val, meta]) => ({ value: val, label: meta.label }))}
-            />
+            <SavedStatus value={d.status} onSave={value=>changeStatus(d._id,value)} label="Donation status" options={Object.entries(DONATION_STATUS).map(([value,meta])=>({value,label:meta.label}))}/>
           </div>,
           <button type="button" className="btn" style={{ padding: '6px 12px', fontSize: '0.72rem' }} onClick={() => setReceiptFor(d)}>View Receipt</button>
         ])}
@@ -18564,7 +18466,7 @@ function FundingRequestApplicationsPanel({ onFlash }) {
     try {
       await apiRequest(`/funding-requests/${id}/application-status`, { method: 'PATCH', body: { applicationStatus } });
       onFlash('Application status updated.', 'success');
-      load();
+      load(); return true;
     } catch (err) { onFlash(err.message); }
   }
 
@@ -18584,10 +18486,7 @@ function FundingRequestApplicationsPanel({ onFlash }) {
           r.institution?.name || '—',
           <Tag status={VERIFICATION_TAG[r.verificationStatus]} label={VERIFICATION_LABEL[r.verificationStatus]} />,
           <div style={{ minWidth: 150 }}>
-            <CustomSelect
-              value={r.applicationStatus} onChange={(v) => changeStatus(r._id, v)} ariaLabel="Application status" minWidth="100%"
-              options={Object.entries(FUNDING_APP_STATUS).map(([val, meta]) => ({ value: val, label: meta.label }))}
-            />
+            <SavedStatus value={r.applicationStatus} onSave={value=>changeStatus(r._id,value)} label="Application status" options={Object.entries(FUNDING_APP_STATUS).map(([value,meta])=>({value,label:meta.label}))}/>
           </div>,
           <button type="button" className="btn" style={{ padding: '6px 12px', fontSize: '0.72rem' }} onClick={() => setViewing(r)}>View Request</button>
         ])}
@@ -19464,7 +19363,7 @@ function SellerDashboardPanel({ user, onFlash, onChanged, onNavigate }) {
       await apiRequest(`/marketplace/products/${id}`, { method: 'PATCH', body: { stock: Number(value) } });
       onFlash('Stock updated.', 'success');
       setStockEdits((prev) => { const next = { ...prev }; delete next[id]; return next; });
-      load();
+      load(); return true;
     } catch (err) { onFlash(err.message); }
   }
 
@@ -19774,10 +19673,10 @@ function SellerDashboardPanel({ user, onFlash, onChanged, onNavigate }) {
               p.category,
               p.stock,
               <Tag status={PRODUCT_STATUS[p.status]?.tag} label={PRODUCT_STATUS[p.status]?.label} />,
-              <div className="flex gap-2">
+              <SavedForm key={p._id} showValues={false} value={stockEdits[p._id]??''} onRestore={v=>setStockEdits(prev=>({...prev,[p._id]:v}))} onSubmit={()=>updateStock(p._id)} className="flex gap-2">
                 <input className="form-input" type="number" min="0" style={{ padding: '4px 6px', fontSize: '0.72rem', width: 80 }} placeholder={String(p.stock)} value={stockEdits[p._id] ?? ''} onChange={(e) => setStockEdits({ ...stockEdits, [p._id]: e.target.value })} />
-                <button type="button" className="btn" style={{ padding: '4px 10px', fontSize: '0.72rem' }} onClick={() => updateStock(p._id)}>Update</button>
-              </div>
+                <button type="submit" className="btn" style={{ padding: '4px 10px', fontSize: '0.72rem' }}>Update</button>
+              </SavedForm>
             ])}
             empty="No physical listings yet."
           />
@@ -21068,13 +20967,7 @@ function AdminStaffPanel({ onFlash }) {
                 </div>
                 <button type="button" className="btn" style={{ padding: '5px 12px', fontSize: '0.72rem' }} onClick={() => removeStaff(s._id)}>Remove from Staff</button>
               </div>
-              <div className="flex flex-wrap" style={{ gap: 14 }}>
-                {STAFF_DEPARTMENTS.map((d) => (
-                  <label key={d.value} className="flex items-center text-xs" style={{ gap: 6 }}>
-                    <input type="checkbox" checked={s.departments.includes(d.value)} onChange={(e) => toggleStaffDept(s, d.value, e.target.checked)} /> {d.label}
-                  </label>
-                ))}
-              </div>
+              <StaffDepartmentForm staff={s} onFlash={onFlash} onSaved={load}/>
             </div>
           ))}
         </div>
@@ -21204,7 +21097,9 @@ function AdminBackupsPanel({ onFlash }) {
     try {
       await apiRequest('/config/feature-flags', { method: 'POST', body: { key: 'maintenance_mode', label: 'CareerZ is currently undergoing scheduled maintenance. Please check back shortly.', enabled: next, scope: 'global' } });
       setMaintenance(next);
+
       onFlash(next ? 'Maintenance mode ON — only Super Admin can use the platform now.' : 'Maintenance mode OFF — platform is live for everyone again.', 'success');
+      return true;
     } catch (err) { onFlash(err.message); } finally { setSavingMaintenance(false); }
   }
 
@@ -21212,7 +21107,7 @@ function AdminBackupsPanel({ onFlash }) {
     <div>
       <h3 className="font-semibold mb-2">Backups & Maintenance</h3>
 
-      <div className="card" style={{ padding: 20, marginBottom: 24 }}>
+      <SavedForm className="card" style={{ padding: 20, marginBottom: 24 }} value={maintenance} onRestore={setMaintenance} canEdit={maintenance !== null} onSubmit={() => toggleMaintenance(maintenance)}>
         <div className="flex items-center justify-between flex-wrap" style={{ gap: 14 }}>
           <div>
             <strong className="text-sm">{maintenance ? 'Maintenance Mode: ON' : 'Maintenance Mode: OFF'}</strong>
@@ -21221,10 +21116,11 @@ function AdminBackupsPanel({ onFlash }) {
             </p>
           </div>
           <label className="flex items-center" style={{ gap: 10, flexShrink: 0, cursor: savingMaintenance ? 'wait' : 'pointer' }}>
-            <input type="checkbox" checked={!!maintenance} disabled={maintenance === null || savingMaintenance} onChange={(e) => toggleMaintenance(e.target.checked)} />
+            <input type="checkbox" checked={!!maintenance} disabled={maintenance === null || savingMaintenance} onChange={(e) => setMaintenance(e.target.checked)} />
           </label>
         </div>
-      </div>
+        <button type="submit" className="btn btn-primary" disabled={savingMaintenance}>Save maintenance setting</button>
+      </SavedForm>
 
       <div className="flex items-center justify-between flex-wrap" style={{ gap: 12, marginBottom: 16 }}>
         <p className="text-xs" style={{ color: 'var(--ink-soft)' }}>Each backup exports every real collection in the database to JSON files on the server.</p>
@@ -21253,6 +21149,7 @@ function AdminBackupsPanel({ onFlash }) {
 
 function AdminFinancePanel({ onFlash, isSuperAdmin }) {
   const [data, setData] = useState(null);
+  const [donorDeposits, setDonorDeposits] = useState(null);
   const [feeRateInput, setFeeRateInput] = useState('');
   const [featuredFeeInput, setFeaturedFeeInput] = useState('');
   const [featuredFee, setFeaturedFee] = useState(null);
@@ -21279,6 +21176,7 @@ function AdminFinancePanel({ onFlash, isSuperAdmin }) {
       await apiRequest('/admin/subscription-plans', { method: 'PATCH', body: { overrides: { [planKey]: { monthlyPriceUSD: price } } } });
       onFlash('Subscription plan price updated.', 'success');
       load();
+      return true;
     } catch (err) { onFlash(err.message); }
   }
 
@@ -21307,6 +21205,7 @@ function AdminFinancePanel({ onFlash, isSuperAdmin }) {
       await apiRequest('/admin/institution-fee-commission-rate', { method: 'PATCH', body: { rate: Number(feeRateInput) } });
       onFlash('Institution fee commission rate updated.', 'success');
       load();
+      return true;
     } catch (err) { onFlash(err.message); }
   }
   async function saveFeaturedFee(e) {
@@ -21315,6 +21214,7 @@ function AdminFinancePanel({ onFlash, isSuperAdmin }) {
       await apiRequest('/jobs/featured-fee', { method: 'PATCH', body: { fee: Number(featuredFeeInput) } });
       onFlash('Featured job fee updated.', 'success');
       load();
+      return true;
     } catch (err) { onFlash(err.message); }
   }
   async function toggleFeatured() {
@@ -21375,18 +21275,18 @@ function AdminFinancePanel({ onFlash, isSuperAdmin }) {
         <p className="text-sm">Featured job listings: <strong>${rev.featuredJobRevenue.amount}</strong> ({rev.featuredJobRevenue.count} purchased)</p>
 
         <div className="flex gap-6 flex-wrap" style={{ marginTop: 16, paddingTop: 16, borderTop: '1px solid var(--sand-line)' }}>
-          <form onSubmit={saveFeeRate} className="flex items-end gap-2">
+          <SavedForm value={feeRateInput} onRestore={setFeeRateInput} onSubmit={saveFeeRate} className="flex items-end gap-2">
             <label className="text-xs" style={{ display: 'block' }}>Institution fee commission %
               <input className="form-input" type="number" min="0" max="100" step="0.5" value={feeRateInput} onChange={(e) => setFeeRateInput(e.target.value)} style={{ width: 90, marginTop: 4 }} />
             </label>
             <button type="submit" className="btn btn-primary" style={{ padding: '7px 14px', fontSize: '0.8rem' }}>Save</button>
-          </form>
-          <form onSubmit={saveFeaturedFee} className="flex items-end gap-2">
+          </SavedForm>
+          <SavedForm value={featuredFeeInput} onRestore={setFeaturedFeeInput} onSubmit={saveFeaturedFee} className="flex items-end gap-2">
             <label className="text-xs" style={{ display: 'block' }}>Featured job fee (USD / {featuredFee?.days || 30} days)
               <input className="form-input" type="number" min="0.01" step="0.01" value={featuredFeeInput} onChange={(e) => setFeaturedFeeInput(e.target.value)} style={{ width: 90, marginTop: 4 }} />
             </label>
             <button type="submit" className="btn btn-primary" style={{ padding: '7px 14px', fontSize: '0.8rem' }}>Save</button>
-          </form>
+          </SavedForm>
           {isSuperAdmin && featuredFee && <button type="button" className="btn" onClick={toggleFeatured}>
             {featuredFee.enabled ? 'Disable' : 'Enable'} Featured Jobs
           </button>}
@@ -21399,7 +21299,7 @@ function AdminFinancePanel({ onFlash, isSuperAdmin }) {
           <p className="text-xs" style={{ color: 'var(--ink-soft)', marginBottom: 12 }}>30-day plan prices (USD). Institutions pay these via Paddle to unlock higher student/staff limits and institution-level AI keys.</p>
           <div className="flex gap-6 flex-wrap">
             {Object.entries(planConfig.effective).filter(([k]) => k !== 'free').map(([planKey, plan]) => (
-              <div key={planKey} className="flex items-end gap-2">
+              <SavedForm key={planKey} value={planPriceInputs[planKey]} onRestore={value=>setPlanPriceInputs(prev=>({...prev,[planKey]:value}))} canEdit={isSuperAdmin} onSubmit={()=>savePlanPrice(planKey)} className="flex items-end gap-2">
                 <label className="text-xs" style={{ display: 'block' }}>{plan.label}
                   <input
                     className="form-input" type="number" min="0" step="1"
@@ -21409,8 +21309,8 @@ function AdminFinancePanel({ onFlash, isSuperAdmin }) {
                     style={{ width: 90, marginTop: 4 }}
                   />
                 </label>
-                {isSuperAdmin && <button type="button" className="btn btn-primary" style={{ padding: '7px 14px', fontSize: '0.8rem' }} onClick={() => savePlanPrice(planKey)}>Save</button>}
-              </div>
+                {isSuperAdmin && <button type="submit" className="btn btn-primary" style={{ padding: '7px 14px', fontSize: '0.8rem' }}>Save</button>}
+              </SavedForm>
             ))}
           </div>
         </div>
@@ -21688,13 +21588,14 @@ function AdminAiProvidersPanel({ onFlash }) {
       onFlash('AI provider availability saved.', 'success');
     } catch (error) { onFlash(error.message); }
   }
+  function setProviderEnabled(purpose,provider,on) { setConfig(prev=>({...prev,enabled:{...prev.enabled,[purpose]:on?[...new Set([...(prev.enabled[purpose]||[]),provider])]:(prev.enabled[purpose]||[]).filter(item=>item!==provider)}})); }
   async function saveModel(purpose, provider) {
     try {
       const model = (modelInputs[`${purpose}:${provider}`] || '').trim();
       const models = { [purpose]: { [provider]: model } };
-      await apiRequest('/admin/ai-providers', { method: 'PATCH', body: { models } });
+      await apiRequest('/admin/ai-providers', { method: 'PATCH', body: { models, enabled: config.enabled } });
       onFlash('Default model saved.', 'success');
-      load();
+      setConfig(prev=>({...prev,models:{...prev.models,[purpose]:{...prev.models?.[purpose],[provider]:model}}})); return true;
     } catch (error) { onFlash(error.message); }
   }
   if (!config) return <p role="status">Loading AI providers...</p>;
@@ -21704,17 +21605,17 @@ function AdminAiProvidersPanel({ onFlash }) {
       <strong className="text-sm" style={{ textTransform: 'capitalize' }}>{purpose}</strong>
       <div className="space-y-2" style={{ marginTop: 10 }}>
         {providers.map((provider) => (
-          <div key={provider} className="flex items-center gap-3 flex-wrap">
+          <SavedForm key={provider} showValues={true} value={{model:modelInputs[`${purpose}:${provider}`]||'',enabled:(config.enabled[purpose]||[]).includes(provider)}} onRestore={v=>{setModelInputs(prev=>({...prev,[`${purpose}:${provider}`]:v.model}));setProviderEnabled(purpose,provider,v.enabled);}} onSubmit={()=>saveModel(purpose,provider)} className="flex items-center gap-3 flex-wrap">
             <label className="text-xs" style={{ minWidth: 90 }}>
-              <input type="checkbox" checked={(config.enabled[purpose] || []).includes(provider)} onChange={() => toggle(purpose, provider)} /> {provider}
+              <input type="checkbox" checked={(config.enabled[purpose] || []).includes(provider)} onChange={e => setProviderEnabled(purpose, provider, e.target.checked)} /> {provider}
             </label>
             <input
               className="form-input" placeholder="Default model (optional)" style={{ maxWidth: 220, fontSize: '0.78rem' }}
               value={modelInputs[`${purpose}:${provider}`] || ''}
               onChange={(e) => setModelInputs((prev) => ({ ...prev, [`${purpose}:${provider}`]: e.target.value }))}
             />
-            <button type="button" className="btn" style={{ padding: '4px 10px', fontSize: '0.75rem' }} onClick={() => saveModel(purpose, provider)}>Save model</button>
-          </div>
+            <button type="submit" className="btn" style={{ padding: '4px 10px', fontSize: '0.75rem' }}>Save model</button>
+          </SavedForm>
         ))}
       </div>
     </div>)}
@@ -22512,6 +22413,7 @@ function InstitutionPanel({ onFlash, onChanged }) {
       await apiRequest(`/institutions/${mine._id}`, { method: 'PATCH', body: { ...editForm, admissionDeadline: editForm.admissionDeadline || null } });
       onFlash('Institution details updated.', 'success');
       load();
+      return true;
     } catch (err) { onFlash(err.message); } finally { setSaving(false); }
   }
 
@@ -22531,7 +22433,7 @@ function InstitutionPanel({ onFlash, onChanged }) {
       <Table headers={['Name', 'Type', 'Verification']} rows={list.map((i) => [i.name, i.type, <Tag status={i.verificationStatus} />])} empty="No institutions yet." />
 
       {mine && editForm && (
-        <form onSubmit={saveDetails} className="space-y-3 mt-6 max-w-md">
+        <SavedForm key={mine._id} value={editForm} onRestore={setEditForm} onSubmit={saveDetails} className="space-y-3 mt-6 max-w-md">
           <h3 className="font-semibold mb-1">Institution Details</h3>
           <input className="form-input" placeholder="City" value={editForm.city} onChange={(e) => setEditForm({ ...editForm, city: e.target.value })} />
           <input className="form-input" placeholder="Address" value={editForm.address} onChange={(e) => setEditForm({ ...editForm, address: e.target.value })} />
@@ -22544,7 +22446,7 @@ function InstitutionPanel({ onFlash, onChanged }) {
             <input type="date" className="form-input" value={editForm.admissionDeadline} onChange={(e) => setEditForm({ ...editForm, admissionDeadline: e.target.value })} />
           </label>
           <button type="submit" className="btn btn-primary" disabled={saving}>{saving ? 'Saving...' : 'Save Details'}</button>
-        </form>
+        </SavedForm>
       )}
     </div>
   );
@@ -22844,6 +22746,7 @@ function CompletionRulesEditor({ course, onFlash, onSaved }) {
     try {
       await apiRequest(`/courses/${course._id}`, { method: 'PATCH', body: { completionRules: { weights, minAttendancePercent, requireTeacherApproval } } });
       onFlash('Completion rules saved.', 'success');
+      setOpen(false);
       onSaved?.();
     } catch (err) { onFlash(err.message); } finally { setSaving(false); }
   }
@@ -22853,7 +22756,7 @@ function CompletionRulesEditor({ course, onFlash, onSaved }) {
   if (!open) {
     return (
       <div style={{ marginBottom: 20 }}>
-        <button type="button" className="btn" style={{ padding: '6px 14px', fontSize: '0.78rem' }} onClick={() => setOpen(true)}>Course Completion Rules</button>
+        <button type="button" className="btn" style={{ padding: '6px 14px', fontSize: '0.78rem' }} onClick={() => {setWeights(course.completionRules?.weights||{lessons:40,assignments:20,tests:25,attendance:15});setMinAttendancePercent(course.completionRules?.minAttendancePercent||0);setRequireTeacherApproval(course.completionRules?.requireTeacherApproval||false);setOpen(true);}}>Edit completion rules</button>
         <p className="text-xs" style={{ color: 'var(--ink-soft)', marginTop: 6 }}>Decide what "course completed" means for this course — lessons alone, or lessons + assignments + tests + attendance.</p>
       </div>
     );
@@ -22924,7 +22827,7 @@ function TeacherSlideDeckManager({ lesson, onFlash, onChanged }) {
   return (
     <div style={{ marginTop: 10 }}>
       <div className="flex gap-2 flex-wrap">
-        <button type="button" className="btn" onClick={() => setEditing((value) => !value)} disabled={busy}>{editing ? 'Close Editor' : 'Edit Deck'}</button>
+        <button type="button" className="btn" onClick={() => { setTitle(lesson.title); setSlides(structuredClone(lesson.deck?.slides || [])); setEditing((value) => !value); }} disabled={busy}>{editing ? 'Cancel' : 'Edit Deck'}</button>
         <button type="button" className="btn" onClick={togglePublished} disabled={busy}>{lesson.published ? 'Unpublish' : 'Publish'}</button>
         <button type="button" className="btn" onClick={remove} disabled={busy} style={{ color: 'var(--rose)' }}>Delete</button>
         <span className="text-xs" style={{ alignSelf: 'center', color: lesson.published ? 'var(--emerald)' : 'var(--ink-soft)' }}>{lesson.published ? 'Visible to students' : 'Hidden from students'}</span>
@@ -23717,6 +23620,7 @@ function SettingsPanel({ user, onFlash, onChanged }) {
       await apiRequest('/users/me', { method: 'PATCH', body: form });
       onFlash('Settings saved.', 'success');
       onChanged?.();
+      return true;
     } catch (err) { onFlash(err.message); }
   }
 
@@ -23726,7 +23630,7 @@ function SettingsPanel({ user, onFlash, onChanged }) {
       await apiRequest('/users/me', { method: 'PATCH', body: { twoFactorEnabled: next } });
       setTwoFactor(next);
       onFlash(next ? 'Two-factor authentication enabled — you\'ll get an email code at every login.' : 'Two-factor authentication disabled.', 'success');
-      onChanged?.();
+      onChanged?.(); return true;
     } catch (err) { onFlash(err.message); } finally { setSavingTwoFactor(false); }
   }
 
@@ -23736,7 +23640,7 @@ function SettingsPanel({ user, onFlash, onChanged }) {
     try {
       await apiRequest('/users/me/password', { method: 'PATCH', body: { currentPassword: pwForm.currentPassword, newPassword: pwForm.newPassword } });
       onFlash('Password updated.', 'success');
-      setPwForm({ currentPassword: '', newPassword: '', confirmPassword: '' });
+      setPwForm({ currentPassword: '', newPassword: '', confirmPassword: '' }); return true;
     } catch (err) { onFlash(err.message); }
   }
 
@@ -23744,7 +23648,7 @@ function SettingsPanel({ user, onFlash, onChanged }) {
     <div>
       <h3 className="font-semibold mb-3">Account Settings</h3>
       <PushNotificationToggle onFlash={onFlash} />
-      <form onSubmit={saveProfile} className="card" style={{ padding: 22, display: 'grid', gap: 14, maxWidth: 480, marginBottom: 24 }}>
+      <SavedForm key={user._id} value={form} onRestore={setForm} onSubmit={saveProfile} className="card" style={{ padding: 22, display: 'grid', gap: 14, maxWidth: 480, marginBottom: 24 }}>
         <div className="flex items-center" style={{ gap: 14 }}>
           {form.profilePhoto
             ? <img src={form.profilePhoto} alt="" style={{ width: 56, height: 56, borderRadius: '50%', objectFit: 'cover', flexShrink: 0 }} onError={(e) => { e.target.style.display = 'none'; }} />
@@ -23770,28 +23674,28 @@ function SettingsPanel({ user, onFlash, onChanged }) {
           <option value="ar">Arabic</option>
         </select>
         <button type="submit" className="btn btn-primary" style={{ padding: '7px 18px', justifySelf: 'start' }}>Save Settings</button>
-      </form>
+      </SavedForm>
 
       <h3 className="font-semibold mb-3">Change Password</h3>
-      <form onSubmit={changePassword} className="card" style={{ padding: 22, display: 'grid', gap: 14, maxWidth: 480, marginBottom: 24 }}>
+      <SavedForm showValues={false} value={pwForm} onRestore={setPwForm} editLabel="Edit password" onSubmit={changePassword} className="card" style={{ padding: 22, display: 'grid', gap: 14, maxWidth: 480, marginBottom: 24 }}>
         <input className="form-input" type="password" placeholder="Current password" value={pwForm.currentPassword} onChange={(e) => setPwForm({ ...pwForm, currentPassword: e.target.value })} required />
         <input className="form-input" type="password" placeholder="New password" value={pwForm.newPassword} onChange={(e) => setPwForm({ ...pwForm, newPassword: e.target.value })} required minLength={8} />
         <input className="form-input" type="password" placeholder="Confirm new password" value={pwForm.confirmPassword} onChange={(e) => setPwForm({ ...pwForm, confirmPassword: e.target.value })} required minLength={8} />
         <button type="submit" className="btn btn-primary" style={{ padding: '7px 18px', justifySelf: 'start' }}>Update Password</button>
-      </form>
+      </SavedForm>
 
       <h3 className="font-semibold mb-3">Two-Factor Authentication</h3>
-      <div className="card" style={{ padding: 22, maxWidth: 480 }}>
+      <SavedForm value={twoFactor} onRestore={setTwoFactor} onSubmit={()=>toggleTwoFactor(twoFactor)} className="card" style={{ padding: 22, maxWidth: 480 }}>
         <div className="flex items-center justify-between flex-wrap" style={{ gap: 14 }}>
           <div style={{ minWidth: 0 }}>
             <p className="text-sm" style={{ fontWeight: 600 }}>{twoFactor ? 'Enabled' : 'Disabled'}</p>
             <p className="text-xs" style={{ color: 'var(--ink-soft)', marginTop: 4, lineHeight: 1.6 }}>{twoFactor ? 'A login code is emailed to you every time you sign in — password alone is not enough.' : 'Add an extra step at login: a one-time code emailed to you after your password.'}</p>
           </div>
           <label className="flex items-center" style={{ gap: 10, flexShrink: 0, cursor: savingTwoFactor ? 'wait' : 'pointer' }}>
-            <input type="checkbox" checked={twoFactor} disabled={savingTwoFactor} onChange={(e) => toggleTwoFactor(e.target.checked)} />
+            <input type="checkbox" checked={twoFactor} disabled={savingTwoFactor} onChange={(e) => setTwoFactor(e.target.checked)} />
           </label>
         </div>
-      </div>
+      <button type="submit" className="btn btn-primary" disabled={savingTwoFactor}>Save security settings</button></SavedForm>
     </div>
   );
 }
@@ -23849,4 +23753,9 @@ function Table({ headers, rows, empty, loading = false, error, onRetry }) {
       </table>
     </div>
   );
+}
+
+function StaffDepartmentForm({staff,onFlash,onSaved}) {
+ const [departments,setDepartments]=useState(staff.departments||[]);
+ return <SavedForm value={departments} onRestore={setDepartments} editLabel="Edit departments" onSubmit={async()=>{try{await apiRequest(`/admin/staff/${staff._id}`,{method:'PATCH',body:{departments}});onSaved();onFlash('Staff departments saved.','success');return true;}catch(e){onFlash(e.message);}}}>{STAFF_DEPARTMENTS.map(d=><label key={d.value} className="text-xs" style={{display:'block'}}><input type="checkbox" checked={departments.includes(d.value)} onChange={e=>setDepartments(prev=>e.target.checked?[...prev,d.value]:prev.filter(v=>v!==d.value))}/>{d.label}</label>)}<button type="submit" className="btn btn-primary">Save departments</button></SavedForm>;
 }

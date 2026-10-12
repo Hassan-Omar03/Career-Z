@@ -57,7 +57,7 @@ export default function Signup() {
 
   const [form, setForm] = useState({
     fullName: '', email: '', password: '', confirmPassword: '',
-    accountType: 'student', subtype: '', country: '', city: ''
+    parentEmail:'', parentName:'', parentRelationship:'guardian', accountType: 'student', subtype: '', country: '', city: ''
   });
   const [terms, setTerms] = useState(false);
   const [privacy, setPrivacy] = useState(false);
@@ -75,6 +75,7 @@ export default function Signup() {
     if (!form.fullName.trim()) next.fullName = 'Full name is required.';
     if (!form.email.trim()) next.email = 'Email is required.';
     else if (!EMAIL_RE.test(form.email)) next.email = 'Enter a valid email address.';
+    if(form.accountType==='student'){if(!form.parentName.trim())next.parentName='Parent / guardian name is required.';if(!['father','mother','guardian'].includes(form.parentRelationship))next.parentRelationship='Choose your relationship.';if(!EMAIL_RE.test(form.parentEmail.trim()))next.parentEmail='Enter your parent / guardian email.';else if(form.parentEmail.trim().toLowerCase()===form.email.trim().toLowerCase())next.parentEmail='Use your parent email, different from your own email.';}
     if (!form.password || form.password.length < 8) next.password = 'Password must be at least 8 characters.';
     if (!form.confirmPassword || form.confirmPassword !== form.password) next.confirmPassword = 'Passwords do not match.';
     if (!form.country) next.country = 'Select your country.';
@@ -99,6 +100,7 @@ export default function Signup() {
         city: form.city,
         acceptedTerms: terms && privacy,
         accountType: form.accountType,
+        ...(form.accountType==='student'?{parentEmail:form.parentEmail,parentName:form.parentName,parentRelationship:form.parentRelationship}:{}),
         subtype: SUBTYPES[form.accountType] ? (form.subtype || SUBTYPES[form.accountType][0][0]) : undefined
       });
 
@@ -160,6 +162,7 @@ export default function Signup() {
                 {errors.email && <div className="form-error show">{errors.email}</div>}
               </div>
 
+              {form.accountType==='student'&&<fieldset className="form-group"><legend>Parent / guardian details</legend><p className="form-hint">Your enrolled institute will use these details to invite your parent. School records open after account approval and guardian verification.</p><label htmlFor="signup-parent-email">Parent / guardian email *</label><input className="form-input" type="email" id="signup-parent-email" required value={form.parentEmail} onChange={e=>update('parentEmail',e.target.value)} placeholder="parent@example.com"/>{errors.parentEmail&&<div className="form-error show">{errors.parentEmail}</div>}<label htmlFor="signup-parent-name">Parent / guardian name *</label><input className="form-input" id="signup-parent-name" required value={form.parentName} onChange={e=>update('parentName',e.target.value)}/>{errors.parentName&&<div className="form-error show">{errors.parentName}</div>}<label htmlFor="signup-parent-relation">Relationship</label><select className="form-select" id="signup-parent-relation" value={form.parentRelationship} onChange={e=>update('parentRelationship',e.target.value)}>{['father','mother','guardian'].map(v=><option key={v}>{v}</option>)}</select></fieldset>}
               <div className="form-row-split">
                 <PasswordField
                   id="signup-password" label="Password" placeholder="Create a password" autoComplete="new-password"

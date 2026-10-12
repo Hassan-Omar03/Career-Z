@@ -1,3 +1,4 @@
+import SavedForm from '../shared/SavedForm';
 import { useEffect, useState } from 'react';
 import { apiRequest } from '../../api/client';
 
@@ -26,13 +27,13 @@ export default function InstitutionSettingsPanel({ institution, onFlash }) {
     try {
       const body = { classroom: s.classroom, branding: s.branding, pages: s.pages, subdomain: s.subdomain || '', timezone: s.timezone, workingDays: s.workingDays, schoolHours: s.schoolHours };
       setS(await apiRequest(`/institutions/${institution._id}/settings`, { method: 'PUT', body }));
-      onFlash?.('Institution settings saved.', 'success');
+      onFlash?.('Institution settings saved.', 'success'); return true;
     } catch (err) { onFlash?.(err.message); } finally { setSaving(false); }
   }
 
   const publicUrl = s.subdomain ? `${window.location.origin}/i/${s.subdomain}` : null;
   return (
-    <form onSubmit={save} style={{ display: 'grid', gap: 16, maxWidth: 760 }}>
+    <SavedForm key={institution._id} value={s} onRestore={setS} onSubmit={save} style={{ display: 'grid', gap: 16, maxWidth: 760 }}>
       <h3 className="font-semibold">Institute Settings</h3>
 
       <section className="card" style={{ padding: 16, display: 'grid', gap: 8 }}>
@@ -90,6 +91,6 @@ export default function InstitutionSettingsPanel({ institution, onFlash }) {
       </section>
 
       <button type="submit" className="btn btn-primary" style={{ justifySelf: 'start' }} disabled={saving}>{saving ? 'Saving...' : 'Save settings'}</button>
-    </form>
+    </SavedForm>
   );
 }
