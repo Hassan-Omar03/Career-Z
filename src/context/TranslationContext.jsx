@@ -74,7 +74,8 @@ export function TranslationProvider({ children }) {
       if (!node.isConnected) return; // removed from the DOM since it was queued
       if (!originalsRef.current.has(node)) originalsRef.current.set(node, node.nodeValue);
       const original = originalsRef.current.get(node);
-      if (!original || !original.trim() || original.length > MAX_TEXT_LENGTH) return;
+      // Only text with letters: emoji, numbers and symbols come back as made-up words.
+      if (!original || !/\p{L}/u.test(original) || original.length > MAX_TEXT_LENGTH) return;
       const cacheKey = `${targetLang}::${original}`;
       if (cache[cacheKey]) {
         justSetRef.current.add(node);

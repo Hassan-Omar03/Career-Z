@@ -2,25 +2,28 @@ import { FaEarthAmericas, FaChevronDown } from 'react-icons/fa6';
 import { useEffect, useRef, useState } from 'react';
 import { useTranslation } from '../context/TranslationContext';
 
+// Each language is listed in its own script (never translated), so anyone can find theirs
+// whatever language the page is currently in. Codes replace flag emoji, which Windows shows as
+// plain letters and which the page translator used to turn into nonsense.
 const LANGUAGES = [
-  { code: 'en', label: 'EN', flag: '🇬🇧', name: 'English' },
-  { code: 'ur', label: 'اردو', flag: '🇵🇰', name: 'اردو' },
-  { code: 'ar', label: 'AR', flag: '🇸🇦', name: 'Arabic' },
-  { code: 'zh', label: '中文', flag: '🇨🇳', name: 'Chinese' },
-  { code: 'fr', label: 'FR', flag: '🇫🇷', name: 'French' },
-  { code: 'de', label: 'DE', flag: '🇩🇪', name: 'German' },
-  { code: 'es', label: 'ES', flag: '🇪🇸', name: 'Spanish' },
-  { code: 'tr', label: 'TR', flag: '🇹🇷', name: 'Turkish' },
-  { code: 'hi', label: 'HI', flag: '🇮🇳', name: 'Hindi' },
-  { code: 'bn', label: 'BN', flag: '🇧🇩', name: 'Bengali' },
-  { code: 'fa', label: 'FA', flag: '🇮🇷', name: 'Persian' },
-  { code: 'ru', label: 'RU', flag: '🇷🇺', name: 'Russian' },
-  { code: 'ms', label: 'MS', flag: '🇲🇾', name: 'Malay' },
-  { code: 'id', label: 'ID', flag: '🇮🇩', name: 'Indonesian' },
-  { code: 'pt', label: 'PT', flag: '🇵🇹', name: 'Portuguese' },
-  { code: 'it', label: 'IT', flag: '🇮🇹', name: 'Italian' },
-  { code: 'ja', label: 'JA', flag: '🇯🇵', name: 'Japanese' },
-  { code: 'ko', label: 'KO', flag: '🇰🇷', name: 'Korean' }
+  { code: 'en', label: 'EN', name: 'English' },
+  { code: 'ur', label: 'اردو', name: 'اردو', rtl: true },
+  { code: 'ar', label: 'AR', name: 'العربية', rtl: true },
+  { code: 'zh', label: '中文', name: '中文' },
+  { code: 'fr', label: 'FR', name: 'Français' },
+  { code: 'de', label: 'DE', name: 'Deutsch' },
+  { code: 'es', label: 'ES', name: 'Español' },
+  { code: 'tr', label: 'TR', name: 'Türkçe' },
+  { code: 'hi', label: 'HI', name: 'हिन्दी' },
+  { code: 'bn', label: 'BN', name: 'বাংলা' },
+  { code: 'fa', label: 'FA', name: 'فارسی', rtl: true },
+  { code: 'ru', label: 'RU', name: 'Русский' },
+  { code: 'ms', label: 'MS', name: 'Bahasa Melayu' },
+  { code: 'id', label: 'ID', name: 'Bahasa Indonesia' },
+  { code: 'pt', label: 'PT', name: 'Português' },
+  { code: 'it', label: 'IT', name: 'Italiano' },
+  { code: 'ja', label: 'JA', name: '日本語' },
+  { code: 'ko', label: 'KO', name: '한국어' }
 ];
 
 // Real, live translation (see TranslationContext) drives this — not a hardcoded per-language
@@ -47,7 +50,7 @@ export default function LanguageSelector({ onChange }) {
   const current = LANGUAGES.find((l) => l.code === active) || LANGUAGES[0];
 
   return (
-    <div className="lang-select-wrap" ref={wrapRef}>
+    <div className="lang-select-wrap" ref={wrapRef} data-no-translate>
       <button
         className="lang-select-btn"
         aria-label="Select language"
@@ -66,8 +69,9 @@ export default function LanguageSelector({ onChange }) {
           </p>
         )}
         {LANGUAGES.map((l) => (
-          <button key={l.code} className={l.code === active ? 'active' : ''} onClick={() => selectLang(l)}>
-            <span className="flag">{l.flag}</span> {l.name}
+          <button key={l.code} type="button" role="option" aria-selected={l.code === active} className={l.code === active ? 'active' : ''} onClick={() => selectLang(l)}>
+            <span className="lang-code" aria-hidden="true">{l.code.toUpperCase()}</span>
+            <span className="lang-name" lang={l.code} dir={l.rtl ? 'rtl' : 'ltr'}>{l.name}</span>
           </button>
         ))}
       </div>
