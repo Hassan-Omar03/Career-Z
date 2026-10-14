@@ -26,7 +26,10 @@ export function isPlatformUploadAvailable() {
 // Uploads a File/Blob directly to Cloudinary and returns its real https URL. Documents must use
 // Cloudinary's `raw` resource type: uploading a PDF through `auto` classifies it as an image and
 // many Cloudinary accounts then return "deny or ACL failure" when users try to open it.
-export async function uploadToPlatformStorage(file, folder) {
+// `file` may also be a data: URL or an https link (AI media the browser only has that way):
+// Cloudinary fetches links itself, so provider downloads blocked by CORS still work. Pass
+// resourceType for those, since a string has no MIME type to infer it from.
+export async function uploadToPlatformStorage(file, folder, resourceTypeOverride) {
   const { signature, timestamp, apiKey, cloudName, folder: signedFolder } = await apiRequest(
     `/media/platform/signature${folder ? `?folder=${encodeURIComponent(folder)}` : ''}`,
     { method: 'POST' }
@@ -40,7 +43,7 @@ export async function uploadToPlatformStorage(file, folder) {
   form.append('folder', signedFolder);
 
   const mime = String(file?.type || '').toLowerCase();
-  const resourceType = mime.startsWith('image/') ? 'image' : (mime.startsWith('video/') || mime.startsWith('audio/')) ? 'video' : 'raw';
+  const resourceType = resourceTypeOverride || (mime.startsWith('image/') ? 'image' : (mime.startsWith('video/') || mime.startsWith('audio/')) ? 'video' : 'raw');
   const res = await fetch(`https://api.cloudinary.com/v1_1/${cloudName}/${resourceType}/upload`, { method: 'POST', body: form });
   const data = await res.json();
   if (!res.ok) throw new Error(data.error?.message || 'Upload failed.');

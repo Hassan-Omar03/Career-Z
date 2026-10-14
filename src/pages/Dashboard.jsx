@@ -60,6 +60,7 @@ import { passwordError } from '../utils/passwordPolicy';
 import { CvVersions, CvAutofillButton, CareerRoadmapPanel, MyInternshipCertificates, IssueInternshipCertificate, InstitutionInternshipCertificate } from '../components/dashboard/CareerTools';
 import { showConfirm, showPrompt } from '../utils/appDialog';
 import CareerZLiveClassroom from '../components/CareerZLiveClassroom';
+import { AiReport, OpsRecordTables } from '../components/dashboard/OpsInsightsReport';
 import TransportNavigationMap from '../components/TransportNavigationMap';
 import { createBrandedPdf, addPdfFooter, drawPdfTable, drawPdfSummary, PDF_COLORS } from '../utils/brandedPdf';
 import {
@@ -157,9 +158,7 @@ const WORKSPACES = {
       { key: 'earnings', label: 'Salary & Finance', icon: FaSackDollar },
       { key: 'performance', label: 'Performance Overview', icon: FaChartLine },
       { key: 'resourceLibrary', label: 'Resource Library', icon: FaFileLines },
-      { key: 'aiAssistant', label: 'AI Teacher Assistant', icon: FaGauge },
-      { key: 'aiCreative', label: 'AI Creative Teacher', icon: FaGauge },
-      { key: 'advancedControl', label: 'Advanced Class Control', icon: FaGauge },
+      { key: 'aiAssistant', label: 'AI Teacher', icon: FaWandMagicSparkles },
       { key: 'instEvents', label: 'Events & Activities', icon: FaCalendarDays },
       { key: 'inventory', label: 'My Inventory', icon: FaBoxesStacked },
       { key: 'health', label: 'Student Health Incidents', icon: FaKitMedical },
@@ -3906,7 +3905,7 @@ function AiQuizBlock({ text }) {
 // auto-publishes the raw AI output untouched. Emails every actively enrolled, fee-cleared student
 // that a new lecture was shared; a student with a pending institution fee is skipped, matching the
 // same gate the student's own course view already enforces (getCourse, course.controller.js).
-function ShareAiToClassButton({ title: defaultTitle, content: defaultContent }) {
+function ShareAiToClassButton({ title: defaultTitle, content: defaultContent, defaultCourseId }) {
   const [open, setOpen] = useState(false);
   const [title, setTitle] = useState(defaultTitle);
   const [content, setContent] = useState(defaultContent);
@@ -3922,7 +3921,7 @@ function ShareAiToClassButton({ title: defaultTitle, content: defaultContent }) 
     if (courses) return;
     apiRequest('/courses/mine/list').then((list) => {
       setCourses(list);
-      if (list.length > 0) setCourseId(list[0]._id);
+      if (list.length > 0) setCourseId(list.some((c) => c._id === defaultCourseId) ? defaultCourseId : list[0]._id);
     }).catch(() => setCourses([]));
   }
 
@@ -3971,7 +3970,7 @@ function ShareAiToClassButton({ title: defaultTitle, content: defaultContent }) 
   );
 }
 
-function AiResultView({ text, shareTitle }) {
+function AiResultView({ text, shareTitle, courseId }) {
   const [copied, setCopied] = useState(false);
   function copy() {
     try { navigator.clipboard?.writeText(text); setCopied(true); setTimeout(() => setCopied(false), 1500); } catch { /* clipboard unavailable */ }
@@ -3983,15 +3982,16 @@ function AiResultView({ text, shareTitle }) {
         <button type="button" className="ai-result-copy" onClick={copy}>{copied ? <><FaCheck /> Copied</> : <><FaCopy /> Copy</>}</button>
       </div>
       {isAiQuizText(text) ? <AiQuizBlock text={text} /> : <AiTextBlock text={text} />}
-      {shareTitle && <ShareAiToClassButton title={shareTitle} content={text} />}
+      {shareTitle && <ShareAiToClassButton title={shareTitle} content={text} defaultCourseId={courseId} />}
     </div>
   );
 }
 
-function AiFeatureCard({ feature, title, description, placeholder, aiEnabled, shareable, institutionId }) {
+function AiFeatureCard({ feature, title, description, placeholder, aiEnabled, shareable, institutionId, courseId, lockedReason }) {
   const [open, setOpen] = useState(false);
   const [prompt, setPrompt] = useState('');
   const [result, setResult] = useState('');
+  const [askedFor, setAskedFor] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
@@ -3999,8 +3999,9 @@ function AiFeatureCard({ feature, title, description, placeholder, aiEnabled, sh
     e.preventDefault();
     setLoading(true); setError(''); setResult('');
     try {
-      const { result: text } = await apiRequest('/ai/generate', { method: 'POST', body: { feature, prompt, institutionId: institutionId || undefined } });
+      const { result: text } = await apiRequest('/ai/generate', { method: 'POST', body: { feature, prompt, institutionId: institutionId || undefined, courseId: courseId || undefined } });
       setResult(text);
+      setAskedFor(prompt);
       setPrompt('');
     } catch (err) { setError(err.message); } finally { setLoading(false); }
   }
@@ -4010,8 +4011,8 @@ function AiFeatureCard({ feature, title, description, placeholder, aiEnabled, sh
       <strong className="text-sm">{title}</strong>
       <p className="text-xs" style={{ color: 'var(--ink-soft)', marginTop: 6 }}>{description}</p>
       {!open ? (
-        <button type="button" className="btn" style={{ padding: '6px 14px', fontSize: '0.78rem', marginTop: 12 }} onClick={() => setOpen(true)} disabled={!aiEnabled}>
-          {aiEnabled ? 'Open' : 'Connect an AI provider above first'}
+        <button type="button" className="btn" style={{ padding: '6px 14px', fontSize: '0.78rem', marginTop: 12 }} onClick={() => setOpen(true)} disabled={!aiEnabled || !!lockedReason}>
+          {lockedReason || (aiEnabled ? 'Open' : 'Connect an AI provider above first')}
         </button>
       ) : (
         <form onSubmit={generate} style={{ marginTop: 12 }}>
@@ -4021,7 +4022,7 @@ function AiFeatureCard({ feature, title, description, placeholder, aiEnabled, sh
             <button type="button" className="btn" style={{ padding: '6px 14px', fontSize: '0.78rem' }} onClick={() => setOpen(false)}>Close</button>
           </div>
           {error && <p className="text-xs" style={{ color: 'var(--rose)', marginTop: 8 }}>{error}</p>}
-          {result && <AiResultView text={result} shareTitle={shareable ? `${title}: ${prompt.slice(0, 60)}` : null} />}
+          {result && <AiResultView text={result} shareTitle={shareable ? `${title}: ${askedFor.slice(0, 60)}` : null} courseId={courseId} />}
         </form>
       )}
     </div>
@@ -4161,7 +4162,7 @@ function SlideDeckViewer({ title, slides, allowDownloads = true }) {
   );
 }
 
-function ShareSlideDeckToClass({ slides, defaultTitle }) {
+function ShareSlideDeckToClass({ slides, defaultTitle, defaultCourseId }) {
   const [open, setOpen] = useState(false);
   const [courses, setCourses] = useState(null);
   const [courseId, setCourseId] = useState('');
@@ -4172,7 +4173,7 @@ function ShareSlideDeckToClass({ slides, defaultTitle }) {
   function openReview() {
     setOpen(true); setTitle(defaultTitle || 'AI Slide Deck'); setStatus('');
     if (courses) return;
-    apiRequest('/courses/mine/list').then((list) => { setCourses(list); if (list[0]) setCourseId(list[0]._id); }).catch(() => setCourses([]));
+    apiRequest('/courses/mine/list').then((list) => { setCourses(list); if (list[0]) setCourseId(list.some((c) => c._id === defaultCourseId) ? defaultCourseId : list[0]._id); }).catch(() => setCourses([]));
   }
 
   async function share() {
@@ -4212,7 +4213,7 @@ function ShareSlideDeckToClass({ slides, defaultTitle }) {
 // Real AI Slides Generator (spec 15B.6 "خودکار پریزنٹیشن سلائیڈز") — the one sub-feature of "AI
 // Creative Teacher" buildable with the existing text-AI system (no image/video/3D AI provider
 // needed). Produces an actual presentable, fullscreen-able slide deck, not just a text blob.
-function SlideDeckGenerator({ aiEnabled, imageEnabled, institutionId }) {
+function SlideDeckGenerator({ aiEnabled, imageEnabled, institutionId, courseId, lockedReason }) {
   const [topic, setTopic] = useState('');
   const [slides, setSlides] = useState(null);
   const [current, setCurrent] = useState(0);
@@ -4224,7 +4225,7 @@ function SlideDeckGenerator({ aiEnabled, imageEnabled, institutionId }) {
     e.preventDefault();
     setLoading(true); setError(''); setSlides(null);
     try {
-      const { result } = await apiRequest('/ai/generate', { method: 'POST', body: { feature: 'teacher_slides', prompt: topic, institutionId: institutionId || undefined } });
+      const { result } = await apiRequest('/ai/generate', { method: 'POST', body: { feature: 'teacher_slides', prompt: topic, institutionId: institutionId || undefined, courseId: courseId || undefined } });
       const parsed = parseSlides(result);
       if (parsed.length === 0) throw new Error("Couldn't parse slides from the response — try again.");
       setSlides(parsed);
@@ -4269,8 +4270,8 @@ function SlideDeckGenerator({ aiEnabled, imageEnabled, institutionId }) {
     <div className="card" style={{ padding: 18 }}>
       <strong className="text-sm">AI Slides Generator</strong>
       <p className="text-xs" style={{ color: 'var(--ink-soft)', marginTop: 6 }}>Give a topic — get a real slide deck you can present fullscreen in class (use arrow keys to navigate).</p>
-      {!aiEnabled ? (
-        <p className="text-xs" style={{ color: 'var(--ink-soft)', marginTop: 12 }}>Connect an AI provider above first.</p>
+      {!aiEnabled || lockedReason ? (
+        <p className="text-xs" style={{ color: 'var(--ink-soft)', marginTop: 12 }}>{lockedReason || 'Connect an AI provider above first.'}</p>
       ) : (
         <form onSubmit={generate} style={{ marginTop: 12 }}>
           <input className="form-input" placeholder="e.g. The Water Cycle, Grade 5" value={topic} onChange={(e) => setTopic(e.target.value)} required />
@@ -4307,7 +4308,7 @@ function SlideDeckGenerator({ aiEnabled, imageEnabled, institutionId }) {
             <button type="button" className="btn flex items-center" style={{ padding: '6px 14px', fontSize: '0.78rem', gap: 5 }} onClick={() => setCurrent((c) => Math.min(slides.length - 1, c + 1))} disabled={current === slides.length - 1}>Next <FaArrowRight aria-hidden="true" /></button>
             <button type="button" className="btn btn-primary flex items-center" style={{ padding: '6px 14px', fontSize: '0.78rem', gap: 5 }} onClick={() => viewerRef.current?.requestFullscreen?.()}><FaExpand aria-hidden="true" /> Present Fullscreen</button>
           </div>
-          <ShareSlideDeckToClass slides={slides} defaultTitle={topic || 'AI Slide Deck'} />
+          <ShareSlideDeckToClass slides={slides} defaultTitle={topic || 'AI Slide Deck'} defaultCourseId={courseId} />
         </div>
       )}
     </div>
@@ -4316,7 +4317,39 @@ function SlideDeckGenerator({ aiEnabled, imageEnabled, institutionId }) {
 
 // AI Creative Teacher — Graphics/Images (spec 15B.6). Real DALL-E/Stability call, shows the
 // actual generated image (returned as a data URI, nothing faked or placeholder).
-function ImageGenerator({ aiEnabled, onFlash }) {
+// AI Create Media → class: saves the file to CareerZ storage first (provider links expire within
+// hours), then publishes it as a lesson in the class chosen at the top of AI Teacher.
+const MEDIA_STORAGE_TYPE = { image: 'image', audio: 'video', video: 'video', model: 'raw' };
+function ShareMediaToClass({ courseId, type, source, defaultTitle }) {
+  const [open, setOpen] = useState(false), [title, setTitle] = useState(''), [note, setNote] = useState(''), [busy, setBusy] = useState(false), [status, setStatus] = useState('');
+  useEffect(() => { setOpen(false); setStatus(''); }, [source]);
+  if (!source) return null;
+  if (!courseId) return <p className="text-xs" style={{ color: 'var(--ink-soft)', marginTop: 10 }}>Select class and subject at the top to share this with students.</p>;
+  async function publish() {
+    if (!title.trim()) return;
+    setBusy(true);
+    try {
+      setStatus('Saving to CareerZ storage…');
+      const url = await uploadToPlatformStorage(source, 'ai-media', MEDIA_STORAGE_TYPE[type]);
+      setStatus('Publishing…');
+      const { notifiedCount, feeBlockedCount } = await apiRequest(`/courses/${courseId}/ai-resource`, { method: 'POST', body: { title: title.trim(), content: note.trim(), media: { type, url, name: title.trim() } } });
+      setStatus(`Published to class — ${notifiedCount} student${notifiedCount === 1 ? '' : 's'} notified${feeBlockedCount > 0 ? ` (${feeBlockedCount} skipped — pending fee)` : ''}.`);
+      setOpen(false);
+    } catch (err) { setStatus(err.message); } finally { setBusy(false); }
+  }
+  return <div style={{ marginTop: 10 }}>
+    {!open ? <button type="button" className="btn" style={{ padding: '6px 14px', fontSize: '0.78rem', display: 'inline-flex', alignItems: 'center', gap: 6 }} onClick={() => { setTitle(defaultTitle || ''); setNote(''); setStatus(''); setOpen(true); }}><FaPaperPlane aria-hidden="true" /> Review &amp; Share with Students</button>
+      : <div style={{ padding: 12, background: 'var(--sand)', borderRadius: 10, display: 'grid', gap: 8 }}>
+        <p className="text-xs" style={{ color: 'var(--ink-soft)', margin: 0 }}>Publishes to the class selected at the top. Students get a notification.</p>
+        <input className="form-input" aria-label="Lesson title" placeholder="Lesson title" value={title} maxLength={200} onChange={(e) => setTitle(e.target.value)} />
+        <textarea className="form-input" rows={2} aria-label="Note for students" placeholder="Optional note for students, e.g. what to look for" value={note} onChange={(e) => setNote(e.target.value)} />
+        <div className="flex gap-2"><button type="button" className="btn btn-primary" style={{ padding: '6px 14px', fontSize: '0.78rem' }} disabled={busy || !title.trim()} onClick={publish}>{busy ? 'Publishing…' : 'Publish'}</button><button type="button" className="btn" style={{ padding: '6px 14px', fontSize: '0.78rem' }} disabled={busy} onClick={() => setOpen(false)}>Cancel</button></div>
+      </div>}
+    {status && <p className="text-xs" role="status" style={{ marginTop: 8 }}>{status}</p>}
+  </div>;
+}
+
+function ImageGenerator({ aiEnabled, onFlash, courseId, lockedReason }) {
   const [prompt, setPrompt] = useState('');
   const [image, setImage] = useState(null);
   const [loading, setLoading] = useState(false);
@@ -4327,7 +4360,6 @@ function ImageGenerator({ aiEnabled, onFlash }) {
     try {
       const { imageDataUrl } = await apiRequest('/ai/image', { method: 'POST', body: { prompt } });
       setImage(imageDataUrl);
-      setPrompt('');
     } catch (err) { onFlash(err.message); } finally { setLoading(false); }
   }
 
@@ -4335,8 +4367,8 @@ function ImageGenerator({ aiEnabled, onFlash }) {
     <div className="card" style={{ padding: 18 }}>
       <strong className="text-sm">AI Graphics / Image Generator</strong>
       <p className="text-xs" style={{ color: 'var(--ink-soft)', marginTop: 6 }}>Describe a diagram, chart or illustration for class.</p>
-      {!aiEnabled ? (
-        <p className="text-xs" style={{ color: 'var(--ink-soft)', marginTop: 12 }}>Connect an Image AI provider above first.</p>
+      {!aiEnabled || lockedReason ? (
+        <p className="text-xs" style={{ color: 'var(--ink-soft)', marginTop: 12 }}>{lockedReason || 'Connect an Image AI provider above first.'}</p>
       ) : (
         <form onSubmit={generate} style={{ marginTop: 12 }}>
           <input className="form-input" placeholder="e.g. Diagram of the human heart with labeled chambers" value={prompt} onChange={(e) => setPrompt(e.target.value)} required />
@@ -4344,13 +4376,14 @@ function ImageGenerator({ aiEnabled, onFlash }) {
           {image && <img src={image} alt="AI generated classroom visual" style={{ marginTop: 12, borderRadius: 10, maxWidth: '100%' }} />}
         </form>
       )}
+      {!lockedReason && <ShareMediaToClass courseId={courseId} type="image" source={image} defaultTitle={prompt.slice(0, 80)} />}
     </div>
   );
 }
 
 // AI Creative Teacher — 3D Models (spec 15B.6, Meshy AI). Async job: create then poll. Renders
 // the real returned GLB model with Three.js — not just a download link.
-function ThreeDModelGenerator({ aiEnabled, onFlash }) {
+function ThreeDModelGenerator({ aiEnabled, onFlash, courseId, lockedReason }) {
   const [prompt, setPrompt] = useState('');
   const [taskId, setTaskId] = useState(null);
   const [status, setStatus] = useState(null);
@@ -4411,8 +4444,8 @@ function ThreeDModelGenerator({ aiEnabled, onFlash }) {
     <div className="card" style={{ padding: 18 }}>
       <strong className="text-sm">AI 3D Model Generator</strong>
       <p className="text-xs" style={{ color: 'var(--ink-soft)', marginTop: 6 }}>Describe an object for a 3D science/geography lesson — takes 1-3 minutes.</p>
-      {!aiEnabled ? (
-        <p className="text-xs" style={{ color: 'var(--ink-soft)', marginTop: 12 }}>Connect a 3D AI provider above first.</p>
+      {!aiEnabled || lockedReason ? (
+        <p className="text-xs" style={{ color: 'var(--ink-soft)', marginTop: 12 }}>{lockedReason || 'Connect a 3D AI provider above first.'}</p>
       ) : (
         <form onSubmit={start} style={{ marginTop: 12 }}>
           <input className="form-input" placeholder="e.g. A human heart, anatomically accurate" value={prompt} onChange={(e) => setPrompt(e.target.value)} required />
@@ -4422,6 +4455,7 @@ function ThreeDModelGenerator({ aiEnabled, onFlash }) {
           {modelUrl && <div ref={viewerRef} style={{ marginTop: 12, borderRadius: 10, overflow: 'hidden', border: '1px solid var(--sand-line)' }} />}
         </form>
       )}
+      {!lockedReason && <ShareMediaToClass courseId={courseId} type="model" source={modelUrl} defaultTitle={`3D model: ${prompt}`.slice(0, 80)} />}
     </div>
   );
 }
@@ -4431,7 +4465,7 @@ function ThreeDModelGenerator({ aiEnabled, onFlash }) {
 // separate ElevenLabs call chained in.
 // AI Creative Teacher — Animation (spec 15B.6, Runway ML). Async job: create then poll. Runway's
 // output URLs expire in 24-48h, so the video is offered as a real download, not just a link.
-function AnimationGenerator({ aiEnabled, onFlash }) {
+function AnimationGenerator({ aiEnabled, onFlash, courseId, lockedReason }) {
   const [promptText, setPromptText] = useState('');
   const [promptImage, setPromptImage] = useState('');
   const [taskId, setTaskId] = useState(null);
@@ -4467,8 +4501,8 @@ function AnimationGenerator({ aiEnabled, onFlash }) {
     <div className="card" style={{ padding: 18 }}>
       <strong className="text-sm">AI Animation Generator</strong>
       <p className="text-xs" style={{ color: 'var(--ink-soft)', marginTop: 6 }}>Describe a moving animation (e.g. a chemical reaction, a physics principle). Takes 1-2 minutes. Download the result — the link expires in 24-48h.</p>
-      {!aiEnabled ? (
-        <p className="text-xs" style={{ color: 'var(--ink-soft)', marginTop: 12 }}>Connect an Animation AI provider above first.</p>
+      {!aiEnabled || lockedReason ? (
+        <p className="text-xs" style={{ color: 'var(--ink-soft)', marginTop: 12 }}>{lockedReason || 'Connect an Animation AI provider above first.'}</p>
       ) : (
         <form onSubmit={start} style={{ marginTop: 12 }}>
           <input className="form-input" placeholder="e.g. A water molecule forming from hydrogen and oxygen atoms" value={promptText} onChange={(e) => setPromptText(e.target.value)} required />
@@ -4484,11 +4518,12 @@ function AnimationGenerator({ aiEnabled, onFlash }) {
           )}
         </form>
       )}
+      {!lockedReason && <ShareMediaToClass courseId={courseId} type="video" source={videoUrl} defaultTitle={`Animation: ${promptText}`.slice(0, 80)} />}
     </div>
   );
 }
 
-function VoiceAndAvatarGenerator({ aiEnabled, onFlash }) {
+function VoiceAndAvatarGenerator({ aiEnabled, onFlash, courseId, lockedReason }) {
   const [narrationText, setNarrationText] = useState('');
   const [audio, setAudio] = useState(null);
   const [narrating, setNarrating] = useState(false);
@@ -4536,8 +4571,8 @@ function VoiceAndAvatarGenerator({ aiEnabled, onFlash }) {
       <div className="card" style={{ padding: 18 }}>
         <strong className="text-sm">AI Voice Narration</strong>
         <p className="text-xs" style={{ color: 'var(--ink-soft)', marginTop: 6 }}>Type narration text — get real speech audio to play over slides.</p>
-        {!aiEnabled?.voice?.configured ? (
-          <p className="text-xs" style={{ color: 'var(--ink-soft)', marginTop: 12 }}>Connect a Voice AI provider above first.</p>
+        {!aiEnabled?.voice?.configured || lockedReason ? (
+          <p className="text-xs" style={{ color: 'var(--ink-soft)', marginTop: 12 }}>{lockedReason || 'Connect a Voice AI provider above first.'}</p>
         ) : (
           <form onSubmit={generateNarration} style={{ marginTop: 12 }}>
             <textarea className="form-input" rows={2} placeholder="Text to narrate..." value={narrationText} onChange={(e) => setNarrationText(e.target.value)} required />
@@ -4545,13 +4580,14 @@ function VoiceAndAvatarGenerator({ aiEnabled, onFlash }) {
             {audio && <audio controls src={audio} style={{ display: 'block', marginTop: 12, width: '100%' }} />}
           </form>
         )}
+        {!lockedReason && <ShareMediaToClass courseId={courseId} type="audio" source={audio} defaultTitle={`Narration: ${narrationText}`.slice(0, 80)} />}
       </div>
 
       <div className="card" style={{ padding: 18 }}>
         <strong className="text-sm">AI Avatar Video</strong>
         <p className="text-xs" style={{ color: 'var(--ink-soft)', marginTop: 6 }}>Type a script — get a full talking-avatar educational video (takes a few minutes).</p>
-        {!aiEnabled?.avatar?.configured ? (
-          <p className="text-xs" style={{ color: 'var(--ink-soft)', marginTop: 12 }}>Connect an Avatar Video AI provider above first.</p>
+        {!aiEnabled?.avatar?.configured || lockedReason ? (
+          <p className="text-xs" style={{ color: 'var(--ink-soft)', marginTop: 12 }}>{lockedReason || 'Connect an Avatar Video AI provider above first.'}</p>
         ) : (
           <form onSubmit={startAvatarVideo} style={{ marginTop: 12 }}>
             <textarea className="form-input" rows={2} placeholder="What should the avatar say?" value={script} onChange={(e) => setScript(e.target.value)} required />
@@ -4561,6 +4597,7 @@ function VoiceAndAvatarGenerator({ aiEnabled, onFlash }) {
             {videoUrl && <video controls src={videoUrl} style={{ display: 'block', marginTop: 12, width: '100%', borderRadius: 10 }} />}
           </form>
         )}
+        {!lockedReason && <ShareMediaToClass courseId={courseId} type="video" source={videoUrl} defaultTitle={`Avatar video: ${script}`.slice(0, 80)} />}
       </div>
     </>
   );
@@ -7725,9 +7762,10 @@ function TeacherWorkspace({ tab, user, onFlash, onChanged, onNavigate, onMessage
   if (tab === 'earnings') return <TeacherEarningsPanel onFlash={onFlash} />;
   if (tab === 'performance') return <TeacherPerformancePanel onFlash={onFlash} />;
   if (tab === 'resourceLibrary') return <ResourceLibrary onFlash={onFlash} canShare />;
-  if (tab === 'aiAssistant') return <TeacherAiAssistantPanel onFlash={onFlash} />;
-  if (tab === 'aiCreative') return <TeacherCreativeAiPanel onFlash={onFlash} />;
-  if (tab === 'advancedControl') return <AdvancedClassControlPanel onFlash={onFlash} />;
+  // The three AI teacher tools live under one menu item; the old keys still open their section.
+  if (tab === 'aiAssistant') return <TeacherAiHub onFlash={onFlash} />;
+  if (tab === 'aiCreative') return <TeacherAiHub onFlash={onFlash} initial="media" />;
+  if (tab === 'advancedControl') return <TeacherAiHub onFlash={onFlash} initial="live" />;
   if (tab === 'engagement') return <TeacherEngagementPanel onFlash={onFlash} />;
   if (tab === 'ptm') return <><TeacherPtmPanel onFlash={onFlash} /><FamilyTeacherNotes onFlash={onFlash} /></>;
   if (tab === 'wallet') return <WalletCard onFlash={onFlash} />;
@@ -7818,17 +7856,63 @@ function AiScope({ scope, onScope, onStatus, onFlash }) {
   useEffect(() => { let alive = true; onStatus(null); apiRequest(scope ? '/ai/institutions/' + scope + '/config' : '/ai/config').then(status => { if (alive) onStatus(status); }).catch(e => { if (alive) onFlash(e.message); }); return () => { alive = false; }; }, [scope]);
   return <label>AI billing source<select className="form-select" value={scope} onChange={e => onScope(e.target.value)}><option value="">My personal API key</option>{options.map(i => <option key={i._id} value={i._id}>{i.name} — institution API key</option>)}</select></label>;
 }
-function TeacherAiAssistantPanel({ onFlash }) {
+// One "AI Teacher" page: writing and planning tools, media creation, and live class control.
+function TeacherAiHub({ onFlash, initial = 'write' }) {
+  const sections = [['write', 'Write & Plan', 'Notes, quizzes, lesson plans, assignments, papers, rubrics and slides for your class'], ['media', 'Create Media', 'Images, 3D models, narration, avatar video and animation'], ['live', 'Live Class Control', 'Run your live class: slides, polls and student inputs']];
+  const [section, setSection] = useState(initial);
+  useEffect(() => { setSection(initial); }, [initial]);
+  const [courses, setCourses] = useState(null), [courseId, setCourseId] = useState('');
+  useEffect(() => { apiRequest('/courses/mine/list').then((list) => { setCourses(list); if (list.length === 1) setCourseId(list[0]._id); }).catch(() => setCourses([])); }, []);
+  const current = sections.find(([key]) => key === section);
+  return <div>
+    <nav className="cz-tabbar" aria-label="AI Teacher sections" style={{ marginBottom: 8, flexWrap: 'wrap' }}>
+      {sections.map(([key, label]) => <button key={key} type="button" aria-pressed={section === key} className={`cz-tab${section === key ? ' active' : ''}`} onClick={() => setSection(key)}>{label}</button>)}
+    </nav>
+    <p className="text-xs" style={{ color: 'var(--ink-soft)', marginBottom: 16 }}>{current[2]}</p>
+    {section !== 'live' && <TeacherAiClassPicker courses={courses} courseId={courseId} onChange={setCourseId} />}
+    {section === 'write' && <TeacherAiAssistantPanel onFlash={onFlash} courseId={courseId} />}
+    {section === 'media' && <TeacherCreativeAiPanel onFlash={onFlash} courseId={courseId} />}
+    {section === 'live' && <AdvancedClassControlPanel onFlash={onFlash} />}
+  </div>;
+}
+// Two required choices before any AI tool unlocks: the class (section) and then the subject the
+// teacher teaches in it. Each subject is one of the teacher's own courses.
+function TeacherAiClassPicker({ courses, courseId, onChange }) {
+  const classOf = (c) => c.classSection?._id || (c.institution?._id ? 'inst:' + c.institution._id : 'own');
+  const className = (c) => c.classSection?.name ? c.classSection.name + (c.institution?.name ? ' (' + c.institution.name + ')' : '') : c.institution?.name ? c.institution.name + ' (no section)' : 'My own courses';
+  const classes = [...new Map((courses || []).map((c) => [classOf(c), className(c)])).entries()];
+  const selected = courses?.find((c) => c._id === courseId);
+  const [classKey, setClassKey] = useState(selected ? classOf(selected) : '');
+  useEffect(() => { if (selected) setClassKey(classOf(selected)); else if (classes.length === 1) setClassKey(classes[0][0]); }, [courses, courseId]);
+  const subjects = (courses || []).filter((c) => classOf(c) === classKey);
+  function pickClass(key) { setClassKey(key); const list = (courses || []).filter((c) => classOf(c) === key); onChange(list.length === 1 ? list[0]._id : ''); }
+  return <div className="card teacher-ai-class" style={{ padding: 18, margin: '12px 0 16px', display: 'grid', gap: 10, gridTemplateColumns: 'repeat(auto-fit,minmax(220px,1fr))' }}>
+    <label>Class<select className="form-select" value={classKey} onChange={(e) => pickClass(e.target.value)} disabled={!courses?.length}>
+      <option value="" disabled>{courses === null ? 'Loading your classes…' : courses.length ? 'Select a class…' : 'No classes assigned yet'}</option>
+      {classes.map(([key, name]) => <option key={key} value={key}>{name}</option>)}
+    </select></label>
+    <label>Subject<select className="form-select" value={courseId} onChange={(e) => onChange(e.target.value)} disabled={!classKey}>
+      <option value="" disabled>{classKey ? 'Select a subject…' : 'Select a class first'}</option>
+      {subjects.map((c) => <option key={c._id} value={c._id}>{c.subject || c.title}{c.subject && c.subject !== c.title ? ' — ' + c.title : ''}</option>)}
+    </select></label>
+    <p className="text-xs" role="status" style={{ gridColumn: '1 / -1', margin: 0 }}>{selected
+      ? <>Preparing for <strong>{selected.subject || selected.title}</strong> · {className(selected)}{selected.level ? <> · Level: {selected.level}</> : null}{selected.academicTerm ? <> · Term: {selected.academicTerm}</> : null}. The AI writes for this class, and <em>Review &amp; Share</em> publishes it to these students.</>
+      : courses?.length === 0 ? 'You have no classes yet. Your institution assigns classes to you, or create your own course first.'
+      : 'Select the class and subject you are preparing for. The AI tools unlock once both are selected.'}</p>
+  </div>;
+}
+function TeacherAiAssistantPanel({ onFlash, courseId }) {
   const [status, setStatus] = useState(null), [scope, setScope] = useState('');
+
   const tools = [
     ['teacher_notes', 'Notes Generator'], ['teacher_quiz', 'Quiz Generator'], ['teacher_lesson_plan', 'Lesson Plan'],
     ['teacher_assignment', 'Smart Assignment'], ['teacher_paper', 'Question Paper'], ['teacher_rubric', 'Assessment Rubric']
   ];
-  return <section><h3>AI Teacher Assistant</h3><AiScope scope={scope} onScope={setScope} onStatus={setStatus} onFlash={onFlash} />
+  return <section><AiScope scope={scope} onScope={setScope} onStatus={setStatus} onFlash={onFlash} />
     {!scope && <AiSettingsPanel onFlash={onFlash} onChanged={() => apiRequest('/ai/config').then(setStatus)} />}
     {scope && <p>Uses the selected institution key with its AI access permission. Contact the owner to connect a provider.</p>}
-    <div style={{ display: 'grid', gap: 14, gridTemplateColumns: 'repeat(auto-fit,minmax(260px,1fr))' }}>{tools.map(([feature,title]) => <AiFeatureCard key={scope + feature} feature={feature} title={title} description="Enter topic, level and your requirements. Review the draft before publishing." placeholder="Introduction to Computing, first semester, English" aiEnabled={!!status?.text.configured} institutionId={scope} shareable />)}</div>
-    <SlideDeckGenerator key={scope} institutionId={scope} aiEnabled={!!status?.text.configured} imageEnabled={!!status?.image.configured} /><TeacherPerformanceInsights institutionId={scope} enabled={!!status?.text.configured} />
+    <div style={{ display: 'grid', gap: 14, gridTemplateColumns: 'repeat(auto-fit,minmax(260px,1fr))' }}>{tools.map(([feature,title]) => <AiFeatureCard key={scope + courseId + feature} feature={feature} title={title} description="Enter topic, level and your requirements. Review the draft before publishing." placeholder="Introduction to Computing, first semester, English" aiEnabled={!!status?.text.configured} institutionId={scope} courseId={courseId} lockedReason={courseId ? '' : 'Select class and subject at the top first'} shareable />)}</div>
+    <SlideDeckGenerator key={scope} institutionId={scope} courseId={courseId} lockedReason={courseId ? '' : 'Select class and subject at the top first.'} aiEnabled={!!status?.text.configured} imageEnabled={!!status?.image.configured} /><TeacherPerformanceInsights institutionId={scope} enabled={!!status?.text.configured} />
     <p>Review and publish approved content to your course so enrolled students can access it.</p>
   </section>;
 }
@@ -7848,30 +7932,31 @@ function StudentAiAssistantPanel({ onFlash }) {
 // Real BYOK AI Creative Teacher (spec 15B.6-15B.7) — its own dedicated pipeline, separate from
 // the text-only AI Teacher Assistant: graphics, 3D models, narration, avatar video, and the full
 // AI Video Lesson Creator (script -> narration -> slides -> real MP4).
-function TeacherCreativeAiPanel({ onFlash }) {
+function TeacherCreativeAiPanel({ onFlash, courseId }) {
   const [status, setStatus] = useState(null);
   function refresh() { apiRequest('/ai/config').then(setStatus).catch(() => {}); }
   useEffect(refresh, []);
 
   const textEnabled = status?.text.configured || false;
+  const lock = courseId ? '' : 'Select class and subject at the top first.';
 
   return (
     <div>
-      <h3 className="font-semibold mb-3">AI Creative Teacher</h3>
+      <h3 className="font-semibold mb-3">Create Media</h3>
       <AiSettingsPanel onFlash={onFlash} onChanged={refresh} />
 
       <h4 className="font-semibold mb-2 mt-2" style={{ fontSize: '0.9rem' }}>Graphics, 3D, Narration &amp; Avatar</h4>
       <p className="text-xs mb-3" style={{ color: 'var(--ink-soft)' }}>Each connects to a different specialized AI provider above — connect only what you'll actually use.</p>
       <div className="grid grid-cols-1 md:grid-cols-2" style={{ gap: 14 }}>
-        <ImageGenerator aiEnabled={status?.image.configured} onFlash={onFlash} />
-        <ThreeDModelGenerator aiEnabled={status?.threed.configured} onFlash={onFlash} />
-        <AnimationGenerator aiEnabled={status?.animation.configured} onFlash={onFlash} />
-        <VoiceAndAvatarGenerator aiEnabled={status} onFlash={onFlash} />
+        <ImageGenerator aiEnabled={status?.image.configured} onFlash={onFlash} courseId={courseId} lockedReason={lock} />
+        <ThreeDModelGenerator aiEnabled={status?.threed.configured} onFlash={onFlash} courseId={courseId} lockedReason={lock} />
+        <AnimationGenerator aiEnabled={status?.animation.configured} onFlash={onFlash} courseId={courseId} lockedReason={lock} />
+        <VoiceAndAvatarGenerator aiEnabled={status} onFlash={onFlash} courseId={courseId} lockedReason={lock} />
       </div>
 
       <h4 className="font-semibold mb-2 mt-6" style={{ fontSize: '0.9rem' }}>AI Video Lesson Creator</h4>
       <p className="text-xs mb-3" style={{ color: 'var(--ink-soft)' }}>Text → AI script → voice narration → slide scenes → real MP4, rendered free in your browser (ffmpeg.wasm), saved to a lesson. Needs Text + Voice AI connected above, and a free video storage account connected below.</p>
-      <AiVideoLessonCreator aiEnabled={textEnabled && status?.voice.configured} onFlash={onFlash} />
+      <AiVideoLessonCreator aiEnabled={textEnabled && status?.voice.configured} onFlash={onFlash} courseId={courseId} lockedReason={lock} />
     </div>
   );
 }
@@ -8399,7 +8484,7 @@ function AdvancedClassControlPanel({ onFlash }) {
     setEyeOn(false);
     setCalibrating(false);
     if (document.fullscreenElement) document.exitFullscreen?.();
-    onFlash('All Advanced Class Control inputs disabled.', 'success');
+    onFlash('All live class inputs disabled.', 'success');
   }
 
   const anyControlOn = voiceOn || gestureOn || eyeOn;
@@ -8412,7 +8497,7 @@ function AdvancedClassControlPanel({ onFlash }) {
 
   return (
     <div>
-      <h3 className="font-semibold mb-1">Advanced Class Control</h3>
+      <h3 className="font-semibold mb-1">Live Class Control</h3>
       <p className="text-xs mb-4" style={{ color: 'var(--ink-soft)' }}>
         Optional, hands-free presentation control — voice, hand gestures, and eye-gaze. Entirely browser-side; your camera/microphone are never sent to CareerZ. Manual buttons and arrow keys always work, on or off.
       </p>
@@ -8580,8 +8665,10 @@ const CLOUD_STORAGE_CDN = 'https://cdn.jsdelivr.net/npm/@ffmpeg/core@0.12.10/dis
 // Canvas-rendered slide "scenes" -> ffmpeg.wasm (open-source, runs entirely in this browser tab)
 // combines image+audio per scene and concatenates them into one real MP4 -> uploaded straight to
 // the teacher's own Cloudinary account (BYOK, free tier) -> saved as a real Lesson.videoUrl.
-function AiVideoLessonCreator({ aiEnabled, onFlash }) {
-  const { courses, courseId, setCourseId } = useTeacherCourses(onFlash);
+function AiVideoLessonCreator({ aiEnabled, onFlash, courseId: fixedCourseId, lockedReason }) {
+  const own = useTeacherCourses(onFlash);
+  const { courses, setCourseId } = own;
+  const courseId = fixedCourseId || own.courseId;
   const [topic, setTopic] = useState('');
   const [lessonTitle, setLessonTitle] = useState('');
   const [scenes, setScenes] = useState(null);
@@ -8751,11 +8838,11 @@ function AiVideoLessonCreator({ aiEnabled, onFlash }) {
         </div>
       )}
 
-      {!aiEnabled ? (
-        <p className="text-xs" style={{ color: 'var(--ink-soft)' }}>Connect a Text AI provider and a Voice AI provider above first.</p>
+      {!aiEnabled || lockedReason ? (
+        <p className="text-xs" style={{ color: 'var(--ink-soft)' }}>{lockedReason || 'Connect a Text AI provider and a Voice AI provider above first.'}</p>
       ) : (
         <>
-          <CourseSelect courses={courses} value={courseId} onChange={setCourseId} />
+          {!fixedCourseId && <CourseSelect courses={courses} value={courseId} onChange={setCourseId} />}
           <input className="form-input mb-2" placeholder="Lesson title (optional — defaults to topic)" value={lessonTitle} onChange={(e) => setLessonTitle(e.target.value)} />
           <input className="form-input mb-2" placeholder="Lesson topic, e.g. The Water Cycle" value={topic} onChange={(e) => setTopic(e.target.value)} />
           <button type="button" className="btn btn-primary" style={{ padding: '6px 14px', fontSize: '0.78rem' }} onClick={run} disabled={stage !== 'idle' && stage !== 'done' || !topic.trim()}>
@@ -9301,7 +9388,7 @@ function TeacherEngagementPanel({ onFlash }) {
 
       {section === 'liveHistory' && (
         <div>
-          <p className="text-xs" style={{ color: 'var(--ink-soft)', marginBottom: 12 }}>Real Class Energy Meter + live-poll results from your own past live classes (Advanced Class Control), saved when each class ends.</p>
+          <p className="text-xs" style={{ color: 'var(--ink-soft)', marginBottom: 12 }}>Real Class Energy Meter + live-poll results from your own past live classes (AI Teacher → Live Class Control), saved when each class ends.</p>
           {liveHistory === null && <p className="admin-notice">Loading...</p>}
           {liveHistory?.length === 0 && <p className="admin-notice">No live classes with participants yet.</p>}
           <div style={{ display: 'grid', gap: 10 }}>
@@ -10962,7 +11049,7 @@ function TeacherLiveClassesPanel({ user, onFlash }) {
       <Table loading={sessions === null} headers={['Title', 'Course / Subject', 'Class', 'Schedule', 'Status', 'Action']} rows={(sessions || []).map((session) => [
         session.title, session.course?.subject || session.course?.title, session.classSection?.name || '—',
         `${new Date(session.scheduledStart).toLocaleString()} – ${new Date(session.scheduledEnd).toLocaleTimeString()}`,
-        <span><Tag status={session.status === 'live' ? 'approved' : session.status === 'ended' ? 'completed' : session.status === 'cancelled' ? 'rejected' : 'pending'} label={session.status === 'live' ? 'Live now' : session.status} />{session.startedByClassControl && <small style={{ display: 'block' }}>via Advanced Class Control</small>}{session.engagement?.participantCount > 0 && <small style={{ display: 'block' }}>Engagement {session.engagement.averageEnergy ?? '—'}% · {session.engagement.attentiveCount}/{session.engagement.participantCount} attentive</small>}</span>,
+        <span><Tag status={session.status === 'live' ? 'approved' : session.status === 'ended' ? 'completed' : session.status === 'cancelled' ? 'rejected' : 'pending'} label={session.status === 'live' ? 'Live now' : session.status} />{session.startedByClassControl && <small style={{ display: 'block' }}>via Live Class Control</small>}{session.engagement?.participantCount > 0 && <small style={{ display: 'block' }}>Engagement {session.engagement.averageEnergy ?? '—'}% · {session.engagement.attentiveCount}/{session.engagement.participantCount} attentive</small>}</span>,
         session.status === 'scheduled' ? <button type="button" className="btn btn-primary" disabled={busyId === session._id} onClick={() => start(session)}>{busyId === session._id ? 'Starting…' : 'Start Class'}</button>
           : session.status === 'live' ? <div className="flex gap-2"><button type="button" className="btn btn-primary" onClick={() => session.provider === 'external' ? window.open(session.externalMeetingUrl, '_blank', 'noopener,noreferrer') : setActive(session)}>Open Classroom</button><button type="button" className="btn" style={{ color: 'var(--rose)' }} onClick={() => end(session)}>End</button></div> : '—'
       ])} empty="No live class has been scheduled for you yet." />
@@ -13161,7 +13248,7 @@ function InstitutionExaminationPanel({ onFlash }) {
   if (!institution) return <p className="admin-notice">Register an institution first (My Institution tab).</p>;
 
   return (
-    <div>
+    <div className="institution-ui institution-operations-ui institution-exams-ui">
       <h3 className="font-semibold mb-2">Examination Management</h3>
       <p className="admin-notice">Institution-wide exam register. Teachers create papers only for their assigned course; subject, class/section and teacher are linked automatically. Configure missing class sections in Classes &amp; Timetable before publishing papers.</p>
       <SummaryRow items={[
@@ -13191,7 +13278,7 @@ function InstitutionReportsPanel({ onFlash }) {
   if (!institution) return <p className="admin-notice">Register an institution first (My Institution tab).</p>;
 
   return (
-    <div>
+    <div className="institution-ui institution-remaining-ui institution-reports-ui">
       <h3 className="font-semibold mb-2">Institution Reports</h3>
       <SummaryRow items={[
         { label: 'Students', value: report.studentsCount, icon: FaUsers, detail: 'Enrolled' },
@@ -13865,10 +13952,10 @@ function InstitutionCertificatesPanel({ onFlash }) {
   if (!institution) return <p className="admin-notice">Register an institution first (My Institution tab).</p>;
 
   return (
-    <div>
+    <div className="institution-ui institution-operations-ui institution-credentials-ui">
       <GradingPolicyEditor institutionId={institution._id} onFlash={onFlash} />
       <div className="admin-notice" style={{ marginBottom: 16 }}><strong>Certificates follow academic completion</strong><p className="text-xs mt-1">A verified course certificate is generated only after course completion, a passed and teacher-graded exam, cleared due fees and institution verification. Manual User IDs and arbitrary titles are not accepted.</p></div>
-      <form onSubmit={issue} className="flex gap-3 items-end mb-3 flex-wrap">
+      <form onSubmit={issue} className="institution-form-grid institution-operations-form">
         <label className="text-xs" style={{ fontWeight: 700 }}>Eligible completion
           <select className="form-select" value={selection} onChange={(e) => setSelection(e.target.value)} style={{ minWidth: 360, marginTop: 5 }} required>
             <option value="">Select eligible student and course</option>
@@ -13880,7 +13967,7 @@ function InstitutionCertificatesPanel({ onFlash }) {
       {eligible.length === 0 && <p className="admin-notice">No completed certificate-enabled course is waiting for issuance.</p>}
       <h3 className="font-semibold mt-6 mb-2">Diploma, Training, Degree & Achievement</h3>
       <p className="admin-notice">Only students whose complete program courses and fees are cleared appear as eligible. Degree additionally requires graduated status; achievements must already be institution-verified.</p>
-      <form onSubmit={issueAdvanced} className="flex gap-3 items-end mb-4 flex-wrap">
+      <form onSubmit={issueAdvanced} className="institution-form-grid institution-operations-form">
         <select className="form-select" value={advancedSelection} onChange={(e) => setAdvancedSelection(e.target.value)} style={{ minWidth: 440 }} required><option value="">Select verified credential candidate</option>{[...advanced.programs, ...advanced.achievements].filter((item) => item.eligible).map((item) => { const id = item.program?._id || item.achievement?._id; return <option key={`${item.type}:${item.student._id}:${id}`} value={`${item.type}:${item.student._id}:${id}`}>{item.student.fullName} — {item.type.toUpperCase()} — {item.program?.name || item.achievement?.title}</option>; })}</select>
         <button type="submit" className="btn btn-primary">Issue Credential</button>
       </form>
@@ -14628,7 +14715,7 @@ function InstitutionBroadcastPanel({ onFlash }) {
   if (!institution) return <p className="admin-notice">Register an institution first (My Institution tab).</p>;
 
   return (
-    <div>
+    <div className="institution-ui institution-remaining-ui institution-communication-ui">
       <h3 className="font-semibold mb-2">Communication Center</h3>
       <p style={{ fontSize: 13, color: 'var(--ink-soft)', marginBottom: 16 }}>
         Sends an in-app notification (and email, where the recipient's account has one) to everyone in the group you pick — students, teachers, parents or staff linked to your institution. Use this for announcements or emergencies.
@@ -14641,8 +14728,8 @@ function InstitutionBroadcastPanel({ onFlash }) {
           <option value="parents">Parents</option>
           <option value="staff">Staff</option>
         </select>
-        <input className="form-input" placeholder="Title" value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })} required />
-        <textarea className="form-input" placeholder="Message" rows={4} value={form.body} onChange={(e) => setForm({ ...form, body: e.target.value })} />
+        <label className="institution-field"><span>Title</span><input className="form-input" placeholder="Title" value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })} required /></label>
+        <label className="institution-field"><span>Message</span><textarea className="form-input" placeholder="Message" rows={4} value={form.body} onChange={(e) => setForm({ ...form, body: e.target.value })} /></label>
         <div className="flex gap-4 items-center" style={{ fontSize: 13 }}>
           <span style={{ color: 'var(--ink-soft)' }}>In-app + browser push always.</span>
           <label className="flex items-center gap-1"><input type="checkbox" checked={!form.channels.includes('no-email')} onChange={() => toggleChannel('no-email')} /> Email</label>
@@ -14662,10 +14749,10 @@ function InstitutionBroadcastPanel({ onFlash }) {
           </div>
         ) : (
           <form onSubmit={connectTwilio} className="space-y-3 max-w-md">
-            <input className="form-input" placeholder="Twilio Account SID" value={twilioForm.accountSid} onChange={(e) => setTwilioForm({ ...twilioForm, accountSid: e.target.value })} required />
-            <input className="form-input" type="password" placeholder="Twilio Auth Token" value={twilioForm.authToken} onChange={(e) => setTwilioForm({ ...twilioForm, authToken: e.target.value })} required />
-            <input className="form-input" placeholder="SMS From Number (e.g. +15551234567)" value={twilioForm.smsFromNumber} onChange={(e) => setTwilioForm({ ...twilioForm, smsFromNumber: e.target.value })} />
-            <input className="form-input" placeholder="WhatsApp From Number (e.g. whatsapp:+14155238886)" value={twilioForm.whatsappFromNumber} onChange={(e) => setTwilioForm({ ...twilioForm, whatsappFromNumber: e.target.value })} />
+            <label className="institution-field"><span>Twilio Account SID</span><input className="form-input" placeholder="Twilio Account SID" value={twilioForm.accountSid} onChange={(e) => setTwilioForm({ ...twilioForm, accountSid: e.target.value })} required /></label>
+            <label className="institution-field"><span>Twilio Auth Token</span><input className="form-input" type="password" placeholder="Twilio Auth Token" value={twilioForm.authToken} onChange={(e) => setTwilioForm({ ...twilioForm, authToken: e.target.value })} required /></label>
+            <label className="institution-field"><span>SMS From Number (e.g. +15551234567)</span><input className="form-input" placeholder="SMS From Number (e.g. +15551234567)" value={twilioForm.smsFromNumber} onChange={(e) => setTwilioForm({ ...twilioForm, smsFromNumber: e.target.value })} /></label>
+            <label className="institution-field"><span>WhatsApp From Number (e.g. whatsapp:+14155238886)</span><input className="form-input" placeholder="WhatsApp From Number (e.g. whatsapp:+14155238886)" value={twilioForm.whatsappFromNumber} onChange={(e) => setTwilioForm({ ...twilioForm, whatsappFromNumber: e.target.value })} /></label>
             <button type="submit" className="btn btn-primary">Connect Twilio</button>
           </form>
         )}
@@ -14732,7 +14819,7 @@ function InstitutionCampusTourPanel({ onFlash }) {
   if (!institution) return <p className="admin-notice">Register an institution first (My Institution tab).</p>;
 
   return (
-    <div>
+    <div className="institution-ui institution-remaining-ui institution-tour-ui">
       <h3 className="font-semibold mb-2">Virtual Campus Tour</h3>
       <p className="text-xs mb-4" style={{ color: 'var(--ink-soft)' }}>
         A real, interactive 3D map built from your own buildings — no photography or 3D modeling skill needed.
@@ -15131,7 +15218,7 @@ function InstitutionLibraryPanel({ onFlash }) {
   if (!institution) return <p className="admin-notice">Register an institution first (My Institution tab).</p>;
 
   return (
-    <div>
+    <div className="institution-ui institution-operations-ui institution-library-ui">
       <div className="flex gap-2 mb-3">
         <button className={`btn ${tab === 'books' ? 'btn-primary' : ''}`} onClick={() => setTab('books')}>Books</button>
         <button className={`btn ${tab === 'loans' ? 'btn-primary' : ''}`} onClick={() => setTab('loans')}>Borrowed / Loans</button>
@@ -15148,15 +15235,15 @@ function InstitutionLibraryPanel({ onFlash }) {
             {qrScannerOpen && <div style={{ marginTop: 12 }}><QrScanner onScan={lookupQr} hint="Point the camera at the QR sticker on the library resource." /></div>}
             {scannedBook && <div className="admin-notice" style={{ marginTop: 12 }}><strong>{scannedBook.title}</strong> · {scannedBook.category.replaceAll('_', ' ')} · {scannedBook.availableCopies}/{scannedBook.copies} available. Complete borrower, due date and fine in its highlighted catalog row, then press Issue.</div>}
           </section>
-          <form onSubmit={addBook} className="flex gap-3 items-end mb-3 flex-wrap">
-            <input className="form-input" placeholder="Title" value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })} required />
-            <input className="form-input" placeholder="Author" value={form.author} onChange={(e) => setForm({ ...form, author: e.target.value })} />
-            <input className="form-input" placeholder="ISBN / catalog code" value={form.isbn} onChange={(e) => setForm({ ...form, isbn: e.target.value })} />
-            <select className="form-select" value={form.category} onChange={(e) => setForm({ ...form, category: e.target.value })}>
+          <form onSubmit={addBook} className="institution-form-grid institution-operations-form">
+            <label className="institution-field"><span>Resource title</span><input className="form-input" placeholder="Title" value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })} required /></label>
+            <label className="institution-field"><span>Author</span><input className="form-input" placeholder="Author" value={form.author} onChange={(e) => setForm({ ...form, author: e.target.value })} /></label>
+            <label className="institution-field"><span>ISBN / catalog code</span><input className="form-input" placeholder="ISBN / catalog code" value={form.isbn} onChange={(e) => setForm({ ...form, isbn: e.target.value })} /></label>
+            <label className="institution-field"><span>Category</span><select className="form-select" value={form.category} onChange={(e) => setForm({ ...form, category: e.target.value })}>
               {['book', 'ebook', 'journal', 'research_paper', 'video', 'audio_lecture', 'slides', 'notes'].map((c) => <option key={c} value={c}>{c.replaceAll('_', ' ')}</option>)}
-            </select>
-            <input className="form-input" type="number" min="0" placeholder="Copies" value={form.copies} onChange={(e) => setForm({ ...form, copies: e.target.value })} style={{ maxWidth: 100 }} />
-            <input className="form-input" type="url" placeholder="Digital file URL (optional)" value={form.fileUrl} onChange={(e) => setForm({ ...form, fileUrl: e.target.value })} />
+            </select></label>
+            <label className="institution-field"><span>Number of copies</span><input className="form-input" type="number" min="0" placeholder="Copies" value={form.copies} onChange={(e) => setForm({ ...form, copies: e.target.value })} style={{ maxWidth: 100 }} /></label>
+            <label className="institution-field"><span>Digital file URL (optional)</span><input className="form-input" type="url" placeholder="Digital file URL (optional)" value={form.fileUrl} onChange={(e) => setForm({ ...form, fileUrl: e.target.value })} /></label>
             <button type="submit" className="btn btn-primary">Add Book</button>
           </form>
           <Table
@@ -15433,7 +15520,7 @@ function InstitutionHostelPanel({ onFlash }) {
   if (!institution) return <p className="admin-notice">Register an institution first (My Institution tab).</p>;
 
   return (
-    <div>
+    <div className="institution-ui institution-operations-ui institution-hostel-ui">
       <div className="flex gap-2 mb-3">
         <button className={`btn ${tab === 'rooms' ? 'btn-primary' : ''}`} onClick={() => setTab('rooms')}>Rooms</button>
         <button className={`btn ${tab === 'requests' ? 'btn-primary' : ''}`} onClick={() => setTab('requests')}>Visitor / Leave Requests</button>
@@ -15445,11 +15532,11 @@ function InstitutionHostelPanel({ onFlash }) {
             <div className="admin-section-heading"><div><h2>Hostel applicants</h2><p>Only students who selected hostel during admission appear here. Their hostel fee is already part of the admission fee-plan voucher.</p></div></div>
             <Table headers={['Student', 'Department / Program', 'Class', 'Roll No.', 'Hostel Fee', 'Room']} rows={eligibleStudents.map((student) => [student.user?.fullName, `${student.department || '—'} / ${student.program}`, student.classSection?.name || '—', student.rollNumber || '—', `${student.currency} ${student.hostelFee}`, student.allocatedRoom || 'Awaiting allocation'])} empty="No accepted student requested hostel during admission." />
           </div>
-          <form onSubmit={addRoom} className="flex gap-3 items-end mb-3 flex-wrap">
-            <input className="form-input" placeholder="Building" value={form.building} onChange={(e) => setForm({ ...form, building: e.target.value })} />
-            <input className="form-input" placeholder="Room number" value={form.roomNumber} onChange={(e) => setForm({ ...form, roomNumber: e.target.value })} required />
-            <input className="form-input" placeholder="Floor" value={form.floor} onChange={(e) => setForm({ ...form, floor: e.target.value })} />
-            <input className="form-input" type="number" min="1" placeholder="Capacity" value={form.capacity} onChange={(e) => setForm({ ...form, capacity: e.target.value })} style={{ maxWidth: 100 }} required />
+          <form onSubmit={addRoom} className="institution-form-grid institution-operations-form">
+            <label className="institution-field"><span>Building</span><input className="form-input" placeholder="Building" value={form.building} onChange={(e) => setForm({ ...form, building: e.target.value })} /></label>
+            <label className="institution-field"><span>Room number</span><input className="form-input" placeholder="Room number" value={form.roomNumber} onChange={(e) => setForm({ ...form, roomNumber: e.target.value })} required /></label>
+            <label className="institution-field"><span>Floor</span><input className="form-input" placeholder="Floor" value={form.floor} onChange={(e) => setForm({ ...form, floor: e.target.value })} /></label>
+            <label className="institution-field"><span>Capacity</span><input className="form-input" type="number" min="1" placeholder="Capacity" value={form.capacity} onChange={(e) => setForm({ ...form, capacity: e.target.value })} style={{ maxWidth: 100 }} required /></label>
             <label className="text-xs">Warden<PersonPicker selected={roomWarden} onPick={setRoomWarden} onClear={() => setRoomWarden(null)} placeholder="Search warden by name/email" /></label>
             <button type="submit" className="btn btn-primary">Add Room</button>
           </form>
@@ -15722,17 +15809,17 @@ function InstitutionTransportPanel({ onFlash }) {
   if (!institution) return <p className="admin-notice">Register an institution first (My Institution tab).</p>;
 
   return (
-    <div>
-      <form onSubmit={addVehicle} className="flex gap-3 items-end mb-3 flex-wrap">
-        <input className="form-input" placeholder="Vehicle number" value={form.vehicleNumber} onChange={(e) => setForm({ ...form, vehicleNumber: e.target.value })} required />
-        <select className="form-select" value={form.type} onChange={(e) => setForm({ ...form, type: e.target.value })}>
+    <div className="institution-ui institution-operations-ui institution-transport-ui">
+      <form onSubmit={addVehicle} className="institution-form-grid institution-operations-form">
+        <label className="institution-field"><span>Vehicle number</span><input className="form-input" placeholder="Vehicle number" value={form.vehicleNumber} onChange={(e) => setForm({ ...form, vehicleNumber: e.target.value })} required /></label>
+        <label className="institution-field"><span>Vehicle type</span><select className="form-select" value={form.type} onChange={(e) => setForm({ ...form, type: e.target.value })}>
           {['bus', 'van', 'car'].map((t) => <option key={t} value={t}>{t}</option>)}
-        </select>
-        <input className="form-input" type="number" placeholder="Capacity" value={form.capacity} onChange={(e) => setForm({ ...form, capacity: e.target.value })} style={{ maxWidth: 100 }} />
-        <input className="form-input" placeholder="Driver name" value={form.driverName} onChange={(e) => setForm({ ...form, driverName: e.target.value })} />
-        <input className="form-input" placeholder="Driver phone" value={form.driverPhone} onChange={(e) => setForm({ ...form, driverPhone: e.target.value })} />
-        <input className="form-input" placeholder="Route name" value={form.routeName} onChange={(e) => setForm({ ...form, routeName: e.target.value })} />
-        <input className="form-input" type="number" placeholder="Monthly fee" value={form.monthlyFee} onChange={(e) => setForm({ ...form, monthlyFee: e.target.value })} style={{ maxWidth: 120 }} />
+        </select></label>
+        <label className="institution-field"><span>Capacity</span><input className="form-input" type="number" placeholder="Capacity" value={form.capacity} onChange={(e) => setForm({ ...form, capacity: e.target.value })} style={{ maxWidth: 100 }} /></label>
+        <label className="institution-field"><span>Driver name</span><input className="form-input" placeholder="Driver name" value={form.driverName} onChange={(e) => setForm({ ...form, driverName: e.target.value })} /></label>
+        <label className="institution-field"><span>Driver phone</span><input className="form-input" placeholder="Driver phone" value={form.driverPhone} onChange={(e) => setForm({ ...form, driverPhone: e.target.value })} /></label>
+        <label className="institution-field"><span>Route name</span><input className="form-input" placeholder="Route name" value={form.routeName} onChange={(e) => setForm({ ...form, routeName: e.target.value })} /></label>
+        <label className="institution-field"><span>Monthly fee</span><input className="form-input" type="number" placeholder="Monthly fee" value={form.monthlyFee} onChange={(e) => setForm({ ...form, monthlyFee: e.target.value })} style={{ maxWidth: 120 }} /></label>
         <label className="text-xs">Driver account (optional)<PersonPicker selected={vehicleDriver} onPick={setVehicleDriver} onClear={() => setVehicleDriver(null)} placeholder="Search driver by name/email" /></label>
         <button type="submit" className="btn btn-primary">Add Vehicle</button>
       </form>
@@ -16379,16 +16466,21 @@ function InstitutionHelpDeskPanel({ onFlash }) {
 
 function InstitutionAiAssistantPanel({ onFlash }) {
   const [institutions,setInstitutions]=useState([]),[id,setId]=useState(''),[status,setStatus]=useState(null);
-  const [insights,setInsights]=useState(''),[dataSummary,setDataSummary]=useState(''),[loading,setLoading]=useState(false),[error,setError]=useState('');
+  const [insights,setInsights]=useState(''),[dataSummary,setDataSummary]=useState(''),[details,setDetails]=useState(null),[reports,setReports]=useState([]),[meta,setMeta]=useState(null),[loading,setLoading]=useState(false),[error,setError]=useState('');
   useEffect(()=>{apiRequest('/institution-ops/community/institutions').then(list=>{const manageable=list.filter(i=>i.canManage);setInstitutions(manageable);setId(manageable[0]?._id||'');}).catch(e=>setError(e.message));},[]);
-  useEffect(()=>{let alive=true;setStatus(null);setInsights('');setDataSummary('');if(id)apiRequest('/ai/institutions/'+id+'/config').then(s=>{if(alive)setStatus(s);}).catch(e=>{if(alive)setError(e.message);});return()=>{alive=false;};},[id]);
-  async function generate(){setLoading(true);setError('');try{const r=await apiRequest('/institutions/'+id+'/ai-insights',{method:'POST'});setInsights(r.insights);setDataSummary(r.dataSummary);}catch(e){setError(e.message);onFlash(e.message);}finally{setLoading(false);}}
-  return <section><h2>AI Operations Assistant</h2><label>Institution<select className="form-select" disabled={loading} value={id} onChange={e=>{setError('');setId(e.target.value);}}>{institutions.map(i=><option key={i._id} value={i._id}>{i.name}</option>)}</select></label>
+  useEffect(()=>{let alive=true;setStatus(null);setInsights('');setDataSummary('');setDetails(null);setMeta(null);setReports([]);if(id){apiRequest('/ai/institutions/'+id+'/config').then(s=>{if(alive)setStatus(s);}).catch(e=>{if(alive)setError(e.message);});apiRequest('/institutions/'+id+'/ai-insights/reports').then(list=>{if(alive)setReports(list);}).catch(()=>{});}return()=>{alive=false;};},[id]);
+  const loadReports=()=>apiRequest('/institutions/'+id+'/ai-insights/reports').then(setReports).catch(()=>{});
+  function show(r){setInsights(r.insights);setDataSummary(r.dataSummary||'');setDetails(r.details||null);setMeta({reportId:r.reportId,createdAt:r.createdAt,generatedBy:r.generatedBy,provider:r.provider,model:r.model});}
+  async function openReport(reportId){setError('');try{show(await apiRequest('/institutions/'+id+'/ai-insights/reports/'+reportId));}catch(e){setError(e.message);onFlash(e.message);}}
+  async function deleteReport(r){if(!(await showConfirm('Delete the report from '+new Date(r.createdAt).toLocaleString()+'? This cannot be undone.',{confirmLabel:'Delete report'})))return;try{await apiRequest('/institutions/'+id+'/ai-insights/reports/'+r._id,{method:'DELETE'});if(meta?.reportId===r._id){setInsights('');setDetails(null);setDataSummary('');setMeta(null);}loadReports();onFlash('Report deleted.');}catch(e){onFlash(e.message);}}
+  async function generate(){setLoading(true);setError('');try{const r=await apiRequest('/institutions/'+id+'/ai-insights',{method:'POST'});show({...r,generatedBy:'You',provider:status?.text?.provider,model:status?.text?.model});loadReports();onFlash('Report generated and saved.');}catch(e){setError(e.message);onFlash(e.message);}finally{setLoading(false);}}
+  return <section className="institution-ui institution-remaining-ui institution-ai-ui"><h2>AI Operations Assistant</h2><label>Institution<select className="form-select" disabled={loading} value={id} onChange={e=>{setError('');setId(e.target.value);}}>{institutions.map(i=><option key={i._id} value={i._id}>{i.name}</option>)}</select></label>
     {error&&<p role="alert">{error}</p>}{id&&<AiSettingsPanel key={id} institutionId={id} purposes={[AI_PURPOSES[0]]} onFlash={onFlash} onChanged={()=>apiRequest('/ai/institutions/'+id+'/config').then(setStatus)} />}
-    <p>Analyzes real fee totals by currency, recorded attendance, graded class results, staff check-ins, payroll and support tickets. Decisions remain yours. Reports use all recorded history; missing data is identified.</p>
+    <p>Builds a detailed report from your real records: who paid or owes which fee, each student's attendance and results by class, staff check-ins, payroll and open tickets, with names, departments and roles. Decisions remain yours; missing data is identified, never guessed.</p>
     <button className="btn btn-primary" disabled={loading||!id||!status?.text.configured} onClick={generate}>{loading?'Analyzing…':'Generate Insights'}</button>
     {id&&!status?.text.configured&&<p>Connect the institution text provider above first.</p>}
-    {insights&&<><h3>Insights</h3><p style={{whiteSpace:'pre-wrap'}}>{insights}</p><details><summary>Raw data used</summary><pre style={{whiteSpace:'pre-wrap'}}>{dataSummary}</pre></details><button className="btn" onClick={()=>{const blob=new Blob([insights+'\n\n'+dataSummary],{type:'text/plain'});const url=URL.createObjectURL(blob);const anchor=document.createElement('a');anchor.href=url;anchor.download='institution-ai-report.txt';anchor.click();URL.revokeObjectURL(url);}}>Download report</button></>}
+    {reports.length>0&&<div className="ops-saved-reports"><h3>Saved reports ({reports.length})</h3><ul>{reports.map(r=><li key={r._id} className={meta?.reportId===r._id?'active':''}><span><strong>{new Date(r.createdAt).toLocaleString()}</strong> · by {r.generatedBy}{r.provider?' · '+r.provider+(r.model?' / '+r.model:''):''}</span><span><button type="button" className="btn" onClick={()=>openReport(r._id)} disabled={meta?.reportId===r._id}>{meta?.reportId===r._id?'Viewing':'View'}</button><button type="button" className="btn" onClick={()=>deleteReport(r)}>Delete</button></span></li>)}</ul></div>}
+    {insights&&<><h3>AI report</h3>{meta&&<p className="text-xs">Generated {new Date(meta.createdAt).toLocaleString()} by {meta.generatedBy}{meta.provider?' using '+meta.provider+(meta.model?' / '+meta.model:''):''}. Saved — the records below are as they were at that time.</p>}<AiReport text={insights} />{details&&<OpsRecordTables details={details} />}<details><summary>Raw data sent to the AI</summary><pre style={{whiteSpace:'pre-wrap'}}>{dataSummary}</pre></details><button className="btn" onClick={()=>{const blob=new Blob([insights+'\n\n'+dataSummary],{type:'text/plain'});const url=URL.createObjectURL(blob);const anchor=document.createElement('a');anchor.href=url;anchor.download='institution-ai-report.md';anchor.click();URL.revokeObjectURL(url);}}>Download report</button></>}
   </section>;
 }
 
@@ -16432,7 +16524,7 @@ function InstitutionSubscriptionPanel({ onFlash }) {
   const planOrder = ['free', 'basic', 'professional', 'enterprise'];
 
   return (
-    <div>
+    <div className="institution-ui institution-remaining-ui institution-subscription-ui">
       <div className="admin-section">
         <div className="admin-section-heading">
           <div>
@@ -16578,7 +16670,7 @@ function InstitutionCampusLifePanel({ onFlash }) {
   if (!institution) return <p className="admin-notice">Register an institution first (My Institution tab).</p>;
 
   return (
-    <div>
+    <div className="institution-ui institution-remaining-ui institution-publishing-ui">
       <h3 className="font-semibold mb-2">Newsletter & Magazine</h3>
       <div className="flex gap-2 mb-4 flex-wrap">
         <button type="button" className={`btn ${section === 'newsletter' ? 'btn-primary' : ''}`} onClick={() => setSection('newsletter')}>Newsletter</button>
@@ -16589,8 +16681,8 @@ function InstitutionCampusLifePanel({ onFlash }) {
       {section === 'newsletter' && (
         <div>
           <form onSubmit={createNewsletter} className="space-y-3 max-w-md mb-6">
-            <input className="form-input" placeholder="Title" value={nlForm.title} onChange={(e) => setNlForm({ ...nlForm, title: e.target.value })} required />
-            <textarea className="form-input" placeholder="Content" rows={5} value={nlForm.content} onChange={(e) => setNlForm({ ...nlForm, content: e.target.value })} required />
+            <label className="institution-field"><span>Title</span><input className="form-input" placeholder="Title" value={nlForm.title} onChange={(e) => setNlForm({ ...nlForm, title: e.target.value })} required /></label>
+            <label className="institution-field"><span>Content</span><textarea className="form-input" placeholder="Content" rows={5} value={nlForm.content} onChange={(e) => setNlForm({ ...nlForm, content: e.target.value })} required /></label>
             <button type="submit" className="btn btn-primary">Save Draft</button>
           </form>
           <Table
@@ -16609,7 +16701,7 @@ function InstitutionCampusLifePanel({ onFlash }) {
         <div>
           <form onSubmit={createInstitutionPoll} className="space-y-2 max-w-md mb-6 border border-[var(--sand-line)] rounded-xl p-3">
             <p className="text-xs" style={{ color: 'var(--ink-soft)' }}>Reaches every student across the whole institution (not just one class).</p>
-            <input className="form-input" placeholder="Poll question" value={pollForm.question} onChange={(e) => setPollForm({ ...pollForm, question: e.target.value })} required />
+            <label className="institution-field"><span>Poll question</span><input className="form-input" placeholder="Poll question" value={pollForm.question} onChange={(e) => setPollForm({ ...pollForm, question: e.target.value })} required /></label>
             {pollForm.options.map((o, i) => (
               <input key={i} className="form-input" placeholder={`Option ${i + 1}`} value={o} onChange={(e) => updatePollOption(i, e.target.value)} />
             ))}
@@ -21817,7 +21909,7 @@ function ProfilePanel({ user, onFlash, onChanged }) {
 
   if (!user) return null;
   return (
-    <div className="card" style={{ padding: 22, marginBottom: 20 }}>
+    <div className="institution-ui institution-remaining-ui institution-account-profile-ui card" style={{ padding: 22, marginBottom: 20 }}>
       <div className="flex items-center justify-between" style={{ marginBottom: 12 }}>
         <h3 className="font-semibold">Personal Information</h3>
         {!editing && <button type="button" className="btn" style={{ padding: '6px 14px', fontSize: '0.78rem' }} onClick={startEdit}>Edit Profile</button>}
@@ -21947,7 +22039,7 @@ function RolesPanel({ onFlash, onChanged }) {
   }
 
   return (
-    <div className="admin-section admin-account-card" style={{ marginTop: 20 }}>
+    <div className="institution-ui institution-remaining-ui institution-roles-ui admin-section admin-account-card" style={{ marginTop: 20 }}>
       <div className="admin-section-heading"><div><h2>My Roles</h2><p>Request access to another workspace.</p></div><FaUserShield aria-hidden="true" /></div>
       {loading && <p role="status" className="admin-notice">Loading your records...</p>}
       {loadError && <div role="alert" className="admin-notice error">{loadError} <button type="button" onClick={load}>Retry</button></div>}
@@ -22088,16 +22180,16 @@ function SupportComplaintPanel({ onFlash }) {
   }
 
   return (
-    <div className="admin-section admin-account-card" style={{ marginTop: 20 }}>
+    <div className="institution-ui institution-remaining-ui institution-support-ui admin-section admin-account-card" style={{ marginTop: 20 }}>
       <div className="admin-section-heading"><div><h2>Report a Problem</h2><p>File a complaint for the platform team to review.</p></div><FaShieldHalved aria-hidden="true" /></div>
       <form onSubmit={submit} style={{ display: 'grid', gap: 12, marginBottom: 24 }}>
-        <input className="form-input" placeholder="Subject" required value={form.subject} onChange={(e) => setForm({ ...form, subject: e.target.value })} />
+        <label className="institution-field"><span>Subject</span><input className="form-input" placeholder="Subject" required value={form.subject} onChange={(e) => setForm({ ...form, subject: e.target.value })} /></label>
         <CustomSelect
           value={form.category} onChange={(v) => setForm({ ...form, category: v })} ariaLabel="Complaint category" minWidth="100%"
           options={['harassment', 'fraud', 'technical', 'billing', 'content', 'other'].map((c) => ({ value: c, label: c.charAt(0).toUpperCase() + c.slice(1) }))}
         />
         <ComplaintTargetPicker target={target} onPick={setTarget} onClear={() => setTarget(null)} />
-        <textarea className="form-input" placeholder="Describe the issue" rows={3} required value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} />
+        <label className="institution-field"><span>Describe the issue</span><textarea className="form-input" placeholder="Describe the issue" rows={3} required value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} /></label>
         <button type="submit" className="btn btn-primary" style={{ justifySelf: 'start', padding: '7px 18px' }}>Submit Complaint</button>
       </form>
       <Table
@@ -22475,6 +22567,7 @@ function StudentPanel({ onFlash }) {
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState('');
   const [openCourseId, setOpenCourseId] = useState(null);
+  const [courseQuery, setCourseQuery] = useState('');
   const [paymentConfig, setPaymentConfig] = useState({ paddle: false, jazzcash: false });
   const [checkoutId, setCheckoutId] = useState(null);
 
@@ -22552,14 +22645,15 @@ function StudentPanel({ onFlash }) {
         ))}
       </div>
       <h3 className="font-semibold mb-2">My Enrollments</h3>
+      {enrollments.length > 0 && <input className="form-input" type="search" placeholder="Search your courses by name, subject or teacher…" aria-label="Search your courses" value={courseQuery} onChange={(e) => setCourseQuery(e.target.value)} style={{ maxWidth: 460, marginBottom: 10 }} />}
       <Table
         loading={loading} error={loadError} onRetry={load}
         headers={['Course', 'Completion', 'Lesson Progress', 'Overall Score', 'Action']}
-        rows={enrollments.map((e) => [
+        rows={enrollments.filter((e) => { const q = courseQuery.trim().toLowerCase(); return !q || [e.course?.title, e.course?.subject, e.course?.teacher?.fullName, e.course?.institution?.name].join(' ').toLowerCase().includes(q); }).map((e) => [
           e.course?.title, COMPLETION_STATUS_LABEL[e.completionStatus] || (e.status === 'active' ? 'In progress' : e.status), `${e.progressPercent}%`, `${e.overallScore || 0}%`,
           <button className="btn" style={{ padding: '4px 12px', fontSize: '0.78rem' }} onClick={() => setOpenCourseId(e.course?._id)}>View Resources</button>
         ])}
-        empty="No enrollments yet."
+        empty={courseQuery.trim() ? `No courses match "${courseQuery.trim()}".` : "No enrollments yet."}
       />
       {openCourseId && <CourseResourcesPanel courseId={openCourseId} onFlash={onFlash} onClose={() => setOpenCourseId(null)} />}
     </div>
@@ -23227,7 +23321,7 @@ function MessagesPanel({ onFlash, user, restrictedStaffMessaging = false, initia
   }
 
   return (
-    <div>
+    <div className="institution-ui institution-remaining-ui institution-messages-ui">
       {!restrictedStaffMessaging && <nav className="cz-tabbar" style={{ marginBottom: 18 }}>
         <button type="button" aria-pressed={view === 'direct'} className={`cz-tab${view === 'direct' ? ' active' : ''}`} onClick={() => setView('direct')}>Direct</button>
         <button type="button" aria-pressed={view === 'groups'} className={`cz-tab${view === 'groups' ? ' active' : ''}`} onClick={() => setView('groups')}>Groups</button>
@@ -23410,7 +23504,7 @@ function NotificationsPanel({ onFlash }) {
   const unreadCount = (notifications || []).filter((n) => !n.read).length;
 
   return (
-    <div>
+    <div className="institution-ui institution-remaining-ui institution-notifications-ui">
       <div className="flex items-center justify-between" style={{ marginBottom: 16 }}>
         <h3 className="font-semibold">Notifications{unreadCount > 0 ? ` (${unreadCount} unread)` : ''}</h3>
         {unreadCount > 0 && <button type="button" className="btn" style={{ padding: '6px 14px', fontSize: '0.8rem' }} onClick={markAllRead}>Mark all read</button>}
@@ -23513,7 +23607,7 @@ function CalendarPanel({ onFlash }) {
   const selectedEvents = eventsByDate[dateKey(selectedDate)] || [];
 
   return (
-    <div>
+    <div className="institution-ui institution-remaining-ui institution-calendar-ui">
       <h3 className="font-semibold mb-3">Calendar</h3>
       {loading && <p role="status" className="admin-notice">Loading...</p>}
 
@@ -23663,7 +23757,7 @@ function SettingsPanel({ user, onFlash, onChanged }) {
   }
 
   return (
-    <div>
+    <div className="institution-ui institution-remaining-ui institution-account-settings-ui">
       <h3 className="font-semibold mb-3">Account Settings</h3>
       <PushNotificationToggle onFlash={onFlash} />
       <SavedForm key={user._id} value={form} onRestore={setForm} onSubmit={saveProfile} className="card" style={{ padding: 22, display: 'grid', gap: 14, maxWidth: 480, marginBottom: 24 }}>
@@ -23671,10 +23765,10 @@ function SettingsPanel({ user, onFlash, onChanged }) {
           {form.profilePhoto
             ? <img src={form.profilePhoto} alt="" style={{ width: 56, height: 56, borderRadius: '50%', objectFit: 'cover', flexShrink: 0 }} onError={(e) => { e.target.style.display = 'none'; }} />
             : <div style={{ width: 56, height: 56, borderRadius: '50%', background: 'var(--forest)', color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 700, fontSize: 20, flexShrink: 0 }}>{(form.fullName || '?')[0]}</div>}
-          <input className="form-input" placeholder="Profile photo URL (paste an image link)" value={form.profilePhoto} onChange={(e) => setForm({ ...form, profilePhoto: e.target.value })} style={{ flex: '1 1 auto', minWidth: 0 }} />
+          <label className="institution-field"><span>Profile photo URL (paste an image link)</span><input className="form-input" placeholder="Profile photo URL (paste an image link)" value={form.profilePhoto} onChange={(e) => setForm({ ...form, profilePhoto: e.target.value })} style={{ flex: '1 1 auto', minWidth: 0 }} /></label>
         </div>
         <p className="text-xs" style={{ color: 'var(--ink-soft)', marginTop: -4 }}>No file storage is wired up yet — upload your photo somewhere (Google Drive, Imgur, etc.), share it publicly, and paste the direct image link here.</p>
-        <input className="form-input" placeholder="Full name" value={form.fullName} onChange={(e) => setForm({ ...form, fullName: e.target.value })} />
+        <label className="institution-field"><span>Full name</span><input className="form-input" placeholder="Full name" value={form.fullName} onChange={(e) => setForm({ ...form, fullName: e.target.value })} /></label>
         {isDonor && (
           <select className="form-select" value={form.donorType} onChange={(e) => setForm({ ...form, donorType: e.target.value })}>
             <option value="">Select donor type</option>
@@ -23684,8 +23778,8 @@ function SettingsPanel({ user, onFlash, onChanged }) {
         )}
         {showCompanyName && <input className="form-input" placeholder={isDonor ? 'Organization name' : isSeller ? 'Store name' : 'Company / Agency name'} value={form.companyName} onChange={(e) => setForm({ ...form, companyName: e.target.value })} />}
         {isSeller && <p className="text-xs" style={{ color: 'var(--ink-soft)', marginTop: -4 }}>The profile photo above also doubles as your store logo.</p>}
-        <input className="form-input" placeholder="Phone" value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} />
-        <input className="form-input" placeholder="Country code (e.g. PK)" value={form.country || ''} onChange={(e) => setForm({ ...form, country: e.target.value })} />
+        <label className="institution-field"><span>Phone</span><input className="form-input" placeholder="Phone" value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} /></label>
+        <label className="institution-field"><span>Country code (e.g. PK)</span><input className="form-input" placeholder="Country code (e.g. PK)" value={form.country || ''} onChange={(e) => setForm({ ...form, country: e.target.value })} /></label>
         <select className="form-select" value={form.language} onChange={(e) => setForm({ ...form, language: e.target.value })}>
           <option value="en">English</option>
           <option value="ur">Urdu</option>
@@ -23696,9 +23790,9 @@ function SettingsPanel({ user, onFlash, onChanged }) {
 
       <h3 className="font-semibold mb-3">Change Password</h3>
       <SavedForm showValues={false} value={pwForm} onRestore={setPwForm} editLabel="Edit password" onSubmit={changePassword} className="card" style={{ padding: 22, display: 'grid', gap: 14, maxWidth: 480, marginBottom: 24 }}>
-        <input className="form-input" type="password" placeholder="Current password" value={pwForm.currentPassword} onChange={(e) => setPwForm({ ...pwForm, currentPassword: e.target.value })} required />
-        <input className="form-input" type="password" placeholder="New password" value={pwForm.newPassword} onChange={(e) => setPwForm({ ...pwForm, newPassword: e.target.value })} required minLength={8} />
-        <input className="form-input" type="password" placeholder="Confirm new password" value={pwForm.confirmPassword} onChange={(e) => setPwForm({ ...pwForm, confirmPassword: e.target.value })} required minLength={8} />
+        <label className="institution-field"><span>Current password</span><input className="form-input" type="password" placeholder="Current password" value={pwForm.currentPassword} onChange={(e) => setPwForm({ ...pwForm, currentPassword: e.target.value })} required /></label>
+        <label className="institution-field"><span>New password</span><input className="form-input" type="password" placeholder="New password" value={pwForm.newPassword} onChange={(e) => setPwForm({ ...pwForm, newPassword: e.target.value })} required minLength={8} /></label>
+        <label className="institution-field"><span>Confirm new password</span><input className="form-input" type="password" placeholder="Confirm new password" value={pwForm.confirmPassword} onChange={(e) => setPwForm({ ...pwForm, confirmPassword: e.target.value })} required minLength={8} /></label>
         <button type="submit" className="btn btn-primary" style={{ padding: '7px 18px', justifySelf: 'start' }}>Update Password</button>
       </SavedForm>
 
@@ -23728,7 +23822,7 @@ const FAQ_ITEMS = [
 
 function HelpCenterPanel({ onFlash }) {
   return (
-    <div>
+    <div className="institution-ui institution-remaining-ui institution-help-ui">
       <h3 className="font-semibold" style={{ marginBottom: 4 }}>Frequently Asked Questions</h3>
       <p className="text-xs" style={{ color: 'var(--ink-soft)', marginBottom: 16 }}>Quick answers to the questions we hear most.</p>
       <div style={{ display: 'grid', gap: 12, marginBottom: 28 }}>

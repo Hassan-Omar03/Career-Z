@@ -55,7 +55,7 @@ export default function MedicalHealth({ mode = 'student', onFlash }) {
   }
   const button = (label, fn) => <button className="btn" type="button" disabled={busy} onClick={fn}>{label}</button>;
   const change = (key, value) => setRecord({ ...record, [key]: value });
-  return <section>
+  return <section className="institution-ui institution-remaining-ui institution-health-ui">
     <h2>{mode === 'teacher' ? 'Report a Student Health Incident' : 'Medical & Health'}</h2>
     <p>Health details are private. Access is limited to the student, permitted guardians and authorized institution staff.</p>
     {manage && <label>Institution<select className="form-select" value={institution} onChange={e => setInstitution(e.target.value)}>{institutions.map(i => <option key={i._id} value={i._id}>{i.name}</option>)}</select></label>}

@@ -20,7 +20,7 @@ export default function InstitutionCommunity({ kind, manage = false, onFlash }) 
   async function run(work) { if (busy) return; setBusy(true); try { await work(); await reload(); onFlash('Saved successfully.', 'success'); } catch (e) { onFlash(e.message, 'error'); } finally { setBusy(false); } }
   const button = (text, fn) => <button type="button" className="btn" disabled={busy} onClick={fn}>{text}</button>;
   const field = (key, type = 'text') => <label>{label(key)}<input className="form-input" type={type} required={['title', 'startDate'].includes(key)} value={form[key]} onChange={e => setForm({ ...form, [key]: e.target.value })} /></label>;
-  return <section><h2>{kind === 'events' ? 'Events & Activities' : 'Complaint & Help Desk'}</h2>
+  return <section className="institution-ui institution-remaining-ui institution-community-ui"><h2>{kind === 'events' ? 'Events & Activities' : 'Complaint & Help Desk'}</h2>
     {error && <p role="alert">{error} {button('Retry', () => run(async () => { await reload(); setError(''); }))}</p>}
     {!!institutions.length && <label>Institution<select className="form-select" value={id} onChange={e => setId(e.target.value)}>{institutions.map(i => <option key={i._id} value={i._id}>{i.name}</option>)}</select></label>}
     {loading && <p role="status">Loading…</p>}

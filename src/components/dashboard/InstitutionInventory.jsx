@@ -49,7 +49,7 @@ export default function InstitutionInventory({ manage = false, onFlash }) {
   }
   const button = (label, fn) => <button type="button" className="btn" disabled={busy} onClick={fn}>{label}</button>;
   if (loading) return <p role="status">Loading inventory…</p>;
-  return <section>
+  return <section className="institution-ui institution-remaining-ui institution-inventory-ui">
     <h2>{manage ? 'Inventory Management' : 'My Institution Inventory'}</h2>
     {error && <p role="alert">{error} <button className="btn" onClick={() => { setLoading(true); load().catch(e => setError(e.message)).finally(() => setLoading(false)); }}>Retry</button></p>}
     {manage && <label>Institution<select className="form-select" value={institution} onChange={e => { setEdit(null); setForm(blank); load(e.target.value).catch(error => onFlash(error.message, 'error')); }}>{data.institutions.map(i => <option key={i._id} value={i._id}>{i.name}</option>)}</select></label>}

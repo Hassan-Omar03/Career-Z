@@ -16,7 +16,11 @@ const LANG_KEY = 'careerz_lang';
 const CACHE_KEY = 'careerz_translation_cache_v1';
 export const RTL_LANGS = ['ur', 'ar', 'fa', 'he'];
 const SKIP_TAGS = new Set(['SCRIPT', 'STYLE', 'NOSCRIPT', 'TEXTAREA', 'INPUT', 'TITLE']);
-const BATCH_SIZE = 100;
+// Small batches, two at a time, each shown as soon as it arrives: the self-hosted translator
+// needs up to a second per new string, so a page fills in progressively instead of all at once.
+const BATCH_SIZE = 30;
+const BATCH_CONCURRENCY = 2;
+const MAX_TEXT_LENGTH = 2000; // matches the backend limit; longer text stays in English
 const DEBOUNCE_MS = 250;
 
 function loadCache() {
@@ -70,7 +74,7 @@ export function TranslationProvider({ children }) {
       if (!node.isConnected) return; // removed from the DOM since it was queued
       if (!originalsRef.current.has(node)) originalsRef.current.set(node, node.nodeValue);
       const original = originalsRef.current.get(node);
-      if (!original || !original.trim()) return;
+      if (!original || !original.trim() || original.length > MAX_TEXT_LENGTH) return;
       const cacheKey = `${targetLang}::${original}`;
       if (cache[cacheKey]) {
         justSetRef.current.add(node);
@@ -83,30 +87,40 @@ export function TranslationProvider({ children }) {
 
     if (toFetchTexts.length === 0) return;
 
-    // De-dupe identical strings in this batch — no point paying to translate "Save" 40 times.
+    // Writes every node whose text is now cached; an earlier language request must not
+    // overwrite a newer selection.
+    const apply = () => {
+      if (langRef.current !== targetLang) return;
+      toFetchNodes.forEach((node) => {
+        if (!node.isConnected) return;
+        const original = originalsRef.current.get(node);
+        const translated = cache[`${targetLang}::${original}`];
+        if (translated && node.nodeValue !== translated) {
+          justSetRef.current.add(node);
+          node.nodeValue = translated;
+        }
+      });
+    };
+
+    // De-dupe identical strings — no point paying to translate "Save" 40 times.
     const unique = [...new Set(toFetchTexts)];
-    for (let i = 0; i < unique.length; i += BATCH_SIZE) {
-      const chunk = unique.slice(i, i + BATCH_SIZE);
-      try {
-        const { translations } = await apiRequest('/translate', { method: 'POST', auth: false, body: { texts: chunk, targetLang } });
-        chunk.forEach((original, idx) => { cache[`${targetLang}::${original}`] = translations[idx]; });
-      } catch (err) {
-        console.warn('[translation] request failed, leaving those strings in English:', err.message);
+    const chunks = [];
+    for (let i = 0; i < unique.length; i += BATCH_SIZE) chunks.push(unique.slice(i, i + BATCH_SIZE));
+    let next = 0;
+    async function worker() {
+      while (next < chunks.length && langRef.current === targetLang) {
+        const chunk = chunks[next++];
+        try {
+          const { translations } = await apiRequest('/translate', { method: 'POST', auth: false, body: { texts: chunk, targetLang } });
+          chunk.forEach((original, idx) => { cache[`${targetLang}::${original}`] = translations[idx]; });
+          apply();
+        } catch (err) {
+          console.warn('[translation] request failed, leaving those strings in English:', err.message);
+        }
       }
     }
+    await Promise.all(Array.from({ length: Math.min(BATCH_CONCURRENCY, chunks.length) }, worker));
     saveCache(cache);
-
-    // An earlier language request must not overwrite a newer selection.
-    if (langRef.current !== targetLang) return;
-    toFetchNodes.forEach((node) => {
-      if (!node.isConnected) return;
-      const original = originalsRef.current.get(node);
-      const translated = cache[`${targetLang}::${original}`];
-      if (translated) {
-        justSetRef.current.add(node);
-        node.nodeValue = translated;
-      }
-    });
   }, []);
 
   const restoreOriginals = useCallback((root) => {

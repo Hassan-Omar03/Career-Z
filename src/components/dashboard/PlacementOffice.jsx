@@ -13,7 +13,7 @@ export default function PlacementOffice({ onFlash }) {
   async function run(work) { if (busy) return; setBusy(true); try { await work(); assign(await fetchData(id), id); setError(''); onFlash('Placement updated.', 'success'); } catch (e) { setError(e.message); onFlash(e.message, 'error'); } finally { setBusy(false); } }
   const button = (title, work) => <button type="button" className="btn" disabled={busy} onClick={() => run(work)}>{title}</button>;
   const patch = (path, body) => apiRequest(`${base}${path}`, { method: 'PATCH', body });
-  return <section><h2>Placement Office</h2>{error && <p role="alert">{error} {id && button('Retry', async () => {})}</p>}
+  return <section className="institution-ui institution-remaining-ui institution-placement-ui"><h2>Placement Office</h2>{error && <p role="alert">{error} {id && button('Retry', async () => {})}</p>}
     {!!institutions.length && <label>Institution<select className="form-select" value={id} disabled={busy} onChange={e => setId(e.target.value)}>{institutions.map(i => <option key={i._id} value={i._id}>{i.name}</option>)}</select></label>}
     {loading && <p role="status">Loading placement records…</p>}{!loading && !id && <p>No institution placement access. Ask your institute owner to grant Placement access.</p>}
     {id && !loading && <><h3>Employer partnerships</h3><form style={{ display: 'grid', gap: 10 }} onSubmit={e => { e.preventDefault(); run(async () => { await apiRequest(`${base}/partnerships`, { method: 'POST', body: { institutionId: id, employerEmail: email, message } }); setEmail(''); setMessage(''); }); }}>

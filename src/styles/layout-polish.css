@@ -212,3 +212,24 @@ button, a, p, h1, h2, h3, h4, dd { overflow-wrap: anywhere; }
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { animation: none !important; transition: none !important; scroll-behavior: auto !important; }
 }
+
+/* Lesson list: search/sort bar, shared date and AI badge, and Markdown lesson content. */
+.lesson-search { display: flex; gap: 10px; flex-wrap: wrap; margin: 10px 0 6px; }
+.lesson-search .form-input { flex: 1 1 260px; min-width: 0; }
+.lesson-search .form-select { flex: 0 0 auto; width: auto; }
+.lesson-meta { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; font-size: 0.82rem; color: var(--ink-soft); margin: 4px 0 6px; }
+.lesson-ai-badge { padding: 2px 10px; border-radius: 999px; background: var(--sand); border: 1px solid var(--sand-line); font-size: 0.72rem; font-weight: 600; color: var(--ink); }
+.md-text { line-height: 1.65; overflow-wrap: anywhere; }
+.md-text h3 { margin: 18px 0 8px; font-size: 1.15em; }
+.md-text h4 { margin: 14px 0 6px; font-size: 1.02em; }
+.md-text > :first-child { margin-top: 0; }
+.md-text p { margin: 6px 0; }
+.md-text ul, .md-text ol { margin: 6px 0 12px; padding-left: 22px; }
+.md-text ul { list-style: disc; }
+.md-text ol { list-style: decimal; }
+.md-text .md-code { padding: 1px 6px; border-radius: 6px; background: var(--sand); font-family: ui-monospace, SFMono-Regular, Consolas, monospace; font-size: 0.9em; }
+.md-text .md-pre { margin: 10px 0; padding: 12px 14px; border-radius: 10px; background: var(--sand); border: 1px solid var(--sand-line); overflow-x: auto; font-size: 0.88em; line-height: 1.5; }
+.md-text .md-pre code { font-family: ui-monospace, SFMono-Regular, Consolas, monospace; white-space: pre; }
+.md-text .md-table-wrap { margin: 10px 0; overflow-x: auto; }
+.md-text .md-table-wrap table { width: 100%; border-collapse: collapse; }
+.md-text .md-table-wrap th, .md-text .md-table-wrap td { padding: 8px 10px; border-bottom: 1px solid var(--sand-line); text-align: left; vertical-align: top; }
