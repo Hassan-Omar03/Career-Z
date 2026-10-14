@@ -443,3 +443,16 @@
  .institution-reports-ui .admin-stat { padding: 18px; }
  .institution-subscription-ui .grid { grid-template-columns: minmax(0,1fr); }
 }
+
+/* Class promotion and teacher reviews. */
+.people-panel { margin-top: 28px; }
+.people-panel .people-warn { color: var(--rose, #b42318); font-weight: 600; }
+.people-history { margin-top: 14px; font-size: 0.85rem; }
+.people-history ul { margin: 8px 0 0; padding-left: 18px; list-style: disc; display: grid; gap: 4px; }
+.people-review { margin-top: 16px; padding: 16px 18px; border: 1px solid var(--sand-line); border-radius: 14px; background: var(--paper-raised, #fff); display: grid; gap: 10px; }
+.people-review h3 { margin: 0; font-size: 1.05rem; }
+.people-evidence { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 8px; }
+.people-evidence div { display: grid; gap: 2px; padding: 10px 12px; border-radius: 10px; background: var(--sand); }
+.people-evidence strong { font-size: 1.2rem; }
+.people-evidence span { font-size: 0.76rem; color: var(--ink-soft); }
+.people-ratings { margin: 0; padding-left: 18px; list-style: disc; display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 2px 12px; }

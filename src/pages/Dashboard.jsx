@@ -60,6 +60,11 @@ import { passwordError } from '../utils/passwordPolicy';
 import { CvVersions, CvAutofillButton, CareerRoadmapPanel, MyInternshipCertificates, IssueInternshipCertificate, InstitutionInternshipCertificate } from '../components/dashboard/CareerTools';
 import { showConfirm, showPrompt } from '../utils/appDialog';
 import CareerZLiveClassroom from '../components/CareerZLiveClassroom';
+import CvDesigner from '../components/dashboard/CvDesigner';
+import SiteAssistantSettings from '../components/admin/SiteAssistantSettings';
+import TeacherStandingCard from '../components/teacher/TeacherStandingCard';
+import { ClassPromotionPanel, TeacherReviewsPanel, MyTeacherReviews } from '../components/institution/PeoplePanels';
+import { TEACHER_CATEGORIES, MODE_LABEL } from '../utils/teacherProfile';
 import { AiReport, OpsRecordTables } from '../components/dashboard/OpsInsightsReport';
 import TransportNavigationMap from '../components/TransportNavigationMap';
 import { createBrandedPdf, addPdfFooter, drawPdfTable, drawPdfSummary, PDF_COLORS } from '../utils/brandedPdf';
@@ -2550,6 +2555,7 @@ function StudentJobsPanel({ onFlash, user }) {
     { key: 'referrals', label: 'Institution Referrals' },
     { key: 'resume', label: 'CV/Resume Builder' },
     { key: 'cvVersions', label: 'CV Versions' },
+    { key: 'cvDesign', label: 'CV Templates & Download' },
     { key: 'roadmap', label: 'Career Roadmap' },
     { key: 'coverLetters', label: 'Cover Letters' },
     { key: 'portfolio', label: 'Portfolio' },
@@ -2581,6 +2587,7 @@ function StudentJobsPanel({ onFlash, user }) {
       {sub === 'referrals' && <StudentReferralsPanel onFlash={onFlash} />}
       {sub === 'resume' && <ResumeEditorPanel onFlash={onFlash} />}
       {sub === 'cvVersions' && <CvVersions onFlash={onFlash} />}
+      {sub === 'cvDesign' && <CvDesigner user={user} onFlash={onFlash} />}
       {sub === 'roadmap' && <CareerRoadmapPanel onFlash={onFlash} />}
       {sub === 'coverLetters' && <CoverLettersPanel />}
       {sub === 'portfolio' && <PortfolioPanel onFlash={onFlash} onNavigate={setSub} />}
@@ -6417,7 +6424,8 @@ const MANUAL_FEE_METHODS = PAYMENT_METHODS.filter((method) => method.value !== '
 
 // Manual fee payments remain pending until the institution verifies them.
 // Works for both the student paying their own fee and a parent paying a linked child's fee.
-function PaddleCheckoutButton({ feeId, onFlash, onPaid }) {
+// checkoutPath/syncPath let other payables (independent tutoring fees) reuse this button.
+function PaddleCheckoutButton({ feeId, onFlash, onPaid, checkoutPath, syncPath }) {
   const [config, setConfig] = useState(null);
   const [loading, setLoading] = useState(false);
   useEffect(() => { apiRequest('/payments/paddle/config').then(setConfig).catch(() => setConfig({ enabled: false })); }, []);
@@ -6427,8 +6435,8 @@ function PaddleCheckoutButton({ feeId, onFlash, onPaid }) {
   // works even when the backend runs on localhost, which Paddle's webhook can never reach.
   async function sync() {
     try {
-      const fee = await apiRequest(`/payments/paddle/fees/${feeId}/sync`);
-      if (fee.status === 'paid') onFlash('Payment confirmed!', 'success');
+      const result = await apiRequest(syncPath || `/payments/paddle/fees/${feeId}/sync`);
+      if (result.status === 'paid' || result.paid) onFlash('Payment confirmed!', 'success');
       onPaid?.();
     } catch (err) { onPaid?.(); }
   }
@@ -6436,7 +6444,7 @@ function PaddleCheckoutButton({ feeId, onFlash, onPaid }) {
   async function startCheckout() {
     setLoading(true);
     try {
-      const { transactionId } = await apiRequest(`/payments/paddle/fees/${feeId}/checkout`, { method: 'POST' });
+      const { transactionId } = await apiRequest(checkoutPath || `/payments/paddle/fees/${feeId}/checkout`, { method: 'POST' });
       const Paddle = await loadPaddle(config.clientToken, config.environment);
       setActiveCheckoutHandler(sync);
       Paddle.Checkout.open({
@@ -6552,14 +6560,27 @@ function PayFeeButton({ fee, onFlash, onPaid }) {
     } catch (err) { onFlash(err.message); } finally { setPaying(false); }
   }
 
+  // Who paid (student or which parent), so both sides can see it and nobody pays twice.
+  const payer = (info) => (info ? `${info.name} (${info.role})` : '');
   if (fee.status === 'paid') {
-    return fee.receiptNumber || fee.transactionId
-      ? <span className="text-xs" style={{ color: 'var(--ink-soft)' }} title={fee.paidVia}>Receipt {fee.receiptNumber || fee.transactionId}</span>
-      : <span className="text-xs" style={{ color: 'var(--ink-soft)' }}>—</span>;
+    return <div className="text-xs fee-paid-by" title={fee.paidVia}>
+      <strong style={{ color: 'var(--emerald)' }}>✓ Paid{fee.paidByInfo ? ` by ${payer(fee.paidByInfo)}` : ''}</strong>
+      {fee.paidAt && <div style={{ color: 'var(--ink-soft)' }}>{new Date(fee.paidAt).toLocaleString(undefined, { day: 'numeric', month: 'short', year: 'numeric', hour: 'numeric', minute: '2-digit' })}</div>}
+      {(fee.receiptNumber || fee.transactionId) && <div style={{ color: 'var(--ink-soft)' }}>Receipt {fee.receiptNumber || fee.transactionId}</div>}
+    </div>;
   }
 
   if (fee.status === 'processing') {
-    return <span className="text-xs" style={{ color: 'var(--gold)' }}>Awaiting institution confirmation...</span>;
+    const pending = [...(fee.paymentHistory || [])].reverse().find((h) => h.verificationStatus === 'pending');
+    return <span className="text-xs" style={{ color: 'var(--gold)' }}>{pending?.paidByInfo ? `Reported by ${payer(pending.paidByInfo)} — awaiting institution confirmation` : 'Awaiting institution confirmation...'}</span>;
+  }
+
+  // Independent tutoring fee: paid online by the student or a linked parent.
+  if (fee.kind === 'tutoring') {
+    return <div style={{ display: 'grid', gap: 6, minWidth: 220 }}>
+      <PaddleCheckoutButton feeId={fee._id} onFlash={onFlash} onPaid={onPaid} checkoutPath={`/teacher-students/${fee.tutoringLinkId}/fee-checkout`} syncPath={`/teacher-students/${fee.tutoringLinkId}/fee-checkout/sync`} />
+      <span className="text-xs" style={{ color: 'var(--ink-soft)' }}>Tuition for {fee.teacherName || 'your tutor'}. The student or a parent can pay.</span>
+    </div>;
   }
 
   if (!open) {
@@ -6781,7 +6802,7 @@ async function downloadFeePdf(fee) {
     ['Outstanding', `${fee.currency} ${fee.outstandingAmount ?? (isPaid ? 0 : fee.amount)}`]
   ];
   y = drawPdfTable(pdf, { headers: ['Description', 'Amount'], rows, startY: y + 2, widths: [125, 57] });
-  if (isPaid) y = drawPdfTable(pdf, { headers: ['Payment detail', 'Value'], rows: [['Receipt number', fee.receiptNumber || '—'], ['Payment method', fee.paidVia || fee.paymentMethod || '—'], ['Paid at', fee.paidAt ? new Date(fee.paidAt).toLocaleString() : '—']], startY: y + 8, widths: [60, 122] });
+  if (isPaid) y = drawPdfTable(pdf, { headers: ['Payment detail', 'Value'], rows: [['Receipt number', fee.receiptNumber || '—'], ['Payment method', fee.paidVia || fee.paymentMethod || '—'], ...(fee.paidByInfo ? [['Paid by', `${fee.paidByInfo.name} (${fee.paidByInfo.role})`]] : []), ['Paid at', fee.paidAt ? new Date(fee.paidAt).toLocaleString() : '—']], startY: y + 8, widths: [60, 122] });
   if (isPaid && verifyUrl) {
     const qr = await QRCode.toDataURL(verifyUrl, { errorCorrectionLevel: 'M', margin: 1, width: 320 });
     pdf.addImage(qr, 'PNG', 158, 44, 34, 34); pdf.setFontSize(7); pdf.setTextColor(...PDF_COLORS.muted); pdf.text('Scan to verify', 175, 81, { align: 'center' }); pdf.link(158, 44, 34, 38, { url: verifyUrl });
@@ -6861,7 +6882,7 @@ function StudentFeesPanel({ onFlash }) {
             {f.title}{f.installment?.totalInstallments > 1 ? <span className="text-xs" style={{ color: 'var(--ink-soft)' }}><br />Instalment {f.installment.number}/{f.installment.totalInstallments}</span> : null}
             {f.paymentHistory?.length > 0 && (
               <span className="text-xs" style={{ display: 'block', color: 'var(--ink-soft)', marginTop: 2 }}>
-                {f.paymentHistory.map((p, i) => <span key={i}>{p.verifiedAt ? '✓' : '⏳'} {f.currency} {p.amount} ({p.method}){i < f.paymentHistory.length - 1 ? ', ' : ''}</span>)}
+                {f.paymentHistory.map((p, i) => <span key={i}>{p.verifiedAt ? '✓' : '⏳'} {f.currency} {p.amount} ({p.method}{p.paidByInfo ? `, by ${p.paidByInfo.name} — ${p.paidByInfo.role}` : ''}){i < f.paymentHistory.length - 1 ? ', ' : ''}</span>)}
               </span>
             )}
           </span>,
@@ -6872,7 +6893,7 @@ function StudentFeesPanel({ onFlash }) {
           <PayFeeButton fee={f} onFlash={onFlash} onPaid={load} />,
           <div className="flex gap-1 flex-wrap">
             <button type="button" className="btn" style={{ padding: '4px 10px', fontSize: '0.72rem' }} onClick={() => downloadFeePdf(f)}>{f.status === 'paid' ? 'Receipt' : 'Invoice'} PDF</button>
-            {f.status === 'paid' && (!f.refund?.status || ['none', 'rejected'].includes(f.refund.status)) && (
+            {f.status === 'paid' && f.kind !== 'tutoring' && (!f.refund?.status || ['none', 'rejected'].includes(f.refund.status)) && (
               <button type="button" className="btn" style={{ padding: '4px 10px', fontSize: '0.72rem' }} onClick={() => requestFeeRefund(f)}>Request Refund</button>
             )}
             {f.refund?.status && !['none', 'rejected'].includes(f.refund.status) && <Tag status={f.refund.status === 'refunded' ? 'approved' : 'pending'} label={`Refund ${f.refund.status}`} />}
@@ -9004,6 +9025,8 @@ function TeacherProfileDetailsPanel({ user, onFlash, onChanged }) {
         bio: p.bio || '',
         independent: !!p.independent,
         visibleToInstitutions: p.visibleToInstitutions !== false,
+        categories: p.categories || [], teachingModes: p.teachingModes || [], teachingStyle: p.teachingStyle || '',
+        coverPhotoUrl: p.coverPhotoUrl || '', introVideoUrl: p.introVideoUrl || '', publicPortfolio: !!p.publicPortfolio,
         qualifications: p.qualifications && p.qualifications.length > 0 ? p.qualifications : [{ title: '', institutionName: '', year: '' }]
       });
     }).catch((err) => onFlash(err.message));
@@ -9032,6 +9055,8 @@ function TeacherProfileDetailsPanel({ user, onFlash, onChanged }) {
           bio: form.bio,
           independent: form.independent,
           visibleToInstitutions: form.visibleToInstitutions,
+          categories: form.categories, teachingModes: form.teachingModes, teachingStyle: form.teachingStyle,
+          coverPhotoUrl: form.coverPhotoUrl.trim(), introVideoUrl: form.introVideoUrl.trim(), publicPortfolio: form.publicPortfolio,
           qualifications: form.qualifications.filter((q) => q.title.trim())
         }
       });
@@ -9091,6 +9116,39 @@ function TeacherProfileDetailsPanel({ user, onFlash, onChanged }) {
           <input type="checkbox" checked={form.visibleToInstitutions} disabled={!user?.profilePhoto} onChange={(e) => setForm({ ...form, visibleToInstitutions: e.target.checked })} /> Show my profile in the institution "Find Teachers" directory (lets institutions discover and offer you a job){!user?.profilePhoto && ' — add a photo above first'}
         </label>
 
+        <fieldset className="teacher-categories">
+          <legend className="text-xs" style={{ fontWeight: 600, color: 'var(--ink-soft)' }}>I am a… (choose all that apply)</legend>
+          {TEACHER_CATEGORIES.map(([key, label]) => <label key={key} className="flex items-center text-xs" style={{ gap: 6 }}>
+            <input type="checkbox" checked={form.categories.includes(key)} onChange={(e) => setForm({ ...form, categories: e.target.checked ? [...form.categories, key] : form.categories.filter((c) => c !== key) })} /> {label}
+          </label>)}
+        </fieldset>
+        <fieldset className="teacher-categories">
+          <legend className="text-xs" style={{ fontWeight: 600, color: 'var(--ink-soft)' }}>I teach</legend>
+          {Object.entries(MODE_LABEL).map(([key, label]) => <label key={key} className="flex items-center text-xs" style={{ gap: 6 }}>
+            <input type="checkbox" checked={form.teachingModes.includes(key)} onChange={(e) => setForm({ ...form, teachingModes: e.target.checked ? [...form.teachingModes, key] : form.teachingModes.filter((m) => m !== key) })} /> {label}
+          </label>)}
+        </fieldset>
+        <label className="text-xs" style={{ display: 'block', color: 'var(--ink-soft)', fontWeight: 600 }}>Teaching style
+          <textarea className="form-input" rows={3} maxLength={1500} placeholder="How you teach: e.g. concept first, then practice; weekly tests; Urdu and English" value={form.teachingStyle} onChange={(e) => setForm({ ...form, teachingStyle: e.target.value })} style={{ marginTop: 6 }} />
+        </label>
+        <div className="flex flex-wrap" style={{ gap: 12 }}>
+          <label className="text-xs" style={{ color: 'var(--ink-soft)', fontWeight: 600, flex: '1 1 260px', minWidth: 0 }}>Cover photo
+            <div className="flex" style={{ gap: 8, marginTop: 6 }}>
+              <input className="form-input" placeholder="https://… (or upload)" value={form.coverPhotoUrl} onChange={(e) => setForm({ ...form, coverPhotoUrl: e.target.value })} />
+              <label className="btn" style={{ padding: '6px 12px', fontSize: '0.72rem', cursor: 'pointer', flexShrink: 0 }}>Upload
+                <input type="file" accept="image/*" hidden onChange={async (e) => { const file = e.target.files?.[0]; if (!file) return; try { const url = await uploadToPlatformStorage(file, 'teacher-covers'); setForm((f) => ({ ...f, coverPhotoUrl: url })); onFlash('Cover uploaded — save to keep it.', 'success'); } catch (err) { onFlash(err.message); } }} />
+              </label>
+            </div>
+          </label>
+          <label className="text-xs" style={{ color: 'var(--ink-soft)', fontWeight: 600, flex: '1 1 260px', minWidth: 0 }}>Intro video link (YouTube, Vimeo or .mp4)
+            <input className="form-input" placeholder="https://youtu.be/…" value={form.introVideoUrl} onChange={(e) => setForm({ ...form, introVideoUrl: e.target.value })} style={{ marginTop: 6 }} />
+          </label>
+        </div>
+        <label className="flex items-center text-xs" style={{ color: 'var(--ink-soft)', gap: 8 }}>
+          <input type="checkbox" checked={form.publicPortfolio} onChange={(e) => setForm({ ...form, publicPortfolio: e.target.checked })} /> Publish my public teacher portfolio (anyone with the link can see my profile, verified record, courses and reviews)
+          {form.publicPortfolio && user?._id && <a href={`/teacher/${user._id}`} target="_blank" rel="noreferrer" style={{ color: 'var(--emerald)' }}>Open my portfolio</a>}
+        </label>
+
         <div style={{ paddingTop: 4, borderTop: '1px solid var(--sand-line)' }}>
           <h4 className="font-semibold text-sm" style={{ margin: '16px 0 12px' }}>Qualifications</h4>
           <div style={{ display: 'grid', gap: 10 }}>
@@ -9108,6 +9166,8 @@ function TeacherProfileDetailsPanel({ user, onFlash, onChanged }) {
 
         <button type="submit" className="btn btn-primary" style={{ padding: '8px 20px', justifySelf: 'start' }} disabled={saving}>{saving ? 'Saving...' : 'Save Teaching Profile'}</button>
       </SavedForm>
+      <TeacherStandingCard onFlash={onFlash} />
+      <MyTeacherReviews onFlash={onFlash} />
     </div>
   );
 }
@@ -10150,7 +10210,7 @@ function TeacherStudentsPanel({ onFlash }) {
 // "Teaches independently").
 function IndependentTutoringPanel({ onFlash, courses }) {
   const [links, setLinks] = useState(null);
-  const [form, setForm] = useState({ studentEmail: '', courseId: '', subject: '', feeAmount: '' });
+  const [form, setForm] = useState({ studentEmail: '', courseId: '', subject: '', feeAmount: '', feeCurrency: 'PKR' });
 
   function load() { apiRequest('/teacher-students/mine').then(setLinks).catch(() => setLinks([])); }
   useEffect(load, []);
@@ -10158,9 +10218,9 @@ function IndependentTutoringPanel({ onFlash, courses }) {
   async function invite(e) {
     e.preventDefault();
     try {
-      await apiRequest('/teacher-students/invite', { method: 'POST', body: { studentEmail: form.studentEmail.trim(), courseId: form.courseId, subject: form.subject, feeAmount: form.feeAmount ? Number(form.feeAmount) : undefined } });
+      await apiRequest('/teacher-students/invite', { method: 'POST', body: { studentEmail: form.studentEmail.trim(), courseId: form.courseId, subject: form.subject, feeAmount: form.feeAmount ? Number(form.feeAmount) : undefined, feeCurrency: form.feeCurrency } });
       onFlash('Invitation sent — the student (or their guardian, if a minor) must accept it.', 'success');
-      setForm({ studentEmail: '', courseId: '', subject: '', feeAmount: '' });
+      setForm({ studentEmail: '', courseId: '', subject: '', feeAmount: '', feeCurrency: form.feeCurrency });
       load();
     } catch (err) { onFlash(err.message); }
   }
@@ -10182,15 +10242,19 @@ function IndependentTutoringPanel({ onFlash, courses }) {
         </select>
         <input className="form-input" placeholder="Subject (optional)" value={form.subject} onChange={(e) => setForm({ ...form, subject: e.target.value })} style={{ maxWidth: 160 }} />
         <input className="form-input" type="number" placeholder="Fee (optional)" value={form.feeAmount} onChange={(e) => setForm({ ...form, feeAmount: e.target.value })} style={{ maxWidth: 120 }} />
+        <select className="form-select" aria-label="Fee currency" value={form.feeCurrency} onChange={(e) => setForm({ ...form, feeCurrency: e.target.value })} style={{ maxWidth: 100 }}>{['PKR', 'USD', 'GBP', 'EUR', 'AED', 'SAR'].map((cur) => <option key={cur}>{cur}</option>)}</select>
         <button type="submit" className="btn btn-primary">Send Invitation</button>
       </form>
       {independentCourses.length === 0 && <p className="text-xs" style={{ color: 'var(--ink-soft)', marginBottom: 12 }}>Create a course with no institution attached (My Courses) first — institution and independent-teacher records stay separate.</p>}
       <Table
         loading={links === null}
-        headers={['Student', 'Course', 'Status', 'Action']}
+        headers={['Student', 'Course', 'Status', 'Fee', 'Action']}
         rows={(links || []).map((l) => [
           <div>{l.student?.fullName || l.student?.email}<StudentGuardians studentId={l.student?._id}/></div>, l.course?.title,
           <Tag status={STATUS_TAG[l.status] || 'pending'} label={l.status} />,
+          !l.feeAmount ? <span className="text-xs">No fee</span> : l.feePaidAt
+            ? <span className="text-xs"><strong style={{ color: 'var(--emerald)' }}>✓ {l.feeCurrency} {l.feeAmount} paid</strong><br />by {l.feePaidBy?.fullName || 'student'}{l.feePaidByRole ? ` (${l.feePaidByRole})` : ''} · {new Date(l.feePaidAt).toLocaleDateString()}</span>
+            : <span className="text-xs" style={{ color: 'var(--gold)' }}>{l.feeCurrency} {l.feeAmount} unpaid</span>,
           l.status === 'active' ? <button className="btn" style={{ padding: '4px 12px', fontSize: '0.75rem' }} onClick={() => setStatus(l._id, 'paused')}>Pause</button>
             : l.status === 'paused' ? <div className="flex gap-2"><button className="btn" style={{ padding: '4px 12px', fontSize: '0.75rem' }} onClick={() => setStatus(l._id, 'active')}>Resume</button><button className="btn" style={{ padding: '4px 12px', fontSize: '0.75rem' }} onClick={() => setStatus(l._id, 'completed')}>Complete</button></div>
             : '—'
@@ -10614,6 +10678,22 @@ function TeacherAttendancePanel({ onFlash }) {
   );
 }
 
+// Plagiarism check (spec 9.10): which written answers in this assignment share long runs of wording.
+function SimilarityCheck({ assignmentId, onFlash }) {
+  const [result, setResult] = useState(null), [busy, setBusy] = useState(false);
+  useEffect(() => { setResult(null); }, [assignmentId]);
+  async function run() { setBusy(true); try { setResult(await apiRequest(`/courses/assignments/${assignmentId}/similarity`)); } catch (err) { onFlash(err.message); } finally { setBusy(false); } }
+  return <div className="similarity-check">
+    <button type="button" className="btn" disabled={busy} onClick={run}>{busy ? 'Checking…' : 'Check for copying'}</button>
+    {result && <div className="admin-notice" style={{ marginTop: 8 }}>
+      <p className="text-xs">{result.scope} Checked {result.checked} answer{result.checked === 1 ? '' : 's'}{result.skippedShort ? `; ${result.skippedShort} too short to compare` : ''}.</p>
+      {result.pairs.length === 0 ? <p><strong>No matching answers found.</strong></p>
+        : <ul style={{ margin: '6px 0 0', paddingLeft: 18 }}>{result.pairs.map((p, i) => <li key={i}><strong>{p.a.student}</strong> and <strong>{p.b.student}</strong>: {p.similarityPercent}% the same wording <Tag status={p.level === 'high' ? 'rejected' : 'pending'} label={p.level} /></li>)}</ul>}
+      {result.pairs.length > 0 && <p className="text-xs" style={{ marginTop: 6 }}>A match is a reason to look closer, not proof of copying. Read both answers before deciding.</p>}
+    </div>}
+  </div>;
+}
+
 function TeacherHomeworkPanel({ onFlash }) {
   const { courses, courseId, setCourseId } = useTeacherCourses(onFlash);
   const [assignments, setAssignments] = useState([]);
@@ -10715,6 +10795,7 @@ function TeacherHomeworkPanel({ onFlash }) {
               <section className="u-modal u-modal-lg" role="dialog" aria-modal="true" aria-labelledby="submission-review-title">
                 <div className="u-modal-head"><div><h3 id="submission-review-title">Review submissions</h3><p className="text-xs" style={{ color: 'var(--ink-soft)', marginTop: 3 }}>{assignments.find((item) => item._id === openAssignment)?.title} · {submissions?.length ?? '…'} received</p></div><button type="button" className="u-modal-close" aria-label="Close submissions" onClick={() => { setOpenAssignment(null); setSubmissions(null); }}><FaXmark aria-hidden="true" /></button></div>
                 <div className="u-modal-body" style={{ display: 'grid', gap: 14 }}>
+                  {submissions?.length > 1 && <SimilarityCheck assignmentId={openAssignment} onFlash={onFlash} />}
                   {submissions === null && <p role="status" className="admin-notice">Loading student submissions…</p>}
                   {submissions?.length === 0 && <div className="admin-notice"><strong>No submissions received yet.</strong><p className="text-xs mt-2">The student may have submitted a different duplicate assignment. Keep one assignment and ask them to submit against this exact item.</p></div>}
                   {(submissions || []).map((s) => <article key={s._id} className="card" style={{ padding: 18 }}>
@@ -11974,7 +12055,7 @@ function ParentPaymentRecordsPanel({ onFlash }) {
           f.title, `${f.currency} ${f.grossAmount ?? f.amount}`,
           `${f.currency} ${f.platformCommission ?? 0}`,
           `${f.currency} ${f.netAmount ?? f.amount}`,
-          f.paidVia || '—', f.paidAt ? new Date(f.paidAt).toLocaleDateString() : '—',
+          <span>{f.paidVia || '—'}{f.paidByInfo && <><br /><span className="text-xs">by {f.paidByInfo.name} ({f.paidByInfo.role})</span></>}</span>, f.paidAt ? new Date(f.paidAt).toLocaleDateString() : '—',
           <Tag status={f.escrowStatus === 'released' ? 'approved' : 'pending'} label={f.escrowStatus === 'released' ? 'Released' : 'Held'} />,
           f.transactionId || '—'
         ])}
@@ -12391,8 +12472,8 @@ function InstitutionWorkspace({ tab, user, onFlash, onChanged, isWarden = false 
   if (tab === 'communication') return <InstitutionBroadcastPanel onFlash={onFlash} />;
   if (tab === 'campusLife') return <InstitutionCampusLifePanel onFlash={onFlash} />;
   if (tab === 'certificates') return <InstitutionCertificatesPanel onFlash={onFlash} />;
-  if (tab === 'teachers') return <InstitutionTeachersPanel onFlash={onFlash} />;
-  if (tab === 'students') return <InstitutionStudentsPanel onFlash={onFlash} />;
+  if (tab === 'teachers') return <><InstitutionTeachersPanel onFlash={onFlash} /><TeacherReviewsPanel onFlash={onFlash} /></>;
+  if (tab === 'students') return <><InstitutionStudentsPanel onFlash={onFlash} /><ClassPromotionPanel onFlash={onFlash} /></>;
   if (tab === 'parents') return <><InstitutionParentsPanel onFlash={onFlash} /><InstitutionFamilyActions onFlash={onFlash} /><FamilyPolicy onFlash={onFlash}/></>;
   if (tab === 'attendance') return <InstitutionAttendancePanel onFlash={onFlash} />;
   if (tab === 'payroll') return <InstitutionPayrollPanel onFlash={onFlash} />;
@@ -14213,7 +14294,7 @@ function InstitutionFeesPanel({ onFlash }) {
             </div>
           ) : f.status === 'paid' && f.escrowStatus === 'held' ? (
             <button className="btn btn-primary" style={{ padding: '5px 12px', fontSize: '0.78rem' }} onClick={() => releaseEscrow(f._id)}>Release Funds</button>
-          ) : f.status === 'paid' ? (f.paidVia || '—') : '—',
+          ) : f.status === 'paid' ? <span>{f.paidVia || '—'}{f.paidByInfo && <><br /><span className="text-xs">by {f.paidByInfo.name} ({f.paidByInfo.role})</span></>}</span> : '—',
           <button type="button" className="btn" style={{ padding: '4px 10px', fontSize: '0.72rem' }} onClick={() => downloadFeePdf(f)}>{['paid', 'refunded'].includes(f.status) ? 'Receipt' : 'Invoice'}</button>
         ])}
         empty="No fee records yet."
@@ -14518,7 +14599,7 @@ function FeeVerificationSection({ institutionId, onFlash }) {
             <div className="flex items-center justify-between flex-wrap" style={{ gap: 8 }}>
               <div>
                 <strong className="text-sm">{f.student?.fullName}</strong>
-                <p className="text-xs" style={{ color: 'var(--ink-soft)' }}>{f.title} · Reported {f.currency} {pending?.amount} via {pending?.method}</p>
+                <p className="text-xs" style={{ color: 'var(--ink-soft)' }}>{f.title} · Reported {f.currency} {pending?.amount} via {pending?.method}{pending?.paidByInfo ? ` by ${pending.paidByInfo.name} (${pending.paidByInfo.role})` : ''}</p>
                 <p className="text-xs" style={{ color: 'var(--ink-soft)' }}>
                   Ref: {pending?.reference || pending?.transactionId || '—'} · Paid on: {pending?.paidOn ? new Date(pending.paidOn).toLocaleDateString() : '—'}
                   {pending?.bankName ? ` · Bank/provider: ${pending.bankName}` : ''}
@@ -16774,6 +16855,18 @@ function InstitutionCampusLifePanel({ onFlash }) {
 
 function InstitutionStaffPanel({ onFlash }) {
   const [institution, setInstitution] = useState(null);
+  // Role catalogue with each role's starting permissions (backend utils/staffRoles.js).
+  const [roleCatalog, setRoleCatalog] = useState({ roles: [], permissions: [] });
+  useEffect(() => { apiRequest('/institutions/staff-roles').then(setRoleCatalog).catch(() => {}); }, []);
+  const roleLabel = (key) => roleCatalog.roles.find((r) => r.key === key)?.label || key;
+  const permissionLabel = (key) => roleCatalog.permissions.find((x) => x.key === key)?.label || key;
+  async function changeRole(staff, role) {
+    try {
+      await apiRequest(`/institutions/${institution._id}/staff/${staff.user}`, { method: 'PATCH', body: { role } });
+      onFlash(`Role changed to ${roleLabel(role)}; permissions set for that role.`, 'success');
+      load();
+    } catch (err) { onFlash(err.message); }
+  }
   const [form, setForm] = useState({ userId: '', role: 'teacher', department: '', designation: '', canApprove: false, canUseAi: false, canManageAi: false });
   const [selectedStaffUser, setSelectedStaffUser] = useState(null);
 
@@ -16785,11 +16878,14 @@ function InstitutionStaffPanel({ onFlash }) {
   async function addStaffMember(e) {
     e.preventDefault();
     try {
-      const permissions = [
+      // The role's starting permissions plus any AI access ticked here.
+      const preset = roleCatalog.roles.find((r) => r.key === form.role)?.permissions || [];
+      const permissions = [...new Set([
+        ...preset,
         ...(form.canApprove ? ['application:approve'] : []),
         ...(form.canUseAi || form.canManageAi ? ['ai:use'] : []),
         ...(form.canManageAi ? ['ai:manage'] : [])
-      ];
+      ])];
       await apiRequest(`/institutions/${institution._id}/staff`, { method: 'POST', body: { userId: form.userId.trim(), role: form.role, department: form.department, designation: form.designation, permissions } });
       onFlash('Staff member added.', 'success');
       setForm({ userId: '', role: 'teacher', department: '', designation: '', canApprove: false, canUseAi: false, canManageAi: false });
@@ -16828,8 +16924,9 @@ function InstitutionStaffPanel({ onFlash }) {
           onClear={() => { setSelectedStaffUser(null); setForm({ ...form, userId: '' }); }}
         /></div>
         <label className="institution-field"><span>Role</span><select className="form-select" value={form.role} onChange={(e) => setForm({ ...form, role: e.target.value })}>
-          {['teacher', 'warden', 'accountant', 'librarian', 'principal', 'coordinator', 'representative', 'staff'].map((r) => <option key={r} value={r}>{r}</option>)}
+          {(roleCatalog.roles.length ? roleCatalog.roles : [{ key: 'teacher', label: 'Teacher' }, { key: 'staff', label: 'Other staff' }]).map((r) => <option key={r.key} value={r.key}>{r.label}</option>)}
         </select></label>
+        {(roleCatalog.roles.find((r) => r.key === form.role)?.permissions || []).length > 0 && <p className="text-xs" style={{ gridColumn: '1 / -1', color: 'var(--ink-soft)', margin: 0 }}>This role can: {roleCatalog.roles.find((r) => r.key === form.role).permissions.map(permissionLabel).join('; ')}. You can change this after adding.</p>}
         <label className="institution-field"><span>Designation</span><input className="form-input" placeholder="Designation (e.g. Senior Admissions Officer)" value={form.designation} onChange={(e) => setForm({ ...form, designation: e.target.value })} style={{ maxWidth: 220 }} /></label>
         <label className="institution-field"><span>Department</span><input className="form-input" placeholder="Department (optional)" value={form.department} onChange={(e) => setForm({ ...form, department: e.target.value })} style={{ maxWidth: 160 }} /></label>
         {form.role === 'representative' && (
@@ -16842,7 +16939,9 @@ function InstitutionStaffPanel({ onFlash }) {
       <p style={{ fontSize: 12, color: 'var(--ink-soft)', marginBottom: 16 }}>Ask the staff member for their account's User ID from their Profile tab — a search-by-email lookup isn't built yet. Representatives can review inquiries/applications, but can only accept/reject applications if you grant that permission here.</p>
       <Table
         headers={['Role', 'Designation', 'Department', 'AI permissions', 'Permissions', 'Added', 'Action']}
-        rows={(institution.staff || []).map((s) => [s.role, s.designation || '—', s.department || '—',
+        rows={(institution.staff || []).map((s) => [
+          s.role === 'teacher' ? roleLabel(s.role) : <select className="form-select" aria-label="Role" value={s.role} onChange={(e) => changeRole(s, e.target.value)} style={{ minWidth: 150 }}>{!roleCatalog.roles.some((r) => r.key === s.role) && <option value={s.role}>{s.role}</option>}{roleCatalog.roles.filter((r) => r.key !== 'teacher').map((r) => <option key={r.key} value={r.key}>{r.label}</option>)}</select>,
+          s.designation || '—', s.department || '—',
           <span className="flex gap-2 flex-wrap">
             <button className="btn" type="button" onClick={() => updateAiPermission(s, 'use')}>AI use: {s.permissions?.includes('ai:use') ? 'On' : 'Off'}</button>
             <button className="btn" type="button" onClick={() => updateAiPermission(s, 'manage')}>AI keys: {s.permissions?.includes('ai:manage') ? 'On' : 'Off'}</button>
@@ -16864,7 +16963,7 @@ function InstitutionHiringPanel({ institutionId, onFlash }) {
   const [form, setForm] = useState({ teacherUserId: '', role: 'teacher', designation: '', department: '', contractTerms: '', contractDocumentUrl: '', salaryType: 'monthly', commissionPercent: 0, monthlySalary: 0, salaryCurrency: 'PKR', taxPercent: 0 });
   const [busyId, setBusyId] = useState(null);
   const [directory, setDirectory] = useState(null);
-  const [directoryQuery, setDirectoryQuery] = useState('');
+  const [directoryQuery, setDirectoryQuery] = useState(''), [directoryCategory, setDirectoryCategory] = useState('');
   const [uploadingContract, setUploadingContract] = useState(false);
   const offerFormRef = useRef(null);
 
@@ -16890,7 +16989,10 @@ function InstitutionHiringPanel({ institutionId, onFlash }) {
 
   function loadDirectory() {
     setDirectory(null);
-    apiRequest(`/institutions/${institutionId}/teacher-directory${directoryQuery.trim() ? `?q=${encodeURIComponent(directoryQuery.trim())}` : ''}`)
+    const params = new URLSearchParams();
+    if (directoryQuery.trim()) params.set('q', directoryQuery.trim());
+    if (directoryCategory) params.set('category', directoryCategory);
+    apiRequest(`/institutions/${institutionId}/teacher-directory${params.toString() ? `?${params}` : ''}`)
       .then(setDirectory).catch((err) => onFlash(err.message));
   }
   useEffect(loadDirectory, [institutionId]); // eslint-disable-line react-hooks/exhaustive-deps
@@ -16939,6 +17041,7 @@ function InstitutionHiringPanel({ institutionId, onFlash }) {
       <div className="admin-section-heading"><div><h2>Find Teachers</h2><p>Browse teachers who've made themselves discoverable, then send an offer — no need to already know their User ID.</p></div></div>
       <form onSubmit={(e) => { e.preventDefault(); loadDirectory(); }} className="institution-directory-search">
         <input className="form-input" placeholder="Search by subject or keyword" value={directoryQuery} onChange={(e) => setDirectoryQuery(e.target.value)} style={{ minWidth: 220, flex: 1 }} />
+        <select className="form-select" aria-label="Teacher type" value={directoryCategory} onChange={(e) => setDirectoryCategory(e.target.value)} style={{ maxWidth: 220 }}><option value="">All teacher types</option>{TEACHER_CATEGORIES.map(([key, label]) => <option key={key} value={key}>{label}</option>)}</select>
         <button type="submit" className="btn">Search</button>
       </form>
       <div className="grid" style={{ gap: 12, gridTemplateColumns: 'repeat(auto-fill, minmax(240px, 1fr))', marginBottom: 24 }}>
@@ -16957,6 +17060,8 @@ function InstitutionHiringPanel({ institutionId, onFlash }) {
             </div>
             {t.subjects?.length > 0 && <p className="text-xs" style={{ marginBottom: 6 }}><strong>Subjects:</strong> {t.subjects.join(', ')}</p>}
             {t.qualifications?.length > 0 && <p className="text-xs" style={{ marginBottom: 6, color: 'var(--ink-soft)' }}>{t.qualifications.map((q) => q.title).filter(Boolean).join(', ')}</p>}
+            {t.categories?.length > 0 && <p className="text-xs" style={{ marginBottom: 6 }}>{t.categories.map((k) => TEACHER_CATEGORIES.find(([key]) => key === k)?.[1] || k).join(' · ')}</p>}
+            {t.portfolioUrl && <a className="text-xs" href={t.portfolioUrl} target="_blank" rel="noreferrer" style={{ color: 'var(--emerald)', display: 'inline-block', marginBottom: 6 }}>View public portfolio</a>}
             {t.bio && <p className="text-xs" style={{ marginBottom: 10, color: 'var(--ink-soft)' }}>{t.bio}</p>}
             <button type="button" className="btn btn-primary" style={{ padding: '6px 14px', fontSize: '0.78rem' }} onClick={() => pickFromDirectory(t)}>Send Offer</button>
           </div>
@@ -21667,7 +21772,7 @@ function AdminSettingsPanel({ onFlash, isSuperAdmin }) {
       {sub === 'languages' && <SettingsCollectionPanel onFlash={onFlash} kind="languages" fields={['name', 'code']} />}
       {sub === 'currencies' && <SettingsCollectionPanel onFlash={onFlash} kind="currencies" fields={['name', 'code', 'symbol']} />}
       {sub === 'features' && <FeatureFlagsPanel onFlash={onFlash} />}
-      {sub === 'aiProviders' && isSuperAdmin && <AdminAiProvidersPanel onFlash={onFlash} />}
+      {sub === 'aiProviders' && isSuperAdmin && <><AdminAiProvidersPanel onFlash={onFlash} /><SiteAssistantSettings onFlash={onFlash} /></>}
     </div>
   );
 }

@@ -3,11 +3,24 @@ import { useMemo } from 'react';
 // Renders the Markdown that AI tools produce (headings, lists, tables, bold, inline and fenced
 // code) as React elements. Never injects HTML, so lesson or report text cannot run markup.
 
+// Links: [text](/path) or [text](https://…), and bare site paths like /signup. Only same-site
+// paths and https links become anchors; anything else stays plain text.
+const safeHref = (href) => (/^\/[\w\-/]*$/.test(href) || /^https:\/\/[^\s]+$/.test(href) ? href : null);
+function links(text, keyBase) {
+  return String(text).split(/(\[[^\]]+\]\([^)\s]+\)|(?:^|(?<=\s))\/[a-z][\w\-/]*)/gi).map((part, i) => {
+    const md = part.match(/^\[([^\]]+)\]\(([^)\s]+)\)$/);
+    const href = md ? safeHref(md[2]) : /^\/[a-z]/i.test(part) ? safeHref(part.replace(/[.,;:!?)]+$/, '')) : null;
+    if (!href) return md ? md[1] : part;
+    const external = href.startsWith('https://');
+    return <a key={`${keyBase}-l${i}`} href={href} {...(external ? { target: '_blank', rel: 'noreferrer' } : {})}>{md ? md[1] : href}</a>;
+  });
+}
+
 function inline(text, keyBase) {
-  return String(text).split(/(\*\*[^*]+\*\*|`[^`]+`)/g).map((part, i) => {
+  return String(text).split(/(\*\*[^*]+\*\*|`[^`]+`)/g).flatMap((part, i) => {
     if (part.length > 4 && part.startsWith('**') && part.endsWith('**')) return <strong key={`${keyBase}-${i}`}>{part.slice(2, -2)}</strong>;
     if (part.length > 2 && part.startsWith('`') && part.endsWith('`')) return <code key={`${keyBase}-${i}`} className="md-code">{part.slice(1, -1)}</code>;
-    return part;
+    return links(part, `${keyBase}-${i}`);
   });
 }
 

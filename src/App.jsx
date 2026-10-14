@@ -1,7 +1,7 @@
 import SocialCallback from './pages/SocialCallback';
 import PublicPage from './pages/PublicPage';
 import { useEffect, useState } from 'react';
-import { Navigate, Route, Routes } from 'react-router-dom';
+import { Navigate, Route, Routes, useLocation } from 'react-router-dom';
 import Home from './pages/Home';
 import Login from './pages/Login';
 import Signup from './pages/Signup';
@@ -11,6 +11,8 @@ import Dashboard from './pages/Dashboard';
 import VerifyCertificate from './pages/VerifyCertificate';
 import VerifyStudentId from './pages/VerifyStudentId';
 import PublicPortfolio from './pages/PublicPortfolio';
+import TeacherPortfolio from './pages/TeacherPortfolio';
+import SiteAssistant from './components/SiteAssistant';
 import VerifyFeeReceipt from './pages/VerifyFeeReceipt';
 import InstitutionPublic from './pages/InstitutionPublic';
 import AccountVerification from './pages/AccountVerification';
@@ -25,6 +27,13 @@ function subdomainOf(hostname) {
 }
 
 function PublicPageBlog() { return <PublicPage />; }
+
+// The homepage AI assistant appears on public pages only (not inside dashboards or sign-up flows).
+function PublicAssistant() {
+  const { pathname } = useLocation();
+  if (/^\/(dashboard|onboarding|complete-profile|login|signup|social-callback|reset-password|forgot-password)/.test(pathname)) return null;
+  return <SiteAssistant />;
+}
 
 function HomeOrInstitution() {
   const sub = subdomainOf(window.location.hostname);
@@ -62,6 +71,8 @@ function ProtectedRoute({ children }) {
 
 export default function App() {
   return (
+    <>
+    <PublicAssistant />
     <Routes>
       <Route path="/" element={<HomeOrInstitution />} />
       <Route path="/social-callback" element={<SocialCallback />} />
@@ -73,6 +84,7 @@ export default function App() {
       <Route path="/verify-student-id/:code" element={<VerifyStudentId />} />
       <Route path="/verify-fee-receipt/:code" element={<VerifyFeeReceipt />} />
       <Route path="/portfolio/:userId" element={<PublicPortfolio />} />
+      <Route path="/teacher/:teacherId" element={<TeacherPortfolio />} />
       <Route path="/i/:subdomain" element={<InstitutionPublic />} />
       <Route path="/i/:subdomain/:page" element={<InstitutionPublic />} />
       <Route path="/onboarding" element={<SignedInRoute><AccountVerification /></SignedInRoute>} />
@@ -91,5 +103,6 @@ export default function App() {
       <Route path="/:slug" element={<PublicPage />} />
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
+    </>
   );
 }
