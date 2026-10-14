@@ -1,33 +1,53 @@
 import { useEffect, useRef, useState } from 'react';
+import { apiRequest } from '../api/client';
 
+// Homepage console (same design as before). The suggested questions are only shortcuts: each
+// answer is generated live by the CareerZ AI assistant (POST /api/site-assistant/chat), which
+// answers from CareerZ's own data. Nothing here is a pre-written answer. The AI is called only
+// when a visitor clicks a question, and each answer is reused for the rest of their visit.
 const PROMPTS = [
-  { label: 'Suggest Universities', q: '"Suggest universities for me"', a: "Based on your interests in Computer Science and a budget under $400,000/year, I'd suggest FAST-NU, COMSATS Islamabad, and Bahria University — all offer strong CS programs with active CareerZ admission support." },
-  { label: 'Find Scholarships', q: '"Find scholarships for me"', a: 'You may qualify for the National Need-Based Scholarship and 3 institution-specific merit awards. I can auto-fill your application using your saved academic profile.' },
-  { label: 'Recommend Courses', q: '"Recommend courses for me"', a: 'For a career in Data Science, I recommend: Python for Beginners → Statistics Foundations → Machine Learning Essentials, all available through verified CareerZ instructors.' },
-  { label: 'Career Advice', q: '"Give me career advice"', a: 'Given your strengths in design and communication, UX Research and Digital Marketing are strong-fit paths. Want a 6-month skill roadmap?' },
-  { label: 'Admission Guidance', q: '"Help me with admission guidance"', a: "Your target university's deadline is in 21 days. Required documents: academic transcript, national ID, 2 photos. I can track your application status automatically." }
+  { label: 'Suggest Universities', q: 'Which universities and institutes can I find on CareerZ?' },
+  { label: 'Find Scholarships', q: 'Which scholarships are open on CareerZ right now, and how do I apply?' },
+  { label: 'Recommend Courses', q: 'What courses are available on CareerZ?' },
+  { label: 'Career Advice', q: 'How can CareerZ help me find a job or internship?' },
+  { label: 'Admission Guidance', q: 'How do I apply for admission to an institute through CareerZ?' }
 ];
+const CACHE = 'careerz_console_answers_v1';
+const readCache = () => { try { return JSON.parse(sessionStorage.getItem(CACHE) || '{}'); } catch { return {}; } };
 
 export default function AiConsole() {
-  const [active, setActive] = useState(0);
+  const [active, setActive] = useState(null);
   const [typed, setTyped] = useState('');
+  const [busy, setBusy] = useState(false);
+  const [enabled, setEnabled] = useState(null);
   const timeoutRef = useRef(null);
 
-  useEffect(() => {
+  useEffect(() => { apiRequest('/site-assistant/status', { auth: false }).then((s) => setEnabled(!!s.enabled)).catch(() => setEnabled(false)); }, []);
+  useEffect(() => () => clearTimeout(timeoutRef.current), []);
+
+  function typeOut(text) {
     clearTimeout(timeoutRef.current);
-    const answer = PROMPTS[active].a;
     let i = 0;
     setTyped('');
-    function type() {
-      if (i <= answer.length) {
-        setTyped(answer.slice(0, i));
-        i++;
-        timeoutRef.current = setTimeout(type, 14);
-      }
-    }
-    type();
-    return () => clearTimeout(timeoutRef.current);
-  }, [active]);
+    (function step() { if (i <= text.length) { setTyped(text.slice(0, i)); i += 2; timeoutRef.current = setTimeout(step, 12); } })();
+  }
+
+  async function ask(index) {
+    if (busy) return;
+    setActive(index);
+    const { q } = PROMPTS[index];
+    const cached = readCache()[q];
+    if (cached) return typeOut(cached);
+    setBusy(true); setTyped('');
+    try {
+      const { reply } = await apiRequest('/site-assistant/chat', { method: 'POST', auth: false, body: { messages: [{ role: 'user', content: q }] } });
+      const plain = String(reply || '').replace(/\*\*/g, '').replace(/\[([^\]]+)\]\(([^)]+)\)/g, '$1 ($2)');
+      try { sessionStorage.setItem(CACHE, JSON.stringify({ ...readCache(), [q]: plain })); } catch { /* not cached */ }
+      typeOut(plain);
+    } catch (err) {
+      setTyped(err.message || 'The assistant is temporarily unavailable. Please try again.');
+    } finally { setBusy(false); }
+  }
 
   return (
     <div className="ai-console reveal in">
@@ -36,14 +56,14 @@ export default function AiConsole() {
         <div className="console-label">CAREERZ AI · LIVE</div>
       </div>
       <div className="console-body">
-        <div className="console-q">Ask CareerZ AI: {PROMPTS[active].q}</div>
-        <div className="console-a">
-          {typed}
+        <div className="console-q">Ask CareerZ AI: {active === null ? 'choose a question below' : `"${PROMPTS[active].q}"`}</div>
+        <div className="console-a" aria-live="polite">
+          {enabled === false ? 'The CareerZ AI assistant is not available right now.' : busy ? 'Thinking…' : active === null ? 'Pick a question and CareerZ AI answers it live from what is on the platform today.' : typed}
           <span className="caret"></span>
         </div>
         <div className="console-prompts">
           {PROMPTS.map((p, i) => (
-            <button key={p.label} className={i === active ? 'active' : ''} onClick={() => setActive(i)}>
+            <button key={p.label} type="button" className={i === active ? 'active' : ''} disabled={enabled === false || busy} onClick={() => ask(i)}>
               {p.label}
             </button>
           ))}

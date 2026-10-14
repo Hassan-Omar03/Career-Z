@@ -62,6 +62,7 @@ import { showConfirm, showPrompt } from '../utils/appDialog';
 import CareerZLiveClassroom from '../components/CareerZLiveClassroom';
 import CvDesigner from '../components/dashboard/CvDesigner';
 import SiteAssistantSettings from '../components/admin/SiteAssistantSettings';
+import DonorPublicProfilePanel from '../components/dashboard/DonorPublicProfilePanel';
 import TeacherStandingCard from '../components/teacher/TeacherStandingCard';
 import { ClassPromotionPanel, TeacherReviewsPanel, MyTeacherReviews } from '../components/institution/PeoplePanels';
 import { TEACHER_CATEGORIES, MODE_LABEL } from '../utils/teacherProfile';
@@ -17836,7 +17837,7 @@ function EmployerJobsPanel({ onFlash }) {
 // ------------------------------------------------------------------ Donor
 
 function DonorWorkspace({ tab, user, onFlash, onChanged, onNavigate }) {
-  if (tab === 'profile') return <><ProfilePanel user={user} onFlash={onFlash} onChanged={onChanged} /><RolesPanel onFlash={onFlash} onChanged={onChanged} /><SupportComplaintPanel onFlash={onFlash} /></>;
+  if (tab === 'profile') return <><ProfilePanel user={user} onFlash={onFlash} onChanged={onChanged} /><DonorPublicProfilePanel onFlash={onFlash} userId={user?._id} /><RolesPanel onFlash={onFlash} onChanged={onChanged} /><SupportComplaintPanel onFlash={onFlash} /></>;
   if (tab === 'summary') return <DonorDashboardPanel user={user} onFlash={onFlash} onNavigate={onNavigate} />;
   if (tab === 'post') return <PostScholarshipPanel onFlash={onFlash} />;
   if (tab === 'scholarships') return <MyScholarshipsPanel onFlash={onFlash} />;

@@ -13,6 +13,8 @@ import VerifyStudentId from './pages/VerifyStudentId';
 import PublicPortfolio from './pages/PublicPortfolio';
 import TeacherPortfolio from './pages/TeacherPortfolio';
 import SiteAssistant from './components/SiteAssistant';
+import { ListingPage, JobDetail, ScholarshipDetail, InstituteDetail, ProductDetail, DonorDetail } from './pages/Discover';
+import { takeIntent } from './utils/continueIntent';
 import VerifyFeeReceipt from './pages/VerifyFeeReceipt';
 import InstitutionPublic from './pages/InstitutionPublic';
 import AccountVerification from './pages/AccountVerification';
@@ -38,6 +40,13 @@ function PublicAssistant() {
 function HomeOrInstitution() {
   const sub = subdomainOf(window.location.hostname);
   return sub ? <Navigate to={`/i/${sub}`} replace /> : <Home />;
+}
+
+// A listing the visitor tried to act on before signing in (see utils/continueIntent.js): once the
+// account can act, open it instead of the dashboard, exactly once.
+function ContinueOrDashboard({ children }) {
+  const [target] = useState(() => takeIntent()?.path || null);
+  return target ? <Navigate to={target} replace /> : children;
 }
 
 function SignedInRoute({ children }) {
@@ -66,7 +75,7 @@ function ProtectedRoute({ children }) {
   }
   if (accountStatus.state === 'profile_incomplete') return <Navigate to="/complete-profile" replace />;
   if (accountStatus.state !== 'ok') return <Navigate to="/onboarding" replace />;
-  return children;
+  return <ContinueOrDashboard>{children}</ContinueOrDashboard>;
 }
 
 export default function App() {
@@ -100,6 +109,17 @@ export default function App() {
         }
       />
       <Route path="/blog/:postSlug" element={<PublicPageBlog />} />
+      <Route path="/jobs" element={<ListingPage kind="jobs" />} />
+      <Route path="/jobs/:id" element={<JobDetail />} />
+      <Route path="/scholarships" element={<ListingPage kind="scholarships" />} />
+      <Route path="/scholarships/:id" element={<ScholarshipDetail />} />
+      <Route path="/institutes" element={<ListingPage kind="institutes" />} />
+      <Route path="/institutes/:id" element={<InstituteDetail />} />
+      <Route path="/institutions" element={<Navigate to="/institutes" replace />} />
+      <Route path="/marketplace" element={<ListingPage kind="marketplace" />} />
+      <Route path="/marketplace/:id" element={<ProductDetail />} />
+      <Route path="/donors" element={<ListingPage kind="donors" />} />
+      <Route path="/donors/:id" element={<DonorDetail />} />
       <Route path="/:slug" element={<PublicPage />} />
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>

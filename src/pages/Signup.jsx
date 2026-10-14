@@ -35,9 +35,11 @@ export default function Signup() {
   const { register } = useAuth();
   const navigate = useNavigate();
 
+  // ?type=teacher etc. preselects the account (from a homepage "Register as…" card or a listing).
+  const requestedType = new URLSearchParams(window.location.search).get('type');
   const [form, setForm] = useState({
     fullName: '', email: '', password: '', confirmPassword: '',
-    parentEmail:'', parentName:'', parentRelationship:'guardian', accountType: 'student', subtype: '', country: '', city: ''
+    parentEmail:'', parentName:'', parentRelationship:'guardian', accountType: ['student', 'parent', 'teacher', 'institute', 'agent', 'donor', 'marketplace'].includes(requestedType) ? requestedType : 'student', subtype: '', country: '', city: ''
   });
   const [terms, setTerms] = useState(false);
   const [privacy, setPrivacy] = useState(false);
