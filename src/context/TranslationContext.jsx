@@ -13,7 +13,7 @@ import { apiRequest } from '../api/client';
 const TranslationContext = createContext(null);
 
 const LANG_KEY = 'careerz_lang';
-const CACHE_KEY = 'careerz_translation_cache_v1';
+const CACHE_KEY = 'careerz_translation_cache_v2'; // v2: v1 held poor LibreTranslate output
 export const RTL_LANGS = ['ur', 'ar', 'fa', 'he'];
 const SKIP_TAGS = new Set(['SCRIPT', 'STYLE', 'NOSCRIPT', 'TEXTAREA', 'INPUT', 'TITLE']);
 // Small batches, two at a time, each shown as soon as it arrives: the self-hosted translator
@@ -24,6 +24,7 @@ const MAX_TEXT_LENGTH = 2000; // matches the backend limit; longer text stays in
 const DEBOUNCE_MS = 250;
 
 function loadCache() {
+  try { localStorage.removeItem('careerz_translation_cache_v1'); } catch { /* unavailable */ }
   try { return JSON.parse(localStorage.getItem(CACHE_KEY) || '{}'); } catch { return {}; }
 }
 function saveCache(cache) {

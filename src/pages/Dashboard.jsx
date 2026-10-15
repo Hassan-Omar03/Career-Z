@@ -1,3 +1,8 @@
+import InstitutionProfileExtras from '../components/institution/InstitutionProfileExtras';
+import AutoTimetable from '../components/institution/AutoTimetable';
+import CampusReports from '../components/institution/CampusReports';
+import InstitutionAssistantActions from '../components/institution/InstitutionAssistantActions';
+import SmartApply from '../components/dashboard/SmartApply';
 import TeacherSchedulePtm from '../components/dashboard/TeacherSchedulePtm';
 import PtmHistory from '../components/dashboard/PtmHistory';
 import SavedStatus from '../components/shared/SavedStatus';
@@ -2549,6 +2554,7 @@ function StudentJobsPanel({ onFlash, user }) {
     { key: 'search', label: 'Search Jobs' },
     { key: 'internships', label: 'Internships' },
     { key: 'recommended', label: 'Recommended Jobs' },
+    { key: 'smartApply', label: 'Smart Apply' },
     { key: 'saved', label: 'Saved Jobs' },
     { key: 'applications', label: 'My Applications' },
     { key: 'interviews', label: 'Interviews' },
@@ -2581,6 +2587,7 @@ function StudentJobsPanel({ onFlash, user }) {
       {sub === 'search' && <JobSearchPanel onFlash={onFlash} />}
       {sub === 'internships' && <InternshipsPanel onFlash={onFlash} />}
       {sub === 'recommended' && <RecommendedJobsPanel onFlash={onFlash} />}
+      {sub === 'smartApply' && <SmartApply onFlash={onFlash} />}
       {sub === 'saved' && <SavedJobsPanel onFlash={onFlash} />}
       {sub === 'applications' && <MyApplicationsPanel onFlash={onFlash} />}
       {sub === 'interviews' && <InterviewsPanel onFlash={onFlash} />}
@@ -3691,7 +3698,9 @@ const AI_PROVIDERS = [
   { value: 'openai', label: 'OpenAI (ChatGPT)' },
   { value: 'claude', label: 'Anthropic (Claude)' },
   { value: 'gemini', label: 'Google (Gemini)' },
-  { value: 'deepseek', label: 'DeepSeek' }
+  { value: 'deepseek', label: 'DeepSeek' },
+  { value: 'perplexity', label: 'Perplexity' },
+  { value: 'local', label: 'Local AI (your own server: Ollama, LM Studio…)' }
 ];
 
 const AI_PURPOSES = [
@@ -3724,7 +3733,7 @@ function AiSettingsPanel({ onFlash, onChanged, purposes = AI_PURPOSES, instituti
     const f = formFor(purposeKey);
     setSaving(purposeKey);
     try {
-      await apiRequest(configPath, { method: 'PUT', body: { purpose: purposeKey, provider: f.provider, apiKey: f.apiKey } });
+      await apiRequest(configPath, { method: 'PUT', body: { purpose: purposeKey, provider: f.provider, apiKey: f.apiKey, ...(f.provider === 'local' ? { baseUrl: f.baseUrl, model: f.model } : {}) } });
       onFlash('AI provider connected.', 'success');
       setForms((prev) => ({ ...prev, [purposeKey]: { ...f, apiKey: '' } }));
       load();
@@ -3758,13 +3767,17 @@ function AiSettingsPanel({ onFlash, onChanged, purposes = AI_PURPOSES, instituti
               <p className="text-xs font-semibold mb-2">{p.label}</p>
               {s.configured ? (
                 <div className="flex items-center gap-3 flex-wrap">
-                  <Tag status="approved" label={`Connected: ${p.providers.find((x) => x.value === s.provider)?.label || s.provider}${s.keyPreview ? ` (${s.keyPreview})` : ''}`} />
+                  <Tag status="approved" label={`Connected: ${p.providers.find((x) => x.value === s.provider)?.label || s.provider}${s.provider === 'local' && s.baseUrl ? ` at ${s.baseUrl} · ${s.model}` : ''}${s.keyPreview ? ` (${s.keyPreview})` : ''}`} />
                   <button type="button" className="btn" style={{ padding: '4px 12px', fontSize: '0.75rem' }} onClick={() => remove(p.key)}>Disconnect</button>
                 </div>
               ) : (
                 <form onSubmit={(e) => save(p.key, e)} className="flex gap-2 flex-wrap items-end">
                   <CustomSelect value={f.provider} onChange={(v) => setForms((prev) => ({ ...prev, [p.key]: { ...f, provider: v } }))} ariaLabel={`${p.label} provider`} minWidth={170} options={p.providers} />
-                  <input type="password" className="form-input" placeholder="Your API key" value={f.apiKey} onChange={(e) => setForms((prev) => ({ ...prev, [p.key]: { ...f, apiKey: e.target.value } }))} required style={{ minWidth: 200, fontSize: '0.8rem' }} />
+                  {f.provider === 'local' && <>
+                    <input type="url" className="form-input" aria-label="Local AI server address" placeholder="Server address, e.g. https://ai.myschool.edu/v1" value={f.baseUrl || ''} onChange={(e) => setForms((prev) => ({ ...prev, [p.key]: { ...f, baseUrl: e.target.value } }))} required style={{ minWidth: 260, fontSize: '0.8rem' }} />
+                    <input className="form-input" aria-label="Model name" placeholder="Model, e.g. llama3.1" value={f.model || ''} onChange={(e) => setForms((prev) => ({ ...prev, [p.key]: { ...f, model: e.target.value } }))} required style={{ minWidth: 150, fontSize: '0.8rem' }} />
+                  </>}
+                  <input type="password" className="form-input" aria-label="API key" placeholder={f.provider === 'local' ? 'API key (if your server needs one)' : 'Your API key'} value={f.apiKey} onChange={(e) => setForms((prev) => ({ ...prev, [p.key]: { ...f, apiKey: e.target.value } }))} required={f.provider !== 'local'} style={{ minWidth: 200, fontSize: '0.8rem' }} />
                   <button type="submit" className="btn btn-primary" style={{ padding: '5px 12px', fontSize: '0.75rem' }} disabled={saving === p.key}>{saving === p.key ? 'Saving...' : 'Connect'}</button>
                 </form>
               )}
@@ -16561,6 +16574,7 @@ function InstitutionAiAssistantPanel({ onFlash }) {
     <p>Builds a detailed report from your real records: who paid or owes which fee, each student's attendance and results by class, staff check-ins, payroll and open tickets, with names, departments and roles. Decisions remain yours; missing data is identified, never guessed.</p>
     <button className="btn btn-primary" disabled={loading||!id||!status?.text.configured} onClick={generate}>{loading?'Analyzing…':'Generate Insights'}</button>
     {id&&!status?.text.configured&&<p>Connect the institution text provider above first.</p>}
+    {id&&<InstitutionAssistantActions key={'act-'+id} institutionId={id} enabled={!!status?.text.configured} onFlash={onFlash} />}
     {reports.length>0&&<div className="ops-saved-reports"><h3>Saved reports ({reports.length})</h3><ul>{reports.map(r=><li key={r._id} className={meta?.reportId===r._id?'active':''}><span><strong>{new Date(r.createdAt).toLocaleString()}</strong> · by {r.generatedBy}{r.provider?' · '+r.provider+(r.model?' / '+r.model:''):''}</span><span><button type="button" className="btn" onClick={()=>openReport(r._id)} disabled={meta?.reportId===r._id}>{meta?.reportId===r._id?'Viewing':'View'}</button><button type="button" className="btn" onClick={()=>deleteReport(r)}>Delete</button></span></li>)}</ul></div>}
     {insights&&<><h3>AI report</h3>{meta&&<p className="text-xs">Generated {new Date(meta.createdAt).toLocaleString()} by {meta.generatedBy}{meta.provider?' using '+meta.provider+(meta.model?' / '+meta.model:''):''}. Saved — the records below are as they were at that time.</p>}<AiReport text={insights} />{details&&<OpsRecordTables details={details} />}<details><summary>Raw data sent to the AI</summary><pre style={{whiteSpace:'pre-wrap'}}>{dataSummary}</pre></details><button className="btn" onClick={()=>{const blob=new Blob([insights+'\n\n'+dataSummary],{type:'text/plain'});const url=URL.createObjectURL(blob);const anchor=document.createElement('a');anchor.href=url;anchor.download='institution-ai-report.md';anchor.click();URL.revokeObjectURL(url);}}>Download report</button></>}
   </section>;
@@ -17180,6 +17194,14 @@ function InstitutionClassesPanel({ onFlash }) {
     } catch (err) { onFlash(err.message); }
   }
 
+  async function setSectionCampus(sectionId, campus) {
+    try {
+      await apiRequest(`/institutions/${institution._id}/class-sections/${sectionId}`, { method: 'PATCH', body: { campus: campus || null } });
+      onFlash('Section campus updated.', 'success');
+      load();
+    } catch (err) { onFlash(err.message); }
+  }
+
   function loadTimetable(sectionId) {
     if (!institution || !sectionId) return;
     apiRequest(`/institutions/${institution._id}/class-sections/${sectionId}/timetable`).then(setTimetable).catch((err) => onFlash(err.message));
@@ -17271,6 +17293,7 @@ function InstitutionClassesPanel({ onFlash }) {
         <button type="submit" className="btn btn-primary">Add Campus</button>
       </form>
       <Table headers={['Name', 'Address']} rows={campuses.map((c) => [c.name, c.address || '—'])} empty="No campuses yet." />
+      {campuses.length > 0 && <CampusReports institutionId={institution._id} onFlash={onFlash} />}
 
       </section><section className="institution-class-section"><h3 className="font-semibold mb-2 mt-6">Class Sections</h3>
       <form onSubmit={createSection} className="institution-form-grid institution-class-form">
@@ -17284,9 +17307,14 @@ function InstitutionClassesPanel({ onFlash }) {
       </form>
       {teachers.length === 0 && <p className="text-xs mb-3" style={{ color: 'var(--ink-soft)' }}>No teachers linked yet — add one as staff (Staff & HR tab, role "teacher") before you can pick a class teacher.</p>}
       <Table
-        headers={['Name', 'Academic Year', 'Class Teacher', 'Action']}
+        headers={['Name', 'Academic Year', 'Campus', 'Class Teacher', 'Action']}
         rows={sections.map((s) => [
-          s.name, s.academicYear || '—', s.classTeacher?.fullName || 'Not assigned',
+          s.name, s.academicYear || '—',
+          <select key={`campus-${s._id}`} className="form-select" aria-label={`Campus of ${s.name}`} style={{ padding: '4px 8px', fontSize: '0.78rem' }} value={s.campus?._id || s.campus || ''} disabled={!campuses.length} onChange={(e) => setSectionCampus(s._id, e.target.value)}>
+            <option value="">{campuses.length ? '— no campus —' : 'Add a campus first'}</option>
+            {campuses.map((c) => <option key={c._id} value={c._id}>{c.name}</option>)}
+          </select>,
+          s.classTeacher?.fullName || 'Not assigned',
           <SavedForm key={s._id} showValues={false} value={sectionTeacherEdits[s._id] ?? (s.classTeacher?._id || '')} onRestore={value=>setSectionTeacherEdits(prev=>({...prev,[s._id]:value}))} onSubmit={()=>assignClassTeacher(s._id)} className="flex gap-2 items-center">
             <select className="form-select" style={{ padding: '4px 8px', fontSize: '0.78rem' }} value={sectionTeacherEdits[s._id] ?? (s.classTeacher?._id || '')} onChange={(e) => setSectionTeacherEdits({ ...sectionTeacherEdits, [s._id]: e.target.value })}>
               <option value="">— none —</option>
@@ -17310,6 +17338,7 @@ function InstitutionClassesPanel({ onFlash }) {
       />
       </section><details className="institution-study-settings" style={{ marginTop: 16 }}><summary>Course study settings and approvals</summary><LearningCenter workspace="institution" embedded onFlash={onFlash} renderLessonExtras={l => <LessonMetadata lessonId={l._id} canReview onFlash={onFlash} />} /></details>
 
+      {sections.length > 0 && <AutoTimetable institution={institution} sections={sections} courses={courses} onFlash={onFlash} onSaved={() => loadTimetable(timetableSection)} />}
       {sections.length > 0 && (
         <>
           <section className="institution-class-section institution-timetable"><h3 className="font-semibold mb-2 mt-6">Timetable</h3>
@@ -22663,6 +22692,7 @@ function InstitutionPanel({ onFlash, onChanged }) {
           <button type="submit" className="btn btn-primary" disabled={saving}>{saving ? 'Saving...' : 'Save Details'}</button>
         </SavedForm>
       )}
+      {mine && <InstitutionProfileExtras institution={mine} onFlash={onFlash} onSaved={load} />}
     </div>
   );
 }

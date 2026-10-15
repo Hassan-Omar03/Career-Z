@@ -1,5 +1,5 @@
 import { Link } from 'react-router-dom';
-import { FaLocationDot, FaCalendarDays, FaBriefcase, FaGraduationCap, FaBuildingColumns, FaStore, FaHandHoldingHeart, FaCircleCheck } from 'react-icons/fa6';
+import { FaLocationDot, FaCalendarDays, FaBriefcase, FaGraduationCap, FaBuildingColumns, FaStore, FaHandHoldingHeart, FaCircleCheck, FaBookOpen, FaUsers } from 'react-icons/fa6';
 
 // Cards for the public homepage and "View All" pages. Each shows only fields the record actually
 // has; nothing is filled in or invented when a field is missing.
@@ -96,6 +96,22 @@ export function DonorCard({ item }) {
       {item.focusAreas?.length > 0 && <p className="dc-tags">{item.focusAreas.map((f) => <span key={f}>{f}</span>)}</p>}
       <div className="dc-meta"><span className="dc-verified"><FaCircleCheck aria-hidden="true" /> Verified donor</span>{item.openScholarships > 0 && <span>{item.openScholarships} open scholarship{item.openScholarships === 1 ? '' : 's'}</span>}</div>
       <div className="dc-actions"><Link className="btn btn-primary" to={`/donors/${item._id}`}>View Profile</Link></div>
+    </article>
+  );
+}
+
+export function CourseCard({ item }) {
+  return (
+    <article className="dc-card">
+      {item.image ? <img src={item.image} alt="" className="dc-image" loading="lazy" /> : <div className="dc-image dc-icon" aria-hidden="true"><FaBookOpen /></div>}
+      <h3><Link to={`/courses/${item._id}`}>{item.title}</Link></h3>
+      <p className="dc-sub">{[item.subject, item.level].filter(Boolean).join(' · ')}{item.teacher ? ` · by ${item.teacher.name}` : ''}{item.institution ? ` · ${item.institution.name}` : ''}</p>
+      <ul className="dc-facts">
+        <li>{item.institution ? 'Via admission' : item.isFree ? 'Free' : money(item.price, item.currency)}</li>
+        <li>{label(item.studyMode)}</li>
+        <li><FaUsers aria-hidden="true" /> {item.enrolled} enrolled</li>
+      </ul>
+      <div className="dc-actions"><Link className="btn btn-primary" to={`/courses/${item._id}`}>View Course</Link></div>
     </article>
   );
 }

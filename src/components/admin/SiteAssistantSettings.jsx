@@ -3,7 +3,7 @@ import { apiRequest } from '../../api/client';
 
 // Super Admin: connect the platform's own AI key for the homepage assistant. The key is stored
 // encrypted on the server and only a short preview ever comes back.
-const PROVIDERS = [['openai', 'OpenAI (ChatGPT)'], ['claude', 'Anthropic Claude'], ['gemini', 'Google Gemini'], ['deepseek', 'DeepSeek']];
+const PROVIDERS = [['openai', 'OpenAI (ChatGPT)'], ['claude', 'Anthropic Claude'], ['gemini', 'Google Gemini'], ['deepseek', 'DeepSeek'], ['perplexity', 'Perplexity']];
 
 export default function SiteAssistantSettings({ onFlash }) {
   const [status, setStatus] = useState(null);

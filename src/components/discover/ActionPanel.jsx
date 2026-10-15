@@ -27,7 +27,7 @@ export default function ActionPanel({ kind, item, autoOpen, actionLabel, eligibl
   const { user, accountStatus, refreshAccountStatus } = useAuth();
   const navigate = useNavigate();
   const [open, setOpen] = useState(false), [busy, setBusy] = useState(false), [error, setError] = useState(''), [done, setDone] = useState(false);
-  const path = `/${kind}/${item._id}?action=${kind === 'marketplace' ? 'order' : kind === 'institutes' ? 'admission' : 'apply'}`;
+  const path = `/${kind}/${item._id}?action=${kind === 'marketplace' ? 'order' : kind === 'institutes' ? 'admission' : kind === 'courses' ? 'enroll' : 'apply'}`;
   const title = item.title || item.name;
 
   useEffect(() => { if (user && !accountStatus) refreshAccountStatus?.(); }, [user]);

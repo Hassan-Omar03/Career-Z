@@ -90,3 +90,32 @@
 /* Live homepage sections use the same heading size as the original homepage sections. */
 .home-section-head h2 { font-size: clamp(1.6rem, 3.2vw, 2.1rem); }
 .home-stats { margin-top: 8px; }
+
+/* Homepage in the original design (Home.jsx). */
+.home-page .home-card-link { display: block; color: inherit; text-decoration: none; }
+.home-page .home-card-link:hover { border-color: var(--emerald, #1b8a63); }
+.home-page .job-card.home-card-link, .home-page .people-card.home-card-link { display: flex; flex-direction: column; }
+.home-page .people-card.home-card-link { align-items: center; }
+.home-page img.avatar { display: block; margin-left: auto; margin-right: auto; }
+.home-design-head { display: flex; justify-content: space-between; align-items: flex-end; gap: 16px; flex-wrap: wrap; max-width: none; }
+.home-design-head > div { max-width: 680px; }
+.home-design-head .btn-ghost { white-space: nowrap; font-weight: 600; color: var(--forest); text-decoration: none; }
+/* Statistics: a rounded panel (all four corners) inside the page width. */
+.home-stats-wrap { padding-top: 24px; padding-bottom: 24px; }
+.home-stats-band { border-radius: 28px; padding: 56px 48px; }
+.home-stats-band .home-stat-link { color: inherit; text-decoration: none; display: block; }
+.home-stats-band .home-stat-link:hover .label { color: #fff; }
+@media (max-width: 640px) { .home-stats-band { padding: 36px 22px; border-radius: 22px; } .home-stats-band .stat-grid { gap: 22px; } }
+/* AI ecosystem: dark band with rounded top corners only. */
+.home-eco { background: var(--forest-deep); border-radius: 40px 40px 0 0; }
+@media (max-width: 640px) { .home-eco { border-radius: 24px 24px 0 0; } }
+.home-eco .ai-chip { color: var(--ink); text-decoration: none; }
+/* The app styles every <button> as a green button; these design controls keep their own look. */
+.home-page .faq-q { width: 100%; background: transparent; color: var(--ink); border: 0; padding: 0; text-align: left; font: inherit; font-weight: 600; font-size: 16px; }
+.home-page .search-tabs button:not(.active) { background: transparent; color: var(--ink-soft); }
+.home-page .search-row select:disabled { opacity: .6; cursor: not-allowed; }
+.home-page .market-banner .btn-gold, .home-page .cta-band .btn-gold { text-decoration: none; }
+/* Homepage icons (react-icons) in the design's icon tiles. */
+.home-page .ic svg { color: var(--forest, #0f3d2e); }
+.home-page .market-card .thumb svg { font-size: 30px; color: var(--forest, #0f3d2e); }
+.home-page .seller-card .ic svg { font-size: 30px; }

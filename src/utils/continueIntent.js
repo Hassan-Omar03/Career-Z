@@ -6,7 +6,7 @@
 
 const KEY = 'careerz_continue_v1';
 const MAX_AGE_MS = 30 * 24 * 60 * 60 * 1000; // approval can take days
-const ALLOWED = /^\/(jobs|scholarships|marketplace|institutes|donors)\/[a-f0-9]{24}(\?action=(apply|order|admission))?$/;
+const ALLOWED = /^\/(jobs|scholarships|marketplace|institutes|donors|courses)\/[a-f0-9]{24}(\?action=(apply|order|admission|enroll))?$/;
 
 export function isSafeContinuePath(path) {
   return typeof path === 'string' && ALLOWED.test(path);

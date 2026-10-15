@@ -4,7 +4,7 @@ import AuthNavbar from '../components/AuthNavbar';
 import SiteFooter from '../components/SiteFooter';
 import PageSeo from '../components/PageSeo';
 import { apiRequest } from '../api/client';
-import { JobCard, ScholarshipCard, InstituteCard, ProductCard, DonorCard, CardSkeleton, place, dateText, money } from '../components/discover/DiscoverCards';
+import { JobCard, ScholarshipCard, InstituteCard, ProductCard, DonorCard, CourseCard, CardSkeleton, place, dateText, money } from '../components/discover/DiscoverCards';
 import ActionPanel, { post } from '../components/discover/ActionPanel';
 import MarkdownText from '../components/shared/MarkdownText';
 import '../styles/discover.css';
@@ -17,6 +17,9 @@ const JOB_TYPES = [['full_time', 'Full time'], ['part_time', 'Part time'], ['int
 const INSTITUTE_TYPES = [['school', 'School'], ['college', 'College'], ['university', 'University'], ['academy', 'Academy'], ['madrasa', 'Madrasa'], ['tuition_center', 'Tuition centre'], ['training_institute', 'Training institute'], ['online_institute', 'Online institute']];
 const PRODUCT_CATEGORIES = [['books', 'Books'], ['stationery', 'Stationery'], ['uniform', 'Uniform'], ['electronics', 'Electronics'], ['courses', 'Courses'], ['services', 'Services'], ['other', 'Other']];
 
+const SOCIAL_LABEL = { facebook: 'Facebook', instagram: 'Instagram', linkedin: 'LinkedIn', x: 'X', youtube: 'YouTube', tiktok: 'TikTok', whatsapp: 'WhatsApp' };
+const AFFILIATION_LABEL = { university: 'University', board: 'Examination board', government: 'Government body', association: 'Association', partner: 'Partner', other: 'Affiliation' };
+
 export const KINDS = {
   jobs: { title: 'Jobs', intro: 'Open jobs and internships from verified employers and education agents.', Card: JobCard, prop: 'job', search: 'Job title, company or skill',
     filters: [['country', 'Country'], ['city', 'City'], ['type', 'Employment type', JOB_TYPES], ['workMode', 'Work mode', [['onsite', 'On-site'], ['remote', 'Remote'], ['hybrid', 'Hybrid']]], ['maxExperience', 'Max. experience (years)', 'number'], ['minSalary', 'Min. salary', 'number']] },
@@ -26,6 +29,8 @@ export const KINDS = {
     filters: [['country', 'Country'], ['city', 'City'], ['type', 'Type', INSTITUTE_TYPES]] },
   marketplace: { title: 'Marketplace', intro: 'Books, equipment, uniforms and services from verified sellers.', Card: ProductCard, prop: 'item', search: 'Product name',
     filters: [['category', 'Category', PRODUCT_CATEGORIES], ['minPrice', 'Min. price', 'number'], ['maxPrice', 'Max. price', 'number'], ['sort', 'Sort', [['newest', 'Newest'], ['price_asc', 'Price: low to high'], ['price_desc', 'Price: high to low']]]] },
+  courses: { title: 'Courses', intro: 'Published courses from verified teachers and institutes.', Card: CourseCard, prop: 'item', search: 'Course name or subject',
+    filters: [['country', 'Country'], ['city', 'City'], ['level', 'Level'], ['mode', 'Study mode', [['online', 'Online'], ['physical', 'On campus'], ['hybrid', 'Hybrid'], ['recorded', 'Recorded'], ['self_paced', 'Self-paced']]], ['price', 'Price', [['free', 'Free'], ['paid', 'Paid']]]] },
   donors: { title: 'Donors', intro: 'Verified donors and organizations who chose to share a public profile.', Card: DonorCard, prop: 'item', search: 'Donor name or cause',
     filters: [['country', 'Country'], ['city', 'City']] }
 };
@@ -150,6 +155,12 @@ export function InstituteDetail() {
     {i.coverImage && <img className="dp-cover" src={i.coverImage} alt="" />}
     <header className="dp-head">{i.logo && <img src={i.logo} alt="" className="dc-logo" />}<div><h1>{i.name}</h1><p className="dc-sub">{i.type.replace('_', ' ')} · {place(i.city, i.country)} · Verified institute</p></div></header>
     {i.description && <section><h2>Overview</h2><MarkdownText text={i.description} /></section>}
+    {Object.keys(i.socialLinks || {}).length > 0 && <p className="dc-tags" aria-label="Social links">{Object.entries(i.socialLinks).map(([k, href]) => <a key={k} href={href} target="_blank" rel="noreferrer noopener" style={{ textDecoration: 'none' }}><span>{SOCIAL_LABEL[k] || k}</span></a>)}</p>}
+    {i.accreditations?.length > 0 && <section><h2>Accreditation</h2><ul className="dp-list">{i.accreditations.map((a) => <li key={a.body + a.reference}><strong>{a.body}</strong>{a.reference ? ` · Ref. ${a.reference}` : ''}{a.validUntil ? ` · ${a.current ? 'valid until' : 'expired'} ${dateText(a.validUntil)}` : ''}{a.documentUrl && <> · <a href={a.documentUrl} target="_blank" rel="noreferrer noopener">certificate</a></>}</li>)}</ul></section>}
+    {i.affiliations?.length > 0 && <section><h2>Affiliations</h2><ul className="dp-list">{i.affiliations.map((a) => <li key={a.name}><strong>{a.name}</strong> · {AFFILIATION_LABEL[a.kind] || 'Affiliation'}{a.since ? ` · since ${a.since}` : ''}</li>)}</ul></section>}
+    {i.location && <section><h2>Location</h2>{i.address && <p className="dc-sub">{i.address}{i.city ? `, ${i.city}` : ''}</p>}
+      <iframe title={`Map of ${i.name}`} loading="lazy" style={{ width: '100%', height: 280, border: 0, borderRadius: 16 }} src={`https://www.openstreetmap.org/export/embed.html?bbox=${i.location.lng - 0.01}%2C${i.location.lat - 0.006}%2C${i.location.lng + 0.01}%2C${i.location.lat + 0.006}&layer=mapnik&marker=${i.location.lat}%2C${i.location.lng}`} />
+      <p className="dp-note"><a href={`https://www.openstreetmap.org/?mlat=${i.location.lat}&mlon=${i.location.lng}#map=16/${i.location.lat}/${i.location.lng}`} target="_blank" rel="noreferrer noopener">Open larger map</a> · <a href={`https://www.google.com/maps/dir/?api=1&destination=${i.location.lat},${i.location.lng}`} target="_blank" rel="noreferrer noopener">Get directions</a></p></section>}
     {(i.website || i.website_page) && <p className="dc-actions">{i.website_page && <Link className="btn" to={i.website_page}>Institute website on CareerZ</Link>}{i.website && <a className="btn" href={i.website} target="_blank" rel="noreferrer">Official website</a>}</p>}
     {i.programs.length > 0 && <section><h2>Programs</h2><ul className="dp-list">{i.programs.map((p) => <li key={p.name}><strong>{p.name}</strong>{p.department ? ` · ${p.department}` : ''}{p.durationTerms ? ` · ${p.durationTerms} terms` : ''}{p.tuition ? ` · tuition ${money(p.tuition, p.currency)}` : ''}{p.admissionFee ? ` · admission ${money(p.admissionFee, p.currency)}` : ''}</li>)}</ul></section>}
     {i.courses.length > 0 && <section><h2>Courses</h2><ul className="dp-list">{i.courses.map((c) => <li key={c._id}>{c.title}{c.subject && c.subject !== c.title ? ` · ${c.subject}` : ''}{c.level ? ` · ${c.level}` : ''}</li>)}</ul></section>}
@@ -178,6 +189,24 @@ export function ProductDetail() {
       <label>Delivery address<textarea className="form-input" rows={2} required value={order.shippingAddress} onChange={(e) => setOrder({ ...order, shippingAddress: e.target.value })} /></label>
       <label>Note to seller (optional)<input className="form-input" value={order.note} onChange={(e) => setOrder({ ...order, note: e.target.value })} /></label>
     </ActionPanel>
+  </article>}</DetailShell>;
+}
+
+export function CourseDetail() {
+  const { id } = useParams(); const [params] = useSearchParams();
+  const state = useDetail('courses', id);
+  return <DetailShell kind="courses" state={state}>{(c) => <article className="discover-detail">
+    {c.image && <img className="dp-cover" src={c.image} alt="" />}
+    <header><h1>{c.title}</h1><p className="dc-sub">{[c.subject, c.level].filter(Boolean).join(' · ')}{c.teacher ? <> · by {c.teacherPortfolio ? <Link to={`/teacher/${c.teacher._id}`}>{c.teacher.name}</Link> : c.teacher.name}</> : ''}</p></header>
+    <Facts rows={[['Price', c.isFree ? 'Free' : money(c.price, c.currency)], ['Study mode', c.studyMode?.replace('_', ' ')], ['Duration', c.duration], ['Credit hours', c.creditHours], ['Students enrolled', c.enrolled], ['Certificate', c.certificate ? 'Yes' : ''], ['Institute', c.institution?.name]]} />
+    {c.tags?.length > 0 && <p className="dc-tags">{c.tags.map((t) => <span key={t}>{t}</span>)}</p>}
+    {c.description && <section><h2>About this course</h2><MarkdownText text={c.description} /></section>}
+    {c.institution
+      ? <div className="dp-action"><p>This course is taught at {c.institution.name}. Students join it through the institute's admission.</p><Link className="btn btn-primary" to={`/institutes/${c.institution._id}?action=admission`}>Apply to {c.institution.name}</Link></div>
+      : c.isFree
+        ? <ActionPanel kind="courses" item={c} autoOpen={params.get('action') === 'enroll'} actionLabel="Enroll in this course" eligibleRoles={['student']} signupType="student"
+            onSubmit={() => post(`/courses/${c._id}/enroll`, {})} successText="You are enrolled. The course is now in My Courses." trackLink={{ to: '/dashboard', label: 'Open it in your dashboard → My Courses' }} />
+        : <div className="dp-action"><p>This is a paid course. Sign in as a student to buy it from your dashboard.</p><Link className="btn btn-primary" to="/login">Sign in</Link></div>}
   </article>}</DetailShell>;
 }
 

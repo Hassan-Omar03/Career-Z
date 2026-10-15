@@ -13,7 +13,7 @@ import VerifyStudentId from './pages/VerifyStudentId';
 import PublicPortfolio from './pages/PublicPortfolio';
 import TeacherPortfolio from './pages/TeacherPortfolio';
 import SiteAssistant from './components/SiteAssistant';
-import { ListingPage, JobDetail, ScholarshipDetail, InstituteDetail, ProductDetail, DonorDetail } from './pages/Discover';
+import { ListingPage, JobDetail, ScholarshipDetail, InstituteDetail, ProductDetail, DonorDetail, CourseDetail } from './pages/Discover';
 import { takeIntent } from './utils/continueIntent';
 import VerifyFeeReceipt from './pages/VerifyFeeReceipt';
 import InstitutionPublic from './pages/InstitutionPublic';
@@ -109,6 +109,8 @@ export default function App() {
         }
       />
       <Route path="/blog/:postSlug" element={<PublicPageBlog />} />
+      <Route path="/courses" element={<ListingPage kind="courses" />} />
+      <Route path="/courses/:id" element={<CourseDetail />} />
       <Route path="/jobs" element={<ListingPage kind="jobs" />} />
       <Route path="/jobs/:id" element={<JobDetail />} />
       <Route path="/scholarships" element={<ListingPage kind="scholarships" />} />
