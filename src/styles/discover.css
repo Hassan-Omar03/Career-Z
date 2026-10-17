@@ -119,3 +119,7 @@
 .home-page .ic svg { color: var(--forest, #0f3d2e); }
 .home-page .market-card .thumb svg { font-size: 30px; color: var(--forest, #0f3d2e); }
 .home-page .seller-card .ic svg { font-size: 30px; }
+/* The design pulls the search box up by 46px into the hero's bottom padding; the homepage hero
+   has less padding, so the box covered the role chips. Keep it below the hero instead. */
+.home-page .search-section { padding: 8px 0 32px; }
+.home-page .search-section .search-box { margin-top: 0; }
