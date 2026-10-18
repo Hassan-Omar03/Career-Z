@@ -6,6 +6,7 @@ import PageSeo from '../components/PageSeo';
 import { apiRequest } from '../api/client';
 import { JobCard, ScholarshipCard, InstituteCard, ProductCard, DonorCard, CourseCard, CardSkeleton, place, dateText, money } from '../components/discover/DiscoverCards';
 import ActionPanel, { post } from '../components/discover/ActionPanel';
+import GuestApplyPanel from '../components/discover/GuestApplyPanel';
 import MarkdownText from '../components/shared/MarkdownText';
 import '../styles/discover.css';
 
@@ -13,6 +14,7 @@ import '../styles/discover.css';
 // detail pages. Filters are sent to the server, so they search every eligible record, not just
 // what is on screen. Browsing never needs an account; actions go through ActionPanel.
 
+const JOB_CATEGORY_OPTIONS = [['teaching', 'Teaching'], ['academic_leadership', 'Academic leadership'], ['administration', 'Administration'], ['finance_accounts', 'Finance & accounts'], ['it_technical', 'IT & technical'], ['transport', 'Transport / driver'], ['hostel', 'Hostel / warden'], ['security', 'Security'], ['library', 'Library'], ['lab', 'Laboratory'], ['maintenance_cleaning', 'Maintenance & cleaning'], ['healthcare', 'Healthcare'], ['sales_marketing', 'Sales & marketing'], ['engineering', 'Engineering'], ['customer_service', 'Customer service'], ['other', 'Other']];
 const JOB_TYPES = [['full_time', 'Full time'], ['part_time', 'Part time'], ['internship', 'Internship'], ['freelance', 'Freelance'], ['government', 'Government'], ['ngo', 'NGO']];
 const INSTITUTE_TYPES = [['school', 'School'], ['college', 'College'], ['university', 'University'], ['academy', 'Academy'], ['madrasa', 'Madrasa'], ['tuition_center', 'Tuition centre'], ['training_institute', 'Training institute'], ['online_institute', 'Online institute']];
 const PRODUCT_CATEGORIES = [['books', 'Books'], ['stationery', 'Stationery'], ['uniform', 'Uniform'], ['electronics', 'Electronics'], ['courses', 'Courses'], ['services', 'Services'], ['other', 'Other']];
@@ -21,8 +23,8 @@ const SOCIAL_LABEL = { facebook: 'Facebook', instagram: 'Instagram', linkedin: '
 const AFFILIATION_LABEL = { university: 'University', board: 'Examination board', government: 'Government body', association: 'Association', partner: 'Partner', other: 'Affiliation' };
 
 export const KINDS = {
-  jobs: { title: 'Jobs', intro: 'Open jobs and internships from verified employers and education agents.', Card: JobCard, prop: 'job', search: 'Job title, company or skill',
-    filters: [['country', 'Country'], ['city', 'City'], ['type', 'Employment type', JOB_TYPES], ['workMode', 'Work mode', [['onsite', 'On-site'], ['remote', 'Remote'], ['hybrid', 'Hybrid']]], ['maxExperience', 'Max. experience (years)', 'number'], ['minSalary', 'Min. salary', 'number']] },
+  jobs: { title: 'Jobs', intro: 'Open jobs from verified institutes, employers and education agents.', Card: JobCard, prop: 'job', search: 'Job title, company or skill',
+    filters: [['country', 'Country'], ['city', 'City'], ['category', 'Category', JOB_CATEGORY_OPTIONS], ['type', 'Employment type', JOB_TYPES], ['workMode', 'Work mode', [['onsite', 'On-site'], ['remote', 'Remote'], ['hybrid', 'Hybrid']]], ['maxExperience', 'Max. experience (years)', 'number'], ['minSalary', 'Min. salary', 'number']] },
   scholarships: { title: 'Scholarships', intro: 'Open scholarships funded by verified donors.', Card: ScholarshipCard, prop: 'item', search: 'Scholarship name or field',
     filters: [['country', 'Country'], ['minAmount', 'Min. amount', 'number'], ['deadlineBefore', 'Deadline before', 'date']] },
   institutes: { title: 'Institutes', intro: 'Schools, colleges, universities and academies verified by CareerZ.', Card: InstituteCard, prop: 'item', search: 'Institute name or city',
@@ -128,6 +130,7 @@ export function JobDetail() {
       <label>Cover letter (optional)<textarea className="form-input" rows={5} maxLength={4000} value={cover} onChange={(e) => setCover(e.target.value)} placeholder="Why you are a good fit" /></label>
       <p className="dp-note">Your CareerZ CV is attached automatically.</p>
     </ActionPanel>
+    <GuestApplyPanel job={job} />
   </article>}</DetailShell>;
 }
 
@@ -136,14 +139,15 @@ export function ScholarshipDetail() {
   const state = useDetail('scholarships', id);
   const [statement, setStatement] = useState('');
   return <DetailShell kind="scholarships" state={state}>{(s) => <article className="discover-detail">
-    <header><h1>{s.title}</h1><p className="dc-sub">By {s.provider?.profile ? <Link to={s.provider.profile}>{s.provider.name}</Link> : s.provider?.name}</p></header>
+    <header><h1>{s.title}</h1><p className="dc-sub">By {s.provider?.profile ? <Link to={s.provider.profile}>{s.provider.name}</Link> : s.provider?.name}{s.listedByAgent ? ' · listed by a verified agent' : ''}</p></header>
     <Facts rows={[['Amount', money(s.amount, s.currency)], ['Country', s.country], ['Seats left', s.seatsAvailable], ['Apply by', dateText(s.applicationDeadline)], ['Posted', dateText(s.postedAt)]]} />
     {s.eligibility && <section><h2>Who can apply</h2><MarkdownText text={s.eligibility} /></section>}
     {s.description && <section><h2>About this scholarship</h2><MarkdownText text={s.description} /></section>}
+    {s.applicationMode === 'external' ? <div className="dp-action"><strong>Apply on the provider's website</strong><p>This scholarship is run by {s.provider?.name}. Applications and decisions are made there, not on CareerZ.</p><div className="dc-actions"><a className="btn btn-primary" href={s.externalUrl} target="_blank" rel="noreferrer noopener">Go to the application page</a>{s.provider?.website && <a className="btn" href={s.provider.website} target="_blank" rel="noreferrer noopener">Provider website</a>}</div></div> :
     <ActionPanel kind="scholarships" item={s} autoOpen={params.get('action') === 'apply'} actionLabel="Apply for this scholarship" eligibleRoles={['student']} signupType="student"
       onSubmit={() => post(`/scholarships/${s._id}/apply`, { statement })} successText="Application sent to the donor." trackLink={{ to: '/dashboard', label: 'Track it in your dashboard → Scholarships' }}>
       <label>Why should you receive this scholarship?<textarea className="form-input" rows={6} maxLength={4000} required value={statement} onChange={(e) => setStatement(e.target.value)} /></label>
-    </ActionPanel>
+    </ActionPanel>}
   </article>}</DetailShell>;
 }
 

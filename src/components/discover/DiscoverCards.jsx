@@ -25,7 +25,7 @@ export function JobCard({ job }) {
     <article className="dc-card">
       <div className="dc-head">
         {job.companyLogo ? <img src={job.companyLogo} alt="" className="dc-logo" loading="lazy" /> : <span className="dc-logo dc-icon" aria-hidden="true"><FaBriefcase /></span>}
-        <div><h3><Link to={`/jobs/${job._id}`}>{job.title}</Link></h3><p className="dc-sub">{job.company}{job.postedBy ? ` · posted by ${job.postedBy.kind === 'agent' ? 'agent' : 'employer'} ${job.postedBy.name}` : ''}</p></div>
+        <div><h3><Link to={`/jobs/${job._id}`}>{job.title}</Link></h3><p className="dc-sub">{job.company}{job.postedBy?.kind === 'institute' ? ' · verified institute' : job.postedBy ? ` · posted by ${job.postedBy.kind === 'agent' ? 'agent' : 'employer'} ${job.postedBy.name}` : ''}</p></div>
       </div>
       <ul className="dc-facts">
         {place(job.city, job.country) && <li><FaLocationDot aria-hidden="true" /> {place(job.city, job.country)}</li>}

@@ -1,3 +1,12 @@
+import { HiringStatusControl, CvDownload, ApplicantContact } from '../components/dashboard/ApplicantTools';
+import AlertSettings from '../components/dashboard/AlertSettings';
+import AdminJobReviewPanel from '../components/admin/AdminJobReviewPanel';
+import GuestApplicants from '../components/dashboard/GuestApplicants';
+import InstitutionAgentsPanel from '../components/recruitment/InstitutionAgentsPanel';
+import AgentRecruitmentPanel from '../components/recruitment/AgentRecruitmentPanel';
+import AdminRecruitmentPanel from '../components/admin/AdminRecruitmentPanel';
+import AdminScholarshipReviewPanel from '../components/admin/AdminScholarshipReviewPanel';
+import AgentScholarshipsPanel, { DonorListingRequests } from '../components/scholarship/AgentScholarships';
 import InstitutionProfileExtras from '../components/institution/InstitutionProfileExtras';
 import AutoTimetable from '../components/institution/AutoTimetable';
 import CampusReports from '../components/institution/CampusReports';
@@ -175,6 +184,8 @@ const WORKSPACES = {
       { key: 'health', label: 'Student Health Incidents', icon: FaKitMedical },
       { key: 'instHelpdesk', label: 'Institution Help Desk', icon: FaHeadset },
       { key: 'placement', label: 'Placement Office', icon: FaBriefcase },
+      { key: 'jobs', label: 'Jobs & Applications', icon: FaBriefcase },
+      { key: 'scholarships', label: 'Scholarships & Funding', icon: FaGraduationCap },
       { key: 'offlineStudy', label: 'Offline Study', icon: FaFileLines },
       { key: 'profile', label: 'My Profile', icon: FaUser }
     ]
@@ -238,6 +249,7 @@ const WORKSPACES = {
       { key: 'events', label: 'Events & Activities', icon: FaCalendarDays },
       { key: 'helpdesk', label: 'Complaint & Help Desk', icon: FaHeadset },
       { key: 'aiAssistant', label: 'AI Operations Assistant', icon: FaRobot },
+      { key: 'jobsHiring', label: 'Jobs & Hiring', icon: FaBriefcase },
       { key: 'placement', label: 'Placement Office', icon: FaBriefcase },
       { key: 'offlineStudy', label: 'Offline Study', icon: FaFileLines },
       { key: 'subscription', label: 'Subscription Plan', icon: FaStar },
@@ -266,6 +278,9 @@ const WORKSPACES = {
     nav: [
       { key: 'summary', label: 'Dashboard', icon: FaGauge },
       { key: 'verifications', label: 'User Verification & Approval', icon: FaIdCard },
+      { key: 'jobReview', label: 'Job Review', icon: FaBriefcase },
+      { key: 'scholarshipReview', label: 'Scholarship Review', icon: FaGraduationCap },
+      { key: 'recruitmentPayments', label: 'Recruitment Payments', icon: FaSackDollar },
       { key: 'worldmap', label: 'World Map', icon: FaEarthAmericas },
       { key: 'institutions_mgmt', label: 'Institution Management', icon: FaBuildingColumns },
       { key: 'agents', label: 'Agent Management', icon: FaUsers },
@@ -337,6 +352,8 @@ const WORKSPACES = {
       { key: 'profile', label: 'My Profile', icon: FaUser },
       { key: 'post', label: 'Post a Job', icon: FaFileLines },
       { key: 'jobs', label: 'My Job Posts', icon: FaBriefcase },
+      { key: 'instituteRequests', label: 'Institute Requests', icon: FaHandshake },
+      { key: 'agentScholarships', label: 'Scholarship Listings', icon: FaGraduationCap },
       { key: 'candidates', label: 'Applications', icon: FaUsers },
       { key: 'recommended', label: 'Candidates', icon: FaClipboardCheck },
       { key: 'shortlisted', label: 'Shortlisted Candidates', icon: FaClipboardCheck },
@@ -411,12 +428,16 @@ function Tag({ status, label }) {
 // (Applied/Application Viewed/Shortlisted/Interview Scheduled/Selected/Rejected/Hired) show correctly.
 const JOB_APP_STATUS = {
   pending: { tag: 'pending', label: 'Applied' },
-  viewed: { tag: 'pending', label: 'Application Viewed' },
+  viewed: { tag: 'pending', label: 'Screening' },
   shortlisted: { tag: 'pending', label: 'Shortlisted' },
-  interview: { tag: 'pending', label: 'Interview Scheduled' },
-  selected: { tag: 'pending', label: 'Selected' },
-  rejected: { tag: 'rejected', label: 'Rejected' },
-  hired: { tag: 'approved', label: 'Hired' }
+  interview: { tag: 'pending', label: 'Interview' },
+  final_interview: { tag: 'pending', label: 'Final interview' },
+  selected: { tag: 'pending', label: 'Offer' },
+  accepted: { tag: 'approved', label: 'Offer accepted' },
+  hired: { tag: 'approved', label: 'Joined' },
+  completed: { tag: 'approved', label: 'Completed' },
+  rejected: { tag: 'rejected', label: 'Not selected' },
+  withdrawn: { tag: 'rejected', label: 'Withdrawn' }
 };
 
 const INTERVIEW_STATUS = {
@@ -3473,13 +3494,30 @@ function SavedJobsPanel({ onFlash }) {
 
 function MyApplicationsPanel({ onFlash }) {
   const [applications, setApplications] = useState(null);
-  useEffect(() => { apiRequest('/jobs/mine/applications').then(setApplications).catch((err) => onFlash(err.message)); }, [onFlash]);
+  const load = () => apiRequest('/jobs/mine/applications').then(setApplications).catch((err) => onFlash(err.message));
+  useEffect(() => { load(); }, [onFlash]); // eslint-disable-line react-hooks/exhaustive-deps
+  async function act(a, action) {
+    try {
+      await apiRequest(`/jobs/applications/${a._id}/${action}`, { method: 'POST', body: {} });
+      onFlash(action === 'confirm-joining' ? 'Thank you. Your joining is confirmed.' : 'Application withdrawn.', 'success');
+      load();
+    } catch (err) { onFlash(err.message); }
+  }
 
   return (
     <Table
       loading={applications === null}
-      headers={['Job', 'Company', 'Status', 'Applied']}
-      rows={(applications || []).map((a) => [a.job?.title, a.job?.company, <Tag status={JOB_APP_STATUS[a.status]?.tag} label={JOB_APP_STATUS[a.status]?.label || a.status} />, new Date(a.createdAt).toLocaleDateString()])}
+      headers={['Job', 'Company', 'Stage', 'Applied', 'Action']}
+      rows={(applications || []).map((a) => [
+        a.job ? <a href={`/jobs/${a.job._id}`}>{a.job.title}</a> : '—', a.job?.company,
+        <Tag status={JOB_APP_STATUS[a.status]?.tag} label={JOB_APP_STATUS[a.status]?.label || a.status} />,
+        new Date(a.createdAt).toLocaleDateString(),
+        a.status === 'hired' && !a.joining?.confirmed
+          ? <button type="button" className="btn btn-primary" style={{ padding: '4px 10px', fontSize: '0.75rem' }} onClick={() => act(a, 'confirm-joining')}>Confirm I joined</button>
+          : !['hired', 'completed', 'rejected', 'withdrawn'].includes(a.status)
+            ? <button type="button" className="btn" style={{ padding: '4px 10px', fontSize: '0.75rem' }} onClick={() => act(a, 'withdraw')}>Withdraw</button>
+            : '—'
+      ])}
       empty="No applications yet."
     />
   );
@@ -4889,14 +4927,14 @@ function MyScholarshipApplicationsPanel({ onFlash }) {
 }
 
 function PostScholarshipPanel({ onFlash }) {
-  const [form, setForm] = useState({ title: '', description: '', amount: '', currency: 'USD', eligibilityCriteria: '', country: '', applicationDeadline: '', seatsAvailable: 1 });
+  const [form, setForm] = useState({ title: '', description: '', amount: '', currency: 'USD', eligibilityCriteria: '', country: '', applicationDeadline: '', seatsAvailable: 1, audience: ['students'] });
 
   async function submit(e) {
     e.preventDefault();
     try {
       await apiRequest('/scholarships', { method: 'POST', body: { ...form, amount: Number(form.amount), seatsAvailable: Number(form.seatsAvailable) } });
       onFlash('Scholarship posted.', 'success');
-      setForm({ title: '', description: '', amount: '', currency: 'USD', eligibilityCriteria: '', country: '', applicationDeadline: '', seatsAvailable: 1 });
+      setForm({ title: '', description: '', amount: '', currency: 'USD', eligibilityCriteria: '', country: '', applicationDeadline: '', seatsAvailable: 1, audience: ['students'] });
     } catch (err) { onFlash(err.message); }
   }
 
@@ -4921,6 +4959,9 @@ function PostScholarshipPanel({ onFlash }) {
         </label>
       </div>
       <input className="form-input" placeholder="Eligibility criteria" value={form.eligibilityCriteria} onChange={(e) => setForm({ ...form, eligibilityCriteria: e.target.value })} />
+      <fieldset className="text-sm" style={{ border: 0, padding: 0, display: 'flex', gap: 14, flexWrap: 'wrap' }}><legend className="text-xs" style={{ fontWeight: 600 }}>Who can apply (they get an alert when you post)</legend>
+        {[['students', 'Students'], ['teachers', 'Teachers']].map(([v, l]) => <label key={v} style={{ display: 'flex', gap: 6, alignItems: 'center' }}><input type="checkbox" checked={form.audience.includes(v)} onChange={() => setForm({ ...form, audience: form.audience.includes(v) ? (form.audience.length > 1 ? form.audience.filter((x) => x !== v) : form.audience) : [...form.audience, v] })} />{l}</label>)}
+      </fieldset>
       <div className="flex flex-wrap" style={{ gap: 14 }}>
         <input className="form-input" placeholder="Country (optional)" value={form.country} onChange={(e) => setForm({ ...form, country: e.target.value })} style={{ flex: '1 1 200px', minWidth: 0 }} />
         <label style={{ flex: '1 1 200px', minWidth: 0 }}>
@@ -4938,7 +4979,8 @@ function MyScholarshipsPanel({ onFlash }) {
   const [applicants, setApplicants] = useState(null);
   const [openId, setOpenId] = useState(null);
 
-  useEffect(() => { apiRequest('/scholarships/mine/list').then(setScholarships).catch((err) => onFlash(err.message)); }, [onFlash]);
+  const loadMine = () => apiRequest('/scholarships/mine/list').then(setScholarships).catch((err) => onFlash(err.message));
+  useEffect(() => { loadMine(); }, [onFlash]); // eslint-disable-line react-hooks/exhaustive-deps
 
   function viewApplicants(id) {
     setOpenId(id);
@@ -4955,6 +4997,7 @@ function MyScholarshipsPanel({ onFlash }) {
 
   return (
     <div>
+      <DonorListingRequests scholarships={scholarships} onFlash={onFlash} onChanged={loadMine} />
       <Table
         loading={scholarships === null}
         headers={['Title', 'Amount', 'Status', 'Action']}
@@ -7774,6 +7817,9 @@ function StudentSummary({ onNavigate, user }) {
 // ---------------------------------------------------------------- Teacher
 
 function TeacherWorkspace({ tab, user, onFlash, onChanged, onNavigate, onMessageUser }) {
+  // Teachers are job seekers too: teaching and other jobs, alerts, CV and their applications.
+  if (tab === 'jobs') return <StudentJobsPanel onFlash={onFlash} user={user} />;
+  if (tab === 'scholarships') return <ScholarshipsPanel onFlash={onFlash} user={user} />;
   if (tab === 'learningCenter') return <TeacherPanel onFlash={onFlash} />;
   if (tab === 'offlineStudy') return <OfflineStudy onFlash={onFlash} />;
   if (tab === 'placement') return <PlacementOffice onFlash={onFlash} />;
@@ -12507,6 +12553,7 @@ function InstitutionWorkspace({ tab, user, onFlash, onChanged, isWarden = false 
   if (tab === 'helpdesk') return <InstitutionCommunity kind="tickets" manage onFlash={onFlash} />;
   if (tab === 'aiAssistant') return <InstitutionAiAssistantPanel onFlash={onFlash} />;
   if (tab === 'subscription') return <InstitutionSubscriptionPanel onFlash={onFlash} />;
+  if (tab === 'jobsHiring') return <InstitutionJobsPanel onFlash={onFlash} />;
   if (tab === 'placement') return <PlacementOffice onFlash={onFlash} />;
   if (tab === 'wallet') return <WalletCard onFlash={onFlash} />;
   return <ComingSoon label={tab} />;
@@ -17547,23 +17594,33 @@ function EmployerSummary() {
 
 const JOB_TYPES = ['full_time', 'part_time', 'internship', 'freelance', 'government', 'ngo'];
 const WORK_MODES = ['onsite', 'remote', 'hybrid'];
+const JOB_CATEGORIES = [['teaching', 'Teaching'], ['academic_leadership', 'Principal / academic leadership'], ['administration', 'Administration / office'], ['finance_accounts', 'Finance & accounts'], ['it_technical', 'IT & technical'], ['transport', 'Transport / driver'], ['hostel', 'Hostel / warden'], ['security', 'Security'], ['library', 'Library'], ['lab', 'Laboratory'], ['maintenance_cleaning', 'Maintenance & cleaning'], ['healthcare', 'Healthcare'], ['sales_marketing', 'Sales & marketing'], ['engineering', 'Engineering'], ['customer_service', 'Customer service / reception'], ['other', 'Other']];
+// What the publisher sees after submitting: live, or held for review with the reasons.
+function jobOutcomeMessage(job, wasDraft) {
+  if (wasDraft) return ['Job saved as draft.', 'success'];
+  if (job?.outcome?.published || job?.status === 'active') return ['Job published. It is now live on CareerZ.', 'success'];
+  const reasons = (job?.outcome?.flags || job?.moderation?.flags || []).map((f) => f.label).join('; ');
+  return [`Job sent to admin review before it goes live${reasons ? `: ${reasons}` : ''}. You will be notified of the decision.`, 'success'];
+}
 
 const EMPTY_JOB_FORM = {
   title: '', company: '', type: 'full_time', workMode: 'onsite', country: '', city: '',
   salaryMin: '', salaryMax: '', experienceYears: '', education: '', skills: '', description: '',
-  companyLogo: '', visaSponsorship: false, applicationDeadline: '', status: 'active'
+  companyLogo: '', visaSponsorship: false, applicationDeadline: '', status: 'active', category: 'other'
 };
 
-function EmployerPostJobPanel({ onFlash }) {
-  const [form, setForm] = useState(EMPTY_JOB_FORM);
+// agreementId: an agent publishing for an institute under an active recruitment agreement.
+function EmployerPostJobPanel({ onFlash, institution = null, onPosted, agreementId = null }) {
+  const [form, setForm] = useState(() => ({ ...EMPTY_JOB_FORM, ...(institution ? { company: institution.name, category: 'teaching', country: institution.country || '', city: institution.city || '' } : {}) }));
 
   async function submit(e) {
     e.preventDefault();
     try {
-      await apiRequest('/jobs', {
+      const job = await apiRequest('/jobs', {
         method: 'POST',
         body: {
           ...form,
+          ...(agreementId ? { agreement: agreementId } : institution ? { institution: institution._id } : {}),
           country: form.country.toUpperCase(),
           salaryMin: form.salaryMin ? Number(form.salaryMin) : undefined,
           salaryMax: form.salaryMax ? Number(form.salaryMax) : undefined,
@@ -17572,8 +17629,9 @@ function EmployerPostJobPanel({ onFlash }) {
           applicationDeadline: form.applicationDeadline || undefined
         }
       });
-      onFlash(form.status === 'draft' ? 'Job saved as draft.' : 'Job posted.', 'success');
-      setForm(EMPTY_JOB_FORM);
+      onFlash(...jobOutcomeMessage(job, form.status === 'draft'));
+      setForm({ ...EMPTY_JOB_FORM, ...(institution ? { company: institution.name, category: 'teaching', country: institution.country || '', city: institution.city || '' } : {}) });
+      onPosted?.();
     } catch (err) { onFlash(err.message); }
   }
 
@@ -17584,9 +17642,14 @@ function EmployerPostJobPanel({ onFlash }) {
       <div className="card" style={{ padding: 20, display: 'grid', gap: 14 }}>
         <p style={fieldLabel}>Basic Information</p>
         <input className="form-input" placeholder="Job title" value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })} required />
-        <div className="flex flex-wrap" style={{ gap: 14 }}>
+        {institution
+          ? <p className="text-sm" style={{ margin: 0 }}>{agreementId ? <>Posting for <strong>{institution.name}</strong> under your recruitment agreement. The job shows the institute's name; you manage its applicants.</> : <>Posting as <strong>{institution.name}</strong>. The job shows your institute's name and logo.</>}</p>
+          : <div className="flex flex-wrap" style={{ gap: 14 }}>
           <input className="form-input" placeholder="Company name" value={form.company} onChange={(e) => setForm({ ...form, company: e.target.value })} required style={{ flex: '1 1 220px', minWidth: 0 }} />
           <input className="form-input" placeholder="Company logo URL (optional)" value={form.companyLogo} onChange={(e) => setForm({ ...form, companyLogo: e.target.value })} style={{ flex: '1 1 220px', minWidth: 0 }} />
+        </div>}
+        <div style={{ minWidth: 0 }}>
+          <CustomSelect value={form.category} onChange={(v) => setForm({ ...form, category: v })} ariaLabel="Job category" minWidth="100%" options={JOB_CATEGORIES.map(([value, label]) => ({ value, label }))} />
         </div>
         <div className="flex flex-wrap" style={{ gap: 14 }}>
           <div style={{ flex: '1 1 200px', minWidth: 0 }}>
@@ -17628,11 +17691,12 @@ function EmployerPostJobPanel({ onFlash }) {
           <div style={{ flex: '1 1 220px', minWidth: 0 }}>
             <CustomSelect
               value={form.status} onChange={(v) => setForm({ ...form, status: v })} ariaLabel="Job visibility" minWidth="100%"
-              options={[{ value: 'active', label: 'Post now (Active)' }, { value: 'draft', label: 'Save as Draft' }]}
+              options={[{ value: 'active', label: 'Submit for publishing' }, { value: 'draft', label: 'Save as Draft' }]}
             />
           </div>
           <button type="submit" className="btn btn-primary" style={{ flexShrink: 0, padding: '11px 22px', height: 46 }}>{form.status === 'draft' ? 'Save Draft' : 'Post Job'}</button>
         </div>
+        <p className="text-xs" style={{ color: 'var(--ink-soft)', margin: 0 }}>Every job is checked before it goes live. Jobs that ask applicants for money, promise guaranteed visas or look like duplicates wait for an admin to review them.</p>
       </div>
     </form>
   );
@@ -17640,6 +17704,8 @@ function EmployerPostJobPanel({ onFlash }) {
 
 const JOB_STATUS = {
   draft: { tag: 'pending', label: 'Draft' },
+  pending_review: { tag: 'pending', label: 'Under review' },
+  rejected: { tag: 'rejected', label: 'Not approved' },
   active: { tag: 'approved', label: 'Active' },
   paused: { tag: 'pending', label: 'Paused' },
   closed: { tag: 'rejected', label: 'Closed' },
@@ -17650,16 +17716,48 @@ const JOB_STATUS = {
 // separate from JOB_APP_STATUS, which is the job-seeker-facing wording for the same
 // underlying JobApplication.status values.
 const CANDIDATE_STATUS = {
-  pending: { tag: 'pending', label: 'New' },
-  viewed: { tag: 'pending', label: 'Reviewed' },
+  pending: { tag: 'pending', label: 'Applied' },
+  viewed: { tag: 'pending', label: 'Screening' },
   shortlisted: { tag: 'pending', label: 'Shortlisted' },
   interview: { tag: 'pending', label: 'Interview' },
-  selected: { tag: 'pending', label: 'Selected' },
-  rejected: { tag: 'rejected', label: 'Rejected' },
-  hired: { tag: 'approved', label: 'Hired' }
+  final_interview: { tag: 'pending', label: 'Final interview' },
+  selected: { tag: 'pending', label: 'Offer' },
+  accepted: { tag: 'approved', label: 'Offer accepted' },
+  hired: { tag: 'approved', label: 'Joined' },
+  completed: { tag: 'approved', label: 'Completed' },
+  rejected: { tag: 'rejected', label: 'Not selected' },
+  withdrawn: { tag: 'rejected', label: 'Withdrawn' }
 };
 
-function EmployerJobsPanel({ onFlash }) {
+// Institute "Jobs & Hiring" (Master 4.24, 5.5): a verified institute posts its own vacancies,
+// teaching and non-teaching, and manages applicants. Reuses the employer posting and jobs panels.
+function InstitutionJobsPanel({ onFlash }) {
+  const [institutions, setInstitutions] = useState(null), [id, setId] = useState('');
+  const [sub, setSub] = useState('jobs'), [reloadKey, setReloadKey] = useState(0);
+  useEffect(() => { apiRequest('/institutions/mine/list').then((rows) => { setInstitutions(rows); setId(rows[0]?._id || ''); }).catch((e) => { setInstitutions([]); onFlash(e.message); }); }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  if (!institutions) return <p role="status" className="admin-notice">Loading...</p>;
+  const institution = institutions.find((i) => i._id === id);
+  if (!institution) return <p className="admin-notice">Register your institute first (My Institution tab).</p>;
+  const verified = institution.verificationStatus === 'approved';
+  return (
+    <div className="institution-ui">
+      <div style={{ display: 'flex', gap: 12, alignItems: 'center', flexWrap: 'wrap', marginBottom: 12 }}>
+        <h2 style={{ margin: 0 }}>Jobs & Hiring</h2>
+        {institutions.length > 1 && <select className="form-select" value={id} onChange={(e) => setId(e.target.value)} aria-label="Institute" style={{ maxWidth: 280 }}>{institutions.map((i) => <option key={i._id} value={i._id}>{i.name}</option>)}</select>}
+      </div>
+      <p className="text-sm" style={{ color: 'var(--ink-soft)', maxWidth: 720 }}>Post your own vacancies for teachers, lecturers, drivers, wardens, accountants and other staff. Applications come to you here. Using an agent is optional.</p>
+      {!verified && <div className="u-alert warning mb-3"><span className="u-alert-ic">!</span><div className="u-alert-body"><strong>Verification needed</strong><p>Your institute can post jobs once Super Admin verifies it.</p></div></div>}
+      <nav className="cz-tabbar" style={{ marginBottom: 16 }}>
+        {[['jobs', 'Our Jobs & Applicants'], ['post', 'Post a Job'], ['agents', 'Agents (optional)']].map(([key, label]) => <button key={key} type="button" aria-pressed={sub === key} className={`cz-tab${sub === key ? ' active' : ''}`} onClick={() => setSub(key)} disabled={key !== 'jobs' && !verified}>{label}</button>)}
+      </nav>
+      {sub === 'post' && verified && <EmployerPostJobPanel key={institution._id} onFlash={onFlash} institution={institution} onPosted={() => { setReloadKey((k) => k + 1); setSub('jobs'); }} />}
+      {sub === 'jobs' && <EmployerJobsPanel onFlash={onFlash} institution={institution} reloadKey={reloadKey} />}
+      {sub === 'agents' && verified && <InstitutionAgentsPanel key={institution._id} institution={institution} onFlash={onFlash} />}
+    </div>
+  );
+}
+
+function EmployerJobsPanel({ onFlash, institution = null, reloadKey = 0 }) {
   const [featureCheckout, setFeatureCheckout] = useState({ paddle: false });
   useEffect(() => {
     apiRequest('/payments/paddle/config').catch(() => ({ enabled: false }))
@@ -17675,9 +17773,9 @@ function EmployerJobsPanel({ onFlash }) {
   const [editForm, setEditForm] = useState(null);
 
   function load() {
-    apiRequest('/jobs/mine/list').then(setJobs).catch((err) => onFlash(err.message));
+    apiRequest(institution ? `/jobs/mine/list?institution=${institution._id}` : '/jobs/mine/list').then(setJobs).catch((err) => onFlash(err.message));
   }
-  useEffect(load, []);
+  useEffect(load, [institution?._id, reloadKey]); // eslint-disable-line react-hooks/exhaustive-deps
 
   function viewApplicants(jobId) {
     setOpenJob(jobId);
@@ -17686,8 +17784,9 @@ function EmployerJobsPanel({ onFlash }) {
 
   async function setJobStatus(job, status) {
     try {
-      await apiRequest(`/jobs/${job._id}`, { method: 'PATCH', body: { status } });
-      onFlash(`Job set to ${JOB_STATUS[status].label}.`, 'success');
+      const updated = await apiRequest(`/jobs/${job._id}`, { method: 'PATCH', body: { status } });
+      if (status === 'active' && !['active', 'paused'].includes(job.status)) onFlash(...jobOutcomeMessage(updated, false));
+      else onFlash(`Job set to ${JOB_STATUS[status].label}.`, 'success');
       load();
     } catch (err) { onFlash(err.message); }
   }
@@ -17703,8 +17802,8 @@ function EmployerJobsPanel({ onFlash }) {
 
   async function saveEdit(jobId) {
     try {
-      await apiRequest(`/jobs/${jobId}`, { method: 'PATCH', body: { ...editForm, applicationDeadline: editForm.applicationDeadline || null } });
-      onFlash('Job updated.', 'success');
+      const updated = await apiRequest(`/jobs/${jobId}`, { method: 'PATCH', body: { ...editForm, applicationDeadline: editForm.applicationDeadline || null } });
+      if (updated?.status === 'pending_review') onFlash(...jobOutcomeMessage(updated, false)); else onFlash('Job updated.', 'success');
       setEditingJobId(null);
       load();
     } catch (err) { onFlash(err.message); }
@@ -17756,7 +17855,11 @@ function EmployerJobsPanel({ onFlash }) {
           new Date(j.createdAt).toLocaleDateString(),
           j.applicationDeadline ? new Date(j.applicationDeadline).toLocaleDateString() : '—',
           j.applicantCount ?? 0,
-          <Tag status={JOB_STATUS[j.status]?.tag || 'pending'} label={JOB_STATUS[j.status]?.label || j.status} />,
+          <div style={{ display: 'grid', gap: 4 }}>
+            <Tag status={JOB_STATUS[j.status]?.tag || 'pending'} label={JOB_STATUS[j.status]?.label || j.status} />
+            {j.status === 'pending_review' && <small style={{ color: 'var(--ink-soft)' }}>{(j.moderation?.flags || []).map((f) => f.label).join('; ') || 'Waiting for an admin.'}</small>}
+            {j.status === 'rejected' && <small style={{ color: 'var(--rose, #b42318)' }}>{j.moderation?.note || 'Not approved.'} Edit and submit again.</small>}
+          </div>,
           <div className="flex" style={{ gap: 8, flexWrap: 'wrap' }}>
             <button className="btn" style={{ padding: '6px 12px', fontSize: '0.78rem' }} onClick={() => setViewingJob(j)}>View</button>
             <button className="btn" style={{ padding: '6px 12px', fontSize: '0.78rem' }} onClick={() => startEdit(j)}>Edit</button>
@@ -17766,13 +17869,14 @@ function EmployerJobsPanel({ onFlash }) {
                 {!featureCheckout.paddle && <span className="text-xs">Featured checkout unavailable</span>}
               </span>
             )}
+            {['draft', 'rejected'].includes(j.status) && <button className="btn btn-primary" style={{ padding: '6px 12px', fontSize: '0.78rem' }} onClick={() => setJobStatus(j, 'active')}>{j.status === 'draft' ? 'Submit' : 'Submit again'}</button>}
             {(j.status === 'active' || j.status === 'paused') && (
               <button className="btn" style={{ padding: '6px 12px', fontSize: '0.78rem' }} onClick={() => setJobStatus(j, j.status === 'active' ? 'paused' : 'active')}>{j.status === 'active' ? 'Pause' : 'Resume'}</button>
             )}
             <button className="btn btn-primary" style={{ padding: '6px 12px', fontSize: '0.78rem' }} onClick={() => viewApplicants(j._id)}>Manage Candidates</button>
           </div>
         ])}
-        empty="You haven't posted any jobs yet."
+        empty={institution ? 'No jobs posted for this institute yet.' : "You haven't posted any jobs yet."}
       />
       <JobDetailModal job={viewingJob} onClose={() => setViewingJob(null)} />
       {editingJobId && editForm && (
@@ -17809,6 +17913,7 @@ function EmployerJobsPanel({ onFlash }) {
               <p>No applicants yet</p>
             </div>
           )}
+          <GuestApplicants key={openJob} jobId={openJob} onFlash={onFlash} />
           <div style={{ display: 'grid', gap: 12 }}>
             {applicants.map((a) => (
               <div key={a._id} className="card" style={{ padding: 18 }}>
@@ -17821,16 +17926,12 @@ function EmployerJobsPanel({ onFlash }) {
                       <strong className="text-sm">{a.applicant?.fullName}</strong>
                       <p className="text-xs" style={{ color: 'var(--ink-soft)', marginTop: 2 }}>{a.applicant?.email}</p>
                       <p className="text-xs" style={{ color: 'var(--ink-soft)', marginTop: 4 }}>{a.resumeSnapshot?.skills?.length > 0 ? a.resumeSnapshot.skills.join(', ') : 'No skills listed'} · {a.resumeSnapshot?.experienceLevel || 'Experience not set'} · {a.resumeSnapshot?.location || 'Location not set'}</p>
-                      <p className="text-xs" style={{ marginTop: 4 }}>{a.resumeSnapshot?.cvFileUrl ? <a href={a.resumeSnapshot.cvFileUrl} target="_blank" rel="noreferrer">View CV/Resume</a> : <span style={{ color: 'var(--ink-soft)' }}>No CV uploaded</span>} · Applied {new Date(a.createdAt).toLocaleDateString()}</p>
+                      <p className="text-xs" style={{ marginTop: 4 }}><CvDownload application={a} onFlash={onFlash} /> · Applied {new Date(a.createdAt).toLocaleDateString()}</p>
+                      <div style={{ marginTop: 6 }}><ApplicantContact application={a} /></div>
                     </div>
                   </div>
                   <div className="flex items-center" style={{ gap: 10, flexShrink: 0 }}>
-                    <div style={{ minWidth: 160 }}>
-                      <CustomSelect
-                        value={a.status} onChange={(v) => setAppStatus(a._id, v)} ariaLabel="Candidate status" minWidth="100%"
-                        options={['pending', 'viewed', 'shortlisted', 'interview', 'selected', 'rejected', 'hired'].map((s) => ({ value: s, label: CANDIDATE_STATUS[s].label }))}
-                      />
-                    </div>
+                    <HiringStatusControl key={`${a._id}-${a.status}`} application={a} institutionConfirms={Boolean(jobs.find((j) => j._id === openJob)?.agreement)} onFlash={onFlash} onSaved={() => viewApplicants(openJob)} />
                     <button type="button" className="btn" style={{ padding: '8px 14px', fontSize: '0.75rem' }} onClick={() => setInterviewFormFor(interviewFormFor === a._id ? null : a._id)}>Schedule Interview</button>
                   </div>
                 </div>
@@ -20072,6 +20173,8 @@ function AgentWorkspace({ tab, user, onFlash, onChanged, onNavigate }) {
   if (tab === 'summary') return <AgentDashboardPanel user={user} onFlash={onFlash} onNavigate={onNavigate} />;
   if (tab === 'post') return <EmployerPostJobPanel onFlash={onFlash} />;
   if (tab === 'jobs') return <EmployerJobsPanel onFlash={onFlash} />;
+  if (tab === 'instituteRequests') return <AgentRecruitmentPanel onFlash={onFlash} renderPostJob={(r, done) => <EmployerPostJobPanel key={r._id} onFlash={onFlash} institution={r.institution} agreementId={r.activeAgreement._id} onPosted={done} />} />;
+  if (tab === 'agentScholarships') return <AgentScholarshipsPanel onFlash={onFlash} />;
   if (tab === 'candidates') return <AgentCandidatesPanel onFlash={onFlash} />;
   if (tab === 'recommended') return <RecommendedCandidatesPanel onFlash={onFlash} />;
   if (tab === 'shortlisted') return <ShortlistedCandidatesPanel onFlash={onFlash} />;
@@ -20147,20 +20250,15 @@ function AgentCandidatesPanel({ onFlash }) {
             {c.applicant?.profilePhoto
               ? <img src={c.applicant.profilePhoto} alt="" style={{ width: 30, height: 30, borderRadius: '50%', objectFit: 'cover', flexShrink: 0 }} />
               : <div style={{ width: 30, height: 30, borderRadius: '50%', background: 'var(--forest)', color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 700, fontSize: '0.7rem', flexShrink: 0 }}>{(c.applicant?.fullName || '?')[0]}</div>}
-            <span>{c.applicant?.fullName}</span>
+            <div style={{ minWidth: 0 }}><span>{c.applicant?.fullName}</span><ApplicantContact application={c} /></div>
           </div>,
           c.job.title,
           c.resumeSnapshot?.skills?.length > 0 ? `${c.resumeSnapshot.skills.join(', ')}${c.jobSkillCount > 0 ? ` (${c.matchCount}/${c.jobSkillCount} match)` : ''}` : 'None listed',
           c.resumeSnapshot?.experienceLevel || '—',
           c.resumeSnapshot?.location || '—',
-          c.resumeSnapshot?.cvFileUrl ? <a href={c.resumeSnapshot.cvFileUrl} target="_blank" rel="noreferrer">View CV</a> : 'Not uploaded',
+          <CvDownload application={c} onFlash={onFlash} />,
           new Date(c.createdAt).toLocaleDateString(),
-          <div style={{ minWidth: 140 }}>
-            <CustomSelect
-              value={c.status} onChange={(v) => setStatus(c._id, v)} ariaLabel="Candidate status" minWidth="100%"
-              options={['pending', 'viewed', 'shortlisted', 'interview', 'selected', 'rejected', 'hired'].map((s) => ({ value: s, label: CANDIDATE_STATUS[s].label }))}
-            />
-          </div>
+          <HiringStatusControl key={`${c._id}-${c.status}`} application={c} onFlash={onFlash} onSaved={load} />
         ])}
         empty="No candidates yet — once someone applies to your placements, they'll show up here."
       />
@@ -21028,6 +21126,9 @@ function AdminWorkspace({ tab, user, roles, onFlash, onChanged }) {
   if (tab === 'aiInsights') return <AdminAiInsightsPanel onFlash={onFlash} />;
   if (tab === 'operationsCenter') return <AdminOperationsCenter onFlash={onFlash} />;
   if (tab === 'verifications') return <AdminVerificationPanel onFlash={onFlash} currentUserId={user?._id} />;
+  if (tab === 'jobReview') return <AdminJobReviewPanel onFlash={onFlash} />;
+  if (tab === 'scholarshipReview') return <AdminScholarshipReviewPanel onFlash={onFlash} />;
+  if (tab === 'recruitmentPayments') return <AdminRecruitmentPanel onFlash={onFlash} isSuperAdmin={(roles || user?.roles || []).includes('super_admin')} />;
   return <ComingSoon label={tab} />;
 }
 
@@ -23617,6 +23718,7 @@ function MessagesPanel({ onFlash, user, restrictedStaffMessaging = false, initia
 
 function NotificationsPanel({ onFlash }) {
   const [notifications, setNotifications] = useState(null);
+  const [showSettings, setShowSettings] = useState(false);
   const { refreshUnreadNotifications } = useRealtime();
 
   function load() {
@@ -23643,8 +23745,12 @@ function NotificationsPanel({ onFlash }) {
     <div className="institution-ui institution-remaining-ui institution-notifications-ui">
       <div className="flex items-center justify-between" style={{ marginBottom: 16 }}>
         <h3 className="font-semibold">Notifications{unreadCount > 0 ? ` (${unreadCount} unread)` : ''}</h3>
-        {unreadCount > 0 && <button type="button" className="btn" style={{ padding: '6px 14px', fontSize: '0.8rem' }} onClick={markAllRead}>Mark all read</button>}
+        <div style={{ display: 'flex', gap: 8 }}>
+          <button type="button" className="btn" style={{ padding: '6px 14px', fontSize: '0.8rem' }} onClick={() => setShowSettings(!showSettings)}>{showSettings ? 'Hide settings' : 'Notification settings'}</button>
+          {unreadCount > 0 && <button type="button" className="btn" style={{ padding: '6px 14px', fontSize: '0.8rem' }} onClick={markAllRead}>Mark all read</button>}
+        </div>
       </div>
+      {showSettings && <AlertSettings onFlash={onFlash} />}
       {notifications === null && <p role="status" className="admin-notice">Loading...</p>}
       {notifications && notifications.length === 0 && (
         <div className="student-empty-state" style={{ border: '1px solid var(--sand-line)', borderRadius: 18 }}>
@@ -23656,7 +23762,7 @@ function NotificationsPanel({ onFlash }) {
       {notifications && notifications.length > 0 && (
         <div className="dash-list" style={{ border: '1px solid var(--sand-line)', borderRadius: 18, background: 'var(--paper-raised)', overflow: 'hidden', gap: 0 }}>
           {notifications.map((n, idx) => (
-            <div key={n._id} className={`dash-list-item${!n.read ? ' unread' : ''}`} style={{ cursor: n.read ? 'default' : 'pointer', borderBottom: idx < notifications.length - 1 ? '1px solid var(--sand-line)' : 'none' }} onClick={() => !n.read && markRead(n._id)}>
+            <div key={n._id} className={`dash-list-item${!n.read ? ' unread' : ''}`} style={{ cursor: n.read && !n.link ? 'default' : 'pointer', borderBottom: idx < notifications.length - 1 ? '1px solid var(--sand-line)' : 'none' }} onClick={() => { if (!n.read) markRead(n._id); if (n.link) window.location.assign(n.link); }}>
               <span className="dash-list-icon c-forest" aria-hidden><FaBell size={14} /></span>
               <div className="dash-list-body"><div className="title">{n.title}</div><div className="desc">{n.body}</div></div>
               <span className="dash-list-time">{new Date(n.createdAt).toLocaleDateString()}</span>

@@ -1,7 +1,7 @@
 import BrandLogo from '../components/BrandLogo';
 import PageSeo from '../components/PageSeo';
 import SiteFooter from '../components/SiteFooter';
-import { FaGraduationCap, FaUsers, FaChalkboardUser, FaSchool, FaHandshake, FaHeart, FaStore, FaArrowLeft } from 'react-icons/fa6';
+import { FaGraduationCap, FaUsers, FaChalkboardUser, FaSchool, FaHandshake, FaHeart, FaStore, FaArrowLeft, FaBriefcase } from 'react-icons/fa6';
 import { useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import AuthNavbar from '../components/AuthNavbar';
@@ -15,7 +15,8 @@ import { useAuth } from '../context/AuthContext';
 const SUBTYPES = {
   agent: [['individual', 'Individual agent'], ['agency', 'Registered agency']],
   donor: [['individual', 'Individual donor'], ['organization', 'Organization']],
-  marketplace: [['individual', 'Individual seller'], ['business', 'Business']]
+  marketplace: [['individual', 'Individual seller'], ['business', 'Business']],
+  employer: [['company', 'Registered company'], ['recruitment_agency', 'Recruitment / visa agency'], ['startup', 'Startup (company documents later)']]
 };
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -28,7 +29,8 @@ const ROLE_OPTIONS = [
   { value: 'institute', icon: FaSchool, label: 'Institute' },
   { value: 'agent', icon: FaHandshake, label: 'Agent' },
   { value: 'donor', icon: FaHeart, label: 'Donor' },
-  { value: 'marketplace', icon: FaStore, label: 'Marketplace' }
+  { value: 'marketplace', icon: FaStore, label: 'Marketplace' },
+  { value: 'employer', icon: FaBriefcase, label: 'Employer / Company' }
 ];
 
 export default function Signup() {
@@ -39,7 +41,7 @@ export default function Signup() {
   const requestedType = new URLSearchParams(window.location.search).get('type');
   const [form, setForm] = useState({
     fullName: '', email: '', password: '', confirmPassword: '',
-    parentEmail:'', parentName:'', parentRelationship:'guardian', accountType: ['student', 'parent', 'teacher', 'institute', 'agent', 'donor', 'marketplace'].includes(requestedType) ? requestedType : 'student', subtype: '', country: '', city: ''
+    parentEmail:'', parentName:'', parentRelationship:'guardian', accountType: ['student', 'parent', 'teacher', 'institute', 'agent', 'donor', 'marketplace', 'employer'].includes(requestedType) ? requestedType : 'student', subtype: '', country: '', city: ''
   });
   const [terms, setTerms] = useState(false);
   const [privacy, setPrivacy] = useState(false);

@@ -187,6 +187,13 @@ function Preview({ cv, person, template }) {
   </div>;
 }
 
+// For recruiters: the PDF of an applicant's CV as it was when they applied (their resume snapshot).
+export async function downloadCvPdf(cv, person, templateKey = 'ats') {
+  const template = TEMPLATES[templateKey] || TEMPLATES.ats;
+  const pdf = await buildPdf(cv || {}, person, template);
+  pdf.save(`${(person.fullName || 'Candidate').replace(/[^a-z0-9]+/gi, '-')}-CV.pdf`);
+}
+
 export default function CvDesigner({ user, onFlash }) {
   const [main, setMain] = useState(null), [variants, setVariants] = useState([]), [source, setSource] = useState('main');
   const [templateKey, setTemplateKey] = useState('modern'), [busy, setBusy] = useState('');

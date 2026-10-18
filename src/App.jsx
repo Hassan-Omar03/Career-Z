@@ -13,6 +13,7 @@ import VerifyStudentId from './pages/VerifyStudentId';
 import PublicPortfolio from './pages/PublicPortfolio';
 import TeacherPortfolio from './pages/TeacherPortfolio';
 import SiteAssistant from './components/SiteAssistant';
+import ApplicationStatus from './pages/ApplicationStatus';
 import { ListingPage, JobDetail, ScholarshipDetail, InstituteDetail, ProductDetail, DonorDetail, CourseDetail } from './pages/Discover';
 import { takeIntent } from './utils/continueIntent';
 import VerifyFeeReceipt from './pages/VerifyFeeReceipt';
@@ -113,6 +114,7 @@ export default function App() {
       <Route path="/courses/:id" element={<CourseDetail />} />
       <Route path="/jobs" element={<ListingPage kind="jobs" />} />
       <Route path="/jobs/:id" element={<JobDetail />} />
+      <Route path="/application-status" element={<ApplicationStatus />} />
       <Route path="/scholarships" element={<ListingPage kind="scholarships" />} />
       <Route path="/scholarships/:id" element={<ScholarshipDetail />} />
       <Route path="/institutes" element={<ListingPage kind="institutes" />} />
