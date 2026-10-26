@@ -188,6 +188,12 @@ function Preview({ cv, person, template }) {
 }
 
 // For recruiters: the PDF of an applicant's CV as it was when they applied (their resume snapshot).
+// The same CV as a PDF data: URL, for attaching it to an application (e.g. a guest's CV).
+export async function cvPdfDataUrl(cv, person, templateKey = 'ats') {
+  const pdf = await buildPdf(cv || {}, person, TEMPLATES[templateKey] || TEMPLATES.ats);
+  return pdf.output('datauristring').replace(/^data:application\/pdf;[^,]*base64,/, 'data:application/pdf;base64,');
+}
+
 export async function downloadCvPdf(cv, person, templateKey = 'ats') {
   const template = TEMPLATES[templateKey] || TEMPLATES.ats;
   const pdf = await buildPdf(cv || {}, person, template);
@@ -247,6 +253,10 @@ export default function CvDesigner({ user, onFlash }) {
     {hasNonLatin(cv, person) && <p className="text-xs" role="note">Your CV has Urdu or other non-English letters. The PDF can only print English letters; use Download Word for those parts.</p>}
     <div className="cvd-preview" aria-label="CV preview"><Preview cv={cv} person={person} template={template} /></div>
   </section>;
+}
+
+export function CvPreview({ cv, user }) {
+  return <Preview cv={cv} person={user || {}} template={TEMPLATES[cv?.template] || TEMPLATES.modern} />;
 }
 
 export { TEMPLATES as CV_TEMPLATES, sectionsFor };

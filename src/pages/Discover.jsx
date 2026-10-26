@@ -7,6 +7,9 @@ import { apiRequest } from '../api/client';
 import { JobCard, ScholarshipCard, InstituteCard, ProductCard, DonorCard, CourseCard, CardSkeleton, place, dateText, money } from '../components/discover/DiscoverCards';
 import ActionPanel, { post } from '../components/discover/ActionPanel';
 import GuestApplyPanel from '../components/discover/GuestApplyPanel';
+import CvChoice from '../components/discover/CvChoice';
+import AppliedStatus from '../components/discover/AppliedStatus';
+import { SavedLetterPicker } from '../components/dashboard/CoverLetters';
 import MarkdownText from '../components/shared/MarkdownText';
 import '../styles/discover.css';
 
@@ -119,17 +122,20 @@ const Facts = ({ rows }) => <dl className="dp-facts">{rows.filter(([, v]) => v |
 export function JobDetail() {
   const { id } = useParams(); const [params] = useSearchParams();
   const state = useDetail('jobs', id);
-  const [cover, setCover] = useState('');
+  const [cover, setCover] = useState(''), [cv, setCv] = useState('');
   return <DetailShell kind="jobs" state={state}>{(job) => <article className="discover-detail">
     <header><h1>{job.title}</h1><p className="dc-sub">{job.company}{job.postedBy ? ` · posted by ${job.postedBy.kind} ${job.postedBy.name}` : ''}</p></header>
     <Facts rows={[['Location', place(job.city, job.country)], ['Employment type', job.type.replace('_', ' ')], ['Work mode', job.workMode], ['Salary', job.salaryMin || job.salaryMax ? `${job.currency} ${[job.salaryMin, job.salaryMax].filter(Boolean).join(' – ')}` : ''], ['Experience', job.experienceYears ? `${job.experienceYears}+ years` : ''], ['Education', job.education], ['Apply by', dateText(job.applicationDeadline)], ['Posted', dateText(job.postedAt)], ['Visa sponsorship', job.visaSponsorship ? 'Yes' : '']]} />
     {job.skills?.length > 0 && <p className="dc-tags">{job.skills.map((s) => <span key={s}>{s}</span>)}</p>}
     {job.description && <section><h2>About the job</h2><MarkdownText text={job.description} /></section>}
+    <AppliedStatus jobId={job._id}>
     <ActionPanel kind="jobs" item={job} autoOpen={params.get('action') === 'apply'} actionLabel="Apply for this job" eligibleRoles={['student', 'teacher']} signupType="student"
-      onSubmit={() => post(`/jobs/${job._id}/apply`, { coverLetter: cover })} successText="Application sent. The employer can now see it." trackLink={{ to: '/dashboard', label: 'Track it in your dashboard → Jobs → My Applications' }}>
+      onSubmit={() => { if (!cv) throw new Error('Choose the CV to send, or upload one.'); return post(`/jobs/${job._id}/apply`, { coverLetter: cover, cv }); }} successText="Application sent. The employer can now see it." trackLink={{ to: '/dashboard', label: 'Track it in your dashboard → Jobs → My Applications' }}>
+      <SavedLetterPicker onPick={setCover} />
       <label>Cover letter (optional)<textarea className="form-input" rows={5} maxLength={4000} value={cover} onChange={(e) => setCover(e.target.value)} placeholder="Why you are a good fit" /></label>
-      <p className="dp-note">Your CareerZ CV is attached automatically.</p>
+      <CvChoice value={cv} onChange={setCv} />
     </ActionPanel>
+    </AppliedStatus>
     <GuestApplyPanel job={job} />
   </article>}</DetailShell>;
 }

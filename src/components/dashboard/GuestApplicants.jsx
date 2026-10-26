@@ -29,7 +29,10 @@ function GuestRow({ a, onFlash, onSaved }) {
       await apiRequest(`/jobs/guest-applications/${a._id}/status`, { method: 'PATCH', body: { status, note } });
       onFlash?.(`Moved to ${STAGE_LABEL[status]}. ${a.name} was emailed.`, 'success');
       onSaved();
-    } catch (err) { onFlash?.(err.message); } finally { setBusy(false); }
+    } catch (err) {
+      // Offer/joining stages send the guest an account invite; that is the expected outcome.
+      if (err.status === 409 && /applied without an account/.test(err.message)) onFlash?.(`Invite sent: ${err.message}`, 'success'); else onFlash?.(err.message);
+    } finally { setBusy(false); }
   }
   async function cv() {
     try { await openPrivateFile(`/jobs/guest-applications/${a._id}/cv`, { download: true, filename: `${a.name.replace(/[^\w ]/g, '')} CV` }); } catch (err) { onFlash?.(err.message); }
@@ -38,6 +41,7 @@ function GuestRow({ a, onFlash, onSaved }) {
     <div className="card" style={{ padding: 12, display: 'flex', gap: 14, flexWrap: 'wrap', justifyContent: 'space-between' }}>
       <div className="text-sm" style={{ display: 'grid', gap: 2, minWidth: 0 }}>
         <strong>{a.name} <span className="badge" style={{ marginLeft: 6 }}>Guest</span></strong>
+        <span className="text-xs" style={{ color: 'var(--ink-soft)' }}>To make an offer, choose Offer: we email them a link to create a CareerZ account with this email, and their application moves there.</span>
         <span className="text-xs">Email: <a href={`mailto:${a.email}`}>{a.email}</a>{a.phone ? ` · Phone: ${a.phone}` : ''}{a.city ? ` · ${a.city}` : ''}</span>
         <span className="text-xs" style={{ color: 'var(--ink-soft)' }}>Applied {new Date(a.createdAt).toLocaleDateString()} · {STAGE_LABEL[a.status]}</span>
         <span style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
@@ -48,7 +52,7 @@ function GuestRow({ a, onFlash, onSaved }) {
       </div>
       <form onSubmit={save} style={{ display: 'grid', gap: 6, minWidth: 200 }}>
         <select className="form-select" aria-label="Hiring stage" value={status} onChange={(e) => setStatus(e.target.value)} style={{ padding: '6px 8px', fontSize: '0.8rem' }}>
-          {HIRING_STAGES.filter(([v]) => v !== 'withdrawn' || a.status === 'withdrawn').map(([v, l]) => <option key={v} value={v}>{l}</option>)}
+          {HIRING_STAGES.filter(([v]) => v !== 'withdrawn' || a.status === 'withdrawn').map(([v, l]) => <option key={v} value={v}>{l}{['selected', 'accepted', 'hired', 'completed'].includes(v) ? ' (needs their account)' : ''}</option>)}
         </select>
         <input className="form-input" aria-label="Note to the candidate" placeholder="Note to the candidate (optional)" maxLength={500} value={note} onChange={(e) => setNote(e.target.value)} style={{ padding: '6px 8px', fontSize: '0.78rem' }} />
         <button type="submit" className="btn" disabled={busy || (status === a.status && !note.trim())} style={{ padding: '5px 10px', fontSize: '0.75rem' }}>{busy ? 'Saving…' : 'Update'}</button>

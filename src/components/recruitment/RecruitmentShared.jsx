@@ -1,3 +1,4 @@
+import { showPrompt, showConfirm } from '../../utils/appDialog';
 import { useState } from 'react';
 import { apiRequest } from '../../api/client';
 import { money, day } from './files';
@@ -51,6 +52,8 @@ export function AgreementSummary({ a }) {
       {r.refundTerms && <span>Refund terms: {r.refundTerms}</span>}
       {a.notes && <span style={{ whiteSpace: 'pre-wrap' }}>Notes: {a.notes}</span>}
       <span style={{ color: 'var(--ink-soft)' }}>Institute {a.institutionAcceptance?.by ? `accepted ${day(a.institutionAcceptance.at)}` : 'has not accepted'} · Agent {a.agentAcceptance?.by ? `accepted ${day(a.agentAcceptance.at)}` : 'has not accepted'}</span>
+      {a.agentPaymentAccount?.accountNumber && <span className="text-xs">Agent's payment account: <strong>{a.agentPaymentAccount.accountTitle}</strong> · {a.agentPaymentAccount.bankName} {a.agentPaymentAccount.accountNumber}</span>}
+      {!a.agentAcceptance?.by && <span className="text-xs" style={{ color: 'var(--ink-soft)' }}>When accepting, the agent names the bank or wallet account the institute pays the agent's fee into.</span>}
     </div>
   );
 }
@@ -114,11 +117,21 @@ export function Agreements({ request, side, onFlash, onSaved }) {
   const toggle = () => { if (!open) load(); setOpen(!open); };
   async function act(a, action) {
     let note = '';
-    if (action === 'decline') { note = window.prompt('Why are you declining these terms? (optional)') ?? null; if (note === null) return; }
-    if (action === 'end' && !window.confirm('End this agreement? Its open jobs will be closed. Issued invoices stay payable.')) return;
+    if (action === 'decline') { note = await showPrompt('Why are you declining these terms? (optional)') ?? null; if (note === null) return; }
+    if (action === 'end' && !(await showConfirm('End this agreement? Its open jobs will be closed. Issued invoices stay payable.'))) return;
     try { await apiRequest(`/recruitment/agreements/${a._id}/${action}`, { method: 'POST', body: { note } }); onFlash?.(action === 'accept' ? 'Accepted.' : action === 'end' ? 'Agreement ended.' : 'Declined.', 'success'); load(); onSaved?.(); } catch (e) { onFlash?.(e.message); }
   }
-  const canPropose = ['accepted', 'agreed'].includes(request.status);
+  // The institute writes the terms; the agent reads them and accepts, or asks for changes by message.
+  const canPropose = side === 'institution' && ['accepted', 'agreed'].includes(request.status);
+  async function askChanges(a) {
+    const text = await showPrompt('What should the institute change in these terms?', { title: 'Ask for changes', placeholder: 'e.g. Please make the fee 50% and payment within 30 days', confirmLabel: 'Send to institute' });
+    if (!text || !text.trim()) return;
+    try {
+      await apiRequest(`/recruitment/requests/${request._id}/messages`, { method: 'POST', body: { text: `Change request for terms version ${a.version}: ${text.trim()}` } });
+      await apiRequest(`/recruitment/agreements/${a._id}/decline`, { method: 'POST', body: { note: text.trim() } });
+      onFlash?.('Sent. The institute will send updated terms.', 'success'); load(); onSaved?.();
+    } catch (e) { onFlash?.(e.message); }
+  }
   return (
     <div style={{ display: 'grid', gap: 8 }}>
       <button type="button" className="btn" onClick={toggle} style={{ justifySelf: 'start' }}>{open ? 'Hide agreement' : 'Agreement & terms'}</button>
@@ -127,12 +140,13 @@ export function Agreements({ request, side, onFlash, onSaved }) {
           <div key={a._id} className="card" style={{ padding: 12, display: 'grid', gap: 8, opacity: ['superseded', 'declined'].includes(a.status) ? 0.65 : 1 }}>
             <AgreementSummary a={a} />
             <div style={row}>
-              {a.status === 'proposed' && !(side === 'institution' ? a.institutionAcceptance?.by : a.agentAcceptance?.by) && <><button type="button" className="btn btn-primary" onClick={() => act(a, 'accept')}>Accept terms</button><button type="button" className="btn" onClick={() => act(a, 'decline')}>Decline</button></>}
-              {a.status === 'proposed' && (side === 'institution' ? a.institutionAcceptance?.by : a.agentAcceptance?.by) && <span className="text-xs" style={{ color: 'var(--ink-soft)' }}>Waiting for the other side to accept.</span>}
+              {a.status === 'proposed' && !(side === 'institution' ? a.institutionAcceptance?.by : a.agentAcceptance?.by) && <><button type="button" className="btn btn-primary" onClick={() => act(a, 'accept')}>Accept terms</button>{side === 'agent' ? <button type="button" className="btn" onClick={() => askChanges(a)}>Ask for changes</button> : <button type="button" className="btn" onClick={() => act(a, 'decline')}>Withdraw these terms</button>}</>}
+              {a.status === 'proposed' && (side === 'institution' ? a.institutionAcceptance?.by : a.agentAcceptance?.by) && <span className="text-xs" style={{ color: 'var(--ink-soft)' }}>{side === 'institution' ? 'Sent to the agent. Waiting for them to accept or ask for changes.' : 'Waiting for the other side to accept.'}</span>}
               {a.status === 'active' && <button type="button" className="btn" onClick={() => act(a, 'end')}>End agreement</button>}
             </div>
           </div>
         ))}
+        {side === 'agent' && ['accepted', 'agreed'].includes(request.status) && (list || []).length === 0 && <p className="text-xs" style={{ margin: 0, color: 'var(--ink-soft)' }}>The institute sends the terms here. You can then accept them or ask for changes.</p>}
         {canPropose && <TermsForm request={request} onFlash={onFlash} onSaved={() => { load(); onSaved?.(); }} />}
       </>}
     </div>

@@ -43,3 +43,31 @@ export function jazzCashResultMessage(result, code) {
   };
   return [code && /^\d{3}$/.test(code) ? `${reasons[code] || message} (JazzCash code ${code})` : message, type];
 }
+
+// Safepay hosted checkout (card, JazzCash, Easypaisa, bank/Raast): the same checkout endpoints
+// with { gateway: 'safepay' }; the backend returns Safepay's page and the browser goes there.
+// Safepay sends the payer back to the backend, which verifies it and redirects to
+// /dashboard?safepay=<status>&ref=<ref>.
+export async function startSafepayCheckout(path, body = {}) {
+  const { redirectUrl } = await apiRequest(path, { method: 'POST', body: { ...body, gateway: 'safepay' } });
+  window.location.assign(redirectUrl);
+}
+
+export function getSafepayConfig() {
+  return apiRequest('/payments/safepay/config').catch(() => ({ enabled: false }));
+}
+
+// One-button checkouts (plan upgrade) use Safepay when it is set up, else JazzCash.
+export async function startPreferredCheckout(path, body) {
+  const safepay = await getSafepayConfig();
+  return safepay.enabled ? startSafepayCheckout(path, body) : startJazzCashCheckout(path, body);
+}
+
+export function safepayResultMessage(result) {
+  return {
+    paid: ['Payment successful.', 'success'],
+    awaiting_payment: ['Safepay has not confirmed the payment yet. The status will update automatically.', 'success'],
+    cancelled: ['Payment cancelled. You can try again.', 'error'],
+    failed: ['Payment was not completed. You can try again.', 'error']
+  }[result] || ['Could not confirm the payment. If money was deducted, contact support with the reference number.', 'error'];
+}

@@ -158,7 +158,7 @@ export default function CareerZLiveClassroom({ session, user, role, observeStude
 
     (async () => {
       try {
-        const configuration = await apiRequest(session.ptmId ? `/ptm/${session.ptmId}/video` : `/live-classes/${session._id}/rtc-config${role==='observer'?'?observeChild='+encodeURIComponent(observeStudentId):''}`);
+        const configuration = await apiRequest(session.rtcConfigPath ? session.rtcConfigPath : session.ptmId ? `/ptm/${session.ptmId}/video` : `/live-classes/${session._id}/rtc-config${role==='observer'?'?observeChild='+encodeURIComponent(observeStudentId):''}`);
         rtcConfigRef.current = { iceServers: configuration.iceServers };
         let stream;
         if(role==='observer'){stream=new MediaStream();setCameraOn(false);setMicOn(false);}else try { stream = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: true }, video: { width: { ideal: 1280 }, height: { ideal: 720 } } }); }
@@ -278,7 +278,7 @@ export default function CareerZLiveClassroom({ session, user, role, observeStude
     <div className="card" style={{ overflow: 'hidden', padding: 0 }}>
       <div className="flex items-center justify-between" style={{ padding: 16, borderBottom: '1px solid var(--sand-line)', gap: 12 }}>
         <div><strong>{session.title}</strong><p className="text-xs" style={{ color: 'var(--ink-soft)' }}>{session.course?.title} · {status} · {participants.length + 1} connected</p></div>
-        <button type="button" className="btn" onClick={onLeave} style={{ color: 'var(--rose)' }}>{session.ptmId ? 'Leave Meeting' : 'Leave Classroom'}</button>
+        <button type="button" className="btn" onClick={onLeave} style={{ color: 'var(--rose)' }}>{session.ptmId || session.privateRoom ? 'Leave Meeting' : 'Leave Classroom'}</button>
       </div>
       <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 3fr) minmax(260px, 1fr)', gap: 14, padding: 14, background: '#0d1715' }}>
         <div>
@@ -307,7 +307,7 @@ export default function CareerZLiveClassroom({ session, user, role, observeStude
           <form onSubmit={sendMessage} className="flex gap-2"><input className="form-input" disabled={role !== 'teacher' && !policy.chatAllowed} value={message} onChange={(e) => setMessage(e.target.value)} placeholder="Ask or reply…" /><button className="btn btn-primary" disabled={role !== 'teacher' && !policy.chatAllowed} type="submit">Send</button></form>
         </aside>
       </div>
-      {!session.ptmId && <LiveLearningTools session={session} role={role} localStream={localStream} onGroupChange={switchGroup} onPolicyChange={applyPolicy} onError={onError} />}
+      {!session.ptmId && !session.privateRoom && <LiveLearningTools session={session} role={role} localStream={localStream} onGroupChange={switchGroup} onPolicyChange={applyPolicy} onError={onError} />}
     </div>
   );
 }

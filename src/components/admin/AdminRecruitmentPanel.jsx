@@ -39,12 +39,13 @@ function InvoiceList({ tab, onFlash }) {
           <span className="text-xs" style={{ color: 'var(--ink-soft)' }}>{inv.institution?.name} → {inv.agent?.fullName} ({inv.agent?.email})</span>
           <InvoiceLine inv={inv} />
           {(inv.proofs || []).map((p) => <span key={p._id} className="text-sm">Proof: ref. {p.reference} · {inv.currency} {p.amount} · paid {day(p.paidOn)} · sent {day(p.submittedAt)}{p.file && <> · <button type="button" className="btn" style={{ padding: '2px 8px', fontSize: '0.72rem' }} onClick={() => openPrivateFile(`/admin/recruitment/invoices/${inv._id}/proofs/${p._id}`).catch((e) => onFlash(e.message))}>View file</button></>}</span>)}
+          {inv.wallet?.reference && inv.status === 'pending_verification' && <span className="text-sm" style={{ color: 'var(--emerald)' }}>Paid from the institute's CareerZ wallet ({inv.currency} {Number(inv.grossFee).toLocaleString()} held). Approve to send {inv.currency} {Number(inv.agentEarning).toLocaleString()} to the agent's wallet and {inv.currency} {Number(inv.platformFee).toLocaleString()} commission to CareerZ. Reject returns it to the institute.</span>}
           {inv.replacement?.reason && <span className="text-sm">Hire left: {inv.replacement.reason}</span>}
           {(inv.status === 'pending_verification' || inv.replacement?.status === 'refund_review') && <>
             <textarea className="form-input" rows={2} maxLength={1000} placeholder={inv.status === 'pending_verification' ? 'Note (required to reject or ask for more)' : 'Decision and amount, if any (required)'} value={note[inv._id] || ''} onChange={(e) => setNote({ ...note, [inv._id]: e.target.value })} />
             <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
               {inv.status === 'pending_verification' && <>
-                <button type="button" className="btn btn-primary" disabled={!!busy} onClick={() => act(inv, 'verify', { decision: 'approve' }, 'Payment verified. Agent earning released.')}>Money received: approve</button>
+                <button type="button" className="btn btn-primary" disabled={!!busy} onClick={() => act(inv, 'verify', { decision: 'approve' }, inv.wallet?.reference ? 'Approved. The agent and CareerZ were paid from the held amount.' : 'Payment verified. Agent earning released.')}>{inv.wallet?.reference ? 'Approve and release' : 'Money received: approve'}</button>
                 <button type="button" className="btn" disabled={!!busy} onClick={() => act(inv, 'verify', { decision: 'more_info' }, 'Asked the institute for more information.')}>Ask for more</button>
                 <button type="button" className="btn" disabled={!!busy} onClick={() => act(inv, 'verify', { decision: 'reject' }, 'Payment not verified. The institute was told why.')}>Not received</button>
               </>}

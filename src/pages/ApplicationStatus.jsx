@@ -38,7 +38,20 @@ export default function ApplicationStatus() {
               {data.canConfirmJoining && <button type="button" className="btn btn-primary" disabled={!!busy} onClick={() => act('confirm-joining', 'Thank you. Your joining is confirmed.')}>I have joined</button>}
               {data.canWithdraw && <button type="button" className="btn" disabled={!!busy} onClick={() => act('withdraw', 'Application withdrawn.')}>Withdraw application</button>}
             </div>
-            <p className="dp-note">Want to apply faster next time? <Link to="/signup?type=student">Create a free account</Link> and keep your CV on CareerZ.</p>
+            <div className="dp-action">
+              <strong>Next: follow your application from your own CareerZ account</strong>
+              <p>To receive an offer, join and see every update, do these steps:</p>
+              <ol className="dp-list" style={{ margin: 0 }}>
+                <li><strong>Create your free CareerZ {data.accountType === 'teacher' ? 'Teacher' : 'Student'} account</strong> with this same email. The email and name are filled in for you.</li>
+                <li><strong>Verify your email</strong> with the code we send you.</li>
+                <li><strong>Upload your verification documents</strong> (CNIC and the other documents the form asks for) and submit them.</li>
+                <li><strong>Wait for the CareerZ admin team to verify your account.</strong> You get an email when it is approved.</li>
+                <li><strong>Complete your profile</strong>, then open your dashboard.</li>
+                <li>Go to <strong>Jobs &amp; Applications → My Applications</strong>: this application is already there with its status, offers and messages.</li>
+              </ol>
+              <div className="dc-actions"><a className="btn btn-primary" href={new URL(data.signupUrl).pathname + new URL(data.signupUrl).search}>Create my account</a><Link className="btn" to="/login">I already have an account</Link></div>
+              <p className="dp-note" style={{ margin: 0 }}>Until then, this page shows your status. Keep the email link.</p>
+            </div>
           </>}
         </article>
       </main>

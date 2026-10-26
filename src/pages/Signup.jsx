@@ -39,8 +39,10 @@ export default function Signup() {
 
   // ?type=teacher etc. preselects the account (from a homepage "Register as…" card or a listing).
   const requestedType = new URLSearchParams(window.location.search).get('type');
+  // ?email=&name= come from a guest application's invite, so they sign up with that same email.
+  const invite = new URLSearchParams(window.location.search);
   const [form, setForm] = useState({
-    fullName: '', email: '', password: '', confirmPassword: '',
+    fullName: (invite.get('name') || '').slice(0, 120), email: (invite.get('email') || '').slice(0, 160), password: '', confirmPassword: '',
     parentEmail:'', parentName:'', parentRelationship:'guardian', accountType: ['student', 'parent', 'teacher', 'institute', 'agent', 'donor', 'marketplace', 'employer'].includes(requestedType) ? requestedType : 'student', subtype: '', country: '', city: ''
   });
   const [terms, setTerms] = useState(false);

@@ -2,6 +2,8 @@ import { useEffect, useState } from 'react';
 import { apiRequest } from '../../api/client';
 import { CATEGORY_LABEL, REQUEST_STATUS, Thread, Agreements, AgreementSummary, InvoiceLine, label, row, grow } from './RecruitmentShared';
 import { day } from './files';
+import PlacesPicker from './PlacesPicker';
+import { showPrompt } from '../../utils/appDialog';
 
 // Agent side of Institute–Agent recruitment: the public recruitment profile institutes search,
 // incoming requests (accept / decline / ask), agreeing terms, and publishing jobs for an
@@ -26,7 +28,7 @@ export default function AgentRecruitmentPanel({ onFlash, renderPostJob }) {
 
 function Profile({ onFlash }) {
   const [p, setP] = useState(null), [busy, setBusy] = useState(false);
-  useEffect(() => { apiRequest('/recruitment/agent-profile').then((d) => setP({ specialties: d.specialties || [], serviceCities: (d.serviceCities || []).join(', '), experienceYears: d.experienceYears || '', bio: d.bio || '', acceptingRequests: d.acceptingRequests !== false })).catch((e) => onFlash(e.message)); }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => { apiRequest('/recruitment/agent-profile').then((d) => setP({ specialties: d.specialties || [], serviceCities: d.serviceCities || [], serviceCountries: d.serviceCountries || [], experienceYears: d.experienceYears || '', bio: d.bio || '', acceptingRequests: d.acceptingRequests !== false })).catch((e) => onFlash(e.message)); }, []); // eslint-disable-line react-hooks/exhaustive-deps
   if (!p) return <p role="status">Loading…</p>;
   const toggle = (c) => setP({ ...p, specialties: p.specialties.includes(c) ? p.specialties.filter((x) => x !== c) : [...p.specialties, c] });
   async function save(e) {
@@ -38,7 +40,8 @@ function Profile({ onFlash }) {
     <form onSubmit={save} className="card" style={{ padding: 16, display: 'grid', gap: 10, maxWidth: 720 }}>
       <span style={label}>What you recruit for</span>
       <div style={{ ...row, gap: 6 }}>{Object.entries(CATEGORY_LABEL).map(([v, l]) => <label key={v} className="text-sm" style={{ display: 'flex', gap: 4, alignItems: 'center', border: '1px solid var(--sand-line)', borderRadius: 999, padding: '3px 10px' }}><input type="checkbox" checked={p.specialties.includes(v)} onChange={() => toggle(v)} />{l}</label>)}</div>
-      <label className="text-xs">Cities you serve (comma separated)<input className="form-input" value={p.serviceCities} onChange={(e) => setP({ ...p, serviceCities: e.target.value })} /></label>
+      <span style={label}>Countries and cities you serve</span>
+      <PlacesPicker countries={p.serviceCountries} cities={p.serviceCities} onChange={({ countries, cities }) => setP({ ...p, serviceCountries: countries, serviceCities: cities })} />
       <label className="text-xs">Years of recruitment experience<input className="form-input" type="number" min={0} max={60} value={p.experienceYears} onChange={(e) => setP({ ...p, experienceYears: e.target.value })} style={{ maxWidth: 160 }} /></label>
       <label className="text-xs">About your service<textarea className="form-input" rows={4} maxLength={1500} value={p.bio} onChange={(e) => setP({ ...p, bio: e.target.value })} /></label>
       <label className="text-sm" style={{ display: 'flex', gap: 8 }}><input type="checkbox" checked={p.acceptingRequests} onChange={(e) => setP({ ...p, acceptingRequests: e.target.checked })} /> Show me in Find Agents and accept new requests</label>
@@ -53,7 +56,15 @@ function Requests({ onFlash, renderPostJob }) {
   useEffect(() => { load(); }, []); // eslint-disable-line react-hooks/exhaustive-deps
   async function respond(r, action) {
     let message = '';
-    if (action !== 'accept') { message = window.prompt(action === 'clarify' ? 'Your question for the institute' : 'Reason for declining (optional)'); if (message === null || (action === 'clarify' && !message.trim())) return; }
+    if (action !== 'accept') {
+      message = await showPrompt(action === 'clarify' ? 'Ask about the role, salary, accommodation or any details you need before accepting.' : 'You can share a reason with the institute before declining this request.', {
+        title: action === 'clarify' ? 'Ask the institute a question' : 'Decline recruitment request',
+        placeholder: action === 'clarify' ? 'For example: Is accommodation or a housing allowance available?' : 'Reason for declining (optional)',
+        confirmLabel: action === 'clarify' ? 'Send question' : 'Decline request',
+        required: action === 'clarify'
+      });
+      if (message === null || (action === 'clarify' && !message.trim())) return;
+    }
     try { await apiRequest(`/recruitment/requests/${r._id}/respond`, { method: 'POST', body: { action, message } }); onFlash(action === 'accept' ? 'Accepted. Now agree the terms.' : 'Answer sent.', 'success'); load(); } catch (e) { onFlash(e.message); }
   }
   if (!list) return <p role="status">Loading…</p>;
@@ -94,7 +105,7 @@ function Invoices({ onFlash }) {
   const [list, setList] = useState(null);
   useEffect(() => { apiRequest('/recruitment/invoices').then(setList).catch((e) => { setList([]); onFlash(e.message); }); }, []); // eslint-disable-line react-hooks/exhaustive-deps
   async function escalate(inv) {
-    const note = window.prompt('Why can no replacement be provided?');
+    const note = await showPrompt('Why can no replacement be provided?', { title: 'Request an admin review', required: true, confirmLabel: 'Send for review' });
     if (!note) return;
     try { await apiRequest(`/recruitment/invoices/${inv._id}/escalate`, { method: 'POST', body: { note } }); onFlash('Sent to admin review.', 'success'); setList(await apiRequest('/recruitment/invoices')); } catch (e) { onFlash(e.message); }
   }

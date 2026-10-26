@@ -4,8 +4,8 @@ import {
   FaCircle, FaHand, FaCircleCheck, FaFileLines, FaGraduationCap
 } from 'react-icons/fa6';
 import { apiRequest } from '../../api/client';
-import { loadPaddle, setActiveCheckoutHandler } from '../../utils/paddleLoader';
-import { startJazzCashCheckout, getJazzCashConfig } from '../../utils/jazzcashCheckout';
+import { startJazzCashCheckout, getJazzCashConfig, startSafepayCheckout, getSafepayConfig } from '../../utils/jazzcashCheckout';
+import { ManualPayButton, MyManualPayments, ReceivingAccount, IncomingManualPayments } from '../payments/ManualPay';
 
 export function WelcomeBanner({ name }) {
   return (
@@ -43,64 +43,62 @@ export function OverviewStats({ stats }) {
   );
 }
 
-// Wallet — a real balance backed by Paddle top-ups (see /payments/paddle/wallet/topup) and a
+// Wallet — a real balance backed by JazzCash or crypto top-ups (see /payments/jazzcash/wallet/topup) and a
 // real internal ledger (Withdraw/Transfer). Available/Pending only ever change via a confirmed
 // server-side transaction — never optimistically bumped on the client.
 export function WalletCard({ onFlash }) {
-  const [currency, setCurrency] = useState('USD');
+  const [currency, setCurrency] = useState('PKR');
   const [wallet, setWallet] = useState(null);
   const [modal, setModal] = useState(null); // 'topup' | 'withdraw' | 'transfer' | null
   const [amount, setAmount] = useState('');
   const [payoutMethod, setPayoutMethod] = useState('bank_transfer');
   const [accountTitle, setAccountTitle] = useState('');
-  const [payoutDetails, setPayoutDetails] = useState('');
+  const [payoutDetails, setPayoutDetails] = useState(''); // account number, IBAN or wallet mobile number
+  const [payoutBank, setPayoutBank] = useState('');
+  const [payout, setPayout] = useState(null); // { account, banks, wallets }
+  const [editAccount, setEditAccount] = useState(false);
   const [withdrawReceipt, setWithdrawReceipt] = useState(null);
   const [recipientEmail, setRecipientEmail] = useState('');
   const [recipientPreview, setRecipientPreview] = useState(null); // {fullName,email} | 'not_found' | null while typing
   const [busy, setBusy] = useState(false);
-  const [paddleConfig, setPaddleConfig] = useState(null);
   const [nowConfig, setNowConfig] = useState(null);
   const [jazzConfig, setJazzConfig] = useState(null);
+  const [safepayConfig, setSafepayConfig] = useState(null);
   const [payCurrency, setPayCurrency] = useState('usdttrc20');
   const [cryptoPayment, setCryptoPayment] = useState(null);
   const pollRef = useRef(null);
 
   function load() {
-    apiRequest(`/wallet/me?currency=${currency}`).then(setWallet).catch(() => setWallet({ available: 0, pending: 0, transactions: [] }));
+    apiRequest(`/wallet/me${currency ? `?currency=${currency}` : ''}`).then((w) => { setWallet(w); if (!currency) setCurrency(w.currency); }).catch(() => setWallet({ available: 0, pending: 0, transactions: [] }));
   }
   useEffect(load, [currency]);
   useEffect(() => {
     window.addEventListener('careerz:payment-confirmed', load);
     return () => window.removeEventListener('careerz:payment-confirmed', load);
   }, [currency]);
-  useEffect(() => { apiRequest('/payments/paddle/config').then(setPaddleConfig).catch(() => setPaddleConfig({ enabled: false })); }, []);
-  useEffect(() => { getJazzCashConfig().then(setJazzConfig); }, []);
+  useEffect(() => { getJazzCashConfig().then(setJazzConfig); getSafepayConfig().then(setSafepayConfig); }, []);
+  useEffect(() => { apiRequest('/wallet/payout-account').then(setPayout).catch(() => setPayout({ account: null, banks: [], wallets: [] })); }, []);
   useEffect(() => { apiRequest('/payments/nowpayments/config').then(setNowConfig).catch(() => setNowConfig({ configured: false, currencies: {} })); }, []);
 
-  function closeModal() { setModal(null); setAmount(''); setAccountTitle(''); setPayoutDetails(''); setRecipientEmail(''); setRecipientPreview(null); setCryptoPayment(null); }
-
-  async function topUp() {
-    if (!paddleConfig?.enabled) return onFlash?.('Card payments are not set up yet — ask Admin to connect Paddle.', 'error');
-    if (!amount || Number(amount) <= 0) return onFlash?.('Enter a valid amount.');
-    setBusy(true);
-    try {
-      const { transactionId } = await apiRequest('/payments/paddle/wallet/topup', { method: 'POST', body: { amount: Number(amount), currency } });
-      const Paddle = await loadPaddle(paddleConfig.clientToken, paddleConfig.environment);
-      setActiveCheckoutHandler(async () => {
-        try {
-          await apiRequest(`/payments/paddle/wallet/topup/${transactionId}/sync`);
-          load();
-        } catch { /* not confirmed yet — user can retry or it'll arrive via webhook */ }
-      });
-      Paddle.Checkout.open({ transactionId, settings: { displayMode: 'overlay' } });
-      closeModal();
-    } catch (err) { onFlash?.(err.message); } finally { setBusy(false); }
+  // Shown in a converted currency: move to the one the money is held in before paying it out.
+  const converted = Boolean(wallet?.balances?.some((b) => b.currency !== currency));
+  function switchToHeldCurrency() {
+    if (!(wallet?.available > 0) && wallet?.primaryCurrency && wallet.primaryCurrency !== currency) setCurrency(wallet.primaryCurrency);
   }
 
+  function closeModal() { setModal(null); setAmount(''); setAccountTitle(''); setPayoutDetails(''); setPayoutBank(''); setEditAccount(false); setRecipientEmail(''); setRecipientPreview(null); setCryptoPayment(null); }
+
   async function topUpJazzCash() {
+    if (!jazzConfig?.enabled) return onFlash?.('JazzCash payments are not set up yet.', 'error');
     if (!amount || Number(amount) <= 0) return onFlash?.('Enter a valid amount.');
     setBusy(true);
     try { await startJazzCashCheckout('/payments/jazzcash/wallet/topup', { amount: Number(amount), currency }); } catch (err) { onFlash?.(err.message); setBusy(false); }
+  }
+
+  async function topUpSafepay() {
+    if (!amount || Number(amount) <= 0) return onFlash?.('Enter a valid amount.');
+    setBusy(true);
+    try { await startSafepayCheckout('/payments/jazzcash/wallet/topup', { amount: Number(amount), currency }); } catch (err) { onFlash?.(err.message); setBusy(false); }
   }
 
   async function topUpCrypto() {
@@ -126,15 +124,22 @@ export function WalletCard({ onFlash }) {
   }
   useEffect(() => () => clearInterval(pollRef.current), []);
 
+  // Withdrawals go to the saved bank account or mobile wallet; a new one is checked and saved.
+  const useSaved = payout?.account && !editAccount;
   async function withdraw() {
     if (!amount || Number(amount) <= 0) return onFlash?.('Enter a valid amount.');
-    if (!accountTitle.trim()) return onFlash?.("Enter the account holder's name.");
-    if (!payoutDetails.trim()) return onFlash?.('Enter your payout details (e.g. account number).');
+    if (!useSaved) {
+      if (!payoutBank) return onFlash?.(payoutMethod === 'mobile_wallet' ? 'Choose the mobile wallet.' : 'Choose the bank.');
+      if (!accountTitle.trim()) return onFlash?.("Enter the account holder's name.");
+      if (!payoutDetails.trim()) return onFlash?.(payoutMethod === 'mobile_wallet' ? 'Enter the wallet mobile number.' : 'Enter the IBAN or account number.');
+    }
     setBusy(true);
     try {
-      const result = await apiRequest('/wallet/withdraw', { method: 'POST', body: { amount: Number(amount), currency, payoutMethod, payoutDetails: payoutDetails.trim(), accountTitle: accountTitle.trim() } });
+      const account = useSaved ? {} : { method: payoutMethod, bankName: payoutBank, accountTitle: accountTitle.trim(), accountNumber: payoutDetails.trim() };
+      const result = await apiRequest('/wallet/withdraw', { method: 'POST', body: { amount: Number(amount), currency, ...account } });
+      if (!useSaved) apiRequest('/wallet/payout-account').then(setPayout).catch(() => {});
       setWithdrawReceipt(result.reference);
-      onFlash?.(`Withdrawal requested — pending Admin review. Receipt ${result.reference}.`, 'success');
+      onFlash?.(`Withdrawal requested. CareerZ will send it to your account. Receipt ${result.reference}.`, 'success');
       closeModal();
       load();
     } catch (err) { onFlash?.(err.message); } finally { setBusy(false); }
@@ -178,19 +183,20 @@ export function WalletCard({ onFlash }) {
         <div className="u-wallet-head">
           <h4>Wallet</h4>
           <select className="form-select u-wallet-currency-select" aria-label="Preferred currency" value={currency} onChange={(e) => setCurrency(e.target.value)}>
-            {['USD', 'EUR', 'GBP', 'SAR', 'AED', 'PKR', 'INR'].map((c) => <option key={c} value={c}>{c}</option>)}
+            {[...new Set(['PKR', 'USD', 'EUR', 'GBP', 'SAR', 'AED', 'INR', ...(wallet?.balances || []).map((b) => b.currency)])].map((c) => <option key={c} value={c}>{c}</option>)}
           </select>
         </div>
         <div className="grid g2" style={{ gap: 12, padding: '12px 0' }}>
-          <div><div style={{ fontSize: 12, color: 'var(--ink-soft)' }}>Available Balance</div><strong style={{ fontSize: 20 }}>{currency} {(wallet?.available ?? 0).toFixed(2)}</strong></div>
-          <div><div style={{ fontSize: 12, color: 'var(--ink-soft)' }}>Pending Balance</div><strong style={{ fontSize: 20 }}>{currency} {(wallet?.pending ?? 0).toFixed(2)}</strong></div>
+          <div><div style={{ fontSize: 12, color: 'var(--ink-soft)' }}>Available Balance</div><strong style={{ fontSize: 20 }}>{converted ? '≈ ' : ''}{currency} {(wallet?.converted?.available ?? wallet?.available ?? 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</strong></div>
+          <div><div style={{ fontSize: 12, color: 'var(--ink-soft)' }}>Pending Balance</div><strong style={{ fontSize: 20 }}>{converted ? '≈ ' : ''}{currency} {(wallet?.converted?.pending ?? wallet?.pending ?? 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</strong></div>
+          {(wallet?.balances || []).length > 0 && (converted || wallet.balances.length > 1) && <div className="text-xs" style={{ gridColumn: '1 / -1', color: 'var(--ink-soft)' }}>Your money is held as {wallet.balances.map((b) => `${b.currency} ${b.available.toLocaleString(undefined, { maximumFractionDigits: 2 })}`).join(' · ')}{converted && <>, shown here in {currency} at daily exchange rates (<a href="https://www.exchangerate-api.com" target="_blank" rel="noreferrer">Rates by Exchange Rate API</a>)</>}.{(wallet.converted?.unconverted || []).length > 0 && ` No rate yet for ${wallet.converted.unconverted.map((u) => u.currency).join(', ')}, so it is not included.`} Withdrawals and transfers are made in the currency the money is held in.</div>}
         </div>
 
         {!modal ? (
           <div className="flex gap-2 flex-wrap" style={{ padding: '4px 0 12px' }}>
             <button type="button" className="btn btn-primary" style={{ padding: '6px 14px', fontSize: '0.8rem' }} onClick={() => setModal('topup')}>Add Funds</button>
-            <button type="button" className="btn" style={{ padding: '6px 14px', fontSize: '0.8rem' }} onClick={() => setModal('withdraw')}>Withdraw</button>
-            <button type="button" className="btn" style={{ padding: '6px 14px', fontSize: '0.8rem' }} onClick={() => setModal('transfer')}>Transfer</button>
+            <button type="button" className="btn" style={{ padding: '6px 14px', fontSize: '0.8rem' }} onClick={() => { switchToHeldCurrency(); setModal('withdraw'); }}>Withdraw</button>
+            <button type="button" className="btn" style={{ padding: '6px 14px', fontSize: '0.8rem' }} onClick={() => { switchToHeldCurrency(); setModal('transfer'); }}>Transfer</button>
             {withdrawReceipt && <span className="text-xs" style={{ alignSelf: 'center', color: 'var(--ink-soft)' }}>Last withdrawal receipt: {withdrawReceipt}</span>}
           </div>
         ) : (
@@ -211,17 +217,28 @@ export function WalletCard({ onFlash }) {
                 )}
               </>
             )}
-            {modal === 'withdraw' && (
+            {modal === 'withdraw' && (useSaved ? (
+              <div style={{ fontSize: 13, padding: 10, background: 'var(--sand)', borderRadius: 8 }}>
+                <div style={{ color: 'var(--ink-soft)', fontSize: 12 }}>Money will be sent to</div>
+                <strong>{payout.account.accountTitle}</strong>
+                <div>{payout.account.bankName} {payout.account.method === 'mobile_wallet' ? 'wallet' : 'account'} {payout.account.accountNumber}</div>
+                <button type="button" className="btn" style={{ padding: '3px 10px', fontSize: '0.72rem', marginTop: 6 }} onClick={() => setEditAccount(true)}>Change account</button>
+              </div>
+            ) : (
               <>
-                <select className="form-select" value={payoutMethod} onChange={(e) => setPayoutMethod(e.target.value)}>
-                  <option value="bank_transfer">Bank Transfer</option>
-                  <option value="mobile_wallet">Mobile Wallet</option>
-                  <option value="other">Other</option>
+                <select className="form-select" aria-label="Receive the money in" value={payoutMethod} onChange={(e) => { setPayoutMethod(e.target.value); setPayoutBank(''); }}>
+                  <option value="bank_transfer">Bank account</option>
+                  <option value="mobile_wallet">Mobile wallet</option>
                 </select>
-                <input className="form-input" placeholder="Account holder's name (as it appears on the account)" value={accountTitle} onChange={(e) => setAccountTitle(e.target.value)} />
-                <input className="form-input" placeholder="Account number / details" value={payoutDetails} onChange={(e) => setPayoutDetails(e.target.value)} />
+                <select className="form-select" aria-label={payoutMethod === 'mobile_wallet' ? 'Mobile wallet' : 'Bank'} value={payoutBank} onChange={(e) => setPayoutBank(e.target.value)}>
+                  <option value="">{payoutMethod === 'mobile_wallet' ? 'Choose the wallet' : 'Choose the bank'}</option>
+                  {((payoutMethod === 'mobile_wallet' ? payout?.wallets : payout?.banks) || []).map((b) => <option key={b} value={b}>{b}</option>)}
+                </select>
+                <input className="form-input" placeholder="Account holder's name (as on the account)" value={accountTitle} onChange={(e) => setAccountTitle(e.target.value)} />
+                <input className="form-input" placeholder={payoutMethod === 'mobile_wallet' ? 'Wallet mobile number (03XXXXXXXXX)' : 'IBAN (PK...) or account number'} value={payoutDetails} onChange={(e) => setPayoutDetails(e.target.value)} />
+                <span style={{ fontSize: 11, color: 'var(--ink-soft)' }}>Saved for your next withdrawal.</span>
               </>
-            )}
+            ))}
             {modal === 'transfer' && (
               <>
                 <input className="form-input" type="email" placeholder="Recipient's email" value={recipientEmail} onChange={(e) => setRecipientEmail(e.target.value)} />
@@ -234,15 +251,18 @@ export function WalletCard({ onFlash }) {
               </>
             )}
             <div className="flex gap-2">
-              {!(modal === 'topup' && cryptoPayment) && (
+              {!(modal === 'topup' && (cryptoPayment || !jazzConfig?.enabled)) && (
                 <button type="button" className="btn btn-primary" style={{ padding: '6px 14px', fontSize: '0.8rem' }} disabled={busy || (modal === 'transfer' && recipientPreview === 'not_found')}
-                  onClick={modal === 'topup' ? topUp : modal === 'withdraw' ? withdraw : transfer}>
-                  {busy ? 'Working...' : modal === 'topup' ? 'Pay with Card' : modal === 'withdraw' ? 'Request Withdrawal' : 'Send'}
+                  onClick={modal === 'topup' ? topUpJazzCash : modal === 'withdraw' ? withdraw : transfer}>
+                  {busy ? 'Working...' : modal === 'topup' ? 'Pay with JazzCash' : modal === 'withdraw' ? 'Request Withdrawal' : 'Send'}
                 </button>
               )}
-              {modal === 'topup' && !cryptoPayment && jazzConfig?.enabled && (
-                <button type="button" className="btn" style={{ padding: '6px 14px', fontSize: '0.8rem' }} disabled={busy} onClick={topUpJazzCash}>
-                  {busy ? 'Working...' : 'Pay with JazzCash'}
+              {modal === 'topup' && !cryptoPayment && Number(amount) > 0 && (
+                <ManualPayButton kind="wallet_topup" query={{ amount: Number(amount), currency }} onFlash={onFlash} onDone={() => { closeModal(); load(); }} />
+              )}
+              {modal === 'topup' && !cryptoPayment && safepayConfig?.enabled && (
+                <button type="button" className="btn btn-primary" style={{ padding: '6px 14px', fontSize: '0.8rem' }} disabled={busy} onClick={topUpSafepay}>
+                  {busy ? 'Working...' : 'Pay with Safepay'}
                 </button>
               )}
               {modal === 'topup' && !cryptoPayment && nowConfig?.configured && (
@@ -272,6 +292,9 @@ export function WalletCard({ onFlash }) {
             ))}
           </div>
         )}
+        <MyManualPayments onFlash={onFlash} />
+        <IncomingManualPayments onFlash={onFlash} />
+        <ReceivingAccount onFlash={onFlash} />
       </div>
     </>
   );

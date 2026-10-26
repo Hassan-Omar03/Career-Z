@@ -84,8 +84,30 @@ export function CvAutofillButton({ onFilled, onFlash }) {
 }
 
 // ------------------------------------------------------------------ Career roadmap
-export function CareerRoadmapPanel({ onFlash }) {
+// A standard career plan for building a roadmap without AI: the usual stages from skills to
+// applying, spread over the plan length. A starting point only; every step can be edited,
+// removed or added to.
+export function starterSteps(career, months) {
+  const m = Math.max(1, Math.min(60, Number(months) || 6));
+  const at = (fraction) => { const d = new Date(); d.setDate(d.getDate() + Math.round(m * 30 * fraction)); return d.toISOString().slice(0, 10); };
+  const c = String(career || 'your target career').trim();
+  return [
+    { title: `Research the role: what a ${c} does, required qualifications and typical salary`, category: 'other', detail: 'Read 5-10 job posts on CareerZ for this role and note the skills and degrees they ask for.', targetDate: at(0.05) },
+    { title: 'List the key skills the role needs and mark your gaps', category: 'skill', detail: 'Compare the skills in those job posts with the skills on your CV.', targetDate: at(0.12) },
+    { title: 'Learn your most important missing skill', category: 'course', detail: 'Take a course (online or at your institute) and practise it every week.', targetDate: at(0.35) },
+    { title: `Build a project or sample work that shows you can work as a ${c}`, category: 'project', detail: 'Add it to your Portfolio tab so employers can see it.', targetDate: at(0.55) },
+    { title: 'Earn a certificate or qualification that employers in this field ask for', category: 'certification', detail: '', targetDate: at(0.7) },
+    { title: 'Get practical experience: internship, volunteering, part-time or assistant work', category: 'experience', detail: "Check the Internships tab and your institute's Placement Office.", targetDate: at(0.8) },
+    { title: `Update your CV and write a cover letter for ${c} roles`, category: 'other', detail: 'Use CV/Resume Builder and Cover Letters.', targetDate: at(0.88) },
+    { title: `Apply to ${c} jobs and prepare for interviews`, category: 'experience', detail: 'Set a Job Alert for this role so new jobs reach you.', targetDate: at(1) }
+  ].map((s) => ({ ...s, title: s.title.slice(0, 160) }));
+}
+
+// `onConnectAi` opens Career Tools, where the person connects their own AI key.
+export function CareerRoadmapPanel({ onFlash, onConnectAi }) {
   const [rows, setRows] = useState(null);
+  const [aiReady, setAiReady] = useState(null);
+  useEffect(() => { apiRequest('/ai/config').then((s) => setAiReady(Boolean(s?.text?.configured))).catch(() => setAiReady(false)); }, []);
   const [form, setForm] = useState({ targetCareer: '', horizonMonths: 6, consent: false });
   const [step, setStep] = useState({});
   const [busy, setBusy] = useState(false);
@@ -99,14 +121,15 @@ export function CareerRoadmapPanel({ onFlash }) {
     <div style={{ display: 'grid', gap: 16 }}>
       <div className="card" style={card}>
         <h3 style={{ margin: 0 }}><FaRoute aria-hidden="true" /> Career roadmap</h3>
-        <p style={muted}>Plan the steps to the career you want. Build it yourself, or let your connected AI provider draft it — you can edit every step.</p>
+        <p style={muted}>Plan the steps to the career you want. "Build without AI" gives you a ready plan with dates that you can change; or let your connected AI provider draft one. You can edit every step.</p>
         <div className="flex flex-wrap items-end" style={{ gap: 10 }}>
           <label className="text-xs" style={{ flex: '2 1 220px' }}>Target career<input className="form-input" maxLength={120} value={form.targetCareer} onChange={(e) => setForm({ ...form, targetCareer: e.target.value })} placeholder="e.g. Data Analyst" /></label>
           <label className="text-xs" style={{ flex: '1 1 120px' }}>Plan length (months)<input className="form-input" type="number" min={1} max={60} value={form.horizonMonths} onChange={(e) => setForm({ ...form, horizonMonths: e.target.value })} /></label>
-          <button type="button" className="btn btn-outline" disabled={busy || !form.targetCareer.trim()} onClick={() => run(() => apiRequest('/career-tools/roadmaps', { method: 'POST', body: { ...body, steps: [] } }), 'Roadmap created. Add your steps.')}><FaPlus aria-hidden="true" /> Build manually</button>
+          <button type="button" className="btn btn-outline" disabled={busy || !form.targetCareer.trim()} onClick={() => run(() => apiRequest('/career-tools/roadmaps', { method: 'POST', body: { ...body, steps: starterSteps(form.targetCareer, form.horizonMonths) } }), 'Roadmap created with suggested steps. Edit, remove or add steps.')}><FaPlus aria-hidden="true" /> Build without AI</button>
         </div>
         <label className="text-xs flex items-center" style={{ gap: 8 }}><input type="checkbox" checked={form.consent} onChange={(e) => setForm({ ...form, consent: e.target.checked })} /> I agree that my program, skills and goal are sent to my AI provider to draft this roadmap.</label>
-        <div><button type="button" className="btn btn-primary" disabled={busy || !form.targetCareer.trim() || !form.consent} onClick={() => run(() => apiRequest('/career-tools/roadmaps/generate', { method: 'POST', body: { ...body, dataConsent: true } }), 'Roadmap drafted. Review the steps.')}><FaWandMagicSparkles aria-hidden="true" /> Draft with AI</button></div>
+        {aiReady === false && <p className="text-xs" style={{ margin: 0 }}>To draft with AI, first connect your own AI key (OpenAI, Gemini, Claude…) in <button type="button" className="btn" style={{ padding: '2px 10px', fontSize: '0.75rem' }} onClick={() => onConnectAi?.()}>Career Tools → AI provider</button>. Building manually needs no key.</p>}
+        <div><button type="button" className="btn btn-primary" disabled={busy || !aiReady || !form.targetCareer.trim() || !form.consent} onClick={() => run(() => apiRequest('/career-tools/roadmaps/generate', { method: 'POST', body: { ...body, dataConsent: true } }), 'Roadmap drafted. Review the steps.')}><FaWandMagicSparkles aria-hidden="true" /> Draft with AI</button>{aiReady && (!form.targetCareer.trim() || !form.consent) && <small style={{ marginLeft: 10, color: 'var(--ink-soft)' }}>{!form.targetCareer.trim() ? 'Enter the target career first.' : 'Tick the box above to allow sending your details to your AI provider.'}</small>}</div>
       </div>
       {rows.length === 0 && <p style={muted}>No roadmaps yet.</p>}
       {rows.map((r) => {
@@ -119,6 +142,7 @@ export function CareerRoadmapPanel({ onFlash }) {
               <button type="button" className="btn btn-ghost vf-small" disabled={busy} onClick={() => { if (window.confirm('Delete this roadmap?')) run(() => apiRequest(`/career-tools/roadmaps/${r._id}`, { method: 'DELETE' }), 'Roadmap deleted.'); }}><FaTrash aria-hidden="true" /> Delete</button>
             </div>
             <div className="vf-progress"><span style={{ width: `${r.steps.length ? Math.round((done / r.steps.length) * 100) : 0}%` }} /></div>
+            {r.steps.length === 0 && <button type="button" className="btn btn-outline vf-small" style={{ justifySelf: 'start' }} disabled={busy} onClick={() => run(() => apiRequest(`/career-tools/roadmaps/${r._id}`, { method: 'PATCH', body: { steps: starterSteps(r.targetCareer, r.horizonMonths) } }), 'Suggested steps added.')}><FaPlus aria-hidden="true" /> Add suggested steps</button>}
             <ol style={{ margin: 0, paddingLeft: 18, display: 'grid', gap: 8 }}>
               {r.steps.map((s) => (
                 <li key={s._id}>
@@ -129,6 +153,7 @@ export function CareerRoadmapPanel({ onFlash }) {
                     </select>
                   </div>
                   {s.detail && <p style={muted}>{s.detail}</p>}
+                  <button type="button" className="btn btn-ghost vf-small" disabled={busy} onClick={() => run(() => apiRequest(`/career-tools/roadmaps/${r._id}`, { method: 'PATCH', body: { steps: r.steps.filter((x) => x._id !== s._id) } }), 'Step removed.')}>Remove</button>
                 </li>
               ))}
             </ol>

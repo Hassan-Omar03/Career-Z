@@ -2,6 +2,12 @@ import { HiringStatusControl, CvDownload, ApplicantContact } from '../components
 import AlertSettings from '../components/dashboard/AlertSettings';
 import AdminJobReviewPanel from '../components/admin/AdminJobReviewPanel';
 import GuestApplicants from '../components/dashboard/GuestApplicants';
+import CvFileUpload from '../components/dashboard/CvFileUpload';
+import InterviewJoin from '../components/dashboard/InterviewJoin';
+import CoverLettersPanelV2 from '../components/dashboard/CoverLetters';
+import PortfolioEditor from '../components/dashboard/PortfolioEditor';
+import { ApplicationThread, ViewOfferLetterButton } from '../components/dashboard/OfferTools';
+import AiCvDraftButton, { mergeDraft } from '../components/dashboard/AiCvDraft';
 import InstitutionAgentsPanel from '../components/recruitment/InstitutionAgentsPanel';
 import AgentRecruitmentPanel from '../components/recruitment/AgentRecruitmentPanel';
 import AdminRecruitmentPanel from '../components/admin/AdminRecruitmentPanel';
@@ -33,16 +39,17 @@ import FamilyClassrooms from '../components/dashboard/FamilyClassrooms';
   FaCartShopping, FaBoxOpen, FaBoxesStacked, FaTruck, FaStar, FaRegStar, FaTriangleExclamation, FaQrcode, FaLock,
   FaEarthAmericas, FaDatabase, FaUserGear, FaNewspaper, FaWandMagicSparkles,
   FaUserGraduate, FaBed, FaKitMedical, FaCalendarDays, FaHeadset, FaRobot,
-  FaCheck, FaLocationDot, FaExpand, FaGlobe, FaCreditCard, FaMobileScreen, FaFaceSmile, FaCircleCheck,
+  FaCheck, FaLocationDot, FaExpand, FaMobileScreen, FaFaceSmile, FaCircleCheck,
   FaArrowLeft, FaArrowRight, FaArrowRotateLeft, FaCopy, FaEye, FaPaperPlane,
   FaMicrophone, FaHand, FaVideo, FaPowerOff, FaCrosshairs,
   FaIdCard,
 } from 'react-icons/fa6';
 import { Children, useEffect, useRef, useState } from 'react';
-import { useLocation } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
+import { notificationLink, TAB_ALIASES } from '../utils/notificationLink';
 import { useAuth } from '../context/AuthContext';
 import { useRealtime } from '../context/RealtimeContext';
-import { apiRequest } from '../api/client';
+import { apiRequest, session } from '../api/client';
 import { startRegistration, startAuthentication } from '@simplewebauthn/browser';
 import { verifyEmail, resendVerification } from '../api/auth';
 import DashboardLayout from '../components/dashboard/DashboardLayout';
@@ -57,7 +64,6 @@ import QrScanner from '../components/QrScanner';
 import AdminOperationsCenter from '../components/admin/AdminOperationsCenter';
 import AdminVerificationPanel from '../components/admin/AdminVerificationPanel';
 import VerifiedProfileSection from '../components/verification/VerifiedProfileSection';
-import { loadPaddle, setActiveCheckoutHandler } from '../utils/paddleLoader';
 import { PushNotificationToggle, StaffPermissionsEditor } from '../components/dashboard/NotificationSettings';
 import GradingPolicyEditor from '../components/dashboard/GradingPolicyEditor';
 import { QuestionBankPanel, QuestionBankPicker, ExamSecurityOptions, ExamIntegrityMonitor, IntegrityBadge } from '../components/dashboard/QuestionBank';
@@ -66,7 +72,9 @@ import LessonMetadata from '../components/dashboard/LessonMetadata';
 import InstitutionSettingsPanel from '../components/dashboard/InstitutionSettingsPanel';
 import ResourceLibrary from '../components/dashboard/ResourceLibrary';
 import SubtitleManager from '../components/dashboard/SubtitleManager';
-import { startJazzCashCheckout, getJazzCashConfig, jazzCashResultMessage } from '../utils/jazzcashCheckout';
+import { startJazzCashCheckout, getJazzCashConfig, jazzCashResultMessage, startSafepayCheckout, getSafepayConfig, startPreferredCheckout, safepayResultMessage } from '../utils/jazzcashCheckout';
+import { ManualPayButton, AdminManualPayments, PlatformAccountForm, ReceivingAccount } from '../components/payments/ManualPay';
+import { EmployerEmailField, EmployerAgentRequests, EmployerConsentBadge, ImproveDescriptionButton, RankApplicantsButton, AdminAgentsPanel } from '../components/agents/AgentMaster';
 import { usePaymentRecovery } from '../hooks/usePaymentRecovery';
 import { isPlatformUploadAvailable, uploadToPlatformStorage } from '../utils/platformUpload';
 import AppDialogHost from '../components/AppDialogHost';
@@ -75,6 +83,7 @@ import { CvVersions, CvAutofillButton, CareerRoadmapPanel, MyInternshipCertifica
 import { showConfirm, showPrompt } from '../utils/appDialog';
 import CareerZLiveClassroom from '../components/CareerZLiveClassroom';
 import CvDesigner from '../components/dashboard/CvDesigner';
+import GuidedResumeBuilder from '../components/dashboard/GuidedResumeBuilder';
 import SiteAssistantSettings from '../components/admin/SiteAssistantSettings';
 import DonorPublicProfilePanel from '../components/dashboard/DonorPublicProfilePanel';
 import TeacherStandingCard from '../components/teacher/TeacherStandingCard';
@@ -426,6 +435,10 @@ function Tag({ status, label }) {
 // The single source of truth for job-application status coloring + human label —
 // used everywhere a JobApplication.status value is rendered, so all 7 real statuses
 // (Applied/Application Viewed/Shortlisted/Interview Scheduled/Selected/Rejected/Hired) show correctly.
+// Applying always happens on the job's own page, where the description, salary and the CV choice
+// (saved CV, CV Version, upload, or build one) are shown.
+function openApplyPage(jobId) { window.location.assign(`/jobs/${jobId}?action=apply`); }
+
 const JOB_APP_STATUS = {
   pending: { tag: 'pending', label: 'Applied' },
   viewed: { tag: 'pending', label: 'Screening' },
@@ -533,12 +546,32 @@ export default function Dashboard() {
   const available = WORKSPACE_PRIORITY.filter((key) => WORKSPACES[key].roles.some((r) => roles.includes(r)));
   // Login's "Log in as" picker can request a specific workspace to open on directly,
   // overriding the usual priority order (admin > institution > ... > student).
-  const requestedWorkspace = location.state?.workspace;
+  // A deep link (?ws=&tab=, e.g. from a notification) or the login picker can choose where to open.
+  const deepLink = new URLSearchParams(location.search);
+  const resolveTarget = (ws, tab) => {
+    const tabs = tab ? (TAB_ALIASES[tab] || [tab]) : [];
+    const order = [ws, ...available].filter((k, i, a) => k && available.includes(k) && a.indexOf(k) === i);
+    for (const k of order) { const hit = tabs.find((x) => WORKSPACES[k].nav.some((n) => n.key === x)); if (hit) return { ws: k, tab: hit }; }
+    return ws && available.includes(ws) ? { ws, tab: null } : null;
+  };
+  const linkTarget = resolveTarget(deepLink.get('ws') || location.state?.workspace, deepLink.get('tab') || location.state?.tab);
+  const requestedWorkspace = linkTarget?.ws || location.state?.workspace;
   const defaultWorkspace = (requestedWorkspace && available.includes(requestedWorkspace)) ? requestedWorkspace : (available[0] || 'student');
 
   const [activeWorkspace, setActiveWorkspace] = useState(defaultWorkspace);
   const [activeTab, setActiveTab] = useState(new URLSearchParams(location.search).has('ptm') && ['teacher','parent'].includes(defaultWorkspace) ? 'ptm' : location.search.includes('courseCheckout=success') && defaultWorkspace === 'student'
-    ? 'courses' : WORKSPACES[defaultWorkspace].nav[0].key);
+    ? 'courses' : linkTarget?.tab && linkTarget.ws === defaultWorkspace ? linkTarget.tab : WORKSPACES[defaultWorkspace].nav.some((n) => n.key === location.state?.tab) ? location.state.tab : WORKSPACES[defaultWorkspace].nav[0].key);
+  // Following another deep link while the dashboard is open (e.g. clicking a notification).
+  useEffect(() => {
+    const q = new URLSearchParams(location.search);
+    if (!q.get('tab') && !q.get('ws')) return;
+    const target = resolveTarget(q.get('ws'), q.get('tab'));
+    if (!target) return;
+    setActiveWorkspace(target.ws);
+    setActiveTab(target.tab || WORKSPACES[target.ws].nav[0].key);
+  }, [location.search]); // eslint-disable-line react-hooks/exhaustive-deps
+  // A newly opened tab starts at its top, not at the previous tab's scroll position.
+  useEffect(() => { window.scrollTo(0, 0); }, [activeTab, activeWorkspace]);
   // Lets any panel (e.g. Teacher -> Student Communication) jump straight into a conversation with
   // a specific, already-identified person instead of landing on Messages' generic "paste a User
   // ID" box — the actual gap being fixed here.
@@ -582,9 +615,9 @@ export default function Dashboard() {
   // Back from JazzCash's hosted page: the backend has already verified and applied the result.
   useEffect(() => {
     const params = new URLSearchParams(location.search);
-    const result = params.get('jazzcash');
+    const result = params.get('jazzcash') || params.get('safepay');
     if (!result) return;
-    const [text, type] = jazzCashResultMessage(result, params.get('code'));
+    const [text, type] = params.get('safepay') ? safepayResultMessage(result) : jazzCashResultMessage(result, params.get('code'));
     flash(params.get('ref') ? `${text} (Ref ${params.get('ref')})` : text, type);
     window.history.replaceState(null, '', window.location.pathname);
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -2568,7 +2601,11 @@ function StudyGroupDetail({ groupId, user, onFlash, onBack }) {
 }
 
 function StudentJobsPanel({ onFlash, user }) {
-  const [sub, setSub] = useState('dashboard');
+  const routeLocation = useLocation();
+  const routeState = routeLocation.state;
+  const linkSub = new URLSearchParams(routeLocation.search).get('sub');
+  const [sub, setSub] = useState(linkSub || routeState?.sub || 'dashboard');
+  useEffect(() => { if (linkSub) setSub(linkSub); }, [routeLocation.search]); // eslint-disable-line react-hooks/exhaustive-deps
   const TABS = [
     { key: 'dashboard', label: 'Dashboard' },
     { key: 'profile', label: 'My Profile' },
@@ -2614,11 +2651,11 @@ function StudentJobsPanel({ onFlash, user }) {
       {sub === 'interviews' && <InterviewsPanel onFlash={onFlash} />}
       {sub === 'offers' && <JobOffersPanel onFlash={onFlash} />}
       {sub === 'referrals' && <StudentReferralsPanel onFlash={onFlash} />}
-      {sub === 'resume' && <ResumeEditorPanel onFlash={onFlash} />}
+      {sub === 'resume' && <ResumeEditorPanel onFlash={onFlash} user={user} onTemplates={() => setSub('cvDesign')} />}
       {sub === 'cvVersions' && <CvVersions onFlash={onFlash} />}
       {sub === 'cvDesign' && <CvDesigner user={user} onFlash={onFlash} />}
-      {sub === 'roadmap' && <CareerRoadmapPanel onFlash={onFlash} />}
-      {sub === 'coverLetters' && <CoverLettersPanel />}
+      {sub === 'roadmap' && <CareerRoadmapPanel onFlash={onFlash} onConnectAi={() => setSub('tools')} />}
+      {sub === 'coverLetters' && <CoverLettersPanelV2 onFlash={onFlash} user={user} />}
       {sub === 'portfolio' && <PortfolioPanel onFlash={onFlash} onNavigate={setSub} />}
       {sub === 'alerts' && <JobAlertsPanel onFlash={onFlash} />}
       {sub === 'tools' && <CareerToolsPanel onFlash={onFlash} onNavigate={setSub} />}
@@ -2714,7 +2751,7 @@ function JobDashboardPanel({ onFlash, onNavigate, user }) {
   useEffect(load, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   async function apply(jobId) {
-    try { await apiRequest(`/jobs/${jobId}/apply`, { method: 'POST', body: {} }); onFlash('Application submitted.', 'success'); load(); } catch (err) { onFlash(err.message); }
+    openApplyPage(jobId); // full job page: description, salary, choose / upload / build the CV
   }
   async function toggleSave(jobId, isSaved) {
     try {
@@ -2831,12 +2868,12 @@ function JobDashboardPanel({ onFlash, onNavigate, user }) {
                   {new Date(i.scheduledDate).toLocaleDateString()} · {new Date(i.scheduledDate).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })} · {i.mode === 'physical' ? 'Physical' : 'Online'}
                 </p>
                 <p className="text-xs" style={{ color: 'var(--ink-soft)', marginTop: 4 }}>
-                  {i.mode === 'physical' ? (i.location || 'Location to be confirmed') : (i.meetingLink || 'Meeting link to be shared')}
+                  {i.mode === 'physical' ? (i.location || 'Location to be confirmed') : 'Online on CareerZ (video room opens 15 minutes before)'}
                 </p>
                 <span style={{ display: 'inline-block', marginTop: 8 }}><Tag status={st.tag} label={st.label} /></span>
               </div>
-              {i.mode === 'online' && i.meetingLink
-                ? <a className="btn btn-primary" style={{ padding: '6px 14px', fontSize: '0.75rem', flexShrink: 0 }} href={i.meetingLink} target="_blank" rel="noreferrer">Join Interview</a>
+              {i.mode === 'online' && i.status === 'scheduled'
+                ? <InterviewJoin interview={i} />
                 : <button type="button" className="btn" style={{ padding: '6px 14px', fontSize: '0.75rem', flexShrink: 0 }} onClick={() => recordJobView(i.job, setViewingJob)}>View Details</button>}
             </div>
           );
@@ -3045,10 +3082,14 @@ function JobSearchPanel({ onFlash }) {
   const [q, setQ] = useState('');
   const [coverLetters, setCoverLetters] = useState({});
   const [viewingJob, setViewingJob] = useState(null);
+  // Jobs already applied to (job id → application), so they show their stage instead of Apply.
+  const [applied, setApplied] = useState({});
+  const loadApplied = () => apiRequest('/jobs/mine/applications').then((list) => setApplied(Object.fromEntries(list.filter((a) => a.job).map((a) => [a.job._id || a.job, a])))).catch(() => {});
 
   function load() {
     apiRequest(`/jobs${q ? `?q=${encodeURIComponent(q)}` : ''}`).then(setJobs).catch((err) => onFlash(err.message));
     apiRequest('/jobs/mine/saved').then((list) => setSavedIds(list.map((j) => j._id))).catch(() => {});
+    loadApplied();
   }
   useEffect(load, []);
 
@@ -3056,6 +3097,7 @@ function JobSearchPanel({ onFlash }) {
     try {
       await apiRequest(`/jobs/${jobId}/apply`, { method: 'POST', body: { coverLetter: coverLetters[jobId] || '' } });
       onFlash('Application submitted.', 'success');
+      loadApplied();
     } catch (err) { onFlash(err.message); }
   }
 
@@ -3087,9 +3129,12 @@ function JobSearchPanel({ onFlash }) {
                 <span className="text-xs" style={{ color: 'var(--ink-soft)' }}>{formatSalary(j)}</span>
               </div>
               <div className="flex gap-2 items-end mt-2 flex-wrap">
-                <input className="form-input" placeholder="Cover letter (optional)" value={coverLetters[j._id] || ''} onChange={(e) => setCoverLetters({ ...coverLetters, [j._id]: e.target.value })} style={{ maxWidth: 260 }} />
+                {applied[j._id]
+                  ? <span className="text-xs" style={{ padding: '6px 12px', borderRadius: 999, background: 'var(--sand)', fontWeight: 600 }}>Applied {new Date(applied[j._id].createdAt).toLocaleDateString()} · {JOB_APP_STATUS[applied[j._id].status]?.label || applied[j._id].status}</span>
+                  : <input className="form-input" placeholder="Cover letter (optional)" value={coverLetters[j._id] || ''} onChange={(e) => setCoverLetters({ ...coverLetters, [j._id]: e.target.value })} style={{ maxWidth: 260 }} />}
                 <button type="button" className="btn" style={{ padding: '6px 16px', fontSize: '0.8rem' }} onClick={() => recordJobView(j, setViewingJob)}>View Job</button>
-                <button type="button" className="btn btn-primary" style={{ padding: '6px 16px', fontSize: '0.8rem' }} onClick={() => apply(j._id)}>Apply</button>
+                {!applied[j._id] && <button type="button" className="btn btn-primary" style={{ padding: '6px 16px', fontSize: '0.8rem' }} onClick={() => apply(j._id)}>Apply</button>}
+                {!applied[j._id] && <a className="btn" href={`/jobs/${j._id}?action=apply`} style={{ padding: '6px 16px', fontSize: '0.8rem' }} title="Choose which CV to send, upload one or build one">Apply with CV choice</a>}
                 <button type="button" className="btn" style={{ padding: '6px 16px', fontSize: '0.8rem' }} onClick={() => toggleSave(j._id, isSaved)}>{isSaved ? <span className="flex items-center" style={{ gap: 5 }}><FaStar aria-hidden="true" /> Saved</span> : <span className="flex items-center" style={{ gap: 5 }}><FaRegStar aria-hidden="true" /> Save</span>}</button>
               </div>
             </div>
@@ -3101,7 +3146,7 @@ function JobSearchPanel({ onFlash }) {
         onClose={() => setViewingJob(null)}
         isSaved={viewingJob ? savedIds.includes(viewingJob._id) : false}
         onToggleSave={toggleSave}
-        onApply={(id) => { apply(id); setViewingJob(null); }}
+        onApply={viewingJob && applied[viewingJob._id] ? null : (id) => { apply(id); setViewingJob(null); }}
       />
     </div>
   );
@@ -3125,7 +3170,7 @@ function InternshipsPanel({ onFlash }) {
   useEffect(load, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   async function apply(jobId) {
-    try { await apiRequest(`/jobs/${jobId}/apply`, { method: 'POST', body: {} }); onFlash('Application submitted.', 'success'); load(); } catch (err) { onFlash(err.message); }
+    openApplyPage(jobId); // full job page: description, salary, choose / upload / build the CV
   }
   async function toggleSave(jobId, isSaved) {
     try {
@@ -3285,7 +3330,7 @@ function RecommendedJobsPanel({ onFlash }) {
   useEffect(load, []);
 
   async function apply(jobId) {
-    try { await apiRequest(`/jobs/${jobId}/apply`, { method: 'POST', body: {} }); onFlash('Application submitted.', 'success'); load(); } catch (err) { onFlash(err.message); }
+    openApplyPage(jobId); // full job page: description, salary, choose / upload / build the CV
   }
   async function toggleSave(jobId, isSaved) {
     try {
@@ -3360,7 +3405,7 @@ function JobOffersPanel({ onFlash }) {
   if (employments === null) return <p role="status" className="admin-notice">Loading...</p>;
   const pending = employments.filter((e) => e.status === 'offered');
   const history = employments.filter((e) => e.status !== 'offered');
-  const STATUS_TAG = { active: 'approved', declined: 'rejected', resigned: 'pending', terminated: 'rejected' };
+  const STATUS_TAG = { active: 'approved', accepted: 'approved', declined: 'rejected', resigned: 'pending', terminated: 'rejected' };
 
   return (
     <div>
@@ -3371,7 +3416,8 @@ function JobOffersPanel({ onFlash }) {
             <div key={e._id} className="flex items-center justify-between flex-wrap" style={{ gap: 8, padding: '10px 0', borderBottom: '1px solid var(--sand-line)' }}>
               <div>
                 <strong className="text-sm">{e.job?.title}</strong>
-                <p className="text-xs" style={{ color: 'var(--ink-soft)' }}>{e.job?.company}{e.salary ? ` · ${e.currency} ${e.salary}` : ''}</p>
+                <p className="text-xs" style={{ color: 'var(--ink-soft)' }}>{e.job?.company}{e.salary ? ` · ${e.currency} ${Number(e.salary).toLocaleString()}${e.offer?.salaryPeriod ? ` per ${e.offer.salaryPeriod}` : ''}` : ''}{e.startDate ? ` · joining ${new Date(e.startDate).toLocaleDateString()}` : ''}{e.offer?.expiresAt ? ` · reply by ${new Date(e.offer.expiresAt).toLocaleDateString()}` : ''}</p>
+                {e.offer?.terms && <p className="text-xs" style={{ whiteSpace: 'pre-wrap', margin: '4px 0 0' }}>Terms: {e.offer.terms}</p>}
               </div>
               <div className="flex gap-2">
                 <button type="button" className="btn btn-primary" style={{ padding: '5px 12px', fontSize: '0.78rem' }} disabled={busyId === e._id} onClick={() => respond(e._id, 'accepted')}>Accept</button>
@@ -3387,9 +3433,11 @@ function JobOffersPanel({ onFlash }) {
           e.job?.title, e.job?.company, <Tag status={STATUS_TAG[e.status] || 'pending'} label={e.status} />,
           e.startDate ? new Date(e.startDate).toLocaleDateString() : '—',
           e.endedAt ? `${new Date(e.endedAt).toLocaleDateString()}${e.endReason ? ` (${e.endReason})` : ''}` : '—',
-          e.status === 'active'
-            ? <button type="button" className="btn" style={{ padding: '4px 12px', fontSize: '0.78rem' }} disabled={busyId === e._id} onClick={() => resignFrom(e._id)}>Resign</button>
-            : '—'
+          <span style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+            {e.offerLetter?.sentAt && <ViewOfferLetterButton employment={e} candidate={session.getUser()?.fullName} onFlash={onFlash} />}
+            {e.status === 'accepted' && !e.offerLetter?.sentAt && <small style={{ color: 'var(--ink-soft)' }}>Waiting for the offer letter</small>}
+            {e.status === 'active' && <button type="button" className="btn" style={{ padding: '4px 12px', fontSize: '0.78rem' }} disabled={busyId === e._id} onClick={() => resignFrom(e._id)}>Resign</button>}
+          </span>
         ])}
         empty="No job offers yet."
       />
@@ -3429,9 +3477,10 @@ function StudentReferralsPanel({ onFlash }) {
   );
 }
 
-function PortfolioPanel({ onFlash, onNavigate }) {
+function PortfolioPanel({ onFlash, onNavigate }) { // eslint-disable-line no-unused-vars
   const [dash, setDash] = useState(null);
-  useEffect(() => { apiRequest('/jobs/mine/dashboard').then(setDash).catch((err) => onFlash(err.message)); }, [onFlash]);
+  const loadDash = () => apiRequest('/jobs/mine/dashboard').then(setDash).catch((err) => onFlash(err.message));
+  useEffect(() => { loadDash(); }, [onFlash]); // eslint-disable-line react-hooks/exhaustive-deps
   if (!dash) return <p role="status" className="admin-notice">Loading...</p>;
   return (
     <div>
@@ -3442,24 +3491,7 @@ function PortfolioPanel({ onFlash, onNavigate }) {
           <span>Add project links with a title and description — shown on your CV.</span>
         </div>
       )}
-      <div style={{ display: 'grid', gap: 12, marginBottom: dash.profile.portfolio.length > 0 ? 16 : 0 }}>
-        {dash.profile.portfolio.map((p, i) => (
-          <div key={i} className="border border-[var(--sand-line)] rounded-xl p-4">
-            <strong className="text-sm"><a href={p.url} target="_blank" rel="noreferrer">{p.title || p.url}</a></strong>
-            {p.description && <p className="text-xs" style={{ color: 'var(--ink-soft)', marginTop: 6 }}>{p.description}</p>}
-          </div>
-        ))}
-      </div>
-      <button type="button" className="btn btn-primary" style={{ padding: '6px 16px', fontSize: '0.78rem' }} onClick={() => onNavigate?.('resume')}>Add Project</button>
-    </div>
-  );
-}
-
-function CoverLettersPanel() {
-  return (
-    <div className="card" style={{ padding: 20 }}>
-      <strong className="text-sm">Cover Letter Generator</strong>
-      <p className="text-xs" style={{ color: 'var(--ink-soft)', marginTop: 6 }}>Optional AI feature — not built yet (needs a paid AI API), and never required to use the platform.</p>
+      <PortfolioEditor projects={dash.profile.portfolio} onSaved={loadDash} onFlash={onFlash} />
     </div>
   );
 }
@@ -3473,7 +3505,7 @@ function SavedJobsPanel({ onFlash }) {
     try { await apiRequest(`/jobs/${id}/save`, { method: 'DELETE' }); load(); } catch (err) { onFlash(err.message); }
   }
   async function apply(id) {
-    try { await apiRequest(`/jobs/${id}/apply`, { method: 'POST', body: {} }); onFlash('Application submitted.', 'success'); } catch (err) { onFlash(err.message); }
+    openApplyPage(id); // full job page: description, salary, choose / upload / build the CV
   }
 
   return (
@@ -3503,20 +3535,43 @@ function MyApplicationsPanel({ onFlash }) {
       load();
     } catch (err) { onFlash(err.message); }
   }
+  async function answer(e, decision) {
+    if (decision === 'declined' && !window.confirm('Decline this offer? Your application will be withdrawn.')) return;
+    try { await apiRequest(`/employment/${e._id}/respond`, { method: 'PATCH', body: { decision } }); onFlash(decision === 'accepted' ? 'Offer accepted. The employer will send your offer letter.' : 'Offer declined.', 'success'); load(); } catch (err) { onFlash(err.message); }
+  }
+  // The offer, right where the candidate sees the Offer stage.
+  function offerCell(a) {
+    const e = a.employment;
+    if (e?.offer?.sentAt && e.status === 'offered') return (
+      <div style={{ display: 'grid', gap: 6 }}>
+        <span className="text-xs"><strong>{e.currency} {Number(e.salary).toLocaleString()}</strong> per {e.offer.salaryPeriod || 'month'}{e.startDate ? ` · joining ${new Date(e.startDate).toLocaleDateString()}` : ''}{e.offer.expiresAt ? ` · reply by ${new Date(e.offer.expiresAt).toLocaleDateString()}` : ''}</span>
+        {e.offer.terms && <span className="text-xs" style={{ whiteSpace: 'pre-wrap', color: 'var(--ink-soft)' }}>{e.offer.terms}</span>}
+        <span style={{ display: 'flex', gap: 6 }}>
+          <button type="button" className="btn btn-primary" style={{ padding: '4px 10px', fontSize: '0.75rem' }} onClick={() => answer(e, 'accepted')}>Accept offer</button>
+          <button type="button" className="btn" style={{ padding: '4px 10px', fontSize: '0.75rem' }} onClick={() => answer(e, 'declined')}>Decline</button>
+        </span>
+      </div>
+    );
+    if (a.status === 'selected' && !e?.offer?.sentAt) return <small style={{ color: 'var(--ink-soft)' }}>You are selected. The employer will send the offer details (salary, joining date) here.</small>;
+    if (e?.offerLetter?.sentAt) return <ViewOfferLetterButton employment={e} candidate={session.getUser()?.fullName} onFlash={onFlash} />;
+    if (e?.status === 'accepted') return <small style={{ color: 'var(--ink-soft)' }}>Offer accepted ({e.currency} {Number(e.salary).toLocaleString()}). Waiting for the offer letter.</small>;
+    return null;
+  }
 
   return (
     <Table
       loading={applications === null}
-      headers={['Job', 'Company', 'Stage', 'Applied', 'Action']}
+      headers={['Job', 'Company', 'Stage', 'Applied', 'Action', 'Messages']}
       rows={(applications || []).map((a) => [
         a.job ? <a href={`/jobs/${a.job._id}`}>{a.job.title}</a> : '—', a.job?.company,
         <Tag status={JOB_APP_STATUS[a.status]?.tag} label={JOB_APP_STATUS[a.status]?.label || a.status} />,
         new Date(a.createdAt).toLocaleDateString(),
-        a.status === 'hired' && !a.joining?.confirmed
+        offerCell(a) || (a.status === 'hired' && !a.joining?.confirmed
           ? <button type="button" className="btn btn-primary" style={{ padding: '4px 10px', fontSize: '0.75rem' }} onClick={() => act(a, 'confirm-joining')}>Confirm I joined</button>
           : !['hired', 'completed', 'rejected', 'withdrawn'].includes(a.status)
             ? <button type="button" className="btn" style={{ padding: '4px 10px', fontSize: '0.75rem' }} onClick={() => act(a, 'withdraw')}>Withdraw</button>
-            : '—'
+            : '—'),
+        <ApplicationThread key={a._id} applicationId={a._id} count={a.messageCount} onFlash={onFlash} />
       ])}
       empty="No applications yet."
     />
@@ -3661,16 +3716,16 @@ function InterviewsPanel({ onFlash }) {
           <div key={i._id} className="border border-[var(--sand-line)] rounded-xl p-4 mb-3">
             <div className="flex items-center justify-between flex-wrap gap-2">
               <div>
-                <strong className="text-sm">{i.job?.title}</strong>
+                <strong className="text-sm">{i.job?.title}{i.round === 'final_interview' ? ' · Final interview' : ''}</strong>
                 <p className="text-xs mt-1" style={{ color: 'var(--ink-soft)' }}>{i.job?.company}</p>
                 <p className="text-xs mt-1" style={{ color: 'var(--ink-soft)' }}>
                   {new Date(i.scheduledDate).toLocaleDateString()} · {new Date(i.scheduledDate).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                 </p>
-                <p className="text-xs" style={{ color: 'var(--ink-soft)' }}>{i.mode === 'physical' ? `Physical — ${i.location || 'location TBD'}` : `Online — ${i.meetingLink || 'link to be shared'}`}</p>
+                <p className="text-xs" style={{ color: 'var(--ink-soft)' }}>{i.mode === 'physical' ? `Physical — ${i.location || 'location TBD'}` : 'Online on CareerZ (video room opens 15 minutes before)'}</p>
                 <Tag status={st.tag} label={st.label} />
               </div>
-              {i.mode === 'online' && i.meetingLink
-                ? <a className="btn btn-primary" style={{ padding: '6px 16px', fontSize: '0.8rem' }} href={i.meetingLink} target="_blank" rel="noreferrer">Join Interview</a>
+              {i.mode === 'online' && i.status === 'scheduled'
+                ? <InterviewJoin interview={i} />
                 : <button type="button" className="btn" style={{ padding: '6px 16px', fontSize: '0.8rem' }} onClick={() => recordJobView(i.job, setViewingJob)}>View Details</button>}
             </div>
           </div>
@@ -4677,7 +4732,7 @@ function CareerToolsPanel({ onFlash, onNavigate }) {
         <div className="card" style={{ padding: 18 }}>
           <strong className="text-sm">Portfolio Builder</strong>
           <p className="text-xs" style={{ color: 'var(--ink-soft)', marginTop: 6 }}>Add project links with a title and description — shown on your CV.</p>
-          <button type="button" className="btn" style={{ padding: '6px 14px', fontSize: '0.78rem', marginTop: 12 }} onClick={() => onNavigate?.('resume')}>Open in CV / Resume</button>
+          <button type="button" className="btn" style={{ padding: '6px 14px', fontSize: '0.78rem', marginTop: 12 }} onClick={() => onNavigate?.('portfolio')}>Open Portfolio</button>
         </div>
         <div className="card" style={{ padding: 18 }}>
           <strong className="text-sm">Skill Recommendations</strong>
@@ -4701,8 +4756,9 @@ function CareerToolsPanel({ onFlash, onNavigate }) {
   );
 }
 
-function ResumeEditorPanel({ onFlash }) {
+function ResumeEditorPanel({ onFlash, user, onTemplates }) {
   const [resume, setResume] = useState(null);
+  const [guided, setGuided] = useState(false);
 
   function load() {
     apiRequest('/resumes/me').then(setResume).catch((err) => onFlash(err.message));
@@ -4731,11 +4787,15 @@ function ResumeEditorPanel({ onFlash }) {
 
   const publicUrl = `${window.location.origin}/portfolio/${resume.user}`;
 
+  if (guided) return <GuidedResumeBuilder resume={resume} setResume={setResume} user={user} onFlash={onFlash} onExit={() => setGuided(false)} onTemplates={onTemplates} />;
+
   return (
+    <>
+    <div style={{ marginBottom: 18 }}><button type="button" className="btn btn-primary" onClick={() => setGuided(true)}>Build step by step</button></div>
     <SavedForm value={resume} onRestore={setResume} onSubmit={save} style={{ display: 'grid', gap: 18 }}>
       <div className="flex items-center justify-between flex-wrap" style={{ gap: 10 }}>
         <p className="text-xs" style={{ color: 'var(--ink-soft)', margin: 0 }}>Fill empty sections from your verified CareerZ records (school, certificates, internships, achievements). Nothing you wrote is replaced.</p>
-        <CvAutofillButton onFilled={setResume} onFlash={onFlash} />
+        <span style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}><CvAutofillButton onFilled={setResume} onFlash={onFlash} /><AiCvDraftButton onFlash={onFlash} onDraft={(d) => setResume((r) => mergeDraft(r, d))} /></span>
       </div>
       <div className="card" style={{ padding: 20 }}>
         <div className="flex items-center justify-between flex-wrap" style={{ gap: 14 }}>
@@ -4753,9 +4813,10 @@ function ResumeEditorPanel({ onFlash }) {
 
       <div className="card" style={{ padding: 20 }}>
         <p style={sectionLabel}>Uploaded CV file</p>
+        <CvFileUpload resume={resume} onChange={(r) => setResume((cur) => ({ ...cur, cvFile: r.cvFile, cvFileName: r.cvFileName }))} onFlash={onFlash} />
         <input className="form-input" placeholder="Paste a direct link to your CV file (PDF, Google Drive, etc.)" value={resume.cvFileUrl || ''} onChange={(e) => setResume({ ...resume, cvFileUrl: e.target.value })} style={{ marginTop: 10 }} />
         <p className="text-xs" style={{ color: 'var(--ink-soft)', marginTop: 8 }}>
-          No file storage is wired up yet — upload your CV somewhere (Google Drive, Dropbox, etc.) and paste the direct link here.
+          Or paste a link to your CV (Google Drive, Dropbox, etc.).
           {resume.cvFileUrl && <> · <a href={resume.cvFileUrl} target="_blank" rel="noreferrer">View current file</a></>}
         </p>
       </div>
@@ -4850,6 +4911,7 @@ function ResumeEditorPanel({ onFlash }) {
 
       <button type="submit" className="btn btn-primary" style={{ padding: '8px 22px', fontSize: '0.85rem', justifySelf: 'start' }}>Save Resume</button>
     </SavedForm>
+    </>
   );
 }
 
@@ -4927,14 +4989,14 @@ function MyScholarshipApplicationsPanel({ onFlash }) {
 }
 
 function PostScholarshipPanel({ onFlash }) {
-  const [form, setForm] = useState({ title: '', description: '', amount: '', currency: 'USD', eligibilityCriteria: '', country: '', applicationDeadline: '', seatsAvailable: 1, audience: ['students'] });
+  const [form, setForm] = useState({ title: '', description: '', amount: '', currency: 'PKR', eligibilityCriteria: '', country: '', applicationDeadline: '', seatsAvailable: 1, audience: ['students'] });
 
   async function submit(e) {
     e.preventDefault();
     try {
       await apiRequest('/scholarships', { method: 'POST', body: { ...form, amount: Number(form.amount), seatsAvailable: Number(form.seatsAvailable) } });
       onFlash('Scholarship posted.', 'success');
-      setForm({ title: '', description: '', amount: '', currency: 'USD', eligibilityCriteria: '', country: '', applicationDeadline: '', seatsAvailable: 1, audience: ['students'] });
+      setForm({ title: '', description: '', amount: '', currency: 'PKR', eligibilityCriteria: '', country: '', applicationDeadline: '', seatsAvailable: 1, audience: ['students'] });
     } catch (err) { onFlash(err.message); }
   }
 
@@ -5135,6 +5197,7 @@ function MyOrdersPanel({ onFlash }) {
         <Tag status={ORDER_STATUS[o.status]?.tag} label={ORDER_STATUS[o.status]?.label} />,
         new Date(o.createdAt).toLocaleDateString(),
         <div className="flex gap-2 flex-wrap">
+          {o.paymentStatus === 'pending' && !['cancelled', 'refunded'].includes(o.status) && <ManualPayButton kind="marketplace_order" id={o._id} label="Pay" onFlash={onFlash} onDone={load} />}
           {!['delivered', 'completed', 'cancelled', 'refunded'].includes(o.status) && !o.cancellationRequested && <button type="button" className="btn" style={{ padding: '4px 10px', fontSize: '0.72rem' }} onClick={() => requestCancellation(o._id)}>Request Cancellation</button>}
           {o.cancellationRequested && <span className="text-xs" style={{ color: 'var(--ink-soft)' }}>Cancellation pending</span>}
           {['delivered', 'completed'].includes(o.status) && !o.refundRequested && <button type="button" className="btn" style={{ padding: '4px 10px', fontSize: '0.72rem' }} onClick={() => requestRefund(o._id)}>Request Refund</button>}
@@ -5158,7 +5221,7 @@ const PRODUCT_STATUS = {
   paused: { tag: 'under_review', label: 'Paused' }
 };
 const PRODUCT_CATEGORIES = ['books', 'stationery', 'uniform', 'electronics', 'courses', 'services', 'other'];
-const EMPTY_PRODUCT_FORM = { title: '', description: '', category: 'other', price: '', currency: 'USD', stock: 0, images: '' };
+const EMPTY_PRODUCT_FORM = { title: '', description: '', category: 'other', price: '', currency: 'PKR', stock: 0, images: '' };
 
 function ProductDetailModal({ product, onClose }) {
   if (!product) return null;
@@ -6479,38 +6542,18 @@ const PAYMENT_METHODS = [
 ];
 const MANUAL_FEE_METHODS = PAYMENT_METHODS.filter((method) => method.value !== 'card');
 
-// Manual fee payments remain pending until the institution verifies them.
-// Works for both the student paying their own fee and a parent paying a linked child's fee.
-// checkoutPath/syncPath let other payables (independent tutoring fees) reuse this button.
-function PaddleCheckoutButton({ feeId, onFlash, onPaid, checkoutPath, syncPath }) {
+// Online fee payment goes through JazzCash's hosted page (wallet / card / voucher); manual
+// payments stay pending until verified. Works for a student's own fee and a parent paying a
+// linked child's fee; checkoutPath lets other payables (independent tutoring fees) reuse it.
+// Safepay's hosted page: card (local or international), JazzCash, Easypaisa or bank/Raast.
+function SafepayCheckoutButton({ onFlash, checkoutPath, body, label = 'Pay with Safepay' }) {
   const [config, setConfig] = useState(null);
   const [loading, setLoading] = useState(false);
-  useEffect(() => { apiRequest('/payments/paddle/config').then(setConfig).catch(() => setConfig({ enabled: false })); }, []);
-
-  // Best-effort local/dev fallback: production relies on the real Paddle webhook (real-time,
-  // signature-verified); this GET just asks Paddle's API directly "is it done yet?" so testing
-  // works even when the backend runs on localhost, which Paddle's webhook can never reach.
-  async function sync() {
-    try {
-      const result = await apiRequest(syncPath || `/payments/paddle/fees/${feeId}/sync`);
-      if (result.status === 'paid' || result.paid) onFlash('Payment confirmed!', 'success');
-      onPaid?.();
-    } catch (err) { onPaid?.(); }
-  }
-
+  useEffect(() => { getSafepayConfig().then(setConfig); }, []);
   async function startCheckout() {
     setLoading(true);
-    try {
-      const { transactionId } = await apiRequest(checkoutPath || `/payments/paddle/fees/${feeId}/checkout`, { method: 'POST' });
-      const Paddle = await loadPaddle(config.clientToken, config.environment);
-      setActiveCheckoutHandler(sync);
-      Paddle.Checkout.open({
-        transactionId,
-        settings: { displayMode: 'overlay' }
-      });
-    } catch (err) { onFlash(err.message); } finally { setLoading(false); }
+    try { await startSafepayCheckout(checkoutPath, body); } catch (err) { onFlash(err.message); setLoading(false); }
   }
-
   if (!config?.enabled) return null;
   return (
     <button
@@ -6519,55 +6562,23 @@ function PaddleCheckoutButton({ feeId, onFlash, onPaid, checkoutPath, syncPath }
       disabled={loading}
       style={{
         padding: '10px 18px', fontSize: '0.85rem', fontWeight: 700, borderRadius: 10, border: 'none',
-        background: 'linear-gradient(135deg, #1e2f4f, #34507f)', color: '#fff', cursor: loading ? 'default' : 'pointer',
+        background: 'linear-gradient(135deg, #0b6e4f, #13a36e)', color: '#fff', cursor: loading ? 'default' : 'pointer',
         opacity: loading ? 0.7 : 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, width: '100%'
       }}
     >
-      <FaGlobe aria-hidden="true" /> {loading ? 'Loading...' : 'Pay Online'} {!loading && <span style={{ fontWeight: 400, opacity: 0.85, fontSize: '0.78rem' }}>(Card / Apple Pay / Google Pay)</span>}
+      <FaMobileScreen aria-hidden="true" /> {loading ? 'Redirecting...' : label} {!loading && <span style={{ fontWeight: 400, opacity: 0.85, fontSize: '0.78rem' }}>(Card / JazzCash / Easypaisa / Bank)</span>}
     </button>
   );
 }
 
-// Real Stripe Checkout redirect. Always shown; until STRIPE_SECRET_KEY is configured, clicking it
-// explains that instead of redirecting.
-function StripeCheckoutButton({ feeId, onFlash }) {
-  const [config, setConfig] = useState(null);
-  const [loading, setLoading] = useState(false);
-  useEffect(() => { apiRequest('/payments/stripe/config').then(setConfig).catch(() => setConfig({ enabled: false })); }, []);
-
-  async function startCheckout() {
-    if (!config?.enabled) return onFlash('Stripe is not set up yet — add STRIPE_SECRET_KEY and STRIPE_WEBHOOK_SECRET on the server.');
-    setLoading(true);
-    try {
-      const { url } = await apiRequest(`/payments/stripe/fees/${feeId}/checkout`, { method: 'POST' });
-      window.location.href = url;
-    } catch (err) { onFlash(err.message); setLoading(false); }
-  }
-
-  return (
-    <button
-      type="button"
-      onClick={startCheckout}
-      disabled={loading}
-      style={{
-        padding: '10px 18px', fontSize: '0.85rem', fontWeight: 700, borderRadius: 10, border: 'none',
-        background: 'linear-gradient(135deg, #635bff, #7a73ff)', color: '#fff', cursor: loading ? 'default' : 'pointer',
-        opacity: loading ? 0.7 : 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, width: '100%'
-      }}
-    >
-      <FaCreditCard aria-hidden="true" /> {loading ? 'Redirecting...' : 'Pay Online (Stripe)'}
-    </button>
-  );
-}
-
-function JazzCashCheckoutButton({ feeId, onFlash }) {
+function JazzCashCheckoutButton({ feeId, onFlash, checkoutPath }) {
   const [config, setConfig] = useState(null);
   const [loading, setLoading] = useState(false);
   useEffect(() => { getJazzCashConfig().then(setConfig); }, []);
 
   async function startCheckout() {
     setLoading(true);
-    try { await startJazzCashCheckout(`/payments/jazzcash/fees/${feeId}/checkout`); } catch (err) { onFlash(err.message); setLoading(false); }
+    try { await startJazzCashCheckout(checkoutPath || `/payments/jazzcash/fees/${feeId}/checkout`); } catch (err) { onFlash(err.message); setLoading(false); }
   }
 
   if (!config?.enabled) return null;
@@ -6635,7 +6646,9 @@ function PayFeeButton({ fee, onFlash, onPaid }) {
   // Independent tutoring fee: paid online by the student or a linked parent.
   if (fee.kind === 'tutoring') {
     return <div style={{ display: 'grid', gap: 6, minWidth: 220 }}>
-      <PaddleCheckoutButton feeId={fee._id} onFlash={onFlash} onPaid={onPaid} checkoutPath={`/teacher-students/${fee.tutoringLinkId}/fee-checkout`} syncPath={`/teacher-students/${fee.tutoringLinkId}/fee-checkout/sync`} />
+      <ManualPayButton kind="tutoring" id={fee.tutoringLinkId} onFlash={onFlash} onDone={onPaid} />
+      <SafepayCheckoutButton onFlash={onFlash} checkoutPath={`/teacher-students/${fee.tutoringLinkId}/fee-checkout`} />
+      <JazzCashCheckoutButton feeId={fee._id} onFlash={onFlash} checkoutPath={`/teacher-students/${fee.tutoringLinkId}/fee-checkout`} />
       <span className="text-xs" style={{ color: 'var(--ink-soft)' }}>Tuition for {fee.teacherName || 'your tutor'}. The student or a parent can pay.</span>
     </div>;
   }
@@ -6643,17 +6656,9 @@ function PayFeeButton({ fee, onFlash, onPaid }) {
   if (!open) {
     return (
       <div style={{ display: 'grid', gap: 8, minWidth: 220 }}>
-        <PaddleCheckoutButton feeId={fee._id} onFlash={onFlash} onPaid={onPaid} />
+        <ManualPayButton kind="fee" id={fee._id} onFlash={onFlash} onDone={onPaid} />
+        <SafepayCheckoutButton onFlash={onFlash} checkoutPath={`/payments/jazzcash/fees/${fee._id}/checkout`} />
         <JazzCashCheckoutButton feeId={fee._id} onFlash={onFlash} />
-        <StripeCheckoutButton feeId={fee._id} onFlash={onFlash} />
-        <button
-          type="button"
-          onClick={() => setOpen(true)}
-          title="Only use this if you already paid outside CareerZ (cash, bank transfer) and need to record it"
-          style={{ background: 'none', border: 'none', padding: '4px 2px', fontSize: '0.76rem', color: 'var(--ink-soft)', textDecoration: 'underline', cursor: 'pointer', textAlign: 'center' }}
-        >
-          I already paid another way
-        </button>
       </div>
     );
   }
@@ -6671,6 +6676,38 @@ function PayFeeButton({ fee, onFlash, onPaid }) {
         <button type="submit" className="btn btn-primary" style={{ padding: '7px 12px', fontSize: '0.75rem' }} disabled={paying}>{paying ? 'Submitting...' : 'Submit for verification'}</button>
         <button type="button" className="btn" style={{ padding: '7px 10px', fontSize: '0.75rem' }} onClick={() => setOpen(false)} disabled={paying}>Cancel</button>
       </div>
+    </form>
+  );
+}
+
+// Every commission rate CareerZ takes, per service, in one place. The Super Admin edits them; finance
+// staff see them. Nothing is hardcoded: an unset rate is 0.
+function ServiceCommissionRates({ onFlash, canEdit }) {
+  const [services, setServices] = useState(null);
+  const [rates, setRates] = useState({});
+  function load() {
+    apiRequest('/admin/commission-rates?detail=1').then((r) => { setServices(r.services); setRates(Object.fromEntries(r.services.map((s) => [s.id, String(s.rate)]))); }).catch(() => setServices([]));
+  }
+  useEffect(load, []); // eslint-disable-line react-hooks/exhaustive-deps
+  if (!services?.length) return null;
+  async function save(e) {
+    e.preventDefault();
+    try {
+      await apiRequest('/admin/commission-rates', { method: 'PATCH', body: Object.fromEntries(Object.entries(rates).map(([k, v]) => [k, Number(v)])) });
+      onFlash('Commission rates saved. They apply to payments from now on.', 'success');
+      load();
+    } catch (err) { onFlash(err.message); }
+  }
+  return (
+    <form onSubmit={save} style={{ display: 'grid', gap: 8, width: '100%' }}>
+      <strong className="text-sm">Commission per service</strong>
+      {services.map((s) => (
+        <label key={s.id} className="text-xs" style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
+          <input className="form-input" type="number" min="0" max="100" step="0.5" disabled={!canEdit} value={rates[s.id] ?? '0'} onChange={(e) => setRates({ ...rates, [s.id]: e.target.value })} style={{ width: 90 }} aria-label={`${s.label} %`} />
+          <span style={{ flex: 1, minWidth: 200 }}><strong>{s.label} %</strong><br /><span style={{ color: 'var(--ink-soft)' }}>{s.about}</span></span>
+        </label>
+      ))}
+      {canEdit && <button type="submit" className="btn btn-primary" style={{ padding: '7px 14px', fontSize: '0.8rem', justifySelf: 'start' }}>Save commission rates</button>}
     </form>
   );
 }
@@ -6804,7 +6841,7 @@ function SalaryPaymentButton({ payslip, onSubmit }) {
         <div style={{ marginTop: 4 }}>You'll be asked to confirm this exact recipient before anything is sent, and a unique receipt id is generated on both wallets' transaction history.</div>
       </div>
     )}
-    {['bank_transfer', 'mobile_wallet', 'crypto'].includes(method) && <span className="text-xs" style={{ color: 'var(--ink-soft)' }}>Paddle/card/Apple Pay/Google Pay collect money into the institution; they cannot send salary to an employee directly.</span>}
+    {['bank_transfer', 'mobile_wallet', 'crypto'].includes(method) && <span className="text-xs" style={{ color: 'var(--ink-soft)' }}>JazzCash and card payments collect money into the institution; they cannot send salary to an employee directly.</span>}
     {manual && <><input className="form-input" value={reference} onChange={(e) => setReference(e.target.value)} placeholder="Transaction / cash receipt reference" required />
       <input className="form-input" value={provider} onChange={(e) => setProvider(e.target.value)} placeholder="Bank / wallet / payment details" />
       <label className="text-xs">Proof {method === 'cash' ? '(optional)' : '(required)'}<input className="form-input" type="file" accept="image/*,.pdf" required={method !== 'cash'} onChange={(e) => setProof(e.target.files?.[0] || null)} /></label></>}
@@ -7552,7 +7589,7 @@ function StudentSummary({ onNavigate, user }) {
         <SummaryCard icon={FaCalendarCheck} title="Upcoming Classes" count={dash.upcomingClasses.length} onClick={() => onNavigate?.('classes')} />
         <SummaryCard icon={FaAward} title="Scholarships" count={dash.scholarships.recommended.length} onClick={() => onNavigate?.('scholarships')} />
         <SummaryCard icon={FaBriefcase} title="Saved Jobs" count={dash.savedJobs.length} onClick={() => onNavigate?.('jobs')} />
-        <SummaryCard icon={FaWallet} title="Wallet Balance" count={`${user?.currency || 'USD'} ${Number(dash.wallet.availableBalance || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`} onClick={() => onNavigate?.('wallet')} />
+        <SummaryCard icon={FaWallet} title="Wallet Balance" count={`${dash.wallet.walletCurrency || 'PKR'} ${Number(dash.wallet.availableBalance || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`} onClick={() => onNavigate?.('wallet')} />
         <SummaryCard icon={FaChartLine} title="Academic Progress" count={dash.academicProgress.attendanceRate !== null ? `${dash.academicProgress.attendanceRate}%` : '—'} onClick={() => onNavigate?.('assignments')} />
         <SummaryCard icon={FaBell} title="Recent Activity" count={dash.recentActivity.length} onClick={() => onNavigate?.('assignments')} />
       </div>
@@ -7696,15 +7733,15 @@ function StudentSummary({ onNavigate, user }) {
       <SectionHeading title="Wallet & Fee Overview" />
       <div className="card student-block">
         <div className="overview-balances">
-          <div className="overview-balance-primary"><span>Available balance</span><strong><small>{user?.currency || 'USD'}</small> {Number(dash.wallet.availableBalance || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</strong><span>Ready to use in your wallet</span></div>
-          <div><span>Outstanding fees</span><strong><small>{user?.currency || 'USD'}</small> {Number(dash.wallet.pendingFeeTotal || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</strong><span>{dash.wallet.pendingFeeCount || 0} pending fee records</span></div>
+          <div className="overview-balance-primary"><span>Available balance</span><strong><small>{dash.wallet.walletCurrency || 'PKR'}</small> {Number(dash.wallet.availableBalance || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</strong><span>Ready to use in your wallet</span></div>
+          <div><span>Outstanding fees</span><strong><small>{dash.wallet.pendingFees[0]?.currency || 'PKR'}</small> {Number(dash.wallet.pendingFeeTotal || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</strong><span>{dash.wallet.pendingFeeCount || 0} pending fee records</span></div>
         </div>
         <p className="text-xs font-semibold mt-3">Outstanding Fees / Challans</p>
         {dash.wallet.pendingFees.length === 0 && (
           <p className="text-xs mt-1" style={{ color: 'var(--ink-soft)' }}>No outstanding fees — <Tag status="approved" /> Payment status: Up to date.</p>
         )}
         {dash.wallet.pendingFees.slice(0, 2).map((f) => (
-          <p key={f._id} className="text-xs mt-1" style={{ color: 'var(--ink-soft)' }}>{f.title} — {f.currency} {f.amount} · Due: {f.dueDate ? new Date(f.dueDate).toLocaleDateString() : '—'} · Payment status: <Tag status={f.status === 'overdue' ? 'rejected' : 'pending'} /></p>
+          <p key={f._id} className="text-xs mt-1" style={{ color: 'var(--ink-soft)' }}>{f.title} — {f.currency} {f.amount} · Due: {f.dueDate ? new Date(f.dueDate).toLocaleDateString() : '—'} · Payment status: <Tag status={f.status === 'overdue' ? 'rejected' : 'pending'} /> <button type="button" className="btn btn-primary" style={{ padding: '3px 10px', fontSize: '0.72rem', marginLeft: 6 }} onClick={() => onNavigate?.('wallet')}>Pay Now</button></p>
         ))}
 
         <p className="text-xs font-semibold mt-3">Recent Transactions</p>
@@ -14174,14 +14211,6 @@ function InstitutionFeesPanel({ onFlash }) {
     } catch (err) { onFlash(err.message); }
   }
 
-  async function releaseEscrow(feeId) {
-    try {
-      await apiRequest(`/institutions/fees/${feeId}/release`, { method: 'PATCH' });
-      onFlash('Escrow released.', 'success');
-      load();
-    } catch (err) { onFlash(err.message); }
-  }
-
   async function remind(feeId) {
     try {
       await apiRequest(`/institutions/fees/${feeId}/remind`, { method: 'POST' });
@@ -14341,10 +14370,7 @@ function InstitutionFeesPanel({ onFlash }) {
           ) : '—',
           !['paid', 'refunded', 'waived', 'cancelled'].includes(f.status) ? (
             <div className="flex gap-2 items-center flex-wrap">
-              <select className="form-select" style={{ padding: '4px 8px', fontSize: '0.75rem' }} value={payVia[f._id] || 'Cash'} onChange={(e) => setPayVia({ ...payVia, [f._id]: e.target.value })}>
-                <option value="Cash">Cash received at institution</option>
-              </select>
-              <button className="btn btn-primary" style={{ padding: '5px 12px', fontSize: '0.78rem' }} onClick={() => markPaid(f._id)}>Record Received Payment</button>
+              <span className="text-xs" style={{ color: 'var(--ink-soft)' }}>Paid through CareerZ (bank transfer + receipts)</span>
               <button className="btn" style={{ padding: '5px 12px', fontSize: '0.78rem' }} onClick={() => remind(f._id)}>Remind</button>
               <button className="btn" style={{ padding: '5px 12px', fontSize: '0.78rem' }} onClick={() => grantDiscount(f._id)}>Discount</button>
               <button className="btn" style={{ padding: '5px 12px', fontSize: '0.78rem' }} onClick={() => waive(f._id)}>Waive</button>
@@ -14354,7 +14380,7 @@ function InstitutionFeesPanel({ onFlash }) {
               )}
             </div>
           ) : f.status === 'paid' && f.escrowStatus === 'held' ? (
-            <button className="btn btn-primary" style={{ padding: '5px 12px', fontSize: '0.78rem' }} onClick={() => releaseEscrow(f._id)}>Release Funds</button>
+            <span className="text-xs" style={{ color: 'var(--ink-soft)' }}>Held · CareerZ releases after checking</span>
           ) : f.status === 'paid' ? <span>{f.paidVia || '—'}{f.paidByInfo && <><br /><span className="text-xs">by {f.paidByInfo.name} ({f.paidByInfo.role})</span></>}</span> : '—',
           <button type="button" className="btn" style={{ padding: '4px 10px', fontSize: '0.72rem' }} onClick={() => downloadFeePdf(f)}>{['paid', 'refunded'].includes(f.status) ? 'Receipt' : 'Invoice'}</button>
         ])}
@@ -14632,22 +14658,11 @@ function FeeGenerateSection({ institutionId, onFlash }) {
   );
 }
 
+// The institute sees reported payments here; CareerZ finance verifies them (Financial Management).
 function FeeVerificationSection({ institutionId, onFlash }) {
   const [fees, setFees] = useState(null);
   function load() { apiRequest(`/institution-fees/${institutionId}/payments-awaiting-verification`).then(setFees).catch((err) => onFlash(err.message)); }
   useEffect(load, [institutionId]); // eslint-disable-line react-hooks/exhaustive-deps
-
-  async function decide(feeId, decision) {
-    let rejectionReason = '';
-    if (decision === 'reject') {
-      rejectionReason = await showPrompt('Why was this payment rejected?', { title: 'Reject payment', required: true });
-      if (!rejectionReason) return;
-    } else {
-      const confirmed = await showConfirm('Confirm that the money has actually been received in the institution account/cash desk?', { confirmLabel: 'Verify received' });
-      if (!confirmed) return;
-    }
-    try { await apiRequest(`/institution-fees/fees/${feeId}/verify-payment`, { method: 'PATCH', body: { decision, rejectionReason } }); onFlash(`Payment ${decision === 'verify' ? 'verified' : 'rejected'}.`, 'success'); load(); } catch (err) { onFlash(err.message); }
-  }
 
   if (fees === null) return <p className="admin-notice">Loading...</p>;
   if (fees.length === 0) return <p className="admin-notice">No payments awaiting verification.</p>;
@@ -14668,10 +14683,7 @@ function FeeVerificationSection({ institutionId, onFlash }) {
                 {pending?.notes && <p className="text-xs">Note: {pending.notes}</p>}
                 {pending?.proofUrl && <a className="btn" style={{ display: 'inline-block', padding: '4px 10px', fontSize: '0.72rem', marginTop: 6 }} href={pending.proofUrl} target="_blank" rel="noreferrer">View payment proof</a>}
               </div>
-              <div className="flex gap-2">
-                <button type="button" className="btn btn-primary" style={{ padding: '5px 12px', fontSize: '0.75rem' }} onClick={() => decide(f._id, 'verify')}>Verify Received</button>
-                <button type="button" className="btn" style={{ padding: '5px 12px', fontSize: '0.75rem' }} onClick={() => decide(f._id, 'reject')}>Reject</button>
-              </div>
+              <span className="text-xs" style={{ color: 'var(--gold)' }}>Waiting for CareerZ to verify the proof</span>
             </div>
           </div>
         );
@@ -16628,35 +16640,23 @@ function InstitutionAiAssistantPanel({ onFlash }) {
 }
 
 // Master spec Part 17E "Subscription System" — Free/Basic/Professional/Enterprise. A paid plan
-// is a real Paddle-paid 30-day period (see subscription.controller.js); nothing here is a fake
+// is a real JazzCash-paid 30-day period (see subscription.controller.js); nothing here is a fake
 // "trust me" toggle. Only the institution owner can change plans — staff can view.
 function InstitutionSubscriptionPanel({ onFlash }) {
   const institution = useMyInstitution(onFlash);
   const [data, setData] = useState(null);
-  const [paddleConfig, setPaddleConfig] = useState(null);
   const [busyPlan, setBusyPlan] = useState(null);
 
   function load(id) {
     apiRequest(`/subscriptions/institutions/${id}`).then(setData).catch((err) => onFlash(err.message));
   }
   useEffect(() => { if (institution) load(institution._id); }, [institution]);
-  useEffect(() => { apiRequest('/payments/paddle/config').then(setPaddleConfig).catch(() => setPaddleConfig({ enabled: false })); }, []);
 
+  // Redirects to JazzCash; the owner comes back to the dashboard with the result and the plan
+  // is active as soon as JazzCash confirms the payment.
   async function upgrade(planKey) {
-    if (!paddleConfig?.enabled) return onFlash?.('Card payments are not set up yet — ask Admin to connect Paddle.', 'error');
     setBusyPlan(planKey);
-    try {
-      const { transactionId } = await apiRequest(`/subscriptions/institutions/${institution._id}/checkout`, { method: 'POST', body: { plan: planKey } });
-      const Paddle = await loadPaddle(paddleConfig.clientToken, paddleConfig.environment);
-      setActiveCheckoutHandler(async () => {
-        try {
-          await apiRequest(`/subscriptions/institutions/${institution._id}/checkout/${transactionId}/sync`);
-          load(institution._id);
-          onFlash?.('Subscription activated.', 'success');
-        } catch { /* not confirmed yet — will arrive via webhook, or retry sync */ }
-      });
-      Paddle.Checkout.open({ transactionId, settings: { displayMode: 'overlay' } });
-    } catch (err) { onFlash?.(err.message); } finally { setBusyPlan(null); }
+    try { await startPreferredCheckout(`/subscriptions/institutions/${institution._id}/checkout`, { plan: planKey }); } catch (err) { onFlash?.(err.message); setBusyPlan(null); }
   }
 
   if (institution === undefined) return <p role="status" className="admin-notice">Loading...</p>;
@@ -16693,7 +16693,7 @@ function InstitutionSubscriptionPanel({ onFlash }) {
       </div>
 
       <div className="admin-section" style={{ marginTop: 16 }}>
-        <div className="admin-section-heading"><div><h2>Optional plans</h2><p>CareerZ core access remains free. Paid packages are optional 30-day upgrades purchased through Paddle and never disable an institution when they expire.</p></div></div>
+        <div className="admin-section-heading"><div><h2>Optional plans</h2><p>CareerZ core access remains free. Paid packages are optional 30-day upgrades paid with JazzCash. Renew by paying again; an expired plan never disables an institution.</p></div></div>
         <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
           {planOrder.map((key) => {
             const plan = plans[key];
@@ -16711,9 +16711,7 @@ function InstitutionSubscriptionPanel({ onFlash }) {
                   ? <span className="tag approved">Current plan</span>
                   : key === 'free'
                     ? null
-                    : <button className="btn btn-secondary" style={{ width: '100%' }} disabled={busyPlan === key} onClick={() => upgrade(key)}>
-                        {busyPlan === key ? 'Opening checkout...' : 'Upgrade'}
-                      </button>}
+                    : <ManualPayButton kind="subscription" id={institution._id} query={{ plan: key }} label="Upgrade (bank transfer)" onFlash={onFlash} onDone={() => load(institution._id)} />}
               </div>
             );
           })}
@@ -17469,6 +17467,7 @@ function InstitutionSummary() {
 // ---------------------------------------------------------------- Employer
 
 function EmployerWorkspace({ tab, user, onFlash, onChanged }) {
+  if (tab === 'jobs') return <><EmployerAgentRequests onFlash={onFlash} /><EmployerJobsPanel onFlash={onFlash} /></>;
   if (tab === 'profile') return <><ProfilePanel user={user} onFlash={onFlash} onChanged={onChanged} /><RolesPanel onFlash={onFlash} onChanged={onChanged} /><SupportComplaintPanel onFlash={onFlash} /></>;
   if (tab === 'summary') return <EmployerSummary />;
   if (tab === 'post') return <EmployerPostJobPanel onFlash={onFlash} />;
@@ -17603,14 +17602,15 @@ function jobOutcomeMessage(job, wasDraft) {
   return [`Job sent to admin review before it goes live${reasons ? `: ${reasons}` : ''}. You will be notified of the decision.`, 'success'];
 }
 
+const SALARY_CURRENCIES = ['PKR', 'USD', 'AED', 'SAR', 'GBP', 'EUR', 'QAR', 'OMR', 'KWD', 'CAD', 'AUD'];
 const EMPTY_JOB_FORM = {
   title: '', company: '', type: 'full_time', workMode: 'onsite', country: '', city: '',
   salaryMin: '', salaryMax: '', experienceYears: '', education: '', skills: '', description: '',
-  companyLogo: '', visaSponsorship: false, applicationDeadline: '', status: 'active', category: 'other'
+  companyLogo: '', visaSponsorship: false, applicationDeadline: '', status: 'active', category: 'other', currency: 'PKR'
 };
 
 // agreementId: an agent publishing for an institute under an active recruitment agreement.
-function EmployerPostJobPanel({ onFlash, institution = null, onPosted, agreementId = null }) {
+function EmployerPostJobPanel({ onFlash, institution = null, onPosted, agreementId = null, asAgent = false }) {
   const [form, setForm] = useState(() => ({ ...EMPTY_JOB_FORM, ...(institution ? { company: institution.name, category: 'teaching', country: institution.country || '', city: institution.city || '' } : {}) }));
 
   async function submit(e) {
@@ -17670,6 +17670,7 @@ function EmployerPostJobPanel({ onFlash, institution = null, onPosted, agreement
         <div className="flex flex-wrap" style={{ gap: 14 }}>
           <input className="form-input" type="number" placeholder="Salary min" value={form.salaryMin} onChange={(e) => setForm({ ...form, salaryMin: e.target.value })} style={{ flex: '1 1 150px', minWidth: 0 }} />
           <input className="form-input" type="number" placeholder="Salary max" value={form.salaryMax} onChange={(e) => setForm({ ...form, salaryMax: e.target.value })} style={{ flex: '1 1 150px', minWidth: 0 }} />
+          <select className="form-select" aria-label="Salary currency" value={form.currency} onChange={(e) => setForm({ ...form, currency: e.target.value })} style={{ flex: '0 1 110px', minWidth: 0 }}>{SALARY_CURRENCIES.map((c) => <option key={c} value={c}>{c}</option>)}</select>
           <input className="form-input" type="number" placeholder="Years experience" value={form.experienceYears} onChange={(e) => setForm({ ...form, experienceYears: e.target.value })} style={{ flex: '1 1 150px', minWidth: 0 }} />
         </div>
       </div>
@@ -17679,6 +17680,8 @@ function EmployerPostJobPanel({ onFlash, institution = null, onPosted, agreement
         <input className="form-input" placeholder="Education required" value={form.education} onChange={(e) => setForm({ ...form, education: e.target.value })} />
         <input className="form-input" placeholder="Skills (comma separated)" value={form.skills} onChange={(e) => setForm({ ...form, skills: e.target.value })} />
         <textarea className="form-input" placeholder="Job description" rows={5} value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} />
+        <ImproveDescriptionButton form={form} setForm={setForm} onFlash={onFlash} />
+        {asAgent && !agreementId && !institution && <EmployerEmailField value={form.employerEmail || ''} onChange={(v) => setForm({ ...form, employerEmail: v })} />}
       </div>
 
       <div className="card" style={{ padding: 20, display: 'grid', gap: 14 }}>
@@ -17733,7 +17736,8 @@ const CANDIDATE_STATUS = {
 // teaching and non-teaching, and manages applicants. Reuses the employer posting and jobs panels.
 function InstitutionJobsPanel({ onFlash }) {
   const [institutions, setInstitutions] = useState(null), [id, setId] = useState('');
-  const [sub, setSub] = useState('jobs'), [reloadKey, setReloadKey] = useState(0);
+  const linkSub = new URLSearchParams(useLocation().search).get('sub');
+  const [sub, setSub] = useState(['jobs', 'post', 'agents'].includes(linkSub) ? linkSub : 'jobs'), [reloadKey, setReloadKey] = useState(0);
   useEffect(() => { apiRequest('/institutions/mine/list').then((rows) => { setInstitutions(rows); setId(rows[0]?._id || ''); }).catch((e) => { setInstitutions([]); onFlash(e.message); }); }, []); // eslint-disable-line react-hooks/exhaustive-deps
   if (!institutions) return <p role="status" className="admin-notice">Loading...</p>;
   const institution = institutions.find((i) => i._id === id);
@@ -17758,11 +17762,9 @@ function InstitutionJobsPanel({ onFlash }) {
 }
 
 function EmployerJobsPanel({ onFlash, institution = null, reloadKey = 0 }) {
-  const [featureCheckout, setFeatureCheckout] = useState({ paddle: false });
-  useEffect(() => {
-    apiRequest('/payments/paddle/config').catch(() => ({ enabled: false }))
-      .then((paddle) => setFeatureCheckout({ paddle: paddle.enabled ? paddle : false }));
-  }, []);
+  const [jazzCashEnabled, setJazzCashEnabled] = useState(false);
+  const [safepayEnabled, setSafepayEnabled] = useState(false);
+  useEffect(() => { getJazzCashConfig().then((config) => setJazzCashEnabled(Boolean(config.enabled))); getSafepayConfig().then((config) => setSafepayEnabled(Boolean(config.enabled))); }, []);
   const [jobs, setJobs] = useState([]);
   const [openJob, setOpenJob] = useState(null);
   const [applicants, setApplicants] = useState([]);
@@ -17795,7 +17797,7 @@ function EmployerJobsPanel({ onFlash, institution = null, reloadKey = 0 }) {
     setEditingJobId(job._id);
     setEditForm({
       title: job.title, company: job.company, city: job.city || '', country: job.country,
-      type: job.type, workMode: job.workMode || 'onsite', salaryMin: job.salaryMin ?? '', salaryMax: job.salaryMax ?? '',
+      type: job.type, workMode: job.workMode || 'onsite', salaryMin: job.salaryMin ?? '', salaryMax: job.salaryMax ?? '', currency: job.currency || 'PKR',
       applicationDeadline: job.applicationDeadline ? job.applicationDeadline.slice(0, 10) : '', description: job.description || ''
     });
   }
@@ -17830,18 +17832,8 @@ function EmployerJobsPanel({ onFlash, institution = null, reloadKey = 0 }) {
 
   const [featuredFee, setFeaturedFee] = useState(null);
   useEffect(() => { apiRequest('/jobs/featured-fee').then(setFeaturedFee).catch(() => {}); }, []);
-  async function feature(jobId) {
-    try {
-      const { transactionId } = await apiRequest(`/payments/paddle/jobs/${jobId}/feature-checkout`, { method: 'POST' });
-      const Paddle = await loadPaddle(featureCheckout.paddle.clientToken, featureCheckout.paddle.environment);
-      setActiveCheckoutHandler(async () => {
-        try {
-          const result = await apiRequest(`/payments/paddle/jobs/${jobId}/feature-checkout/${transactionId}/sync`);
-          if (result.status === 'paid') { onFlash('Featured placement confirmed.', 'success'); load(); }
-        } catch (error) { onFlash(error.message); }
-      });
-      Paddle.Checkout.open({ transactionId, settings: { displayMode: 'overlay' } });
-    } catch (err) { onFlash(err.message); }
+  async function feature(jobId, gateway) {
+    try { await (gateway === 'safepay' ? startSafepayCheckout : startJazzCashCheckout)(`/payments/jazzcash/jobs/${jobId}/feature-checkout`); } catch (err) { onFlash(err.message); }
   }
 
   return (
@@ -17856,7 +17848,7 @@ function EmployerJobsPanel({ onFlash, institution = null, reloadKey = 0 }) {
           j.applicationDeadline ? new Date(j.applicationDeadline).toLocaleDateString() : '—',
           j.applicantCount ?? 0,
           <div style={{ display: 'grid', gap: 4 }}>
-            <Tag status={JOB_STATUS[j.status]?.tag || 'pending'} label={JOB_STATUS[j.status]?.label || j.status} />
+            <><Tag status={JOB_STATUS[j.status]?.tag || 'pending'} label={JOB_STATUS[j.status]?.label || j.status} /> <EmployerConsentBadge job={j} /></>
             {j.status === 'pending_review' && <small style={{ color: 'var(--ink-soft)' }}>{(j.moderation?.flags || []).map((f) => f.label).join('; ') || 'Waiting for an admin.'}</small>}
             {j.status === 'rejected' && <small style={{ color: 'var(--rose, #b42318)' }}>{j.moderation?.note || 'Not approved.'} Edit and submit again.</small>}
           </div>,
@@ -17865,8 +17857,9 @@ function EmployerJobsPanel({ onFlash, institution = null, reloadKey = 0 }) {
             <button className="btn" style={{ padding: '6px 12px', fontSize: '0.78rem' }} onClick={() => startEdit(j)}>Edit</button>
             {featuredFee?.enabled !== false && !(j.featured && new Date(j.featuredUntil) > new Date()) && (
               <span className="flex gap-2 flex-wrap">
-                {featureCheckout.paddle && <button className="btn" onClick={() => feature(j._id)}>Feature with Paddle{featuredFee ? ` ($${featuredFee.fee})` : ''}</button>}
-                {!featureCheckout.paddle && <span className="text-xs">Featured checkout unavailable</span>}
+                {featuredFee && ['active', 'paused'].includes(j.status) && <ManualPayButton kind="featured_job" id={j._id} label={`Feature for ${featuredFee.days} days (USD ${featuredFee.fee}) · bank transfer`} onFlash={onFlash} onDone={load} />}
+                {safepayEnabled && featuredFee && ['active', 'paused'].includes(j.status) && <button type="button" className="btn" style={{ padding: '6px 12px', fontSize: '0.78rem' }} onClick={() => feature(j._id, 'safepay')}>Feature for {featuredFee.days} days (USD {featuredFee.fee}) · Safepay</button>}
+                {jazzCashEnabled && featuredFee && ['active', 'paused'].includes(j.status) && <button type="button" className="btn" style={{ padding: '6px 12px', fontSize: '0.78rem' }} onClick={() => feature(j._id)}>Feature for {featuredFee.days} days (USD {featuredFee.fee}) · JazzCash</button>}
               </span>
             )}
             {['draft', 'rejected'].includes(j.status) && <button className="btn btn-primary" style={{ padding: '6px 12px', fontSize: '0.78rem' }} onClick={() => setJobStatus(j, 'active')}>{j.status === 'draft' ? 'Submit' : 'Submit again'}</button>}
@@ -17892,6 +17885,7 @@ function EmployerJobsPanel({ onFlash, institution = null, reloadKey = 0 }) {
             <div className="flex flex-wrap" style={{ gap: 12 }}>
               <input className="form-input" type="number" placeholder="Salary min" value={editForm.salaryMin} onChange={(e) => setEditForm({ ...editForm, salaryMin: e.target.value ? Number(e.target.value) : '' })} style={{ flex: '1 1 150px', minWidth: 0 }} />
               <input className="form-input" type="number" placeholder="Salary max" value={editForm.salaryMax} onChange={(e) => setEditForm({ ...editForm, salaryMax: e.target.value ? Number(e.target.value) : '' })} style={{ flex: '1 1 150px', minWidth: 0 }} />
+              <select className="form-select" aria-label="Salary currency" value={editForm.currency} onChange={(e) => setEditForm({ ...editForm, currency: e.target.value })} style={{ flex: '0 1 110px', minWidth: 0 }}>{[...new Set([editForm.currency, ...SALARY_CURRENCIES])].map((c) => <option key={c} value={c}>{c}</option>)}</select>
             </div>
             <label className="text-xs" style={{ color: 'var(--ink-soft)', fontWeight: 600 }}>Application deadline
               <input className="form-input" type="date" value={editForm.applicationDeadline} onChange={(e) => setEditForm({ ...editForm, applicationDeadline: e.target.value })} style={{ marginTop: 6, maxWidth: 220 }} />
@@ -17907,6 +17901,7 @@ function EmployerJobsPanel({ onFlash, institution = null, reloadKey = 0 }) {
       {openJob && (
         <div style={{ marginTop: 32 }}>
           <h3 className="font-semibold" style={{ marginBottom: 14 }}>Manage Candidates</h3>
+          {applicants.length > 1 && <RankApplicantsButton jobId={openJob._id || openJob} onFlash={onFlash} />}
           {applicants.length === 0 && (
             <div className="student-empty-state" style={{ border: '1px solid var(--sand-line)', borderRadius: 18 }}>
               <FaUsers aria-hidden="true" />
@@ -17928,10 +17923,12 @@ function EmployerJobsPanel({ onFlash, institution = null, reloadKey = 0 }) {
                       <p className="text-xs" style={{ color: 'var(--ink-soft)', marginTop: 4 }}>{a.resumeSnapshot?.skills?.length > 0 ? a.resumeSnapshot.skills.join(', ') : 'No skills listed'} · {a.resumeSnapshot?.experienceLevel || 'Experience not set'} · {a.resumeSnapshot?.location || 'Location not set'}</p>
                       <p className="text-xs" style={{ marginTop: 4 }}><CvDownload application={a} onFlash={onFlash} /> · Applied {new Date(a.createdAt).toLocaleDateString()}</p>
                       <div style={{ marginTop: 6 }}><ApplicantContact application={a} /></div>
+                      <div style={{ marginTop: 6 }}><ApplicationThread applicationId={a._id} count={a.messageCount} onFlash={onFlash} /></div>
+                      {a.nextInterview && <div className="text-xs" style={{ marginTop: 8, display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}><span><strong>{a.nextInterview.round === 'final_interview' ? 'Final interview' : 'Interview'}:</strong> {new Date(a.nextInterview.scheduledDate).toLocaleString()} · {a.nextInterview.mode === 'online' ? 'CareerZ video room' : a.nextInterview.location}</span><InterviewJoin interview={{ ...a.nextInterview, job: jobs.find((j) => j._id === openJob) }} /></div>}
                     </div>
                   </div>
                   <div className="flex items-center" style={{ gap: 10, flexShrink: 0 }}>
-                    <HiringStatusControl key={`${a._id}-${a.status}`} application={a} institutionConfirms={Boolean(jobs.find((j) => j._id === openJob)?.agreement)} onFlash={onFlash} onSaved={() => viewApplicants(openJob)} />
+                    <HiringStatusControl key={`${a._id}-${a.status}-${a.employment?.status || ''}-${a.employment?.offerLetter?.sentAt || ''}`} application={a} job={jobs.find((j) => j._id === openJob)} institutionConfirms={Boolean(jobs.find((j) => j._id === openJob)?.agreement)} onFlash={onFlash} onSaved={() => viewApplicants(openJob)} />
                     <button type="button" className="btn" style={{ padding: '8px 14px', fontSize: '0.75rem' }} onClick={() => setInterviewFormFor(interviewFormFor === a._id ? null : a._id)}>Schedule Interview</button>
                   </div>
                 </div>
@@ -17950,7 +17947,7 @@ function EmployerJobsPanel({ onFlash, institution = null, reloadKey = 0 }) {
                       />
                     </div>
                     {interviewForm.mode === 'online'
-                      ? <input className="form-input" placeholder="Meeting link" value={interviewForm.meetingLink} onChange={(e) => setInterviewForm({ ...interviewForm, meetingLink: e.target.value })} style={{ flex: '1 1 200px', minWidth: 0 }} />
+                      ? <span className="text-xs" style={{ flex: '1 1 200px', minWidth: 0, color: 'var(--ink-soft)' }}>Held in CareerZ's own video room; you and the candidate get a Join button.</span>
                       : <input className="form-input" placeholder="Location / address" value={interviewForm.location} onChange={(e) => setInterviewForm({ ...interviewForm, location: e.target.value })} style={{ flex: '1 1 200px', minWidth: 0 }} />}
                     <button type="button" className="btn btn-primary" style={{ padding: '8px 16px', fontSize: '0.78rem', flexShrink: 0 }} onClick={() => submitInterview(a._id)}>Confirm</button>
                   </div>
@@ -18163,18 +18160,10 @@ function RecommendedFundingRequestsPanel({ onFlash }) {
             <div className="u-modal-body">
               <p className="text-xs mb-2" style={{ color: 'var(--ink-soft)' }}>{donateFor.request.title} — {donateFor.request.currency} {Math.max(donateFor.request.requiredAmount - donateFor.request.collectedAmount, 0)} remaining</p>
               <input className="form-input" type="number" placeholder={`Amount (${donateFor.request.currency})`} value={donateAmount} onChange={(e) => setDonateAmount(e.target.value)} />
-              <select className="form-select mt-2" value={donatePaymentMethod} onChange={(e) => setDonatePaymentMethod(e.target.value)}>
-                <option value="bank_transfer">Bank Transfer</option>
-                <option value="mobile_wallet">Mobile Wallet</option>
-                <option value="cash">Cash</option>
-                <option value="other">Other</option>
-              </select>
-              <input className="form-input mt-2" placeholder="Transaction / cash receipt reference" value={donateReference} onChange={(e) => setDonateReference(e.target.value)} />
-              <input className="form-input mt-2" placeholder="Bank / wallet / payment details" value={donateProvider} onChange={(e) => setDonateProvider(e.target.value)} />
-              <label className="text-xs" style={{ display: 'block', marginTop: 8 }}>Payment proof {donatePaymentMethod === 'cash' ? '(optional)' : '(required)'}<input className="form-input" type="file" accept="image/*,.pdf" onChange={(e) => setDonateProof(e.target.files?.[0] || null)} /></label>
+              <p className="text-xs mt-2" style={{ color: 'var(--ink-soft)' }}>Enter the amount, then send it by bank transfer: a small CareerZ service fee to CareerZ and the donation straight to the receiver. CareerZ checks both receipts before it counts.</p>
             </div>
             <div className="u-modal-foot">
-              <button type="button" className="btn btn-primary" onClick={confirmDonate}>Confirm {donateFor.type === 'sponsorship' ? 'Sponsorship' : 'Donation'}</button>
+              {Number(donateAmount) > 0 && <ManualPayButton kind="donation" id={donateFor.request._id} query={{ amount: Number(donateAmount) }} label={`Pay ${donateFor.type === 'sponsorship' ? 'sponsorship' : 'donation'} by bank transfer`} onFlash={onFlash} onDone={() => { setDonateFor(null); load(); }} />}
             </div>
           </div>
         </div>
@@ -18315,18 +18304,10 @@ function DonationOpportunitiesPanel({ onFlash }) {
             <div className="u-modal-body">
               <p className="text-xs mb-2" style={{ color: 'var(--ink-soft)' }}>{donateFor.request.title} — {donateFor.request.currency} {Math.max(donateFor.request.requiredAmount - donateFor.request.collectedAmount, 0)} remaining</p>
               <input className="form-input" type="number" placeholder={`Amount (${donateFor.request.currency})`} value={donateAmount} onChange={(e) => setDonateAmount(e.target.value)} />
-              <select className="form-select mt-2" value={donatePaymentMethod} onChange={(e) => setDonatePaymentMethod(e.target.value)}>
-                <option value="bank_transfer">Bank Transfer</option>
-                <option value="mobile_wallet">Mobile Wallet</option>
-                <option value="cash">Cash</option>
-                <option value="other">Other</option>
-              </select>
-              <input className="form-input mt-2" placeholder="Transaction / cash receipt reference" value={donateReference} onChange={(e) => setDonateReference(e.target.value)} />
-              <input className="form-input mt-2" placeholder="Bank / wallet / payment details" value={donateProvider} onChange={(e) => setDonateProvider(e.target.value)} />
-              <label className="text-xs" style={{ display: 'block', marginTop: 8 }}>Payment proof {donatePaymentMethod === 'cash' ? '(optional)' : '(required)'}<input className="form-input" type="file" accept="image/*,.pdf" onChange={(e) => setDonateProof(e.target.files?.[0] || null)} /></label>
+              <p className="text-xs mt-2" style={{ color: 'var(--ink-soft)' }}>Enter the amount, then send it by bank transfer: a small CareerZ service fee to CareerZ and the donation straight to the receiver. CareerZ checks both receipts before it counts.</p>
             </div>
             <div className="u-modal-foot">
-              <button type="button" className="btn btn-primary" onClick={confirmDonate}>Confirm {donateFor.type === 'sponsorship' ? 'Sponsorship' : 'Donation'}</button>
+              {Number(donateAmount) > 0 && <ManualPayButton kind="donation" id={donateFor.request._id} query={{ amount: Number(donateAmount) }} label={`Pay ${donateFor.type === 'sponsorship' ? 'sponsorship' : 'donation'} by bank transfer`} onFlash={onFlash} onDone={() => { setDonateFor(null); load(); }} />}
             </div>
           </div>
         </div>
@@ -18875,7 +18856,7 @@ function DonorWalletPanel({ onFlash }) {
   const [addFundsReference, setAddFundsReference] = useState('');
   const [addFundsProvider, setAddFundsProvider] = useState('');
   const [addFundsProof, setAddFundsProof] = useState(null);
-  const [newCurrency, setNewCurrency] = useState('USD');
+  const [newCurrency, setNewCurrency] = useState('PKR');
 
   function load() {
     apiRequest('/scholarships/mine/deposits').then(setDeposits).catch((err) => onFlash(err.message));
@@ -20171,7 +20152,7 @@ function SellerDashboardPanel({ user, onFlash, onChanged, onNavigate }) {
 function AgentWorkspace({ tab, user, onFlash, onChanged, onNavigate }) {
   if (tab === 'profile') return <><ProfilePanel user={user} onFlash={onFlash} onChanged={onChanged} /><RolesPanel onFlash={onFlash} onChanged={onChanged} /><SupportComplaintPanel onFlash={onFlash} /></>;
   if (tab === 'summary') return <AgentDashboardPanel user={user} onFlash={onFlash} onNavigate={onNavigate} />;
-  if (tab === 'post') return <EmployerPostJobPanel onFlash={onFlash} />;
+  if (tab === 'post') return <EmployerPostJobPanel onFlash={onFlash} asAgent />;
   if (tab === 'jobs') return <EmployerJobsPanel onFlash={onFlash} />;
   if (tab === 'instituteRequests') return <AgentRecruitmentPanel onFlash={onFlash} renderPostJob={(r, done) => <EmployerPostJobPanel key={r._id} onFlash={onFlash} institution={r.institution} agreementId={r.activeAgreement._id} onPosted={done} />} />;
   if (tab === 'agentScholarships') return <AgentScholarshipsPanel onFlash={onFlash} />;
@@ -20547,14 +20528,14 @@ function AgentInterviewsPanel({ onFlash }) {
                 <div>
                   <strong className="text-sm">{i.candidate?.fullName}</strong>
                   <p className="text-xs" style={{ color: 'var(--ink-soft)', marginTop: 2 }}>{i.job?.title} · {i.job?.company}</p>
-                  <p className="text-xs" style={{ color: 'var(--ink-soft)', marginTop: 4 }}>{new Date(i.scheduledDate).toLocaleString()} · {i.mode === 'physical' ? 'Physical' : 'Online'} · {i.mode === 'physical' ? (i.location || 'Location TBD') : (i.meetingLink || 'Link TBD')}</p>
+                  <p className="text-xs" style={{ color: 'var(--ink-soft)', marginTop: 4 }}>{new Date(i.scheduledDate).toLocaleString()} · {i.mode === 'physical' ? 'Physical' : 'Online'} · {i.mode === 'physical' ? (i.location || 'Location TBD') : 'CareerZ video room'}</p>
                   {i.feedback && <p className="text-xs" style={{ color: 'var(--ink-soft)', marginTop: 6 }}><strong>Feedback:</strong> {i.feedback}</p>}
                   <span style={{ display: 'inline-block', marginTop: 8 }}><Tag status={st.tag} label={st.label} /></span>
                 </div>
               </div>
               {i.status === 'scheduled' && (
                 <div className="flex flex-wrap" style={{ gap: 8, flexShrink: 0 }}>
-                  {i.mode === 'online' && i.meetingLink && <a className="btn btn-primary" style={{ padding: '7px 14px', fontSize: '0.75rem' }} href={i.meetingLink} target="_blank" rel="noreferrer">Join Interview</a>}
+                  {i.mode === 'online' && <InterviewJoin interview={i} />}
                   <button type="button" className="btn" style={{ padding: '7px 14px', fontSize: '0.75rem' }} onClick={() => { setRescheduleFor(rescheduleFor === i._id ? null : i._id); setFeedbackFor(null); }}>Reschedule</button>
                   <button type="button" className="btn" style={{ padding: '7px 14px', fontSize: '0.75rem' }} onClick={() => cancel(i._id)}>Cancel</button>
                   <button type="button" className="btn" style={{ padding: '7px 14px', fontSize: '0.75rem' }} onClick={() => { setFeedbackFor(feedbackFor === i._id ? null : i._id); setRescheduleFor(null); }}>Add Feedback</button>
@@ -20709,7 +20690,7 @@ function AgentCommissionPanel({ onFlash }) {
   return (
     <div>
       <h3 className="font-semibold mb-2">Commission Overview</h3>
-      <p className="text-xs mb-3" style={{ color: 'var(--ink-soft)' }}>Earned automatically ({data.commissions[0]?.rate ?? 10}% of the placement's minimum salary) when a candidate you placed is marked "hired". An admin reviews Pending → Approved → Available before it can be withdrawn.</p>
+      <p className="text-xs mb-3" style={{ color: 'var(--ink-soft)' }}>Earned automatically ({data.commissions[0]?.rate ?? 0}% of the placement's minimum salary) when a candidate you placed is marked "hired". An admin reviews Pending → Approved → Available before it can be withdrawn.</p>
       {currencies.length === 0 && <div className="card" style={{ padding: 16, marginBottom: 16 }}><strong className="text-sm">No commission earned yet</strong></div>}
       {currencies.map((currency) => {
         const t = data.totalsByCurrency[currency];
@@ -20769,7 +20750,8 @@ function AgentWalletPanel({ onFlash }) {
 
   return (
     <div>
-      <h3 className="font-semibold" style={{ marginBottom: 4 }}>Wallet</h3>
+      <ReceivingAccount onFlash={onFlash} />
+      <h3 className="font-semibold" style={{ marginBottom: 4, marginTop: 16 }}>Wallet</h3>
       <p className="text-xs" style={{ color: 'var(--ink-soft)', marginBottom: 18 }}>No real payment processor is wired up yet — "Withdraw Funds" creates a real, trackable request; nothing here moves actual money.</p>
       {currencies.length === 0 && (
         <div className="student-empty-state" style={{ border: '1px solid var(--sand-line)', borderRadius: 18, marginBottom: 20 }}>
@@ -21112,7 +21094,7 @@ function AdminWorkspace({ tab, user, roles, onFlash, onChanged }) {
     );
   }
   if (tab === 'summary' || tab === 'institutions_mgmt') return <><AdminPanel onFlash={onFlash} />{tab==='summary'&&roles.some(r=>['admin','super_admin'].includes(r))&&<FamilyAdminSummary onFlash={onFlash} />}</>;
-  if (tab === 'agents') return <AdminRolePanel onFlash={onFlash} role="education_agent" title="Agent Management" />;
+  if (tab === 'agents') return <><AdminAgentsPanel onFlash={onFlash} isSuperAdmin={roles.includes('super_admin')} /><AdminRolePanel onFlash={onFlash} role="education_agent" title="Agent Management" /></>;
   if (tab === 'donors') return <AdminDonorsPanel onFlash={onFlash} />;
   if (tab === 'complaints') return <><AdminComplaintsPanel onFlash={onFlash}/>{roles.some(r=>['admin','super_admin'].includes(r))&&<FamilyChatPolicy onFlash={onFlash}/>}</>;
   if (tab === 'security') return <AdminSecurityPanel onFlash={onFlash} />;
@@ -21495,17 +21477,22 @@ function AdminBackupsPanel({ onFlash }) {
 function AdminFinancePanel({ onFlash, isSuperAdmin }) {
   const [data, setData] = useState(null);
   const [donorDeposits, setDonorDeposits] = useState(null);
-  const [feeRateInput, setFeeRateInput] = useState('');
   const [featuredFeeInput, setFeaturedFeeInput] = useState('');
   const [featuredFee, setFeaturedFee] = useState(null);
   const [withdrawals, setWithdrawals] = useState(null);
+  const [feeQueue, setFeeQueue] = useState(null);
+  const [agentPayouts, setAgentPayouts] = useState(null);
+  const [sellerPayouts, setSellerPayouts] = useState(null);
   const [planConfig, setPlanConfig] = useState(null);
   const [planPriceInputs, setPlanPriceInputs] = useState({});
 
   function load() {
-    apiRequest('/admin/finance').then((d) => { setData(d); setFeeRateInput(String(d.platformRevenue.institutionFeeCommission.rate)); }).catch((err) => onFlash(err.message));
+    apiRequest('/admin/finance').then(setData).catch((err) => onFlash(err.message));
     apiRequest('/jobs/featured-fee').then((d) => { setFeaturedFee(d); setFeaturedFeeInput(String(d.fee)); }).catch(() => {});
     apiRequest('/wallet/withdrawals/pending').then(setWithdrawals).catch(() => setWithdrawals([]));
+    apiRequest('/admin/fee-payments').then(setFeeQueue).catch(() => setFeeQueue({ pending: [], held: [] }));
+    apiRequest('/commissions/withdrawals/open').then(setAgentPayouts).catch(() => setAgentPayouts([]));
+    apiRequest('/marketplace/sellers/withdrawals/open').then(setSellerPayouts).catch(() => setSellerPayouts([]));
     apiRequest('/scholarships/admin/deposits').then(setDonorDeposits).catch(() => setDonorDeposits([]));
     apiRequest('/admin/subscription-plans').then((d) => {
       setPlanConfig(d);
@@ -21525,12 +21512,40 @@ function AdminFinancePanel({ onFlash, isSuperAdmin }) {
     } catch (err) { onFlash(err.message); }
   }
 
+  // Approve after sending the money from CareerZ's bank app to the account shown, with that
+  // transfer's transaction ID; reject returns the money to the user's wallet.
   async function reviewWithdrawal(id, decision) {
+    const body = { decision };
+    if (decision === 'approved') {
+      body.transferReference = await showPrompt('Send the money to the account shown from the CareerZ bank app, then enter that transfer\'s transaction ID.', { title: 'Money sent', required: true });
+      if (!body.transferReference) return;
+    } else {
+      body.reason = await showPrompt('Why is this withdrawal rejected? The user is told.', { title: 'Reject withdrawal', required: true });
+      if (!body.reason) return;
+    }
     try {
-      await apiRequest(`/wallet/withdrawals/${id}/review`, { method: 'PATCH', body: { decision } });
+      await apiRequest(`/wallet/withdrawals/${id}/review`, { method: 'PATCH', body });
       onFlash(`Withdrawal ${decision}.`, 'success');
       load();
     } catch (err) { onFlash(err.message); }
+  }
+  // Manual fee payments (bank/cash proof) count only after CareerZ checks the proof.
+  async function decideFeePayment(feeId, decision) {
+    let rejectionReason = '';
+    if (decision === 'reject') {
+      rejectionReason = await showPrompt('Why was this payment rejected?', { title: 'Reject payment', required: true });
+      if (!rejectionReason) return;
+    } else if (!(await showConfirm('Confirm only after checking the proof against the bank statement / receipt.', { confirmLabel: 'Verify received' }))) return;
+    try { await apiRequest(`/institution-fees/fees/${feeId}/verify-payment`, { method: 'PATCH', body: { decision, rejectionReason } }); onFlash(`Payment ${decision === 'verify' ? 'verified' : 'rejected'}.`, 'success'); load(); } catch (err) { onFlash(err.message); }
+  }
+  async function releaseFee(feeId) {
+    try { await apiRequest(`/institutions/fees/${feeId}/release`, { method: 'PATCH' }); onFlash('Released. If it was paid online, the institute\'s share is now in its wallet.', 'success'); load(); } catch (err) { onFlash(err.message); }
+  }
+  // Agent and seller payouts: requested -> processing -> paid | rejected (paid and rejected are final).
+  async function setPayout(kind, id, status) {
+    const path = kind === 'agent' ? `/commissions/withdrawals/${id}/status` : `/marketplace/sellers/withdrawals/${id}/status`;
+    if (status === 'paid' && !(await showConfirm('Mark as paid only after you have sent the money to the account shown.', { confirmLabel: 'Money sent' }))) return;
+    try { await apiRequest(path, { method: 'PATCH', body: { status } }); onFlash(`Payout ${status}.`, 'success'); load(); } catch (err) { onFlash(err.message); }
   }
   async function reviewDonorDeposit(id, status) {
     let rejectionReason = '';
@@ -21544,15 +21559,6 @@ function AdminFinancePanel({ onFlash, isSuperAdmin }) {
     try { await apiRequest(`/scholarships/deposits/${id}/status`, { method: 'PATCH', body: { status, rejectionReason } }); onFlash(`Deposit ${status}.`, 'success'); load(); } catch (err) { onFlash(err.message); }
   }
 
-  async function saveFeeRate(e) {
-    e.preventDefault();
-    try {
-      await apiRequest('/admin/institution-fee-commission-rate', { method: 'PATCH', body: { rate: Number(feeRateInput) } });
-      onFlash('Institution fee commission rate updated.', 'success');
-      load();
-      return true;
-    } catch (err) { onFlash(err.message); }
-  }
   async function saveFeaturedFee(e) {
     e.preventDefault();
     try {
@@ -21581,6 +21587,8 @@ function AdminFinancePanel({ onFlash, isSuperAdmin }) {
     <div>
       <h3 className="font-semibold mb-2">Financial Management</h3>
 
+      {isSuperAdmin && <PlatformAccountForm onFlash={onFlash} />}
+      <AdminManualPayments onFlash={onFlash} isSuperAdmin={isSuperAdmin} />
       <div className="card" style={{ padding: 20, marginBottom: 16 }}>
         <h4 className="font-semibold mb-3">Pending Wallet Withdrawals {withdrawals && withdrawals.length > 0 ? `(${withdrawals.length})` : ''}</h4>
         <Table
@@ -21593,13 +21601,64 @@ function AdminFinancePanel({ onFlash, isSuperAdmin }) {
             w.payoutDetails,
             new Date(w.createdAt).toLocaleDateString(),
             <div className="flex gap-2">
-              <button className="btn btn-primary" style={{ padding: '5px 12px', fontSize: '0.78rem' }} onClick={() => reviewWithdrawal(w._id, 'approved')}>Approve</button>
+              <button className="btn btn-primary" style={{ padding: '5px 12px', fontSize: '0.78rem' }} onClick={() => reviewWithdrawal(w._id, 'approved')}>Money sent</button>
               <button className="btn" style={{ padding: '5px 12px', fontSize: '0.78rem' }} onClick={() => reviewWithdrawal(w._id, 'rejected')}>Reject</button>
             </div>
           ])}
           empty="No pending withdrawal requests."
         />
-        <p className="text-xs mt-2" style={{ color: 'var(--ink-soft)' }}>Approving means you've paid the user externally (bank transfer/mobile wallet, per their details above) — CareerZ has no payout gateway, so this just confirms it happened. Rejecting returns the funds to their available balance.</p>
+        <p className="text-xs mt-2" style={{ color: 'var(--ink-soft)' }}>No payout API is connected yet: send the amount from the CareerZ bank app to the account shown, then press Money sent and enter the transaction ID. The user sees that ID. Rejecting returns the funds to their wallet.</p>
+      </div>
+
+      <div className="card" style={{ padding: 20, marginBottom: 16 }}>
+        <h4 className="font-semibold mb-3">Fee Payments Awaiting Verification {feeQueue?.pending?.length ? `(${feeQueue.pending.length})` : ''}</h4>
+        <Table
+          loading={feeQueue === null}
+          headers={['Institute', 'Student', 'Fee', 'Reported', 'Reference', 'Proof', 'Action']}
+          rows={(feeQueue?.pending || []).map((f) => { const p = [...(f.paymentHistory || [])].reverse().find((h) => h.verificationStatus === 'pending'); return [
+            f.institution?.name || '—', f.student?.fullName || '—', f.title,
+            <span>{f.currency} {p?.amount} via {p?.method}{p?.paidByInfo ? <><br /><span className="text-xs">by {p.paidByInfo.name} ({p.paidByInfo.role})</span></> : null}</span>,
+            <span>{p?.reference || '—'}{p?.bankName ? ` · ${p.bankName}` : ''}</span>,
+            p?.proofUrl ? <a className="btn" style={{ padding: '4px 10px', fontSize: '0.72rem' }} href={p.proofUrl} target="_blank" rel="noreferrer">View proof</a> : '—',
+            <div className="flex gap-2">
+              <button className="btn btn-primary" style={{ padding: '5px 12px', fontSize: '0.78rem' }} onClick={() => decideFeePayment(f._id, 'verify')}>Verify</button>
+              <button className="btn" style={{ padding: '5px 12px', fontSize: '0.78rem' }} onClick={() => decideFeePayment(f._id, 'reject')}>Reject</button>
+            </div>
+          ]; })}
+          empty="No fee payments waiting for verification."
+        />
+      </div>
+
+      <div className="card" style={{ padding: 20, marginBottom: 16 }}>
+        <h4 className="font-semibold mb-3">Paid Fees Held for Release {feeQueue?.held?.length ? `(${feeQueue.held.length})` : ''}</h4>
+        <Table
+          loading={feeQueue === null}
+          headers={['Institute', 'Student', 'Fee', 'Amount', 'Paid', 'Action']}
+          rows={(feeQueue?.held || []).map((f) => [
+            f.institution?.name || '—', f.student?.fullName || '—', f.title, `${f.currency} ${f.paidAmount ?? f.amount}`,
+            f.paidAt ? new Date(f.paidAt).toLocaleDateString() : '—',
+            <button className="btn btn-primary" style={{ padding: '5px 12px', fontSize: '0.78rem' }} onClick={() => releaseFee(f._id)}>Release</button>
+          ])}
+          empty="No paid fees are held."
+        />
+      </div>
+
+      <div className="card" style={{ padding: 20, marginBottom: 16 }}>
+        <h4 className="font-semibold mb-3">Payout Requests (Agents and Sellers)</h4>
+        <Table
+          loading={agentPayouts === null || sellerPayouts === null}
+          headers={['Who', 'Amount', 'Method', 'Send to', 'Status', 'Action']}
+          rows={[...(agentPayouts || []).map((w) => ({ ...w, kind: 'agent', person: w.agent })), ...(sellerPayouts || []).map((w) => ({ ...w, kind: 'seller', person: w.seller }))].map((w) => [
+            `${w.person?.fullName || '—'} (${w.kind === 'agent' ? 'Agent' : 'Seller'})`, `${w.currency} ${w.amount}`, w.payoutMethod.replace('_', ' '), w.payoutDetails, w.status,
+            <div className="flex gap-2">
+              {w.status === 'requested' && <button className="btn" style={{ padding: '5px 12px', fontSize: '0.78rem' }} onClick={() => setPayout(w.kind, w._id, 'processing')}>Processing</button>}
+              <button className="btn btn-primary" style={{ padding: '5px 12px', fontSize: '0.78rem' }} onClick={() => setPayout(w.kind, w._id, 'paid')}>Mark paid</button>
+              <button className="btn" style={{ padding: '5px 12px', fontSize: '0.78rem' }} onClick={() => setPayout(w.kind, w._id, 'rejected')}>Reject</button>
+            </div>
+          ])}
+          empty="No payout requests."
+        />
+        <p className="text-xs mt-2" style={{ color: 'var(--ink-soft)' }}>Send the money outside CareerZ to the account shown, then mark it paid. Paid and rejected are final; a rejected request frees the money so the person can request again.</p>
       </div>
 
       <div className="card" style={{ padding: 20, marginBottom: 16 }}>
@@ -21619,13 +21678,10 @@ function AdminFinancePanel({ onFlash, isSuperAdmin }) {
         <p className="text-sm">Marketplace commission: <strong>${rev.marketplaceCommission.amount}</strong> ({rev.marketplaceCommission.rate}% of ${rev.marketplaceCommission.basedOn} in delivered orders)</p>
         <p className="text-sm">Featured job listings: <strong>${rev.featuredJobRevenue.amount}</strong> ({rev.featuredJobRevenue.count} purchased)</p>
 
+        <div style={{ marginTop: 16, paddingTop: 16, borderTop: '1px solid var(--sand-line)' }}>
+          <ServiceCommissionRates onFlash={onFlash} canEdit={isSuperAdmin} />
+        </div>
         <div className="flex gap-6 flex-wrap" style={{ marginTop: 16, paddingTop: 16, borderTop: '1px solid var(--sand-line)' }}>
-          <SavedForm value={feeRateInput} onRestore={setFeeRateInput} onSubmit={saveFeeRate} className="flex items-end gap-2">
-            <label className="text-xs" style={{ display: 'block' }}>Institution fee commission %
-              <input className="form-input" type="number" min="0" max="100" step="0.5" value={feeRateInput} onChange={(e) => setFeeRateInput(e.target.value)} style={{ width: 90, marginTop: 4 }} />
-            </label>
-            <button type="submit" className="btn btn-primary" style={{ padding: '7px 14px', fontSize: '0.8rem' }}>Save</button>
-          </SavedForm>
           <SavedForm value={featuredFeeInput} onRestore={setFeaturedFeeInput} onSubmit={saveFeaturedFee} className="flex items-end gap-2">
             <label className="text-xs" style={{ display: 'block' }}>Featured job fee (USD / {featuredFee?.days || 30} days)
               <input className="form-input" type="number" min="0.01" step="0.01" value={featuredFeeInput} onChange={(e) => setFeaturedFeeInput(e.target.value)} style={{ width: 90, marginTop: 4 }} />
@@ -21641,7 +21697,7 @@ function AdminFinancePanel({ onFlash, isSuperAdmin }) {
       {planConfig && (
         <div className="card" style={{ padding: 20, marginBottom: 16 }}>
           <h4 className="font-semibold mb-1">Subscription Plan Pricing</h4>
-          <p className="text-xs" style={{ color: 'var(--ink-soft)', marginBottom: 12 }}>30-day plan prices (USD). Institutions pay these via Paddle to unlock higher student/staff limits and institution-level AI keys.</p>
+          <p className="text-xs" style={{ color: 'var(--ink-soft)', marginBottom: 12 }}>30-day plan prices (USD). Institutions pay these via JazzCash (converted to PKR) to unlock higher student/staff limits and institution-level AI keys.</p>
           <div className="flex gap-6 flex-wrap">
             {Object.entries(planConfig.effective).filter(([k]) => k !== 'free').map(([planKey, plan]) => (
               <SavedForm key={planKey} value={planPriceInputs[planKey]} onRestore={value=>setPlanPriceInputs(prev=>({...prev,[planKey]:value}))} canEdit={isSuperAdmin} onSubmit={()=>savePlanPrice(planKey)} className="flex items-end gap-2">
@@ -22805,7 +22861,7 @@ function StudentPanel({ onFlash }) {
   const [loadError, setLoadError] = useState('');
   const [openCourseId, setOpenCourseId] = useState(null);
   const [courseQuery, setCourseQuery] = useState('');
-  const [paymentConfig, setPaymentConfig] = useState({ paddle: false, jazzcash: false });
+  const [paymentConfig, setPaymentConfig] = useState({ jazzcash: false });
   const [checkoutId, setCheckoutId] = useState(null);
 
   async function load() {
@@ -22816,39 +22872,11 @@ function StudentPanel({ onFlash }) {
     } catch (err) { setLoadError(err.message); } finally { setLoading(false); }
   }
   useEffect(() => { load(); }, []);
-  useEffect(() => {
-    Promise.all([
-      apiRequest('/payments/paddle/config').catch(() => ({ enabled: false })),
-      getJazzCashConfig()
-    ]).then(([paddle, jazzcash]) => setPaymentConfig({ paddle: paddle.enabled ? paddle : false, jazzcash: Boolean(jazzcash.enabled) }));
-  }, []);
+  useEffect(() => { Promise.all([getJazzCashConfig(), getSafepayConfig()]).then(([jazzcash, safepay]) => setPaymentConfig({ jazzcash: Boolean(jazzcash.enabled), safepay: Boolean(safepay.enabled) })); }, []);
 
-  async function checkoutStripe(course) {
+  async function checkoutJazzCash(course, gateway) {
     setCheckoutId(course._id);
-    try {
-      const { url } = await apiRequest(`/payments/stripe/courses/${course._id}/checkout`, { method: 'POST' });
-      window.location.assign(url);
-    } catch (error) { onFlash(error.message); setCheckoutId(null); }
-  }
-
-  async function checkoutJazzCash(course) {
-    setCheckoutId(course._id);
-    try { await startJazzCashCheckout(`/payments/jazzcash/courses/${course._id}/checkout`); } catch (error) { onFlash(error.message); setCheckoutId(null); }
-  }
-
-  async function checkout(course) {
-    setCheckoutId(course._id);
-    try {
-      const { transactionId } = await apiRequest(`/payments/paddle/courses/${course._id}/checkout`, { method: 'POST' });
-      const Paddle = await loadPaddle(paymentConfig.paddle.clientToken, paymentConfig.paddle.environment);
-      setActiveCheckoutHandler(async () => {
-        try {
-          const result = await apiRequest(`/payments/paddle/courses/${course._id}/transactions/${transactionId}/sync`);
-          if (result.status === 'paid') { onFlash('Payment confirmed. Course is ready.', 'success'); load(); }
-        } catch (error) { onFlash(error.message); }
-      });
-      Paddle.Checkout.open({ transactionId, settings: { displayMode: 'overlay' } });
-    } catch (error) { onFlash(error.message); } finally { setCheckoutId(null); }
+    try { await (gateway === 'safepay' ? startSafepayCheckout : startJazzCashCheckout)(`/payments/jazzcash/courses/${course._id}/checkout`); } catch (error) { onFlash(error.message); setCheckoutId(null); }
   }
 
   async function enroll(id) {
@@ -22873,10 +22901,9 @@ function StudentPanel({ onFlash }) {
               : c.institution ? <span className="text-xs">Assigned after admission and fee-plan enrollment</span>
               : c.isFree ? <button className="btn btn-primary mt-2" style={{ padding: '5px 12px', fontSize: '0.78rem' }} onClick={() => enroll(c._id)}>Enroll free</button>
                 : <div className="flex gap-2 mt-2 flex-wrap">
-                  {paymentConfig.paddle && <button type="button" className="btn btn-primary" disabled={checkoutId === c._id} onClick={() => checkout(c)}>Pay with Paddle</button>}
-                  {paymentConfig.jazzcash && <button type="button" className="btn" disabled={checkoutId === c._id} onClick={() => checkoutJazzCash(c)}>Pay with JazzCash</button>}
-                  <button type="button" className="btn" disabled={checkoutId === c._id} onClick={() => checkoutStripe(c)}>Pay with Stripe</button>
-                  {!paymentConfig.paddle && !paymentConfig.jazzcash && <span className="text-xs">Checkout is unavailable right now.</span>}
+                  {paymentConfig.safepay && <button type="button" className="btn btn-primary" disabled={checkoutId === c._id} onClick={() => checkoutJazzCash(c, 'safepay')}>Pay with Safepay</button>}
+                  {paymentConfig.jazzcash && <button type="button" className="btn btn-primary" disabled={checkoutId === c._id} onClick={() => checkoutJazzCash(c)}>Pay with JazzCash</button>}
+                  <ManualPayButton kind="course" id={c._id} onFlash={onFlash} onDone={load} />
                 </div>}
           </div>
         ))}
@@ -23717,6 +23744,7 @@ function MessagesPanel({ onFlash, user, restrictedStaffMessaging = false, initia
 }
 
 function NotificationsPanel({ onFlash }) {
+  const navigateTo = useNavigate();
   const [notifications, setNotifications] = useState(null);
   const [showSettings, setShowSettings] = useState(false);
   const { refreshUnreadNotifications } = useRealtime();
@@ -23762,9 +23790,9 @@ function NotificationsPanel({ onFlash }) {
       {notifications && notifications.length > 0 && (
         <div className="dash-list" style={{ border: '1px solid var(--sand-line)', borderRadius: 18, background: 'var(--paper-raised)', overflow: 'hidden', gap: 0 }}>
           {notifications.map((n, idx) => (
-            <div key={n._id} className={`dash-list-item${!n.read ? ' unread' : ''}`} style={{ cursor: n.read && !n.link ? 'default' : 'pointer', borderBottom: idx < notifications.length - 1 ? '1px solid var(--sand-line)' : 'none' }} onClick={() => { if (!n.read) markRead(n._id); if (n.link) window.location.assign(n.link); }}>
+            <div key={n._id} className={`dash-list-item${!n.read ? ' unread' : ''}`} style={{ cursor: notificationLink(n) ? 'pointer' : 'default', borderBottom: idx < notifications.length - 1 ? '1px solid var(--sand-line)' : 'none' }} onClick={() => { if (!n.read) markRead(n._id); const to = notificationLink(n); if (!to) return; if (/^https?:/.test(to)) window.location.assign(to); else navigateTo(to); }}>
               <span className="dash-list-icon c-forest" aria-hidden><FaBell size={14} /></span>
-              <div className="dash-list-body"><div className="title">{n.title}</div><div className="desc">{n.body}</div></div>
+              <div className="dash-list-body"><div className="title">{n.title}</div><div className="desc">{n.body || (notificationLink(n) ? 'Open to see the details.' : '')}</div>{notificationLink(n) && <div className="desc" style={{ color: 'var(--emerald)', fontWeight: 600, marginTop: 4 }}>Open →</div>}</div>
               <span className="dash-list-time">{new Date(n.createdAt).toLocaleDateString()}</span>
             </div>
           ))}
