@@ -73,8 +73,11 @@ import InstitutionSettingsPanel from '../components/dashboard/InstitutionSetting
 import ResourceLibrary from '../components/dashboard/ResourceLibrary';
 import SubtitleManager from '../components/dashboard/SubtitleManager';
 import { startJazzCashCheckout, getJazzCashConfig, jazzCashResultMessage, startSafepayCheckout, getSafepayConfig, startPreferredCheckout, safepayResultMessage } from '../utils/jazzcashCheckout';
-import { ManualPayButton, AdminManualPayments, PlatformAccountForm, ReceivingAccount } from '../components/payments/ManualPay';
-import { EmployerEmailField, EmployerAgentRequests, EmployerConsentBadge, ImproveDescriptionButton, RankApplicantsButton, AdminAgentsPanel } from '../components/agents/AgentMaster';
+import { ManualPayButton, AdminManualPayments, PlatformAccountForm, ReceivingAccount, PayoutAccountReminder, IncomingManualPayments } from '../components/payments/ManualPay';
+import { MyFundingRequests, AdminFundingReview, FundingDocumentLinks } from '../components/donors/FundingRequests';
+import { ScholarshipDocumentsPicker, ScholarshipApplyButton, ApplicationDetails } from '../components/donors/ScholarshipApply';
+import { DonorForecastCard, DonorImpactCard, RankScholarshipApplicants, AdminDonorsPanel as DonorManagementPanel } from '../components/donors/DonorMaster';
+import { EmployerEmailField, EmployerAgentRequests, EmployerConsentBadge, ImproveDescriptionButton, RankApplicantsButton, AdminAgentsPanel, MarketTrendsCard } from '../components/agents/AgentMaster';
 import { usePaymentRecovery } from '../hooks/usePaymentRecovery';
 import { isPlatformUploadAvailable, uploadToPlatformStorage } from '../utils/platformUpload';
 import AppDialogHost from '../components/AppDialogHost';
@@ -674,6 +677,12 @@ export default function Dashboard() {
 
       {msg && <div role="status" className={`dash-toast ${msg.type}`}>{msg.text}</div>}
 
+      {/* Paid people (institute, teacher, seller, agent) are warned until they add the account buyers pay into. */}
+      {activeWorkspace !== 'admin' && (() => {
+        const walletTab = ws.nav.some((n) => n.key === 'sellerWallet') ? 'sellerWallet' : ws.nav.some((n) => n.key === 'wallet') ? 'wallet' : null;
+        return walletTab && <PayoutAccountReminder onAdd={() => { setActiveTab(walletTab); setTimeout(() => { const el = document.getElementById('receiving-account'); el?.scrollIntoView({ behavior: 'smooth', block: 'center' }); el?.querySelector('button')?.click(); }, 500); }} />;
+      })()}
+
       <div className={`workspace-content${activeWorkspace === 'student' ? ' student-page-content' : ''}`} data-page={activeTab} key={`${activeWorkspace}-${activeTab}`}>
         {activeTab === 'messages' && <MessagesPanel onFlash={flash} user={user} restrictedStaffMessaging={isWardenOnly || isDriverOnly} initialUser={pendingMessageUser} onConsumedInitialUser={() => setPendingMessageUser(null)} />}
         {activeTab === 'notifications' && <NotificationsPanel onFlash={flash} />}
@@ -725,7 +734,7 @@ function StudentWorkspace({ tab, user, onFlash, onChanged, onNavigate }) {
   if (tab === 'goals') return <StudentGoalsAchievementsPanel onFlash={onFlash} />;
   if (tab === 'community') return <StudentCommunityPanel onFlash={onFlash} user={user} />;
   if (tab === 'scholarships') return <ScholarshipsPanel onFlash={onFlash} user={user} />;
-  if (tab === 'receivedDonations') return <ReceivedDonationsPanel onFlash={onFlash} />;
+  if (tab === 'receivedDonations') return <><MyFundingRequests onFlash={onFlash} /><ReceivedDonationsPanel onFlash={onFlash} /></>;
   if (tab === 'marketplace') return <MarketplacePanel onFlash={onFlash} user={user} />;
   if (tab === 'institutions') return <StudentInstitutionsPanel onFlash={onFlash} />;
   if (tab === 'applications') return <StudentApplicationsPanel onFlash={onFlash} />;
@@ -4966,8 +4975,8 @@ function ScholarshipBrowsePanel({ onFlash }) {
           {s.description && <p className="text-sm mt-2">{s.description}</p>}
           {s.eligibilityCriteria && <p className="text-xs mt-1 text-[var(--ink-soft)]">Eligibility: {s.eligibilityCriteria}</p>}
           <div className="flex gap-2 items-end mt-2 flex-wrap">
-            <input className="form-input" placeholder="Short statement (optional)" value={statements[s._id] || ''} onChange={(e) => setStatements({ ...statements, [s._id]: e.target.value })} style={{ maxWidth: 300 }} />
-            <button type="button" className="btn btn-primary" style={{ padding: '6px 16px', fontSize: '0.8rem' }} onClick={() => apply(s._id)}>Apply</button>
+            {(s.requiredDocuments?.length > 0 || s.otherDocuments?.length > 0) && <span className="text-xs" style={{ color: 'var(--ink-soft)', flexBasis: '100%' }}>Documents needed: {[...(s.requiredDocuments || []).map((k) => k.replace(/_/g, ' ')), ...(s.otherDocuments || [])].join(', ')}</span>}
+            <ScholarshipApplyButton scholarship={s} onFlash={onFlash} onDone={load} />
           </div>
         </div>
       ))}
@@ -4988,15 +4997,21 @@ function MyScholarshipApplicationsPanel({ onFlash }) {
   );
 }
 
-function PostScholarshipPanel({ onFlash }) {
-  const [form, setForm] = useState({ title: '', description: '', amount: '', currency: 'PKR', eligibilityCriteria: '', country: '', applicationDeadline: '', seatsAvailable: 1, audience: ['students'] });
+// Posting and editing use the same form; `initial` = the scholarship being edited.
+function PostScholarshipPanel({ onFlash, initial = null, onDone, onCancel }) {
+  const [form, setForm] = useState(() => initial
+    ? { title: initial.title || '', description: initial.description || '', amount: String(initial.amount ?? ''), currency: initial.currency || 'PKR', eligibilityCriteria: initial.eligibilityCriteria || '', country: initial.country || '', applicationDeadline: initial.applicationDeadline ? String(initial.applicationDeadline).slice(0, 10) : '', seatsAvailable: initial.seatsAvailable ?? 1, audience: initial.audience?.length ? initial.audience : ['students'], requiredDocuments: initial.requiredDocuments || [], otherDocuments: initial.otherDocuments || [] }
+    : { title: '', description: '', amount: '', currency: 'PKR', eligibilityCriteria: '', country: '', applicationDeadline: '', seatsAvailable: 1, audience: ['students'], requiredDocuments: ['cnic', 'latest_result'], otherDocuments: [] });
 
   async function submit(e) {
     e.preventDefault();
     try {
-      await apiRequest('/scholarships', { method: 'POST', body: { ...form, amount: Number(form.amount), seatsAvailable: Number(form.seatsAvailable) } });
-      onFlash('Scholarship posted.', 'success');
-      setForm({ title: '', description: '', amount: '', currency: 'PKR', eligibilityCriteria: '', country: '', applicationDeadline: '', seatsAvailable: 1, audience: ['students'] });
+      const body = { ...form, amount: Number(form.amount), seatsAvailable: Number(form.seatsAvailable), applicationDeadline: form.applicationDeadline || null };
+      if (initial) await apiRequest(`/scholarships/${initial._id}`, { method: 'PATCH', body });
+      else await apiRequest('/scholarships', { method: 'POST', body });
+      onFlash(initial ? 'Scholarship updated.' : 'Scholarship posted. It is now in My Scholarships.', 'success');
+      if (!initial) setForm({ title: '', description: '', amount: '', currency: 'PKR', eligibilityCriteria: '', country: '', applicationDeadline: '', seatsAvailable: 1, audience: ['students'], requiredDocuments: ['cnic', 'latest_result'], otherDocuments: [] });
+      onDone?.();
     } catch (err) { onFlash(err.message); }
   }
 
@@ -5021,6 +5036,7 @@ function PostScholarshipPanel({ onFlash }) {
         </label>
       </div>
       <input className="form-input" placeholder="Eligibility criteria" value={form.eligibilityCriteria} onChange={(e) => setForm({ ...form, eligibilityCriteria: e.target.value })} />
+      <ScholarshipDocumentsPicker value={form.requiredDocuments || []} other={form.otherDocuments || []} onChange={(d) => setForm((f) => ({ ...f, ...d }))} />
       <fieldset className="text-sm" style={{ border: 0, padding: 0, display: 'flex', gap: 14, flexWrap: 'wrap' }}><legend className="text-xs" style={{ fontWeight: 600 }}>Who can apply (they get an alert when you post)</legend>
         {[['students', 'Students'], ['teachers', 'Teachers']].map(([v, l]) => <label key={v} style={{ display: 'flex', gap: 6, alignItems: 'center' }}><input type="checkbox" checked={form.audience.includes(v)} onChange={() => setForm({ ...form, audience: form.audience.includes(v) ? (form.audience.length > 1 ? form.audience.filter((x) => x !== v) : form.audience) : [...form.audience, v] })} />{l}</label>)}
       </fieldset>
@@ -5036,16 +5052,21 @@ function PostScholarshipPanel({ onFlash }) {
   );
 }
 
-function MyScholarshipsPanel({ onFlash }) {
+function MyScholarshipsPanel({ onFlash, onNavigate }) {
   const [scholarships, setScholarships] = useState(null);
   const [applicants, setApplicants] = useState(null);
   const [openId, setOpenId] = useState(null);
+  const [editing, setEditing] = useState(null);
+  async function setOpen(s, status) {
+    try { await apiRequest(`/scholarships/${s._id}`, { method: 'PATCH', body: { status } }); onFlash(status === 'closed' ? 'Scholarship closed to new applications.' : 'Scholarship open again.', 'success'); loadMine(); } catch (err) { onFlash(err.message); }
+  }
 
   const loadMine = () => apiRequest('/scholarships/mine/list').then(setScholarships).catch((err) => onFlash(err.message));
   useEffect(() => { loadMine(); }, [onFlash]); // eslint-disable-line react-hooks/exhaustive-deps
 
   function viewApplicants(id) {
     setOpenId(id);
+    setApplicants(null);
     apiRequest(`/scholarships/${id}/applicants`).then(setApplicants).catch((err) => onFlash(err.message));
   }
 
@@ -5060,20 +5081,26 @@ function MyScholarshipsPanel({ onFlash }) {
   return (
     <div>
       <DonorListingRequests scholarships={scholarships} onFlash={onFlash} onChanged={loadMine} />
+      <div className="flex items-center justify-between flex-wrap" style={{ gap: 10, marginBottom: 10 }}>
+        <h3 className="font-semibold" style={{ margin: 0 }}>My Scholarships</h3>
+        {onNavigate && <button type="button" className="btn btn-primary" style={{ padding: '6px 14px', fontSize: '0.8rem' }} onClick={() => onNavigate('post')}>+ Post a scholarship</button>}
+      </div>
+      {editing && <div style={{ marginBottom: 16 }}><h4 className="font-semibold mb-2">Edit: {editing.title}</h4><PostScholarshipPanel key={editing._id} initial={editing} onFlash={onFlash} onDone={() => { setEditing(null); loadMine(); }} /><button type="button" className="btn mt-2" onClick={() => setEditing(null)}>Cancel editing</button></div>}
       <Table
         loading={scholarships === null}
-        headers={['Title', 'Amount', 'Status', 'Action']}
-        rows={(scholarships || []).map((s) => [s.title, `${s.currency} ${s.amount}`, <Tag status={s.status === 'open' ? 'approved' : 'pending'} />, <button className="btn" style={{ padding: '4px 12px', fontSize: '0.78rem' }} onClick={() => viewApplicants(s._id)}>View Applicants</button>])}
+        headers={['Title', 'Amount', 'Seats', 'Deadline', 'Posted', 'Status', 'Action']}
+        rows={(scholarships || []).map((s) => [s.title, `${s.currency} ${Number(s.amount).toLocaleString()}`, s.seatsAvailable ?? '—', s.applicationDeadline ? new Date(s.applicationDeadline).toLocaleDateString() : '—', s.createdAt ? new Date(s.createdAt).toLocaleDateString() : '—', <Tag status={s.status === 'open' ? 'approved' : 'pending'} label={s.status} />, <div className="flex gap-1 flex-wrap"><button className="btn" style={{ padding: '4px 12px', fontSize: '0.78rem' }} onClick={() => viewApplicants(s._id)}>View Applicants</button><button type="button" className="btn" style={{ padding: '4px 12px', fontSize: '0.78rem' }} onClick={() => { setEditing(s); window.scrollTo({ top: 0, behavior: 'smooth' }); }}>Edit</button>{s.status === 'open' && <button type="button" className="btn" style={{ padding: '4px 12px', fontSize: '0.78rem' }} onClick={() => setOpen(s, 'closed')}>Close</button>}{s.status === 'closed' && !s.publishedBy && <button type="button" className="btn" style={{ padding: '4px 12px', fontSize: '0.78rem' }} onClick={() => setOpen(s, 'open')}>Reopen</button>}</div>])}
         empty="You haven't posted any scholarships yet."
       />
       {openId && (
         <div className="mt-4">
           <h4 className="font-semibold mb-2">Applicants</h4>
+          {applicants?.length > 1 && <RankScholarshipApplicants scholarshipId={openId} onFlash={onFlash} />}
           <Table
             loading={applicants === null}
-            headers={['Applicant', 'Statement', 'Status', 'Decision']}
+            headers={['Applicant', 'Application', 'Status', 'Decision']}
             rows={(applicants || []).map((a) => [
-              a.applicant?.fullName, a.statement || '—', <Tag status={a.status === 'approved' ? 'approved' : a.status === 'rejected' ? 'rejected' : 'pending'} />,
+              a.applicant?.fullName, <ApplicationDetails application={a} onFlash={onFlash} />, <Tag status={a.status === 'approved' ? 'approved' : a.status === 'rejected' ? 'rejected' : 'pending'} />,
               a.status === 'pending' ? (
                 <div className="flex gap-1">
                   <button className="btn btn-primary" style={{ padding: '4px 10px', fontSize: '0.75rem' }} onClick={() => decide(a._id, 'approved')}>Approve</button>
@@ -12565,7 +12592,7 @@ function InstitutionWorkspace({ tab, user, onFlash, onChanged, isWarden = false 
   if (tab === 'classes') return <InstitutionClassesPanel onFlash={onFlash} />;
   if (tab === 'liveClasses') return <InstitutionLiveClassesPanel onFlash={onFlash} />;
   if (tab === 'fees') return <InstitutionFeesPanel onFlash={onFlash} />;
-  if (tab === 'receivedDonations') return <ReceivedDonationsPanel onFlash={onFlash} />;
+  if (tab === 'receivedDonations') return <><MyFundingRequests onFlash={onFlash} owner /><ReceivedDonationsPanel onFlash={onFlash} /></>;
   if (tab === 'communication') return <InstitutionBroadcastPanel onFlash={onFlash} />;
   if (tab === 'campusLife') return <InstitutionCampusLifePanel onFlash={onFlash} />;
   if (tab === 'certificates') return <InstitutionCertificatesPanel onFlash={onFlash} />;
@@ -17965,17 +17992,17 @@ function EmployerJobsPanel({ onFlash, institution = null, reloadKey = 0 }) {
 
 function DonorWorkspace({ tab, user, onFlash, onChanged, onNavigate }) {
   if (tab === 'profile') return <><ProfilePanel user={user} onFlash={onFlash} onChanged={onChanged} /><DonorPublicProfilePanel onFlash={onFlash} userId={user?._id} /><RolesPanel onFlash={onFlash} onChanged={onChanged} /><SupportComplaintPanel onFlash={onFlash} /></>;
-  if (tab === 'summary') return <DonorDashboardPanel user={user} onFlash={onFlash} onNavigate={onNavigate} />;
-  if (tab === 'post') return <PostScholarshipPanel onFlash={onFlash} />;
-  if (tab === 'scholarships') return <MyScholarshipsPanel onFlash={onFlash} />;
+  if (tab === 'summary') return <><DonorDashboardPanel user={user} onFlash={onFlash} onNavigate={onNavigate} /><DonorForecastCard onFlash={onFlash} /></>;
+  if (tab === 'post') return <PostScholarshipPanel onFlash={onFlash} onDone={() => onNavigate?.('scholarships')} />;
+  if (tab === 'scholarships') return <MyScholarshipsPanel onFlash={onFlash} onNavigate={onNavigate} />;
   if (tab === 'recommendedFunding') return <RecommendedFundingRequestsPanel onFlash={onFlash} />;
   if (tab === 'opportunities') return <DonationOpportunitiesPanel onFlash={onFlash} />;
   if (tab === 'activeSponsorships') return <ActiveSponsorshipsPanel onFlash={onFlash} />;
   if (tab === 'donationHistory') return <DonationHistoryPanel onFlash={onFlash} />;
   if (tab === 'impactOverview') return <ImpactOverviewPanel onFlash={onFlash} />;
-  if (tab === 'impactReports') return <ImpactReportsPanel onFlash={onFlash} onNavigate={onNavigate} />;
+  if (tab === 'impactReports') return <><DonorImpactCard onFlash={onFlash} /><ImpactReportsPanel onFlash={onFlash} onNavigate={onNavigate} /></>;
   if (tab === 'fundingApplications') return <FundingRequestApplicationsPanel onFlash={onFlash} />;
-  if (tab === 'wallet') return <DonorWalletPanel onFlash={onFlash} />;
+  if (tab === 'wallet') return <><DonorWalletPanel onFlash={onFlash} /><WalletCard onFlash={onFlash} /></>;
   if (tab === 'receipts') return <DonorReceiptsPanel onFlash={onFlash} />;
   if (tab === 'savedOpportunities') return <SavedOpportunitiesPanel onFlash={onFlash} />;
   if (tab === 'sponsoredStudents') return <SponsoredStudentsPanel onFlash={onFlash} />;
@@ -18008,9 +18035,7 @@ function FundingRequestDetailModal({ request, onClose, onDonate, onSponsor, onSa
           <p className="text-xs" style={{ marginBottom: 8 }}><strong>Deadline:</strong> {request.applicationDeadline ? new Date(request.applicationDeadline).toLocaleDateString() : 'Not set'}</p>
           <p className="text-xs" style={{ marginBottom: 8 }}>
             <strong>Documents:</strong>{' '}
-            {request.documents?.length > 0
-              ? request.documents.map((d, i) => <a key={i} href={d.url} target="_blank" rel="noreferrer" style={{ marginRight: 8 }}>{d.name || `Document ${i + 1}`}</a>)
-              : 'None attached'}
+            <FundingDocumentLinks request={request} />
           </p>
           <p className="text-xs"><strong>Verification:</strong> <Tag status={VERIFICATION_TAG[request.verificationStatus]} label={VERIFICATION_LABEL[request.verificationStatus]} /></p>
         </div>
@@ -18060,12 +18085,10 @@ function ReceivedDonationsPanel({ onFlash }) {
       <Tag status={d.status === 'successful' ? 'approved' : d.status === 'rejected' || d.status === 'failed' ? 'rejected' : 'pending'} label={d.status} />,
       d.status === 'pending' ? <div className="flex gap-2"><button className="btn btn-primary" onClick={() => decide(d, 'verify')}>Confirm received</button><button className="btn" onClick={() => decide(d, 'reject')}>Reject</button></div> : '—'
     ])} empty="No received donation payments." />
-    <h4 className="font-semibold" style={{ margin: '22px 0 10px' }}>Sponsorship Payments Awaiting Verification</h4>
-    <Table headers={['Donor', 'Scholarship', 'Amount', 'Method / Reference', 'Proof', 'Action']} rows={sponsorships.flatMap((s) => (s.paymentHistory || []).filter((p) => p.status === 'pending').map((p) => [
-      s.donor?.fullName || 'Donor', s.scholarship?.title || '—', `${s.currency} ${p.amount}`, `${p.paymentMethod} · ${p.reference}`,
-      p.proofUrl ? <a className="btn" href={p.proofUrl} target="_blank" rel="noreferrer">View proof</a> : '—',
-      <div className="flex gap-2"><button className="btn btn-primary" onClick={() => decideSponsorship(s, p, 'verify')}>Confirm received</button><button className="btn" onClick={() => decideSponsorship(s, p, 'reject')}>Reject</button></div>
-    ]))} empty="No sponsorship payments awaiting verification." /></div>;
+    {/* Donations and sponsorship payments sent by bank transfer: confirm here whether they arrived; CareerZ checks them. */}
+    <h4 className="font-semibold" style={{ margin: '22px 0 10px' }}>Payments sent to your account</h4>
+    <IncomingManualPayments onFlash={onFlash} />
+    <ReceivingAccount onFlash={onFlash} /></div>;
 }
 
 function RecommendedFundingRequestsPanel({ onFlash }) {
@@ -18412,7 +18435,7 @@ function ActiveSponsorshipsPanel({ onFlash }) {
                 <div style={{ minWidth: 150 }}>
                   <SavedStatus value={s.status} onSave={value=>changeStatus(s._id,value)} label="Sponsorship status" options={Object.entries(SPONSORSHIP_STATUS).map(([value,meta])=>({value,label:meta.label}))}/>
                 </div>
-                <button type="button" className="btn" style={{ padding: '8px 14px', fontSize: '0.75rem' }} onClick={() => (paymentFor === s._id ? setPaymentFor(null) : startPayment(s))}>Record Payment</button>
+                <button type="button" className="btn" style={{ padding: '8px 14px', fontSize: '0.75rem' }} onClick={() => (paymentFor === s._id ? setPaymentFor(null) : startPayment(s))}>Pay student</button>
               </div>
             </div>
             {paymentFor === s._id && (
@@ -18420,14 +18443,8 @@ function ActiveSponsorshipsPanel({ onFlash }) {
                 <label className="text-xs" style={{ color: 'var(--ink-soft)', fontWeight: 600 }}>Payment amount ({s.currency})
                   <input type="number" min="0" className="form-input" value={paidAmount} onChange={(e) => setPaidAmount(e.target.value)} style={{ marginTop: 6 }} />
                 </label>
-                <CustomSelect value={paymentMethod} onChange={setPaymentMethod} ariaLabel="Sponsorship payment method" minWidth={160} options={MANUAL_FEE_METHODS} />
-                <input className="form-input" placeholder="Transaction / cash receipt reference" value={paymentReference} onChange={(e) => setPaymentReference(e.target.value)} />
-                <input className="form-input" placeholder="Bank / wallet details" value={paymentProvider} onChange={(e) => setPaymentProvider(e.target.value)} />
-                <label className="text-xs">Proof {paymentMethod === 'cash' ? '(optional)' : '(required)'}<input className="form-input" type="file" accept="image/*,.pdf" onChange={(e) => setPaymentProof(e.target.files?.[0] || null)} /></label>
-                <label className="text-xs" style={{ color: 'var(--ink-soft)', fontWeight: 600 }}>Next payment date
-                  <input type="date" className="form-input" value={nextPaymentDate} onChange={(e) => setNextPaymentDate(e.target.value)} style={{ marginTop: 6 }} />
-                </label>
-                <button type="button" className="btn btn-primary" style={{ padding: '8px 16px', fontSize: '0.78rem' }} onClick={() => submitPayment(s)}>Save</button>
+                {/* Paid by bank transfer: CareerZ scholarship fee first, then the student; CareerZ checks the receipts. */}
+                {Number(paidAmount) > 0 && <ManualPayButton kind="sponsorship_payment" id={s._id} query={{ amount: Number(paidAmount) }} label="Pay student by bank transfer" onFlash={onFlash} onDone={() => { setPaymentFor(null); load(); }} />}
               </div>
             )}
           </div>
@@ -18957,13 +18974,10 @@ function DonorWalletPanel({ onFlash }) {
                 <input className="form-input mb-2" placeholder="Currency (e.g. USD, EUR, PKR)" value={newCurrency} onChange={(e) => setNewCurrency(e.target.value.toUpperCase())} />
               )}
               <input className="form-input mb-2" type="number" min="0" placeholder={`Amount (${addFundsFor || newCurrency})`} value={addFundsAmount} onChange={(e) => setAddFundsAmount(e.target.value)} />
-              <CustomSelect value={addFundsMethod} onChange={setAddFundsMethod} ariaLabel="Payment method" minWidth="100%" options={MANUAL_FEE_METHODS} />
-              <input className="form-input mt-2" placeholder="Transaction / cash receipt reference" value={addFundsReference} onChange={(e) => setAddFundsReference(e.target.value)} />
-              <input className="form-input mt-2" placeholder="Bank / wallet / payment details" value={addFundsProvider} onChange={(e) => setAddFundsProvider(e.target.value)} />
-              <label className="text-xs" style={{ display: 'block', marginTop: 8 }}>Payment proof {addFundsMethod === 'cash' ? '(optional)' : '(required)'}<input className="form-input" type="file" accept="image/*,.pdf" onChange={(e) => setAddFundsProof(e.target.files?.[0] || null)} /></label>
+              <p className="text-xs" style={{ color: 'var(--ink-soft)', marginTop: 8 }}>Send the amount to the CareerZ account shown next and upload the receipt. CareerZ checks it and then adds it to your wallet.</p>
             </div>
             <div className="u-modal-foot">
-              <button type="button" className="btn btn-primary" onClick={submitAddFunds}>Request Deposit</button>
+              {Number(addFundsAmount) > 0 && <ManualPayButton kind="wallet_topup" query={{ amount: Number(addFundsAmount), currency: addFundsFor || newCurrency }} onFlash={onFlash} onDone={() => { setAddFundsFor(null); load(); }} />}
             </div>
           </div>
         </div>
@@ -19630,7 +19644,7 @@ function SellerWorkspace({ tab, user, onFlash, onChanged, onNavigate }) {
   if (tab === 'summary') return <SellerDashboardPanel user={user} onFlash={onFlash} onChanged={onChanged} onNavigate={onNavigate} />;
   if (tab === 'listings') return <MyListingsPanel onFlash={onFlash} />;
   if (tab === 'orders') return <SellerOrdersPanel onFlash={onFlash} />;
-  if (tab === 'sellerWallet') return <SellerWalletPanel onFlash={onFlash} />;
+  if (tab === 'sellerWallet') return <><ReceivingAccount onFlash={onFlash} /><SellerWalletPanel onFlash={onFlash} /></>;
   if (tab === 'sellerReviews') return <SellerReviewsPanel onFlash={onFlash} />;
   if (tab === 'sellerMessages') return <SellerMessagesPanel onFlash={onFlash} />;
   if (tab === 'sellerVerification') return <SellerVerificationPanel onFlash={onFlash} />;
@@ -20151,7 +20165,7 @@ function SellerDashboardPanel({ user, onFlash, onChanged, onNavigate }) {
 
 function AgentWorkspace({ tab, user, onFlash, onChanged, onNavigate }) {
   if (tab === 'profile') return <><ProfilePanel user={user} onFlash={onFlash} onChanged={onChanged} /><RolesPanel onFlash={onFlash} onChanged={onChanged} /><SupportComplaintPanel onFlash={onFlash} /></>;
-  if (tab === 'summary') return <AgentDashboardPanel user={user} onFlash={onFlash} onNavigate={onNavigate} />;
+  if (tab === 'summary') return <><AgentDashboardPanel user={user} onFlash={onFlash} onNavigate={onNavigate} /><MarketTrendsCard onFlash={onFlash} /></>;
   if (tab === 'post') return <EmployerPostJobPanel onFlash={onFlash} asAgent />;
   if (tab === 'jobs') return <EmployerJobsPanel onFlash={onFlash} />;
   if (tab === 'instituteRequests') return <AgentRecruitmentPanel onFlash={onFlash} renderPostJob={(r, done) => <EmployerPostJobPanel key={r._id} onFlash={onFlash} institution={r.institution} agreementId={r.activeAgreement._id} onPosted={done} />} />;
@@ -21095,7 +21109,7 @@ function AdminWorkspace({ tab, user, roles, onFlash, onChanged }) {
   }
   if (tab === 'summary' || tab === 'institutions_mgmt') return <><AdminPanel onFlash={onFlash} />{tab==='summary'&&roles.some(r=>['admin','super_admin'].includes(r))&&<FamilyAdminSummary onFlash={onFlash} />}</>;
   if (tab === 'agents') return <><AdminAgentsPanel onFlash={onFlash} isSuperAdmin={roles.includes('super_admin')} /><AdminRolePanel onFlash={onFlash} role="education_agent" title="Agent Management" /></>;
-  if (tab === 'donors') return <AdminDonorsPanel onFlash={onFlash} />;
+  if (tab === 'donors') return <><DonorManagementPanel onFlash={onFlash} isSuperAdmin={roles.includes('super_admin')} /><AdminDonorsPanel onFlash={onFlash} /></>;
   if (tab === 'complaints') return <><AdminComplaintsPanel onFlash={onFlash}/>{roles.some(r=>['admin','super_admin'].includes(r))&&<FamilyChatPolicy onFlash={onFlash}/>}</>;
   if (tab === 'security') return <AdminSecurityPanel onFlash={onFlash} />;
   if (tab === 'settings') return <AdminSettingsPanel onFlash={onFlash} isSuperAdmin={roles.includes('super_admin')} />;
@@ -21109,7 +21123,7 @@ function AdminWorkspace({ tab, user, roles, onFlash, onChanged }) {
   if (tab === 'operationsCenter') return <AdminOperationsCenter onFlash={onFlash} />;
   if (tab === 'verifications') return <AdminVerificationPanel onFlash={onFlash} currentUserId={user?._id} />;
   if (tab === 'jobReview') return <AdminJobReviewPanel onFlash={onFlash} />;
-  if (tab === 'scholarshipReview') return <AdminScholarshipReviewPanel onFlash={onFlash} />;
+  if (tab === 'scholarshipReview') return <><AdminScholarshipReviewPanel onFlash={onFlash} /><AdminFundingReview onFlash={onFlash} /></>;
   if (tab === 'recruitmentPayments') return <AdminRecruitmentPanel onFlash={onFlash} isSuperAdmin={(roles || user?.roles || []).includes('super_admin')} />;
   return <ComingSoon label={tab} />;
 }

@@ -11,6 +11,7 @@ import CvChoice from '../components/discover/CvChoice';
 import AppliedStatus from '../components/discover/AppliedStatus';
 import { SavedLetterPicker } from '../components/dashboard/CoverLetters';
 import MarkdownText from '../components/shared/MarkdownText';
+import { ScholarshipApplyButton } from '../components/donors/ScholarshipApply';
 import '../styles/discover.css';
 
 // Public "View All" pages (/jobs, /scholarships, /institutes, /marketplace, /donors) and their
@@ -144,6 +145,7 @@ export function ScholarshipDetail() {
   const { id } = useParams(); const [params] = useSearchParams();
   const state = useDetail('scholarships', id);
   const [statement, setStatement] = useState('');
+  const [applyMsg, setApplyMsg] = useState('');
   return <DetailShell kind="scholarships" state={state}>{(s) => <article className="discover-detail">
     <header><h1>{s.title}</h1><p className="dc-sub">By {s.provider?.profile ? <Link to={s.provider.profile}>{s.provider.name}</Link> : s.provider?.name}{s.listedByAgent ? ' · listed by a verified agent' : ''}</p></header>
     <Facts rows={[['Amount', money(s.amount, s.currency)], ['Country', s.country], ['Seats left', s.seatsAvailable], ['Apply by', dateText(s.applicationDeadline)], ['Posted', dateText(s.postedAt)]]} />
@@ -151,6 +153,7 @@ export function ScholarshipDetail() {
     {s.description && <section><h2>About this scholarship</h2><MarkdownText text={s.description} /></section>}
     {s.applicationMode === 'external' ? <div className="dp-action"><strong>Apply on the provider's website</strong><p>This scholarship is run by {s.provider?.name}. Applications and decisions are made there, not on CareerZ.</p><div className="dc-actions"><a className="btn btn-primary" href={s.externalUrl} target="_blank" rel="noreferrer noopener">Go to the application page</a>{s.provider?.website && <a className="btn" href={s.provider.website} target="_blank" rel="noreferrer noopener">Provider website</a>}</div></div> :
     <ActionPanel kind="scholarships" item={s} autoOpen={params.get('action') === 'apply'} actionLabel="Apply for this scholarship" eligibleRoles={['student']} signupType="student"
+      custom={<><p className="text-sm">Fill the scholarship form, explain why you apply and upload the documents the donor asked for.</p>{applyMsg && <p role="alert" className="text-sm" style={{ color: 'var(--rose)' }}>{applyMsg}</p>}<ScholarshipApplyButton scholarship={s} onFlash={(m, type) => setApplyMsg(type === 'success' ? '' : m)} onDone={() => { window.location.href = '/dashboard?tab=scholarships'; }} /></>}
       onSubmit={() => post(`/scholarships/${s._id}/apply`, { statement })} successText="Application sent to the donor." trackLink={{ to: '/dashboard', label: 'Track it in your dashboard → Scholarships' }}>
       <label>Why should you receive this scholarship?<textarea className="form-input" rows={6} maxLength={4000} required value={statement} onChange={(e) => setStatement(e.target.value)} /></label>
     </ActionPanel>}

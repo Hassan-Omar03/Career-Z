@@ -23,7 +23,8 @@ const STATE_TEXT = {
 
 const ROLE_LABEL = { student: 'Student', teacher: 'Teacher', parent: 'Parent' };
 
-export default function ActionPanel({ kind, item, autoOpen, actionLabel, eligibleRoles, signupType, children, onSubmit, successText, trackLink }) {
+// `custom`: for an eligible account, show this instead of the built-in form (e.g. a full application dialog).
+export default function ActionPanel({ kind, item, autoOpen, actionLabel, eligibleRoles, signupType, children, onSubmit, successText, trackLink, custom }) {
   const { user, accountStatus, refreshAccountStatus } = useAuth();
   const navigate = useNavigate();
   const [open, setOpen] = useState(false), [busy, setBusy] = useState(false), [error, setError] = useState(''), [done, setDone] = useState(false);
@@ -71,6 +72,7 @@ export default function ActionPanel({ kind, item, autoOpen, actionLabel, eligibl
       <p>You are signed in with a different account type. {actionLabel} is available to {eligibleRoles.map((r) => (ROLE_LABEL[r] || r).toLowerCase() + 's').join(' and ')}.</p></div>;
   }
   if (!open) return <div className="dp-action"><button type="button" className="btn btn-primary" onClick={() => setOpen(true)}>{actionLabel}</button></div>;
+  if (custom) return <div className="dp-action">{custom}</div>;
   return <form className="dp-action" onSubmit={submit}>
     <strong>{actionLabel}: {title}</strong>
     {children}

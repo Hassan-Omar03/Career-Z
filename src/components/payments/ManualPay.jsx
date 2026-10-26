@@ -42,6 +42,7 @@ export function ManualPayButton({ kind, id = '', query = {}, onFlash, onDone, la
   const [q, setQ] = useState(null);
   const [error, setError] = useState('');
   const [phone, setPhone] = useState('');
+  const [sourceOfFunds, setSourceOfFunds] = useState('');
   const [legC, setLegC] = useState({ transactionId: '', paidOn: today(), file: null });
   const [legS, setLegS] = useState({ transactionId: '', paidOn: today(), file: null });
   const [busy, setBusy] = useState(false);
@@ -65,7 +66,7 @@ export function ManualPayButton({ kind, id = '', query = {}, onFlash, onDone, la
     e.preventDefault();
     setBusy(true);
     try {
-      const body = { ...query, phone: phone.trim() || undefined };
+      const body = { ...query, phone: phone.trim() || undefined, sourceOfFunds: sourceOfFunds.trim() || undefined };
       if (payCommission) body.commission = await asLeg(legC, q.commission);
       if (paySeller) body.seller = await asLeg(legS, q.sellerAmount);
       await apiRequest(`/manual-payments/${kind}/${id}`, { method: 'POST', body });
@@ -115,6 +116,7 @@ export function ManualPayButton({ kind, id = '', query = {}, onFlash, onDone, la
                   </> : <span className="text-sm" style={{ color: 'var(--ink-soft)' }}>🔒 The account to pay opens after CareerZ confirms your service fee.</span>}
                 </div>}
               </div>}
+              {q.sourceOfFundsRequired && (payCommission || paySeller) && <label className="text-xs" style={{ maxWidth: 520 }}>This is a large donation. Where does the money come from? (for example salary, business income, family trust)<textarea className="form-input" rows={2} value={sourceOfFunds} onChange={(e) => setSourceOfFunds(e.target.value)} /></label>}
               {(payCommission || paySeller) && <label className="text-xs" style={{ maxWidth: 320 }}>Your phone number (CareerZ may call to confirm)<input className="form-input" type="tel" placeholder="03XXXXXXXXX" value={phone} onChange={(e) => setPhone(e.target.value)} /></label>}
             </>}
           </div>
@@ -157,10 +159,10 @@ export function ReceivingAccount({ onFlash }) {
   if (!data) return null;
   async function save(e) {
     e.preventDefault();
-    try { await apiRequest('/wallet/payout-account', { method: 'PUT', body: f }); onFlash?.('Account saved. Buyers will pay you here.', 'success'); setEdit(false); load(); } catch (err) { onFlash?.(err.message); }
+    try { await apiRequest('/wallet/payout-account', { method: 'PUT', body: f }); onFlash?.('Account saved. Buyers will pay you here.', 'success'); setEdit(false); load(); window.dispatchEvent(new Event('careerz:payout-account-saved')); } catch (err) { onFlash?.(err.message); }
   }
   return (
-    <div style={{ ...box, marginTop: 12 }}>
+    <div id="receiving-account" style={{ ...box, marginTop: 12 }}>
       <span className="text-sm"><strong>Account where buyers pay you</strong></span>
       {!edit && data.account && <><Account a={data.account} /><button type="button" className="btn" style={{ justifySelf: 'start', padding: '4px 10px', fontSize: '0.75rem' }} onClick={() => setEdit(true)}>Change</button></>}
       {!edit && !data.account && <><span className="text-xs" style={{ color: 'var(--ink-soft)' }}>Add your bank or wallet account so students, parents and buyers can pay you for fees, courses, tuition and orders.</span><button type="button" className="btn btn-primary" style={{ justifySelf: 'start', padding: '4px 10px', fontSize: '0.75rem' }} onClick={() => setEdit(true)}>Add account</button></>}
@@ -177,6 +179,26 @@ export function ReceivingAccount({ onFlash }) {
         <input className="form-input" placeholder={f.method === 'mobile_wallet' ? 'Wallet number (03XXXXXXXXX)' : 'IBAN (PK...) or account number'} value={f.accountNumber} onChange={(e) => setF({ ...f, accountNumber: e.target.value })} />
         <div className="flex gap-2"><button type="submit" className="btn btn-primary">Save</button><button type="button" className="btn" onClick={() => setEdit(false)}>Cancel</button></div>
       </form>}
+    </div>
+  );
+}
+
+// Dashboard warning for anyone who is paid by bank transfer (institute, teacher, seller, agent,
+// student with a funding request) until they add the account buyers pay into.
+export function PayoutAccountReminder({ onAdd }) {
+  const [state, setState] = useState(null);
+  useEffect(() => {
+    const check = () => apiRequest('/wallet/payout-account').then(setState).catch(() => setState(null));
+    check();
+    window.addEventListener('careerz:payout-account-saved', check);
+    return () => window.removeEventListener('careerz:payout-account-saved', check);
+  }, []);
+  if (!state?.needed || state.account) return null;
+  return (
+    <div role="alert" style={{ display: 'flex', gap: 12, alignItems: 'center', flexWrap: 'wrap', padding: '12px 16px', margin: '0 0 16px', borderRadius: 12, border: '1px solid var(--gold)', background: 'var(--sand)' }}>
+      <span style={{ fontSize: 20 }} aria-hidden="true">⚠️</span>
+      <span className="text-sm" style={{ flex: 1, minWidth: 240 }}><strong>Add your bank account to receive payments.</strong> Students, parents and buyers pay you straight into your bank or mobile wallet account. Until you add it, nobody can pay you and you will not receive any payment.</span>
+      <button type="button" className="btn btn-primary" onClick={onAdd}>Add bank account</button>
     </div>
   );
 }

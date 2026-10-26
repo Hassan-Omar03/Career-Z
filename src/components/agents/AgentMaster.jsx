@@ -98,6 +98,35 @@ export function RankApplicantsButton({ jobId, onFlash }) {
   );
 }
 
+// Market trends from CareerZ's own jobs (last 90 days); "Explain with AI" uses the person's key.
+export function MarketTrendsCard({ onFlash }) {
+  const [data, setData] = useState(null);
+  const [busy, setBusy] = useState(false);
+  useEffect(() => { apiRequest('/jobs/ai/market-trends').then(setData).catch(() => setData(null)); }, []);
+  if (!data) return null;
+  const s = data.stats;
+  const pretty = (v) => String(v || '').replace(/_/g, ' ');
+  async function explain() {
+    setBusy(true);
+    try { setData(await apiRequest('/jobs/ai/market-trends?ai=1')); } catch (e) { onFlash(e.message); } finally { setBusy(false); }
+  }
+  const line = { fontSize: 12, display: 'block' };
+  return (
+    <div className="card" style={{ padding: 16, margin: '16px 0', display: 'grid', gap: 10 }}>
+      <h4 className="font-semibold" style={{ margin: 0 }}>Market trends (last {s.periodDays} days on CareerZ)</h4>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 12 }}>
+        <div><strong className="text-xs">Most jobs by field</strong>{s.jobsByField.map((r) => <span key={r.field} style={line}>{pretty(r.field)}: {r.jobs}</span>)}</div>
+        <div><strong className="text-xs">Most jobs by city</strong>{s.jobsByCity.map((r) => <span key={r.city} style={{ ...line, textTransform: 'capitalize' }}>{r.city}: {r.jobs}</span>)}</div>
+        <div><strong className="text-xs">Average salary (PKR)</strong>{s.salaryPkr.map((r) => <span key={r.field} style={line}>{pretty(r.field)}: {r.avgMin.toLocaleString()}{r.avgMax ? ' – ' + r.avgMax.toLocaleString() : ''}</span>)}</div>
+        <div><strong className="text-xs">Applicants per job</strong>{s.competition.map((r) => <span key={r.field} style={line}>{pretty(r.field)}: {r.perJob}</span>)}</div>
+        <div><strong className="text-xs">Skills employers ask for</strong>{s.topSkills.map((r) => <span key={r.skill} style={line}>{r.skill} ({r.jobs})</span>)}</div>
+      </div>
+      {data.insight && <div className="text-sm" style={{ whiteSpace: 'pre-wrap', background: 'var(--sand)', padding: 10, borderRadius: 8 }}>{data.insight}</div>}
+      <button type="button" className="btn" style={{ justifySelf: 'start', padding: '4px 12px', fontSize: '0.78rem' }} disabled={busy} onClick={explain}>{busy ? 'Reading…' : 'Explain with AI'}</button>
+    </div>
+  );
+}
+
 // Super Admin / admin: every agent, their work, and the master sanctions.
 export function AdminAgentsPanel({ onFlash, isSuperAdmin }) {
   const [rows, setRows] = useState(null);
