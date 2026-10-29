@@ -47,26 +47,26 @@ export default function AutoTimetable({ institution, sections, courses, onFlash,
   const toggle = (list, v) => (list.includes(v) ? list.filter((x) => x !== v) : [...list, v]);
 
   return (
-    <section className="institution-class-section"><h3 className="font-semibold mb-2 mt-6">Auto-generate timetable</h3>
+    <section className="institution-class-section auto-tt"><h3 className="font-semibold mb-2 mt-6">Auto-generate timetable</h3>
       {!open ? <><p className="text-xs mb-2" style={{ color: 'var(--ink-soft)' }}>Builds the whole week from your course assignments: no class or teacher is booked twice, and each subject is spread over different days.</p><button type="button" className="btn btn-primary" onClick={() => setOpen(true)}>Set up auto timetable</button></> : <>
-        <div className="institution-form-grid institution-class-form">
-          <fieldset className="institution-field" style={{ border: 0, padding: 0 }}><legend>Teaching days</legend>
-            <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>{DAYS.map(([v, l]) => <label key={v} style={{ display: 'flex', gap: 4, alignItems: 'center' }}><input type="checkbox" checked={settings.days.includes(v)} onChange={() => setSettings({ ...settings, days: toggle(settings.days, v) })} />{l}</label>)}</div>
-          </fieldset>
+        <fieldset className="auto-tt-group"><legend>Teaching days</legend>
+          <div className="auto-tt-chips">{DAYS.map(([v, l]) => <label key={v} className={`auto-tt-chip${settings.days.includes(v) ? ' on' : ''}`}><input type="checkbox" checked={settings.days.includes(v)} onChange={() => setSettings({ ...settings, days: toggle(settings.days, v) })} />{l}</label>)}</div>
+        </fieldset>
+        <div className="auto-tt-settings">
           <label className="institution-field"><span>Day starts at</span><input type="time" className="form-input" value={settings.dayStart} onChange={(e) => setSettings({ ...settings, dayStart: e.target.value })} /></label>
           <label className="institution-field"><span>Period length (minutes)</span><input type="number" min={15} max={180} className="form-input" value={settings.periodMinutes} onChange={(e) => setSettings({ ...settings, periodMinutes: e.target.value })} /></label>
           <label className="institution-field"><span>Periods per day</span><input type="number" min={1} max={14} className="form-input" value={settings.periodsPerDay} onChange={(e) => setSettings({ ...settings, periodsPerDay: e.target.value })} /></label>
           <label className="institution-field"><span>Break after period</span><input type="number" min={0} max={14} className="form-input" value={settings.breakAfter} onChange={(e) => setSettings({ ...settings, breakAfter: e.target.value })} /></label>
           <label className="institution-field"><span>Break length (minutes)</span><input type="number" min={0} max={120} className="form-input" value={settings.breakMinutes} onChange={(e) => setSettings({ ...settings, breakMinutes: e.target.value })} /></label>
         </div>
-        <fieldset className="institution-field" style={{ border: 0, padding: 0, marginTop: 8 }}><legend>Sections (none ticked = all)</legend>
-          <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>{sections.map((s) => <label key={s._id} style={{ display: 'flex', gap: 4, alignItems: 'center' }}><input type="checkbox" checked={chosen.includes(s._id)} onChange={() => setChosen(toggle(chosen, s._id))} />{s.name}</label>)}</div>
+        <fieldset className="auto-tt-group"><legend>Sections <span>(none chosen = all)</span></legend>
+          <div className="auto-tt-chips">{sections.map((s) => <label key={s._id} className={`auto-tt-chip${chosen.includes(s._id) ? ' on' : ''}`}><input type="checkbox" checked={chosen.includes(s._id)} onChange={() => setChosen(toggle(chosen, s._id))} />{s.name}</label>)}</div>
         </fieldset>
-        {linked.length > 0 && <details style={{ marginTop: 8 }}><summary>Periods per week for each course (default: its credit hours)</summary>
-          <div style={{ display: 'grid', gap: 6, gridTemplateColumns: 'repeat(auto-fill,minmax(240px,1fr))', marginTop: 8 }}>
-            {linked.map((c) => <label key={c._id} style={{ fontSize: 13 }}>{c.title} · {c.classSection?.name || ''}{!c.teacher && <em> (no teacher — skipped)</em>}<input type="number" min={0} max={30} className="form-input" placeholder={String(Math.max(1, Math.round(c.creditHours || 3)))} value={periods[c._id] ?? ''} onChange={(e) => setPeriods({ ...periods, [c._id]: e.target.value })} /></label>)}
+        {linked.length > 0 && <details className="auto-tt-periods"><summary>Periods per week for each course <span>(default: its credit hours)</span></summary>
+          <div className="auto-tt-period-list">
+            {linked.map((c) => <label key={c._id} className="auto-tt-period"><span><strong>{c.title}</strong><small>{c.classSection?.name || ''}{!c.teacher && ' · no teacher, skipped'}</small></span><input type="number" min={0} max={30} className="form-input" placeholder={String(Math.max(1, Math.round(c.creditHours || 3)))} value={periods[c._id] ?? ''} onChange={(e) => setPeriods({ ...periods, [c._id]: e.target.value })} /></label>)}
           </div></details>}
-        <div style={{ display: 'flex', gap: 8, marginTop: 12, flexWrap: 'wrap' }}>
+        <div className="auto-tt-actions">
           <button type="button" className="btn btn-primary" onClick={preview} disabled={!!busy}>{busy === 'preview' ? 'Building…' : 'Preview timetable'}</button>
           {draft && <button type="button" className="btn btn-primary" onClick={apply} disabled={!!busy}>{busy === 'apply' ? 'Saving…' : 'Save timetable'}</button>}
           <button type="button" className="btn" onClick={() => { setOpen(false); setDraft(null); }}>Close</button>

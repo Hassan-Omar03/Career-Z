@@ -1,0 +1,37 @@
+.institution-health-ui .health-page-heading { display:flex; align-items:center; gap:16px; margin-bottom:22px; }
+.institution-health-ui .health-page-heading h2 { margin:0 0 6px; }
+.institution-health-ui .health-page-heading p { margin:0; font-size:13px; }
+.institution-health-ui .health-heading-icon { display:grid; place-items:center; width:48px; height:48px; flex-shrink:0; border-radius:14px; background:var(--forest); color:white; font-size:20px; }
+.institution-health-ui .health-privacy { display:flex; gap:14px; align-items:start; padding:18px 22px; background:var(--institution-tint); border:1px solid var(--sand-line); border-radius:14px; margin-bottom:24px; }
+.institution-health-ui .health-privacy > svg { color:var(--forest); margin-top:4px; flex-shrink:0; }
+.institution-health-ui .health-privacy p { margin:0; font-size:13px; }
+.institution-health-ui .health-privacy strong,.institution-health-ui .health-privacy span { display:block; }
+.institution-health-ui .health-selectors { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:20px; padding:22px; border:1px solid var(--sand-line); border-radius:14px; background:var(--institution-surface); margin-bottom:24px; }
+.institution-health-ui .saved-form { position:relative; }
+.institution-health-ui .saved-form-toolbar { display:flex; justify-content:flex-end; margin-bottom:16px; }
+.institution-health-ui .saved-form-fields { display:block; }
+.institution-health-ui .health-section-heading { grid-column:1/-1; margin-bottom:22px; }
+.institution-health-ui .health-section-heading h3 { margin:0 0 6px; font-size:20px; }
+.institution-health-ui .health-section-heading p { margin:0; font-size:13px; max-width:75ch; }
+.institution-health-ui .health-field-group { padding:22px 0; border-top:1px solid var(--sand-line); }
+.institution-health-ui .health-field-group h4 { margin:0 0 16px; font-size:14px; font-weight:700; color:var(--forest); }
+.institution-health-ui .health-hint { margin:-8px 0 18px; font-size:12px; }
+.institution-health-ui .health-fields { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:20px; }
+.institution-health-ui .health-contact-fields { grid-template-columns:repeat(3,minmax(0,1fr)); }
+.institution-health-ui .health-wide { grid-column:1/-1; }
+.institution-health-ui .health-form-actions { display:flex; justify-content:flex-end; padding-top:8px; }
+.institution-health-ui .health-empty { padding:20px; margin:0 0 16px; border:1px dashed var(--sand-line); border-radius:12px; background:var(--institution-tint); font-size:13px; }
+.institution-health-ui form.health-incident-form { grid-template-columns:repeat(2,minmax(0,1fr)) !important; }
+.institution-health-ui .health-incident-form .health-section-heading { margin-bottom:0; }
+.institution-health-ui .health-history-heading { display:flex; justify-content:space-between; align-items:center; gap:12px; margin:30px 0 18px; }
+.institution-health-ui .health-history-heading h3 { margin:0; }
+.institution-health-ui .health-history-heading > span { border:1px solid var(--sand-line); padding:5px 12px; border-radius:30px; font-size:12px; color:var(--ink-soft); }
+.institution-health-ui .health-history-empty { display:flex; align-items:center; flex-direction:column; gap:8px; padding:32px 20px; text-align:center; background:var(--institution-surface); }
+.institution-health-ui .health-history-empty > svg { font-size:24px; color:var(--forest); margin-bottom:6px; }
+.institution-health-ui .health-history-empty p { margin:0; }
+@media(max-width:700px) {
+ .institution-health-ui .health-fields,.institution-health-ui .health-contact-fields,.institution-health-ui .health-selectors,.institution-health-ui form.health-incident-form { grid-template-columns:minmax(0,1fr) !important; }
+ .institution-health-ui .health-selectors,.institution-health-ui .health-privacy { padding:18px; }
+ .institution-health-ui .health-page-heading { align-items:start; }
+}
+.institution-health-ui .health-page-heading { background: transparent !important; padding: 0 !important; box-shadow: none !important; border: 0 !important; }

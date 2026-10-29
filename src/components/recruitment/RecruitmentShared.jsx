@@ -24,11 +24,11 @@ export function Thread({ request, onFlash, onSaved }) {
     try { await apiRequest(`/recruitment/requests/${request._id}/messages`, { method: 'POST', body: { text } }); setText(''); onSaved?.(); } catch (err) { onFlash?.(err.message); } finally { setBusy(false); }
   }
   return (
-    <div style={{ display: 'grid', gap: 6 }}>
-      {(request.messages || []).map((m, i) => <p key={i} className="text-sm" style={{ margin: 0, padding: '6px 10px', borderRadius: 10, background: m.side === 'agent' ? 'var(--sand)' : 'transparent', border: '1px solid var(--sand-line)' }}><strong>{m.side === 'agent' ? 'Agent' : 'Institute'}:</strong> {m.text} <small style={{ color: 'var(--ink-soft)' }}>{new Date(m.at).toLocaleString()}</small></p>)}
+    <div className="hiring-message-thread" style={{ display: 'grid', gap: 6 }}>
+      {(request.messages || []).map((m, i) => <p key={i} className={`text-sm recruit-msg ${m.side === 'agent' ? 'from-agent' : 'from-institute'}`}><strong>{m.side === 'agent' ? 'Agent' : 'Institute'}</strong>{m.text}<small>{new Date(m.at).toLocaleString(undefined, { day: 'numeric', month: 'short', hour: 'numeric', minute: '2-digit' })}</small></p>)}
       {!['cancelled', 'completed', 'rejected'].includes(request.status) && <form onSubmit={send} style={row}>
         <input className="form-input" style={grow} maxLength={2000} placeholder="Write a message" value={text} onChange={(e) => setText(e.target.value)} />
-        <button type="submit" className="btn" disabled={busy || !text.trim()}>Send</button>
+        <button type="submit" className="btn btn-primary" disabled={busy || !text.trim()}>Send</button>
       </form>}
     </div>
   );
@@ -155,10 +155,10 @@ export function Agreements({ request, side, onFlash, onSaved }) {
 
 export function InvoiceLine({ inv }) {
   return (
-    <div className="text-sm" style={{ display: 'grid', gap: 2 }}>
-      <strong>{inv.number} · {INVOICE_STATUS[inv.status]}{inv.replacement?.status ? ` · ${REPLACEMENT_STATUS[inv.replacement.status]}` : ''}</strong>
+    <div className="text-sm recruit-invoice">
+      <div className="recruit-invoice-head"><strong>{inv.number}</strong><span className={`recruit-chip ${inv.status}`}>{INVOICE_STATUS[inv.status]}</span>{inv.replacement?.status && <span className="recruit-chip">{REPLACEMENT_STATUS[inv.replacement.status]}</span>}</div>
       <span>{inv.description}</span>
-      <span>Fee {money(inv.currency, inv.grossFee)} · CareerZ fee {money(inv.currency, inv.platformFee)} · Agent earning {money(inv.currency, inv.agentEarning)} · Due {day(inv.dueDate)}</span>
+      <dl className="recruit-amounts"><div><dt>Fee</dt><dd>{money(inv.currency, inv.grossFee)}</dd></div><div><dt>CareerZ fee</dt><dd>{money(inv.currency, inv.platformFee)}</dd></div><div><dt>Agent earning</dt><dd>{money(inv.currency, inv.agentEarning)}</dd></div><div><dt>Due</dt><dd>{day(inv.dueDate)}</dd></div></dl>
       {inv.replacement?.deadline && inv.replacement.status === 'awaiting_replacement' && <span>Replacement due by {day(inv.replacement.deadline)}</span>}
       {inv.replacement?.resolutionNote && <span>Decision: {inv.replacement.resolutionNote}</span>}
       {(inv.history || []).slice(-1).map((h, i) => h.note ? <span key={i} style={{ color: 'var(--ink-soft)' }}>Last update: {h.note}</span> : null)}

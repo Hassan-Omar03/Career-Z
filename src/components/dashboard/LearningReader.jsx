@@ -6,7 +6,7 @@ export function ReadingTools({ text, children }) {
   const [size, setSize] = useState(16), [contrast, setContrast] = useState(false);
   useEffect(() => () => window.speechSynthesis?.cancel(), []);
   return <div style={{ fontSize: size, ...(contrast ? { color: '#fff', background: '#111', padding: 12 } : {}) }}>
-    <div className="flex flex-wrap gap-2"><label>Text size<input type="range" min="14" max="28" value={size} onChange={e => setSize(Number(e.target.value))} /></label><button className="btn" onClick={() => setContrast(!contrast)}>High contrast {contrast ? 'off' : 'on'}</button>{'speechSynthesis' in window && <><button className="btn" onClick={() => { window.speechSynthesis.cancel(); window.speechSynthesis.speak(new SpeechSynthesisUtterance(text || 'No notes available.')); }}>Read notes aloud</button><button className="btn" onClick={() => window.speechSynthesis.cancel()}>Stop reading</button></>}</div>
+    <div className="reading-tools"><label>Text size<input type="range" min="14" max="28" value={size} onChange={e => setSize(Number(e.target.value))} /></label><button className="btn" onClick={() => setContrast(!contrast)}>High contrast {contrast ? 'off' : 'on'}</button>{'speechSynthesis' in window && <><button className="btn" onClick={() => { window.speechSynthesis.cancel(); window.speechSynthesis.speak(new SpeechSynthesisUtterance(text || 'No notes available.')); }}>Read notes aloud</button><button className="btn" onClick={() => window.speechSynthesis.cancel()}>Stop reading</button></>}</div>
     {children}
   </div>;
 }

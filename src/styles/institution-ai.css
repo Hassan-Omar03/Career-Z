@@ -1,0 +1,30 @@
+.institution-ai-ui .ops-page-heading { display:flex; gap:16px; align-items:center; background:transparent; margin-bottom:24px; }
+.institution-ai-ui .ops-page-heading > span { display:grid; place-items:center; width:48px; height:48px; flex-shrink:0; border-radius:14px; color:white; background:var(--forest); font-size:20px; }
+.institution-ai-ui .ops-page-heading h2 { margin:0 0 6px; }
+.institution-ai-ui .ops-page-heading p { margin:0; font-size:13px; }
+.institution-ai-ui > label { padding:0; border:0; background:transparent; margin-bottom:24px; }
+.institution-ai-ui > .card { padding:24px !important; margin-bottom:24px !important; }
+.institution-ai-ui > .card > h4 { font-size:17px !important; margin-bottom:10px; }
+.institution-ai-ui > .card > p { max-width:85ch; line-height:1.8; }
+.institution-ai-ui .tag { white-space:normal; overflow-wrap:anywhere; line-height:1.7; }
+.institution-ai-ui .ops-insights-intro { margin:24px 0; padding:24px; border:1px solid var(--sand-line); border-radius:16px; background:var(--institution-surface); }
+.institution-ai-ui .ops-insights-intro h3 { margin:6px 0 10px; font-size:20px; }
+.institution-ai-ui .ops-insights-intro p { max-width:85ch; font-size:13px; line-height:1.8; margin:0 0 18px; }
+.institution-ai-ui .ops-eyebrow { display:block; font-size:10px; letter-spacing:.09em; text-transform:uppercase; font-weight:700; color:var(--forest); }
+.institution-ai-ui > .ops-task-composer { padding:26px !important; }
+.institution-ai-ui .ops-task-composer > h3 { font-size:21px; margin:6px 0 10px; }
+.institution-ai-ui .ops-task-composer > p { max-width:80ch; font-size:13px; }
+.institution-ai-ui .ops-task-composer form { gap:18px !important; margin-top:22px !important; }
+.institution-ai-ui .ops-message-label { display:grid; gap:10px; }
+.institution-ai-ui .ops-message-label textarea { min-height:130px; font-weight:400; }
+.institution-ai-ui .ops-task-composer .ops-suggestions { display:grid !important; grid-template-columns:repeat(3,minmax(0,1fr)); gap:10px !important; }
+.institution-ai-ui .ops-suggestions .btn { display:flex; align-items:center; justify-content:space-between; text-align:left; gap:12px; padding:12px 14px !important; font-size:12px !important; background:var(--institution-tint); border-radius:10px; }
+.institution-ai-ui .ops-suggestions .btn span { color:var(--forest); }
+.institution-ai-ui .ops-task-composer form > .btn { justify-self:start; padding:11px 20px; }
+.institution-ai-ui .ops-task-composer .dp-action { padding:20px; border:1px solid var(--sand-line); border-radius:12px; }
+.institution-ai-ui .ops-saved-reports { margin:28px 0; }
+.institution-ai-ui .ops-saved-reports ul { list-style:none; padding:0; }
+.institution-ai-ui .ops-saved-reports li { display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:14px; padding:16px 20px; margin:10px 0; border:1px solid var(--sand-line); border-radius:12px; background:var(--institution-surface); font-size:12px; }
+.institution-ai-ui .ops-saved-reports li > span:last-child { display:flex; gap:8px; }
+@media(max-width:700px) { .institution-ai-ui .ops-task-composer .ops-suggestions { grid-template-columns:repeat(2,minmax(0,1fr)); } .institution-ai-ui .ops-page-heading { align-items:start; } }
+@media(max-width:420px) { .institution-ai-ui .ops-task-composer .ops-suggestions { grid-template-columns:minmax(0,1fr); } .institution-ai-ui > .ops-task-composer,.institution-ai-ui .ops-insights-intro { padding:20px !important; } }

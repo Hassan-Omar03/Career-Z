@@ -33,6 +33,7 @@ export function JobCard({ job }) {
         {salary && <li>{salary}</li>}
         {job.experienceYears > 0 && <li>{job.experienceYears}+ years experience</li>}
       </ul>
+      {(job.featured || job.sponsored || job.urgent || job.topHiring) && <p className="dc-badges">{job.featured && <span className="dc-badge">Featured</span>}{job.sponsored && <span className="dc-badge">Sponsored</span>}{job.urgent && <span className="dc-badge urgent">Urgent hiring</span>}{job.topHiring && <span className="dc-badge top">Top Hiring</span>}</p>}
       <div className="dc-meta"><Deadline date={job.applicationDeadline} /><span>Posted {dateText(job.postedAt)}</span>{job.verifiedPublisher && <span className="dc-verified"><FaCircleCheck aria-hidden="true" /> Verified publisher</span>}</div>
       <div className="dc-actions"><Link className="btn btn-primary" to={`/jobs/${job._id}?action=apply`}>Apply Now</Link><Link className="btn" to={`/jobs/${job._id}`}>View Details</Link></div>
     </article>

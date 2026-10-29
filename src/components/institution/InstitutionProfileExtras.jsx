@@ -59,48 +59,48 @@ export default function InstitutionProfileExtras({ institution, onFlash, onSaved
   const { lat, lng } = form.location;
   const hasMap = lat !== '' && lng !== '' && Number.isFinite(Number(lat)) && Number.isFinite(Number(lng));
   return (
-    <form onSubmit={save} className="institution-details-card card" style={{ marginTop: 20 }}>
+    <form onSubmit={save} className="institution-details-card institution-extras card">
       <div className="institution-card-heading"><h3>Accreditation, affiliations, links and map</h3><p>Shown on your public profile so students and parents can check who recognises you and find your campus.</p></div>
 
-      <fieldset className="institution-field" style={{ border: 0, padding: 0 }}>
-        <legend style={{ fontWeight: 600 }}>Accreditations</legend>
+      <fieldset className="institution-extras-group">
+        <legend>Accreditations</legend>
         {form.accreditations.map((a, i) => (
-          <div key={i} style={{ display: 'grid', gap: 8, gridTemplateColumns: 'repeat(auto-fit,minmax(160px,1fr))', marginBottom: 8 }}>
+          <div key={i} className="institution-extras-row">
             <input className="form-input" aria-label="Accrediting body" placeholder="Accrediting body, e.g. HEC Pakistan" required value={a.body} onChange={(e) => setRow('accreditations', i, { body: e.target.value })} />
             <input className="form-input" aria-label="Reference number" placeholder="Reference / certificate no." value={a.reference} onChange={(e) => setRow('accreditations', i, { reference: e.target.value })} />
-            <label style={{ fontSize: 12 }}>Valid until<input type="date" className="form-input" value={a.validUntil} onChange={(e) => setRow('accreditations', i, { validUntil: e.target.value })} /></label>
+            <label className="institution-field"><span>Valid until</span><input type="date" className="form-input" value={a.validUntil} onChange={(e) => setRow('accreditations', i, { validUntil: e.target.value })} /></label>
             <input type="url" className="form-input" aria-label="Certificate link" placeholder="Certificate link (https://…)" value={a.documentUrl} onChange={(e) => setRow('accreditations', i, { documentUrl: e.target.value })} />
-            <button type="button" className="btn" onClick={() => removeRow('accreditations', i)}>Remove</button>
+            <button type="button" className="btn institution-extras-remove" onClick={() => removeRow('accreditations', i)}>Remove</button>
           </div>
         ))}
-        <button type="button" className="btn" onClick={() => addRow('accreditations', { body: '', reference: '', validUntil: '', documentUrl: '' })}>+ Add accreditation</button>
+        <button type="button" className="btn institution-extras-add" onClick={() => addRow('accreditations', { body: '', reference: '', validUntil: '', documentUrl: '' })}>+ Add accreditation</button>
       </fieldset>
 
-      <fieldset className="institution-field" style={{ border: 0, padding: 0 }}>
-        <legend style={{ fontWeight: 600 }}>Affiliations</legend>
+      <fieldset className="institution-extras-group">
+        <legend>Affiliations</legend>
         {form.affiliations.map((a, i) => (
-          <div key={i} style={{ display: 'grid', gap: 8, gridTemplateColumns: 'repeat(auto-fit,minmax(160px,1fr))', marginBottom: 8 }}>
+          <div key={i} className="institution-extras-row">
             <input className="form-input" aria-label="Affiliated with" placeholder="Affiliated with, e.g. BISE Lahore" required value={a.name} onChange={(e) => setRow('affiliations', i, { name: e.target.value })} />
             <select className="form-select" aria-label="Kind" value={a.kind} onChange={(e) => setRow('affiliations', i, { kind: e.target.value })}>{KINDS.map(([v, t]) => <option key={v} value={v}>{t}</option>)}</select>
             <input type="number" className="form-input" aria-label="Since year" placeholder="Since (year)" min={1800} max={new Date().getFullYear()} value={a.since} onChange={(e) => setRow('affiliations', i, { since: e.target.value })} />
-            <button type="button" className="btn" onClick={() => removeRow('affiliations', i)}>Remove</button>
+            <button type="button" className="btn institution-extras-remove" onClick={() => removeRow('affiliations', i)}>Remove</button>
           </div>
         ))}
-        <button type="button" className="btn" onClick={() => addRow('affiliations', { name: '', kind: 'university', since: '' })}>+ Add affiliation</button>
+        <button type="button" className="btn institution-extras-add" onClick={() => addRow('affiliations', { name: '', kind: 'university', since: '' })}>+ Add affiliation</button>
       </fieldset>
 
-      <fieldset className="institution-field" style={{ border: 0, padding: 0 }}>
-        <legend style={{ fontWeight: 600 }}>Social links</legend>
-        <div style={{ display: 'grid', gap: 8, gridTemplateColumns: 'repeat(auto-fit,minmax(220px,1fr))' }}>
-          {NETWORKS.map(([k, t]) => <label key={k} style={{ fontSize: 12 }}>{t}<input type="url" className="form-input" placeholder="https://…" value={form.socialLinks[k]} onChange={(e) => setForm((f) => ({ ...f, socialLinks: { ...f.socialLinks, [k]: e.target.value } }))} /></label>)}
+      <fieldset className="institution-extras-group">
+        <legend>Social links</legend>
+        <div className="institution-extras-links">
+          {NETWORKS.map(([k, t]) => <label key={k} className="institution-field"><span>{t}</span><input type="url" className="form-input" placeholder="https://…" value={form.socialLinks[k]} onChange={(e) => setForm((f) => ({ ...f, socialLinks: { ...f.socialLinks, [k]: e.target.value } }))} /></label>)}
         </div>
       </fieldset>
 
-      <fieldset className="institution-field" style={{ border: 0, padding: 0 }}>
-        <legend style={{ fontWeight: 600 }}>Map location</legend>
-        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'end' }}>
-          <label style={{ fontSize: 12 }}>Latitude<input className="form-input" inputMode="decimal" value={lat} onChange={(e) => setForm((f) => ({ ...f, location: { ...f.location, lat: e.target.value } }))} /></label>
-          <label style={{ fontSize: 12 }}>Longitude<input className="form-input" inputMode="decimal" value={lng} onChange={(e) => setForm((f) => ({ ...f, location: { ...f.location, lng: e.target.value } }))} /></label>
+      <fieldset className="institution-extras-group">
+        <legend>Map location</legend>
+        <div className="institution-extras-map">
+          <label className="institution-field"><span>Latitude</span><input className="form-input" inputMode="decimal" value={lat} onChange={(e) => setForm((f) => ({ ...f, location: { ...f.location, lat: e.target.value } }))} /></label>
+          <label className="institution-field"><span>Longitude</span><input className="form-input" inputMode="decimal" value={lng} onChange={(e) => setForm((f) => ({ ...f, location: { ...f.location, lng: e.target.value } }))} /></label>
           <button type="button" className="btn" onClick={locate} disabled={locating}>{locating ? 'Finding…' : 'Find from my address'}</button>
           {hasMap && <button type="button" className="btn" onClick={() => setForm((f) => ({ ...f, location: { lat: '', lng: '' } }))}>Clear</button>}
         </div>
@@ -108,7 +108,7 @@ export default function InstitutionProfileExtras({ institution, onFlash, onSaved
           src={`https://www.openstreetmap.org/export/embed.html?bbox=${Number(lng) - 0.01}%2C${Number(lat) - 0.006}%2C${Number(lng) + 0.01}%2C${Number(lat) + 0.006}&layer=mapnik&marker=${lat}%2C${lng}`} />}
       </fieldset>
 
-      <button type="submit" className="btn btn-primary" disabled={saving}>{saving ? 'Saving...' : 'Save'}</button>
+      <button type="submit" className="btn btn-primary institution-extras-save" disabled={saving}>{saving ? 'Saving...' : 'Save'}</button>
     </form>
   );
 }

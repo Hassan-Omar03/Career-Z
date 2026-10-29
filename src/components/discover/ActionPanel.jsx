@@ -3,6 +3,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import { apiRequest } from '../../api/client';
 import { rememberIntent, clearIntent } from '../../utils/continueIntent';
+import QuickCheckout from './QuickCheckout';
 
 // The one place a public listing turns into an action (apply, order, admission). It decides what
 // the visitor sees from their real account state; the server enforces the same rules again.
@@ -59,6 +60,7 @@ export default function ActionPanel({ kind, item, autoOpen, actionLabel, eligibl
       <strong>{actionLabel}</strong>
       <p>Browsing is free. To {actionLabel.toLowerCase()} you need a {eligibleRoles ? eligibleRoles.map((r) => ROLE_LABEL[r] || r).join(' or ') : 'verified'} account. After you sign in{signupType ? ' or register' : ''}, we bring you back to this {kind === 'institutes' ? 'institute' : 'listing'}.</p>
       <div className="dc-actions"><button type="button" className="btn btn-primary" onClick={() => goAuth('login')}>Log in to continue</button><button type="button" className="btn" onClick={() => goAuth('signup')}>Create account</button></div>
+      {kind === 'marketplace' && <QuickCheckout />}
     </div>;
   }
   if (!accountStatus) return <div className="dp-action" role="status">Checking your account…</div>;

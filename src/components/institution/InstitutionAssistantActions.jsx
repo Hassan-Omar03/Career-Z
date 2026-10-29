@@ -27,13 +27,14 @@ export default function InstitutionAssistantActions({ institutionId, enabled, on
   }
 
   return (
-    <div className="card" style={{ padding: 20, marginTop: 20 }}>
-      <h3>Ask the assistant to do something</h3>
-      <p className="text-xs" style={{ color: 'var(--ink-soft)' }}>It can send announcements, fee reminders and absence alerts, create events, show the campus report or draft a timetable. You always see what will happen first.</p>
+    <div className="card ops-task-composer" style={{ padding: 20, marginTop: 20 }}>
+      <span className="ops-eyebrow">Plan an action</span>
+      <h3>What would you like to get done?</h3>
+      <p className="text-xs" style={{ color: 'var(--ink-soft)' }}>Prepare announcements, reminders, events or a timetable. Review the proposed action before you confirm it.</p>
       <form onSubmit={ask} style={{ display: 'grid', gap: 8, marginTop: 10 }}>
-        <textarea className="form-input" rows={3} maxLength={1500} required placeholder="e.g. Remind parents about overdue fees" value={message} onChange={(e) => setMessage(e.target.value)} disabled={!enabled} />
-        <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>{EXAMPLES.map((x) => <button key={x} type="button" className="btn" style={{ fontSize: 12, padding: '4px 10px' }} onClick={() => setMessage(x)} disabled={!enabled}>{x}</button>)}</div>
-        <button type="submit" className="btn btn-primary" disabled={!enabled || busy === 'plan' || !message.trim()}>{busy === 'plan' ? 'Thinking…' : 'Ask'}</button>
+        <label className="ops-message-label">Your request<textarea className="form-input" rows={3} maxLength={1500} required placeholder="For example: Remind parents about overdue fees" value={message} onChange={(e) => setMessage(e.target.value)} disabled={!enabled} /></label>
+        <div className="ops-suggestions" style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>{EXAMPLES.map((x, i) => <button key={x} type="button" className="btn" style={{ fontSize: 12, padding: '4px 10px' }} onClick={() => setMessage(x)} disabled={!enabled} title={x}>{['Fee reminders', 'Absence alerts', 'School announcement', 'Create an event', 'Campus report', 'Draft a timetable'][i]}<span aria-hidden="true">↗</span></button>)}</div>
+        <button type="submit" className="btn btn-primary" disabled={!enabled || busy === 'plan' || !message.trim()}>{busy === 'plan' ? 'Preparing…' : 'Preview action'}</button>
       </form>
       {!enabled && <p className="text-xs">Connect the institution text provider above first.</p>}
       {error && <p role="alert" className="discover-error">{error}</p>}

@@ -105,11 +105,11 @@ export function TeacherReviewsPanel({ onFlash }) {
   return (
     <section className="institution-ui people-panel">
       <div className="institution-card-heading"><h2>Teacher performance reviews</h2><p>Review each teacher once per period. Their real record is shown beside the form; once shared, the teacher can read it and respond.</p></div>
-      {teachers.length === 0 ? <p className="admin-notice">No teachers on staff yet.</p> : <div className="account-table-wrap"><table>
-        <thead><tr><th>Teacher</th><th>Latest review</th><th /></tr></thead>
-        <tbody>{teachers.map((t) => <tr key={t._id}><td>{t.fullName}</td>
-          <td>{t.latestReview ? `${t.latestReview.period} · ${t.latestReview.overall ?? '—'}/5 · ${t.latestReview.status === 'shared' ? (t.latestReview.acknowledgedAt ? 'responded' : 'shared') : 'draft'}` : 'None yet'}</td>
-          <td><button type="button" className="btn" onClick={() => openTeacher(t)}>{open?._id === t._id ? 'Open' : 'Review'}</button></td></tr>)}</tbody>
+      {teachers.length === 0 ? <p className="admin-notice">No teachers on staff yet.</p> : <div className="account-table-wrap"><table className="people-review-table">
+        <thead><tr><th>Teacher</th><th>Latest review</th><th><span className="sr-only">Action</span></th></tr></thead>
+        <tbody>{teachers.map((t) => <tr key={t._id} className={open?._id === t._id ? 'is-open' : ''}><td><strong>{t.fullName}</strong></td>
+          <td>{t.latestReview ? <span className="people-review-latest">{t.latestReview.period} · <strong>{t.latestReview.overall ?? '—'}/5</strong> <span className={`people-review-chip ${t.latestReview.status === 'shared' ? (t.latestReview.acknowledgedAt ? 'responded' : 'shared') : 'draft'}`}>{t.latestReview.status === 'shared' ? (t.latestReview.acknowledgedAt ? 'responded' : 'shared') : 'draft'}</span></span> : <span className="people-review-none">None yet</span>}</td>
+          <td className="people-review-action"><button type="button" className={`btn${open?._id === t._id ? ' btn-primary' : ''}`} onClick={() => openTeacher(t)}>{open?._id === t._id ? 'Open' : 'Review'}</button></td></tr>)}</tbody>
       </table></div>}
       {open && <div className="people-review">
         <h3>{open.fullName}</h3>

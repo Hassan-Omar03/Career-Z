@@ -80,12 +80,13 @@
 .vf-tabs button.active .vf-muted { color: rgba(255, 255, 255, .8); }
 
 .vf-profile { display: grid; gap: 18px; }
-.vf-saved-value { padding: 10px 0; min-height: 40px; color: var(--ink); white-space: pre-wrap; overflow-wrap: anywhere; }
+/* Saved values sit in a light box with a border, so every field reads as a field. */
+.vf-saved-value { padding: 11px 14px; min-height: 46px; color: var(--ink); white-space: pre-wrap; overflow-wrap: anywhere; border: 1px solid var(--sand-line); border-radius: 10px; background: color-mix(in srgb, var(--forest, #104d3d) 4%, var(--paper-raised, #fff)); }
 .saved-form-toolbar { display: flex; justify-content: flex-end; gap: 10px; }
 .saved-form-toolbar:empty { display: none; }
 .saved-form-fields { display: contents; border: 0; padding: 0; margin: 0; min-width: 0; }
 .saved-form-view .saved-form-fields button, .saved-form-view .saved-form-fields input[type="file"] { display: none; }
-.saved-form-view .saved-form-fields :is(input:not([type="checkbox"]):not([type="radio"]):not([type="color"]):not([type="range"]), textarea, select):disabled { opacity: 1; color: var(--ink); -webkit-text-fill-color: var(--ink); background: transparent; border-color: transparent; box-shadow: none; cursor: default; }
+.saved-form-view .saved-form-fields :is(input:not([type="checkbox"]):not([type="radio"]):not([type="color"]):not([type="range"]), textarea, select):disabled { opacity: 1; color: var(--ink); -webkit-text-fill-color: var(--ink); background: color-mix(in srgb, var(--forest, #104d3d) 4%, var(--paper-raised, #fff)); border: 1px solid var(--sand-line); border-radius: 10px; box-shadow: none; cursor: default; }
 .saved-form-view .saved-form-fields :is(input[type="checkbox"], input[type="radio"]):disabled { opacity: 1; cursor: default; }
 .saved-form-view .saved-form-fields select:disabled { appearance: none; background-image: none; }
 .saved-form-view .saved-form-fields textarea { resize: none; }

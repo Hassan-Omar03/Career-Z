@@ -118,20 +118,20 @@ export function CareerRoadmapPanel({ onFlash, onConnectAi }) {
 
   if (!rows) return <p role="status" className="admin-notice">Loading…</p>;
   return (
-    <div style={{ display: 'grid', gap: 16 }}>
+    <div className="career-roadmap-workspace" style={{ display: 'grid', gap: 16 }}>
       <div className="card" style={card}>
         <h3 style={{ margin: 0 }}><FaRoute aria-hidden="true" /> Career roadmap</h3>
         <p style={muted}>Plan the steps to the career you want. "Build without AI" gives you a ready plan with dates that you can change; or let your connected AI provider draft one. You can edit every step.</p>
-        <div className="flex flex-wrap items-end" style={{ gap: 10 }}>
+        <div className="career-roadmap-fields" style={{ gap: 10 }}>
           <label className="text-xs" style={{ flex: '2 1 220px' }}>Target career<input className="form-input" maxLength={120} value={form.targetCareer} onChange={(e) => setForm({ ...form, targetCareer: e.target.value })} placeholder="e.g. Data Analyst" /></label>
           <label className="text-xs" style={{ flex: '1 1 120px' }}>Plan length (months)<input className="form-input" type="number" min={1} max={60} value={form.horizonMonths} onChange={(e) => setForm({ ...form, horizonMonths: e.target.value })} /></label>
           <button type="button" className="btn btn-outline" disabled={busy || !form.targetCareer.trim()} onClick={() => run(() => apiRequest('/career-tools/roadmaps', { method: 'POST', body: { ...body, steps: starterSteps(form.targetCareer, form.horizonMonths) } }), 'Roadmap created with suggested steps. Edit, remove or add steps.')}><FaPlus aria-hidden="true" /> Build without AI</button>
         </div>
-        <label className="text-xs flex items-center" style={{ gap: 8 }}><input type="checkbox" checked={form.consent} onChange={(e) => setForm({ ...form, consent: e.target.checked })} /> I agree that my program, skills and goal are sent to my AI provider to draft this roadmap.</label>
+        <label className="text-xs flex items-center career-roadmap-consent" style={{ gap: 8 }}><input type="checkbox" checked={form.consent} onChange={(e) => setForm({ ...form, consent: e.target.checked })} /> I agree that my program, skills and goal are sent to my AI provider to draft this roadmap.</label>
         {aiReady === false && <p className="text-xs" style={{ margin: 0 }}>To draft with AI, first connect your own AI key (OpenAI, Gemini, Claude…) in <button type="button" className="btn" style={{ padding: '2px 10px', fontSize: '0.75rem' }} onClick={() => onConnectAi?.()}>Career Tools → AI provider</button>. Building manually needs no key.</p>}
         <div><button type="button" className="btn btn-primary" disabled={busy || !aiReady || !form.targetCareer.trim() || !form.consent} onClick={() => run(() => apiRequest('/career-tools/roadmaps/generate', { method: 'POST', body: { ...body, dataConsent: true } }), 'Roadmap drafted. Review the steps.')}><FaWandMagicSparkles aria-hidden="true" /> Draft with AI</button>{aiReady && (!form.targetCareer.trim() || !form.consent) && <small style={{ marginLeft: 10, color: 'var(--ink-soft)' }}>{!form.targetCareer.trim() ? 'Enter the target career first.' : 'Tick the box above to allow sending your details to your AI provider.'}</small>}</div>
       </div>
-      {rows.length === 0 && <p style={muted}>No roadmaps yet.</p>}
+      {rows.length === 0 && <p className="career-roadmap-empty" style={muted}>No roadmaps yet. Choose a target career to create your first plan.</p>}
       {rows.map((r) => {
         const done = r.steps.filter((s) => s.status === 'done').length;
         const draft = step[r._id] || { title: '', category: 'skill', targetDate: '' };

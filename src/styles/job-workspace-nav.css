@@ -1,0 +1,84 @@
+.job-seeker-workspace .job-workspace-navigation { margin-bottom:24px; border:1px solid var(--sand-line); border-radius:16px; background:var(--paper-raised,#fff); overflow:hidden; }
+.job-seeker-workspace .job-primary-nav { display:flex; flex-wrap:wrap; gap:6px; padding:8px; }
+.job-seeker-workspace .job-primary-nav > button { display:inline-flex; align-items:center; justify-content:center; gap:8px; min-height:38px; padding:9px 15px; border:0; border-radius:9px; background:transparent; color:var(--ink-soft); font-size:13px; font-weight:600; line-height:1.4; cursor:pointer; flex:0 0 auto; }
+.job-seeker-workspace .job-primary-nav > button svg { width:14px; height:14px; flex:none; }
+.job-seeker-workspace .job-primary-nav > button.active { color:#fff; background:var(--forest); }
+.job-seeker-workspace .job-primary-nav > button:not(.active):hover { background:var(--institution-tint,#f1f6f2); color:var(--forest); }
+.job-seeker-workspace .job-secondary-nav { display:flex; flex-wrap:wrap; align-items:center; gap:6px 16px; padding:10px 18px; border-top:1px solid var(--sand-line); }
+.job-seeker-workspace .job-secondary-nav > button { padding:7px 0; border:0; border-bottom:2px solid transparent; border-radius:0; background:transparent; color:var(--ink-soft); font-size:12px; font-weight:500; cursor:pointer; line-height:1.4; }
+.job-seeker-workspace .job-secondary-nav > button.active { color:var(--forest); border-bottom-color:var(--forest); font-weight:700; }
+.job-seeker-workspace .job-secondary-nav > button:hover { color:var(--forest); }
+.career-roadmap-workspace > .card { padding:22px!important; }
+.career-roadmap-workspace > .card > h3 { display:flex; align-items:center; gap:10px; font-family:var(--font-display, Fraunces, serif); font-size:22px!important; }
+.career-roadmap-workspace > .card > h3 > svg { width:20px; height:20px; color:var(--forest); }
+.career-roadmap-workspace > .card > p { max-width:85ch; font-size:13px; line-height:1.8; margin:12px 0 20px; }
+.career-roadmap-workspace .career-roadmap-fields { display:grid!important; grid-template-columns:minmax(0,2fr) minmax(120px,1fr) auto; align-items:end; gap:14px!important; }
+.career-roadmap-workspace .career-roadmap-fields > label { min-width:0; }
+.career-roadmap-workspace .career-roadmap-fields > button { justify-self:start; margin-bottom:5px; height:34px!important; min-height:34px!important; padding:0 12px!important; }
+.career-roadmap-workspace .career-roadmap-consent { display:flex!important; align-items:flex-start!important; padding:14px 16px; margin:20px 0 14px; background:var(--institution-tint); border:1px solid var(--sand-line); border-radius:10px; font-size:12px; font-weight:400; }
+.career-roadmap-workspace .career-roadmap-consent > input { margin-top:2px; flex:none; }
+.career-roadmap-workspace .career-roadmap-empty { padding:24px; border:1px dashed var(--sand-line); border-radius:14px; background:var(--paper-raised); text-align:center; font-size:13px!important; }
+.career-toolkit-workspace > h3 { font-family:var(--font-display, Fraunces, serif); font-size:23px!important; margin-bottom:18px!important; }
+.career-toolkit-workspace .ai-provider-settings { padding:22px!important; }
+.career-toolkit-workspace .ai-provider-settings > p { font-size:12px; max-width:85ch; margin-bottom:16px; }
+.career-toolkit-workspace .ai-provider-row { display:flex; align-items:center; flex-wrap:wrap; justify-content:space-between; gap:14px; padding:15px!important; border:1px solid var(--sand-line); border-radius:11px; background:var(--institution-tint); }
+.career-toolkit-workspace .ai-provider-row > p { margin:0; font-size:12px; }
+.career-toolkit-workspace .ai-provider-row > form { flex:1 1 350px; }
+.career-toolkit-workspace .career-toolkit-grid { gap:16px!important; align-items:start; }
+.career-toolkit-workspace .career-toolkit-grid > .card { padding:22px!important; }
+.career-toolkit-workspace .career-toolkit-grid > .card > strong { font-size:16px; }
+.career-toolkit-workspace .career-toolkit-grid > .card > p { font-size:13px; line-height:1.7; margin:10px 0 16px!important; }
+.career-toolkit-workspace .career-toolkit-grid .flex > span { border-radius:7px!important; font-size:12px; }
+@media(max-width:700px) {
+ .career-roadmap-workspace .career-roadmap-fields,.career-toolkit-workspace .career-toolkit-grid { grid-template-columns:minmax(0,1fr)!important; }
+ .career-roadmap-workspace > .card,.career-toolkit-workspace .ai-provider-settings,.career-toolkit-workspace .career-toolkit-grid > .card { padding:16px!important; }
+}
+.job-search-workspace .job-search-form { display:grid!important; grid-template-columns:minmax(0,1fr) auto; align-items:center; gap:12px; padding:16px; border:1px solid var(--sand-line); border-radius:14px; background:var(--paper-raised); margin-bottom:18px; }
+.job-search-workspace .job-search-form > input { min-width:0; width:100%; }
+.job-search-workspace .job-search-form > button { justify-self:end; height:34px!important; min-height:34px!important; max-height:34px!important; padding:0 13px!important; white-space:nowrap; }
+.job-search-workspace .job-search-result { display:block!important; padding:22px; background:var(--paper-raised); border:1px solid var(--sand-line); border-radius:16px; min-width:0; }
+.job-search-workspace .job-search-result-heading { display:flex; align-items:flex-start; justify-content:space-between; flex-wrap:wrap; gap:16px; }
+.job-search-workspace .job-search-result-identity { display:flex; align-items:flex-start; gap:12px; min-width:0; flex:1 1 320px; }
+.job-search-workspace .job-search-result-identity > :first-child { flex-shrink:0; }
+.job-search-workspace .job-search-result-identity > div:last-child { min-width:0; overflow-wrap:anywhere; }
+.job-search-workspace .job-search-result-identity strong { font-size:18px; line-height:1.4; }
+.job-search-workspace .job-search-result-identity p { font-size:12px; line-height:1.7; margin:6px 0 0; }
+.job-search-workspace .job-search-result-heading > span { background:var(--institution-tint); color:var(--forest)!important; border-radius:8px; padding:7px 10px; font-size:12px; font-weight:600; }
+.job-search-workspace .job-search-result-actions { display:flex; flex-wrap:wrap; align-items:center; gap:8px; margin-top:18px; padding-top:16px; border-top:1px solid var(--sand-line); }
+.job-search-workspace .job-search-result-actions > input.form-input { flex:1 1 250px!important; width:auto!important; min-width:0; max-width:100%; margin-right:4px; }
+.job-search-workspace .job-search-result-actions > .btn { white-space:nowrap; }
+@media(max-width:600px) {
+ .job-search-workspace .job-search-form { padding:12px; gap:8px; }
+ .job-search-workspace .job-search-result { padding:16px; }
+ .job-search-workspace .job-search-result-heading > span { margin-left:48px; }
+ .job-search-workspace .job-search-result-actions > input.form-input { flex-basis:100%!important; margin:0 0 4px; }
+}
+.job-seeker-workspace .job-skills-card { padding:22px!important; }
+.job-seeker-workspace .job-skills-card > .job-skills-group { padding-top:18px!important; margin-top:18px!important; }
+.job-seeker-workspace .job-skills-card .flex > span { font-size:12px; border-radius:7px!important; padding:5px 10px!important; }
+.job-seeker-workspace .job-profile-facts { grid-template-columns:repeat(3,minmax(0,1fr))!important; gap:14px!important; }
+.job-seeker-workspace .job-profile-facts > div { padding:14px; background:var(--institution-tint); border-radius:10px; min-width:0; overflow-wrap:anywhere; }
+.job-seeker-workspace .job-profile-facts > div > p:first-child { font-size:10px!important; }
+.job-seeker-workspace .job-updates-grid { grid-template-columns:minmax(0,.85fr) minmax(0,1.15fr); align-items:start; gap:18px!important; }
+.job-seeker-workspace .job-updates-grid > .card { min-height:0!important; padding:22px!important; }
+.job-seeker-workspace .job-updates-grid .student-empty-state { min-height:0!important; padding:20px 0!important; }
+.job-seeker-workspace .job-notifications-preview > div { padding:14px 0!important; }
+.job-seeker-workspace .job-notifications-preview > div > .flex { flex-wrap:wrap; align-items:flex-start; }
+.job-seeker-workspace .job-notifications-preview > div > .flex > p { flex:1 1 200px; margin:0; }
+.job-seeker-workspace .job-notifications-preview > div > .flex > span { font-size:10px; }
+.job-seeker-workspace .job-recent-grid { grid-template-columns:repeat(3,minmax(0,1fr)); gap:14px!important; }
+.job-seeker-workspace .job-recent-grid > .card { padding:18px!important; min-width:0; }
+.job-seeker-workspace .job-recent-grid > .card > p:first-child { display:flex; align-items:center; gap:8px; font-size:10px!important; }
+.job-seeker-workspace .job-recent-grid > .card > p:first-child::before { content:''; width:7px; height:7px; border-radius:50%; flex:none; background:var(--forest); }
+@media(max-width:700px) {
+ .job-seeker-workspace .job-profile-facts { grid-template-columns:repeat(2,minmax(0,1fr))!important; }
+ .job-seeker-workspace .job-updates-grid,.job-seeker-workspace .job-recent-grid { grid-template-columns:minmax(0,1fr)!important; }
+ .job-seeker-workspace .job-updates-grid > .card,.job-seeker-workspace .job-skills-card { padding:16px!important; }
+}
+.job-seeker-workspace :is(.job-primary-nav,.job-secondary-nav) > button:focus-visible { outline:2px solid var(--emerald); outline-offset:2px; }
+@media(max-width:600px) {
+ .job-seeker-workspace .job-primary-nav { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:5px; }
+ .job-seeker-workspace .job-primary-nav > button { padding:9px 6px; font-size:11px; gap:5px; }
+ .job-seeker-workspace .job-primary-nav > button svg { width:12px; height:12px; }
+ .job-seeker-workspace .job-secondary-nav { padding:8px 12px; gap:4px 14px; }
+}

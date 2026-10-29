@@ -47,7 +47,7 @@ export default function InstitutionInventory({ manage = false, onFlash }) {
       setEdit(null); setForm(blank);
     });
   }
-  const button = (label, fn) => <button type="button" className="btn" disabled={busy} onClick={fn}>{label}</button>;
+  const button = (label, fn) => <button type="button" className={/^(Remove|Reject|Cancel request|Report damage)$/.test(label) ? "btn staff-remove" : "btn"} disabled={busy} onClick={fn}>{label}</button>;
   if (loading) return <p role="status">Loading inventory…</p>;
   return <section className="institution-ui institution-remaining-ui institution-inventory-ui">
     <h2>{manage ? 'Inventory Management' : 'My Institution Inventory'}</h2>
@@ -66,23 +66,28 @@ export default function InstitutionInventory({ manage = false, onFlash }) {
     </form>}
     <h3>Assets</h3>
     {!data.items.length && <p>No inventory items available.</p>}
-    <div className="account-table-wrap"><table style={{ width: '100%', borderCollapse: 'collapse' }}><thead><tr>{['Item', 'Category', 'Location', 'Condition', 'Total', 'Available', 'Issued', 'Damaged', ...(manage ? ['Value (PKR)'] : []), 'Actions'].map(h => <th key={h} style={{ textAlign: 'left' }}>{h}</th>)}</tr></thead><tbody>{data.items.map(item => <tr key={item._id}>
-      <td>{item.name}{!manage && <small> · {item.institution?.name}</small>}</td><td>{text(item.category)}</td><td>{item.location || '—'}</td><td>{text(item.condition)}</td><td>{item.quantity}</td><td>{available(item)}</td><td>{item.allocatedQuantity || 0}</td><td>{item.damagedQuantity || 0}</td>
-      {manage && <td>{(item.quantity * item.purchaseCost).toLocaleString()}</td>}
-      <td>{manage ? <>{button('Edit', () => { setEdit(item._id); setForm({ ...Object.fromEntries(Object.keys(blank).map(key => [key, item[key] ?? blank[key]])), purchaseDate: item.purchaseDate?.slice(0, 10) || '' }); })}{available(item) > 0 && button('Issue', () => open('issue', item))}{button('History', () => setHistory(item))}{button('Remove', () => open('remove', item))}{item.assignedTo && <><span>Legacy assignee: {item.assignedTo.fullName || 'Member'}</span>{button('Clear legacy assignment', () => open('legacy', item))}</>}</> : available(item) > 0 && button('Request', () => open('request', item))}</td>
-    </tr>)}</tbody></table></div>
+    {data.items.length > 0 && <div className="account-table-wrap inv-table"><table style={{ width: '100%', borderCollapse: 'collapse' }}><thead><tr>{['Item', 'Condition', 'Stock', ...(manage ? ['Value'] : []), 'Actions'].map(h => <th key={h} style={{ textAlign: 'left' }}>{h}</th>)}</tr></thead><tbody>{data.items.map(item => <tr key={item._id}>
+      <td><div className="inv-item"><strong>{item.name}</strong><span className="inv-item-tags"><span className="lib-chip">{text(item.category)}</span>{item.location && <small>{item.location}</small>}{!manage && <small>{item.institution?.name}</small>}</span></div></td>
+      <td><span className={`inv-condition ${item.condition}`}>{text(item.condition)}</span></td>
+      <td><div className="inv-stock"><span><strong>{available(item)}</strong> available</span><small>{item.quantity} total · {item.allocatedQuantity || 0} issued · {item.damagedQuantity || 0} damaged</small></div></td>
+      {manage && <td><strong style={{ whiteSpace: 'nowrap' }}>PKR {(item.quantity * item.purchaseCost).toLocaleString()}</strong></td>}
+      <td><div className="inv-actions">{manage ? <>{button('Edit', () => { setEdit(item._id); setForm({ ...Object.fromEntries(Object.keys(blank).map(key => [key, item[key] ?? blank[key]])), purchaseDate: item.purchaseDate?.slice(0, 10) || '' }); })}{available(item) > 0 && button('Issue', () => open('issue', item))}{button('History', () => setHistory(item))}{button('Remove', () => open('remove', item))}{item.assignedTo && <><span>Legacy assignee: {item.assignedTo.fullName || 'Member'}</span>{button('Clear legacy assignment', () => open('legacy', item))}</>}</> : available(item) > 0 && button('Request', () => open('request', item))}</div></td>
+    </tr>)}</tbody></table></div>}
     <h3>{manage ? 'Requests and assignments' : 'My requests and assigned items'}</h3>
     {!data.loans.length && <p>No requests or assignments yet.</p>}
-    {data.loans.map(loan => <article className="dash-card" key={loan._id} style={{ marginBottom: 12 }}>
-      <strong>{loan.item?.name || 'Item'} · {loan.quantity} units</strong><p>{manage ? loan.recipient?.fullName : loan.institution?.name} · {text(loan.status)}{loan.dueDate && ` · Due ${new Date(loan.dueDate).toLocaleDateString()}${['issued', 'return_requested'].includes(loan.status) && new Date(loan.dueDate) < new Date() ? ' (overdue)' : ''}`}</p>
-      {loan.reason && <p>{loan.reason}</p>}{loan.damageReported && <p>Damage reported: {loan.damageNotes}</p>}
+    {data.loans.map(loan => { const overdue = loan.dueDate && ['issued', 'return_requested'].includes(loan.status) && new Date(loan.dueDate) < new Date(); return <article className="dash-card inv-loan" key={loan._id}>
+      <div className="inv-loan-head"><div><strong>{loan.item?.name || 'Item'}</strong> <span className="lib-chip">{loan.quantity} {loan.quantity === 1 ? 'unit' : 'units'}</span></div><span className={`inv-loan-status ${loan.status}${overdue ? ' overdue' : ''}`}>{overdue ? 'overdue' : text(loan.status)}</span></div>
+      <p className="inv-loan-meta">{manage ? loan.recipient?.fullName : loan.institution?.name}{loan.dueDate && <> · Due {new Date(loan.dueDate).toLocaleDateString(undefined, { day: 'numeric', month: 'short', year: 'numeric' })}</>}</p>
+      {loan.reason && <p className="inv-loan-note">{loan.reason}</p>}{loan.damageReported && <p className="inv-loan-note damage">Damage reported: {loan.damageNotes}</p>}
+      <div className="inv-actions">
       {manage && loan.status === 'pending' && <>{button('Approve and issue', () => open('approve', loan))}{button('Reject', () => open('reject', loan))}</>}
       {manage && ['issued', 'return_requested'].includes(loan.status) && button('Receive return', () => open('receive', loan))}
       {!manage && loan.status === 'pending' && button('Cancel request', () => open('cancel', loan))}
       {!manage && loan.status === 'issued' && button('Request return', () => open('return', loan))}
       {!manage && ['issued', 'return_requested'].includes(loan.status) && button('Report damage', () => open('damage', loan))}
       {button('History', () => setHistory(loan))}
-    </article>)}
+      </div>
+    </article>; })}
     {data.legacyItems?.map(item => <p key={item._id}>Legacy assignment: {item.name} ({item.institution?.name}). Contact your institute to record an issue/return.</p>)}
     {operation && <form className="dash-card" onSubmit={e => { e.preventDefault(); run(async () => {
       const { action, row } = operation;

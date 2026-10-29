@@ -94,21 +94,21 @@ export default function CourseForum({ courseId, lesson = null, onFlash, compact 
 
   if (!open) return <button type="button" className="btn" style={{ marginTop: 8, padding: '4px 12px', fontSize: '0.78rem' }} onClick={() => setOpen(true)}>Discuss this lesson</button>;
   return (
-    <div className="card" style={{ padding: 16, marginTop: 12 }}>
+    <div className="card lc-card course-forum" style={{ marginTop: 12 }}>
       <div className="flex" style={{ justifyContent: 'space-between', alignItems: 'center' }}>
         <h4 className="font-semibold">{lesson ? `Lesson discussion: ${lesson.title}` : 'Course discussion forum'}</h4>
         {compact && <button type="button" className="btn" style={{ padding: '2px 10px', fontSize: '0.72rem' }} onClick={() => setOpen(false)}>Close</button>}
       </div>
       {activeId ? <ThreadView threadId={activeId} onFlash={onFlash} onBack={() => { setActiveId(null); load(); }} onChanged={load} /> : (
         <>
-          <form onSubmit={ask} style={{ display: 'grid', gap: 6, margin: '10px 0' }}>
-            <input className="form-input" placeholder="Ask a question about this course" value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })} required minLength={3} maxLength={200} />
+          <form onSubmit={ask} className="forum-ask">
+            <input className="form-input" aria-label="Question" placeholder="Ask a question about this course" value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })} required minLength={3} maxLength={200} />
             <textarea className="form-input" rows={2} placeholder="Details (optional)" value={form.body} onChange={(e) => setForm({ ...form, body: e.target.value })} />
-            <button type="submit" className="btn btn-primary" style={{ justifySelf: 'start' }}>Post question</button>
+            <button type="submit" className="btn btn-primary" style={{ justifySelf: 'end' }}>Post question</button>
           </form>
-          <input className="form-input" placeholder="Search discussions" value={q} onChange={(e) => setQ(e.target.value)} style={{ marginBottom: 8 }} />
+          <input className="form-input" type="search" aria-label="Search discussions" placeholder="Search discussions" value={q} onChange={(e) => setQ(e.target.value)} style={{ marginBottom: 8 }} />
           {threads === null && <p className="text-xs">Loading...</p>}
-          {threads?.length === 0 && <p className="text-xs" style={{ color: 'var(--ink-soft)' }}>No discussions yet. Ask the first question.</p>}
+          {threads?.length === 0 && <p className="po-empty">No discussions yet. Ask the first question.</p>}
           <div style={{ display: 'grid', gap: 6 }}>
             {threads?.map((t) => (
               <button type="button" key={t._id} className="card" onClick={() => setActiveId(t._id)} style={{ padding: 10, textAlign: 'left', cursor: 'pointer', opacity: t.hidden ? 0.6 : 1 }}>

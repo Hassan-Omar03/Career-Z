@@ -22,14 +22,16 @@ export default function LessonMetadata({ lessonId, canEdit = false, canReview = 
   if (!meta) return null;
   const author = meta.authorName || meta.author?.fullName || 'Unknown author';
   return (
-    <div className="text-xs" style={{ color: 'var(--ink-soft)', marginTop: 8, display: 'grid', gap: 6 }}>
-      <span>
-        By <strong>{author}</strong>{meta.department ? ` · ${meta.department}` : ''}
-        {meta.aiAssisted && <span title={meta.aiNote || 'AI-assisted content'} style={{ color: 'var(--gold)', fontWeight: 700 }}> · <FaRobot aria-hidden="true" /> AI-assisted</span>}
-        {' · '}{meta.lastReviewedAt ? `Last reviewed ${new Date(meta.lastReviewedAt).toLocaleDateString()}${meta.lastReviewedBy?.fullName ? ` by ${meta.lastReviewedBy.fullName}` : ''}` : 'Not reviewed yet'}
-        {canEdit && !editing && <button type="button" className="btn" style={{ padding: '1px 8px', fontSize: '0.7rem', marginLeft: 8 }} onClick={() => setEditing(true)}>Edit details</button>}
-        {canReview && <button type="button" className="btn" style={{ padding: '1px 8px', fontSize: '0.7rem', marginLeft: 6 }} onClick={review}>Mark reviewed</button>}
-      </span>
+    <div className="lesson-meta-bar">
+      <div className="lesson-meta-row">
+        <span>By <strong>{author}</strong>{meta.department ? ` · ${meta.department}` : ''}</span>
+        {meta.aiAssisted && <span className="lesson-meta-ai" title={meta.aiNote || 'AI-assisted content'}><FaRobot aria-hidden="true" /> AI-assisted</span>}
+        <span className={`lesson-meta-review${meta.lastReviewedAt ? ' done' : ''}`}>{meta.lastReviewedAt ? `Reviewed ${new Date(meta.lastReviewedAt).toLocaleDateString()}${meta.lastReviewedBy?.fullName ? ` by ${meta.lastReviewedBy.fullName}` : ''}` : 'Not reviewed yet'}</span>
+        <span className="lesson-meta-actions">
+          {canEdit && !editing && <button type="button" className="btn" onClick={() => setEditing(true)}>Edit details</button>}
+          {canReview && <button type="button" className="btn" onClick={review}>Mark reviewed</button>}
+        </span>
+      </div>
       {editing && (
         <form onSubmit={save} className="flex gap-2 flex-wrap items-center">
           <input className="form-input" placeholder="Author (leave blank = course teacher)" value={form.authorName} onChange={(e) => setForm({ ...form, authorName: e.target.value })} style={{ flex: '1 1 180px' }} />

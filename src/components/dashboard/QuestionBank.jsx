@@ -21,16 +21,16 @@ function useTeachingInstitutions() {
 
 function QuestionFilters({ filters, setFilters }) {
   return (
-    <div className="flex gap-2 flex-wrap">
-      <input className="form-input" placeholder="Search question text" value={filters.q} onChange={(e) => setFilters({ ...filters, q: e.target.value })} style={{ flex: '2 1 200px' }} />
-      <input className="form-input" placeholder="Subject" value={filters.subject} onChange={(e) => setFilters({ ...filters, subject: e.target.value })} style={{ flex: '1 1 120px' }} />
-      <input className="form-input" placeholder="Topic" value={filters.topic} onChange={(e) => setFilters({ ...filters, topic: e.target.value })} style={{ flex: '1 1 120px' }} />
-      <select className="form-select" value={filters.difficulty} onChange={(e) => setFilters({ ...filters, difficulty: e.target.value })} style={{ flex: '1 1 110px' }}>
+    <div className="qb-filters">
+      <label className="institution-field"><span>Search</span><input className="form-input" placeholder="Search question text" value={filters.q} onChange={(e) => setFilters({ ...filters, q: e.target.value })} /></label>
+      <label className="institution-field"><span>Subject</span><input className="form-input" placeholder="Any subject" value={filters.subject} onChange={(e) => setFilters({ ...filters, subject: e.target.value })} /></label>
+      <label className="institution-field"><span>Topic</span><input className="form-input" placeholder="Any topic" value={filters.topic} onChange={(e) => setFilters({ ...filters, topic: e.target.value })} /></label>
+      <label className="institution-field"><span>Difficulty</span><select className="form-select" value={filters.difficulty} onChange={(e) => setFilters({ ...filters, difficulty: e.target.value })} style={{ textTransform: 'capitalize' }}>
         <option value="">Any difficulty</option>{DIFFICULTIES.map((d) => <option key={d} value={d}>{d}</option>)}
-      </select>
-      <select className="form-select" value={filters.type} onChange={(e) => setFilters({ ...filters, type: e.target.value })} style={{ flex: '1 1 110px' }}>
+      </select></label>
+      <label className="institution-field"><span>Type</span><select className="form-select" value={filters.type} onChange={(e) => setFilters({ ...filters, type: e.target.value })}>
         <option value="">Any type</option><option value="mcq">MCQ</option><option value="short">Short</option><option value="long">Long</option>
-      </select>
+      </select></label>
     </div>
   );
 }
@@ -70,46 +70,50 @@ export function QuestionBankPanel({ onFlash }) {
     <div>
       <h3 className="font-semibold mb-2">Question Bank</h3>
       <p className="text-xs mb-3" style={{ color: 'var(--ink-soft)' }}>Save questions once and reuse them in any exam or quiz. Institution questions are shared with every teacher of that institution.</p>
-      <form onSubmit={save} className="card" style={{ padding: 16, display: 'grid', gap: 10, marginBottom: 20 }}>
-        <div className="flex gap-2 flex-wrap">
-          <select className="form-select" value={form.institution} onChange={(e) => setForm({ ...form, institution: e.target.value })} style={{ flex: '1 1 180px' }}>
+      <form onSubmit={save} className="qb-form">
+        <div className="nl-form-head"><h4>Add a question</h4><p>Pick the bank, write the question, then mark the correct option for MCQs.</p></div>
+        <div className="qb-meta">
+          <label className="institution-field"><span>Save to</span><select className="form-select" value={form.institution} onChange={(e) => setForm({ ...form, institution: e.target.value })}>
             <option value="">My private bank</option>
             {institutions.map((i) => <option key={i._id} value={i._id}>{i.name} (shared)</option>)}
-          </select>
-          <select className="form-select" value={form.type} onChange={(e) => setForm({ ...form, type: e.target.value })} style={{ flex: '1 1 110px' }}>
+          </select></label>
+          <label className="institution-field"><span>Type</span><select className="form-select" value={form.type} onChange={(e) => setForm({ ...form, type: e.target.value })}>
             <option value="mcq">MCQ</option><option value="short">Short answer</option><option value="long">Long answer</option>
-          </select>
-          <input className="form-input" placeholder="Subject" value={form.subject} onChange={(e) => setForm({ ...form, subject: e.target.value })} style={{ flex: '1 1 120px' }} />
-          <input className="form-input" placeholder="Topic" value={form.topic} onChange={(e) => setForm({ ...form, topic: e.target.value })} style={{ flex: '1 1 120px' }} />
-          <select className="form-select" value={form.difficulty} onChange={(e) => setForm({ ...form, difficulty: e.target.value })} style={{ flex: '1 1 100px' }}>{DIFFICULTIES.map((d) => <option key={d} value={d}>{d}</option>)}</select>
-          <input className="form-input" type="number" min="0.5" step="0.5" placeholder="Marks" value={form.marks} onChange={(e) => setForm({ ...form, marks: Number(e.target.value) })} style={{ width: 90 }} />
+          </select></label>
+          <label className="institution-field"><span>Subject</span><input className="form-input" placeholder="e.g. Physics" value={form.subject} onChange={(e) => setForm({ ...form, subject: e.target.value })} /></label>
+          <label className="institution-field"><span>Topic</span><input className="form-input" placeholder="e.g. Motion" value={form.topic} onChange={(e) => setForm({ ...form, topic: e.target.value })} /></label>
+          <label className="institution-field"><span>Difficulty</span><select className="form-select" value={form.difficulty} onChange={(e) => setForm({ ...form, difficulty: e.target.value })} style={{ textTransform: 'capitalize' }}>{DIFFICULTIES.map((d) => <option key={d} value={d}>{d}</option>)}</select></label>
+          <label className="institution-field"><span>Marks</span><input className="form-input" type="number" min="0.5" step="0.5" placeholder="Marks" value={form.marks} onChange={(e) => setForm({ ...form, marks: Number(e.target.value) })} /></label>
         </div>
-        <textarea className="form-input" rows={2} placeholder="Question text" value={form.text} onChange={(e) => setForm({ ...form, text: e.target.value })} required />
+        <label className="institution-field"><span>Question</span><textarea className="form-input" rows={3} placeholder="Write the question" value={form.text} onChange={(e) => setForm({ ...form, text: e.target.value })} required /></label>
         {form.type === 'mcq' && (
-          <div style={{ display: 'grid', gap: 6 }}>
+          <div className="institution-field"><span>Options <small>(select the correct one)</small></span><div className="qb-options">
             {form.options.map((opt, i) => (
-              <div key={i} className="flex items-center gap-2">
-                <input type="radio" name="bank-correct" checked={form.correctOption === i} onChange={() => setForm({ ...form, correctOption: i })} />
+              <label key={i} className={`qb-option${form.correctOption === i ? ' correct' : ''}`}>
+                <input type="radio" name="bank-correct" checked={form.correctOption === i} onChange={() => setForm({ ...form, correctOption: i })} aria-label={`Option ${i + 1} is correct`} />
+                <span className="qb-option-letter" aria-hidden="true">{String.fromCharCode(65 + i)}</span>
                 <input className="form-input" placeholder={`Option ${i + 1}`} value={opt} onChange={(e) => setForm({ ...form, options: form.options.map((o, x) => (x === i ? e.target.value : o)) })} />
-              </div>
+                {form.correctOption === i && <span className="qb-correct-tag">Correct</span>}
+              </label>
             ))}
-            <button type="button" className="btn" style={{ justifySelf: 'start', padding: '4px 10px', fontSize: '0.75rem' }} onClick={() => setForm({ ...form, options: [...form.options, ''] })}>+ Option</button>
-          </div>
+            <button type="button" className="btn" style={{ justifySelf: 'start' }} onClick={() => setForm({ ...form, options: [...form.options, ''] })}>+ Add option</button>
+          </div></div>
         )}
-        <button type="submit" className="btn btn-primary" style={{ justifySelf: 'start' }}>Save to bank</button>
+        <div className="nl-form-foot"><button type="submit" className="btn btn-primary">Save to bank</button></div>
       </form>
+      <h4 className="qb-list-title">Saved questions</h4>
       <QuestionFilters filters={filters} setFilters={setFilters} />
       <div style={{ display: 'grid', gap: 8, marginTop: 12 }}>
-        {items.length === 0 && <p className="text-xs" style={{ color: 'var(--ink-soft)' }}>No questions match.</p>}
+        {items.length === 0 && <p className="po-empty">No questions match.</p>}
         {items.map((q) => (
-          <div key={q._id} className="card" style={{ padding: 12 }}>
+          <div key={q._id} className="card qb-item">
             <div className="flex" style={{ justifyContent: 'space-between', gap: 10 }}>
               <div>
                 <strong>{q.text}</strong>
-                <p className="text-xs" style={{ color: 'var(--ink-soft)', marginTop: 4 }}>{q.type.toUpperCase()} · {q.marks} marks · {q.difficulty}{q.subject ? ` · ${q.subject}` : ''}{q.topic ? ` / ${q.topic}` : ''} · {q.institution ? 'Shared' : 'Private'} · used {q.timesUsed}× · by {q.createdBy?.fullName || '—'}</p>
+                <p className="text-xs" style={{ color: 'var(--ink-soft)', marginTop: 6 }}><span className="exam-type">{q.type}</span> <span className={`qb-diff ${q.difficulty}`}>{q.difficulty}</span> · {q.marks} marks{q.subject ? ` · ${q.subject}` : ''}{q.topic ? ` / ${q.topic}` : ''} · {q.institution ? 'Shared' : 'Private'} · used {q.timesUsed}× · by {q.createdBy?.fullName || '—'}</p>
                 {q.type === 'mcq' && <p className="text-xs" style={{ marginTop: 4 }}>{q.options.map((o, i) => (i === q.correctOption ? `✓ ${o}` : o)).join(' · ')}</p>}
               </div>
-              <button type="button" className="btn" style={{ padding: '4px 10px', fontSize: '0.75rem', alignSelf: 'start' }} onClick={() => archive(q._id)}>Remove</button>
+              <button type="button" className="btn staff-remove" style={{ padding: '4px 10px', fontSize: '0.75rem', alignSelf: 'start' }} onClick={() => archive(q._id)}>Remove</button>
             </div>
           </div>
         ))}
@@ -150,13 +154,13 @@ export function QuestionBankPicker({ institutionId, selectedIds, onChange, onFla
 // Anti-cheating settings on the exam form.
 export function ExamSecurityOptions({ value, onChange, questionCount }) {
   return (
-    <div className="card" style={{ padding: 14, background: 'var(--sand)', display: 'grid', gap: 8 }}>
+    <div className="card exam-security" style={{ display: 'grid', gap: 10 }}>
       <strong>Exam security</strong>
       <label className="text-xs flex items-center gap-2"><input type="checkbox" checked={value.shuffleQuestions} onChange={(e) => onChange({ shuffleQuestions: e.target.checked })} /> Shuffle question order for every student</label>
       <label className="text-xs flex items-center gap-2"><input type="checkbox" checked={value.shuffleOptions} onChange={(e) => onChange({ shuffleOptions: e.target.checked })} /> Shuffle MCQ options for every student</label>
-      <div className="flex gap-3 flex-wrap text-xs">
-        <label>Questions per student (0 = all {questionCount})<input className="form-input" type="number" min="0" max={questionCount} value={value.questionsPerAttempt} onChange={(e) => onChange({ questionsPerAttempt: Number(e.target.value) })} style={{ width: 110, marginTop: 4 }} /></label>
-        <label>Flag after this many tab switches<input className="form-input" type="number" min="1" value={value.flagThreshold} onChange={(e) => onChange({ flagThreshold: Number(e.target.value) })} style={{ width: 110, marginTop: 4 }} /></label>
+      <div className="exam-security-grid">
+        <label className="institution-field"><span>Questions per student (0 = all {questionCount})</span><input className="form-input" type="number" min="0" max={questionCount} value={value.questionsPerAttempt} onChange={(e) => onChange({ questionsPerAttempt: Number(e.target.value) })} /></label>
+        <label className="institution-field"><span>Flag after this many tab switches</span><input className="form-input" type="number" min="1" value={value.flagThreshold} onChange={(e) => onChange({ flagThreshold: Number(e.target.value) })} /></label>
       </div>
       <p className="text-xs" style={{ color: 'var(--ink-soft)' }}>Tab switches, copy/paste, leaving fullscreen and changing device are logged on every attempt. Pasting or switching device flags the attempt immediately.</p>
     </div>

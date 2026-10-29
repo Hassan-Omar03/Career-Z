@@ -1,6 +1,8 @@
 import SavedForm from '../shared/SavedForm';
 import { useEffect, useState } from 'react';
 import { apiRequest } from '../../api/client';
+import { FaShieldHalved, FaKitMedical } from 'react-icons/fa6';
+import './medical-health.css';
 
 const initial = { bloodGroup: '', allergies: [], medicalNotes: '', vaccinations: [], emergencyContact: { name: '', phone: '', relation: '' } };
 export default function MedicalHealth({ mode = 'student', onFlash }) {
@@ -56,10 +58,12 @@ export default function MedicalHealth({ mode = 'student', onFlash }) {
   const button = (label, fn) => <button className="btn" type="button" disabled={busy} onClick={fn}>{label}</button>;
   const change = (key, value) => setRecord({ ...record, [key]: value });
   return <section className="institution-ui institution-remaining-ui institution-health-ui">
-    <h2>{mode === 'teacher' ? 'Report a Student Health Incident' : 'Medical & Health'}</h2>
-    <p>Health details are private. Access is limited to the student, permitted guardians and authorized institution staff.</p>
+    <header className="health-page-heading"><span className="health-heading-icon" aria-hidden="true"><FaKitMedical /></span><div><h2>{mode === 'teacher' ? 'Student Health Incidents' : 'Medical & Health'}</h2><p>Keep health information, emergency contacts and incident records in one place.</p></div></header>
+    <div className="health-privacy"><FaShieldHalved aria-hidden="true" /><p><strong>Private health information</strong><span>Only the student, permitted guardians and authorized institution staff can access these details.</span></p></div>
+    {(manage || edit) && <div className="health-selectors">
     {manage && <label>Institution<select className="form-select" value={institution} onChange={e => setInstitution(e.target.value)}>{institutions.map(i => <option key={i._id} value={i._id}>{i.name}</option>)}</select></label>}
     {edit && <label>Student<select className="form-select" value={student} onChange={e => setStudent(e.target.value)}><option value="">Select student</option>{students.map(s => <option key={s._id} value={s._id}>{s.fullName}</option>)}</select></label>}
+    </div>}
     {mode === 'parent' && !loading && !students.length && <p>No linked child with guardian health permission. Check My Children permissions.</p>}
     {manage && !loading && !institutions.length && <p>No institution available.</p>}
     {error && <p role="alert">{error} {button('Retry', () => setRevision(r => r + 1))}</p>}
@@ -69,36 +73,42 @@ export default function MedicalHealth({ mode = 'student', onFlash }) {
       const body = Object.fromEntries(Object.keys(initial).map(key => [key, record[key]]));
       await apiRequest(path, { method: 'PATCH', body }); onFlash('Health record saved.', 'success'); return true;
     }); }}>
-      <h3>Student health record</h3>
+      <div className="health-section-heading"><h3>Student health record</h3><p>Review medical details and emergency contacts. Choose Edit to make changes.</p></div>
+      <section className="health-field-group"><h4>Medical information</h4><div className="health-fields">
       <label>Blood group<select className="form-select" disabled={!edit} value={record.bloodGroup} onChange={e => change('bloodGroup', e.target.value)}>{['', 'A+', 'A-', 'B+', 'B-', 'AB+', 'AB-', 'O+', 'O-'].map(g => <option key={g} value={g}>{g || 'Not recorded'}</option>)}</select></label>
       <label>Allergies (comma-separated)<input className="form-input" readOnly={!edit} value={record.allergies.join(', ')} onChange={e => change('allergies', e.target.value.split(',').map(a => a.trim()))} /></label>
-      <label>Medical history / notes<textarea className="form-input" readOnly={!edit} value={record.medicalNotes} onChange={e => change('medicalNotes', e.target.value)} /></label>
+      <label className="health-wide">Medical history / notes<textarea className="form-input" readOnly={!edit} value={record.medicalNotes} onChange={e => change('medicalNotes', e.target.value)} /></label>
+      </div></section>
+      <section className="health-field-group"><h4>Emergency contact</h4><p className="health-hint">The person to contact when the student needs assistance.</p><div className="health-fields health-contact-fields">
       {['name', 'phone', 'relation'].map(key => <label key={key}>Emergency contact {key}<input className="form-input" readOnly={!edit} value={record.emergencyContact[key]} onChange={e => change('emergencyContact', { ...record.emergencyContact, [key]: e.target.value })} /></label>)}
-      <h3>Vaccinations</h3>
+      </div></section>
+      <section className="health-field-group"><h4>Vaccinations</h4><p className="health-hint">Keep vaccine names, dates and relevant notes together.</p>
       {record.vaccinations.map((v, index) => <div key={index} style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 8 }}>{['name', 'date', 'notes'].map(key => <label key={key}>{key}<input className="form-input" required={key === 'name'} readOnly={!edit} type={key === 'date' ? 'date' : 'text'} value={key === 'date' ? v.date?.slice(0, 10) || '' : v[key] || ''} onChange={e => change('vaccinations', record.vaccinations.map((row, i) => i === index ? { ...row, [key]: e.target.value } : row))} /></label>)}{edit && button('Remove vaccine', () => change('vaccinations', record.vaccinations.filter((_, i) => i !== index)))}</div>)}
-      {!record.vaccinations.length && <p>No vaccination records.</p>}
-      {edit && <>{button('Add vaccination', () => change('vaccinations', [...record.vaccinations, { name: '', date: '', notes: '' }]))}<button className="btn btn-primary" disabled={busy}>Save health record</button></>}
+      {!record.vaccinations.length && <p className="health-empty">No vaccination records added yet.</p>}
+      {edit && button('Add vaccination', () => change('vaccinations', [...record.vaccinations, { name: '', date: '', notes: '' }]))}
+      </section>
+      {edit && <div className="health-form-actions"><button className="btn btn-primary" disabled={busy}>Save health record</button></div>}
       <details><summary>Record change history</summary>{record.healthChanges?.map((h, i) => <p key={i}>{new Date(h.at).toLocaleString()} · Updated {h.fields.join(', ')}</p>)}{!record.healthChanges?.length && <p>No changes recorded yet.</p>}</details>
     </SavedForm>}
-    {(manage || mode === 'teacher') && <form className="dash-card" onSubmit={e => { e.preventDefault(); run(async () => {
+    {(manage || mode === 'teacher') && <form className="dash-card health-incident-form" onSubmit={e => { e.preventDefault(); run(async () => {
       const id = mode === 'teacher' ? teacherStudents.find(m => m._id === student)?.institution?._id : institution;
       const studentId = mode === 'teacher' ? teacherStudents.find(m => m._id === student)?.student?._id : student;
       const result = await apiRequest(`${base}/${id}/health-incidents`, { method: 'POST', body: { ...incident, occurredAt: incident.occurredAt ? new Date(incident.occurredAt).toISOString() : null, student: studentId } });
       onFlash(result.parentNotified ? 'Incident recorded; guardian notification created.' : 'Incident recorded; no guardian notification was created. Check permissions or retry.', result.parentNotified ? 'success' : 'error');
       setIncident({ description: '', actionTaken: '', severity: 'minor', occurredAt: '' });
     }); }}>
-      <h3>Record incident</h3>
+      <div className="health-section-heading"><h3>Record an incident</h3><p>Describe what happened and the support provided. Guardian notifications follow the student's permissions.</p></div>
       {mode === 'teacher' && <label>Student<select className="form-select" required value={student} onChange={e => setStudent(e.target.value)}><option value="">Select active student</option>{teacherStudents.map(m => <option key={m._id} value={m._id}>{m.student?.fullName} · {m.institution?.name}</option>)}</select></label>}
-      <label>What happened<textarea className="form-input" required value={incident.description} onChange={e => setIncident({ ...incident, description: e.target.value })} /></label>
+      <label className="health-wide">What happened<textarea className="form-input" placeholder="Describe the incident and any symptoms observed…" required value={incident.description} onChange={e => setIncident({ ...incident, description: e.target.value })} /></label>
       <label>Action taken<input className="form-input" value={incident.actionTaken} onChange={e => setIncident({ ...incident, actionTaken: e.target.value })} /></label>
       <label>Severity<select className="form-select" value={incident.severity} onChange={e => setIncident({ ...incident, severity: e.target.value })}>{['minor', 'moderate', 'severe'].map(s => <option key={s}>{s}</option>)}</select></label>
       <label>Occurred at<input className="form-input" type="datetime-local" value={incident.occurredAt} onChange={e => setIncident({ ...incident, occurredAt: e.target.value })} /></label>
       <button className="btn btn-primary" disabled={busy || !student}>Record incident</button>
     </form>}
-    <h3>{mode === 'teacher' ? 'Incidents I reported' : 'Incident history'}</h3>
-    {!loading && !incidents.length && <p>No incidents recorded.</p>}
-    {incidents.map(row => <article className="dash-card" key={row._id}>
-      <strong>{row.student?.fullName || row.institution?.name || 'Incident'} · {row.severity} · {row.status || 'open'}</strong><p>{new Date(row.occurredAt).toLocaleString()} · {row.description}</p><p>Action taken: {row.actionTaken || '—'}</p>
+    <div className="health-history-heading"><h3>{mode === 'teacher' ? 'Incidents I reported' : 'Incident history'}</h3><span>{incidents.length} recorded</span></div>
+    {!loading && !incidents.length && <div className="health-empty health-history-empty"><FaKitMedical aria-hidden="true" /><strong>No incidents recorded</strong><p>Recorded incidents and follow-up notes will appear here.</p></div>}
+    {incidents.map(row => <article className="dash-card health-incident-card" key={row._id}>
+      <div className="health-incident-title"><h4>{row.student?.fullName || row.institution?.name || 'Incident'}</h4><div><span data-severity={row.severity}>{row.severity}</span><span>{row.status || 'open'}</span></div></div><p>{new Date(row.occurredAt).toLocaleString()} · {row.description}</p><p>Action taken: {row.actionTaken || '—'}</p>
       {manage && <p>Guardian notification: {row.parentNotified ? 'Created (email delivery not guaranteed)' : 'Not created'}</p>}
       {row.followUps?.map((f, i) => <p key={i}>{new Date(f.at).toLocaleString()} · {f.notes}</p>)}
       {manage && <>{button('Follow up / resolve', () => setFollow({ id: row._id, status: row.status || 'open', notes: '' }))}{button('Retry guardian notification', () => run(async () => { const result = await apiRequest(`${base}/health-incidents/${row._id}`, { method: 'PATCH', body: { action: 'retry_notification' } }); onFlash(result.parentNotified ? 'Guardian notification on record.' : 'No eligible guardian or notification failed.', result.parentNotified ? 'success' : 'error'); }))}</>}

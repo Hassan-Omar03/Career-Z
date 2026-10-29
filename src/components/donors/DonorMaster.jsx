@@ -34,6 +34,7 @@ export function DonorForecastCard({ onFlash }) {
 }
 
 // Impact report from the donor's records; AI writes it up on request.
+const totals = (byCurrency) => Object.entries(byCurrency || {}).map(([c, v]) => `${c} ${Number(v).toLocaleString()}`).join(' + ');
 export function DonorImpactCard({ onFlash }) {
   const [data, setData] = useState(null);
   const [busy, setBusy] = useState(false);
@@ -48,6 +49,8 @@ export function DonorImpactCard({ onFlash }) {
     <div className="card" style={{ padding: 16, margin: '0 0 16px', display: 'grid', gap: 8 }}>
       <h4 className="font-semibold" style={{ margin: 0 }}>Your impact</h4>
       <span className="text-sm">{f.studentsSponsored} student(s) sponsored · {pkr(f.sponsorshipPaid)} paid of {pkr(f.sponsorshipCommitted)} committed · {f.completedSponsorships} sponsorship(s) completed · {f.scholarshipsPosted} scholarship(s) posted · {f.donationsCount} donation(s)</span>
+      <span className="text-sm"><strong>Donated:</strong> {totals(f.donatedTotal) || 'nothing approved yet'}{f.donationsBeingChecked > 0 && <> · {f.donationsBeingChecked} donation(s) of {totals(f.beingCheckedTotal)} being checked by CareerZ</>}</span>
+      {data.given?.length > 0 && <div style={{ display: 'grid', gap: 4 }}>{data.given.map((g, i) => <span key={i} className="text-xs" style={{ borderTop: '1px solid var(--sand-line)', paddingTop: 4 }}>{new Date(g.at).toLocaleDateString()} · {g.title} · <strong>{g.currency} {Number(g.amount || 0).toLocaleString()}</strong> · <span style={{ color: g.status === 'received' ? 'var(--emerald)' : 'var(--gold)' }}>{g.status}</span></span>)}</div>}
       {Object.keys(f.donatedByRecipientType || {}).length > 0 && <span className="text-xs">Given to: {Object.entries(f.donatedByRecipientType).map(([k, v]) => `${k} ${Number(v).toLocaleString()}`).join(' · ')}</span>}
       {data.report && <div className="text-sm" style={{ whiteSpace: 'pre-wrap', background: 'var(--sand)', padding: 10, borderRadius: 8 }}>{data.report}</div>}
       <button type="button" className="btn" style={{ justifySelf: 'start', ...small }} disabled={busy} onClick={write}>{busy ? 'Writing…' : 'Write my impact report with AI'}</button>

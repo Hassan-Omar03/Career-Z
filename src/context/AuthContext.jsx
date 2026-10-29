@@ -71,6 +71,14 @@ export function AuthProvider({ children }) {
     return data;
   }
 
+  // Quick checkout returns a signed-in session (user + tokens) without a password login.
+  async function signInWith(data) {
+    session.set({ user: data.user, accessToken: data.accessToken, refreshToken: data.refreshToken });
+    setUser(data.user);
+    await refreshAccountStatus();
+    return data;
+  }
+
   async function logout() {
     try { await logoutApi(); }
     finally { session.clear(); setUser(null); setAccountStatus(null); }
@@ -85,7 +93,7 @@ export function AuthProvider({ children }) {
   }
 
   return (
-    <AuthContext.Provider value={{ user, loading, accountStatus, refreshAccountStatus, login, verifyLogin2FA, register, logout, refreshProfile }}>
+    <AuthContext.Provider value={{ user, loading, accountStatus, refreshAccountStatus, login, verifyLogin2FA, register, logout, refreshProfile, signInWith }}>
       {children}
     </AuthContext.Provider>
   );

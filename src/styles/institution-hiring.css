@@ -1,0 +1,98 @@
+.institution-hiring-page { min-width:0; font-size:14px; line-height:1.7; }
+.institution-hiring-page > div:first-child { background:transparent; }
+.institution-hiring-page > p { font-size:13px; line-height:1.8; margin:12px 0 24px; max-width:85ch !important; }
+.institution-hiring-page .cz-tabbar { display:flex; flex-wrap:wrap; gap:6px; width:fit-content; max-width:100%; padding:7px; border-radius:12px; margin:0 0 24px !important; }
+.institution-hiring-page .cz-tab { padding:10px 16px; min-height:42px; border-radius:8px; font-size:13px; }
+.institution-hiring-page .btn { min-height:38px; padding:9px 14px; font-size:12px; border-radius:9px; white-space:normal; line-height:1.5; }
+.institution-hiring-page .form-input,.institution-hiring-page .form-select { min-width:0 !important; width:100%; max-width:100%; font-size:14px; min-height:46px; border-radius:10px; }
+.institution-hiring-page .hiring-post-form { max-width:100% !important; gap:24px !important; }
+.institution-hiring-page .hiring-post-form > .card { padding:24px !important; border-radius:16px; gap:18px !important; }
+.institution-hiring-page .hiring-field { display:grid; gap:8px; min-width:0; flex:1 1 180px; }
+.institution-hiring-page .hiring-field > span { font-size:12px; font-weight:600; color:var(--ink-soft); }
+.institution-hiring-page .hiring-field > .form-input { flex:none !important; }
+.institution-hiring-page .hiring-post-form > .card > p:first-child { margin:0; padding-bottom:14px; border-bottom:1px solid var(--sand-line); font-size:11px !important; }
+.institution-hiring-page .hiring-post-form textarea { min-height:160px; resize:vertical; }
+.institution-hiring-page .hiring-post-form .btn { justify-self:start; }
+.institution-hiring-page .hiring-jobs-list > h3 { margin:0 0 20px; font-size:20px; }
+.institution-hiring-page .account-table-wrap { border-radius:14px; margin:20px 0; }
+.institution-hiring-page .hiring-jobs-list > .account-table-wrap table { min-width:1080px; table-layout:auto; }
+.institution-hiring-page th { padding:14px 16px; font-size:10px; letter-spacing:.06em; }
+.institution-hiring-page td { padding:18px 16px; font-size:13px; vertical-align:top; line-height:1.65; }
+.institution-hiring-page td:first-child { min-width:190px; font-weight:600; }
+.institution-hiring-page td:nth-child(3) { min-width:140px; }
+.institution-hiring-page td:nth-child(5),.institution-hiring-page td:nth-child(6) { white-space:nowrap; }
+.institution-hiring-page td:last-child { min-width:250px; max-width:320px; }
+.institution-hiring-page .hiring-row-actions { display:flex; gap:8px !important; flex-wrap:wrap; max-width:290px; }
+.institution-hiring-page .hiring-row-actions .btn { margin:0; padding:7px 11px !important; min-height:34px; font-size:11px !important; }
+.institution-hiring-page .hiring-row-actions > span { flex-basis:100%; }
+/* Fit every job and its actions without a horizontal scrolling table. */
+.institution-hiring-page .hiring-jobs-list > .account-table-wrap { overflow:visible; border:0; background:transparent; }
+.institution-hiring-page .hiring-jobs-list > .account-table-wrap table { display:block; width:100%; min-width:0 !important; }
+.institution-hiring-page .hiring-jobs-list > .account-table-wrap thead { display:none; }
+.institution-hiring-page .hiring-jobs-list > .account-table-wrap tbody { display:grid; gap:18px; }
+.institution-hiring-page .hiring-jobs-list > .account-table-wrap tr { display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:16px 22px; padding:22px; border:1px solid var(--sand-line); border-radius:14px; background:var(--paper-raised); }
+.institution-hiring-page .hiring-jobs-list > .account-table-wrap td { display:block; min-width:0; max-width:none; padding:0; border:0; background:transparent; white-space:normal; overflow-wrap:anywhere; }
+.institution-hiring-page .hiring-jobs-list > .account-table-wrap td::before { display:block; margin-bottom:6px; font-size:10px; font-weight:700; letter-spacing:.05em; text-transform:uppercase; color:var(--ink-soft); }
+.institution-hiring-page .hiring-jobs-list > .account-table-wrap td:first-child { grid-column:1/-1; font-size:17px; }
+.institution-hiring-page .hiring-jobs-list td:nth-child(2)::before { content:'Company'; }
+.institution-hiring-page .hiring-jobs-list td:nth-child(3)::before { content:'Location'; }
+.institution-hiring-page .hiring-jobs-list td:nth-child(4)::before { content:'Type'; }
+.institution-hiring-page .hiring-jobs-list td:nth-child(5)::before { content:'Posted'; }
+.institution-hiring-page .hiring-jobs-list td:nth-child(6)::before { content:'Deadline'; }
+.institution-hiring-page .hiring-jobs-list td:nth-child(7)::before { content:'Applicants'; }
+.institution-hiring-page .hiring-jobs-list td:nth-child(8)::before { content:'Status'; }
+.institution-hiring-page .hiring-jobs-list > .account-table-wrap td:last-child { grid-column:1/-1; padding-top:16px; border-top:1px solid var(--sand-line); }
+.institution-hiring-page .hiring-jobs-list .hiring-row-actions { max-width:none; }
+.institution-hiring-page .hiring-jobs-list .hiring-row-actions > span { flex-basis:auto; min-width:0; max-width:100%; }
+.institution-hiring-page .hiring-jobs-list .hiring-row-actions .btn { max-width:100%; }
+@media(max-width:700px) { .institution-hiring-page .hiring-jobs-list > .account-table-wrap tr { grid-template-columns:repeat(2,minmax(0,1fr)); padding:18px; gap:16px; } }
+.institution-hiring-page .hiring-agent-workspace { gap:22px !important; }
+.institution-hiring-page .hiring-agent-workspace > p { font-size:13px; line-height:1.8; margin:0; }
+.institution-hiring-page .hiring-agent-workspace .card { padding:22px !important; border-radius:14px; min-width:0; }
+.institution-hiring-page .hiring-agent-workspace article > div { min-width:0; }
+.institution-hiring-page .hiring-agent-workspace .text-sm { font-size:13px; line-height:1.8; }
+.institution-hiring-page .hiring-agent-workspace form { gap:16px !important; }
+.institution-hiring-page .hiring-agent-workspace label { display:grid; gap:8px; min-width:0; font-size:12px; }
+.institution-hiring-page .hiring-agent-workspace textarea { min-height:110px; }
+.institution-hiring-page .hiring-message-thread { margin:14px 0; gap:10px !important; }
+.institution-hiring-page .hiring-message-thread > p { padding:14px 16px !important; font-size:13px; line-height:1.8; overflow-wrap:anywhere; }
+.institution-hiring-page .hiring-message-thread small { display:block; margin-top:6px; font-size:10px; }
+.institution-hiring-page .hiring-message-thread form { align-items:end; margin-top:6px; }
+.institution-hiring-page .hiring-message-thread form .btn { min-height:46px; }
+.institution-hiring-page .hiring-agent-workspace article > strong { color:var(--forest); }
+.institution-hiring-page .hiring-agent-workspace .btn-primary { color:white; }
+.institution-hiring-page .hiring-agent-workspace .card > .btn { justify-self:start; }
+.institution-hiring-page .hiring-agent-filters { display:grid !important; grid-template-columns:1.4fr 1fr 1fr 1.2fr auto; align-items:end; gap:14px !important; padding:20px; border:1px solid var(--sand-line); border-radius:14px; background:var(--paper-raised); margin-bottom:10px; }
+.institution-hiring-page .hiring-agent-filters .btn { min-height:46px; }
+.institution-hiring-page .hiring-agent-card { display:grid !important; grid-template-columns:minmax(0,1fr) auto; gap:20px !important; }
+.institution-hiring-page .hiring-agent-card > .text-sm { gap:14px !important; }
+.institution-hiring-page .hiring-agent-card strong { display:flex; align-items:center; flex-wrap:wrap; gap:10px; font-size:16px; }
+.institution-hiring-page .hiring-agent-card .badge { margin:0 !important; padding:4px 10px; border-radius:6px; background:var(--institution-tint); color:var(--forest); font-size:10px; font-weight:600; }
+.institution-hiring-page .hiring-agent-specialties { display:flex; flex-wrap:wrap; gap:7px; }
+.institution-hiring-page .hiring-agent-specialties > span { padding:4px 9px; font-size:11px; border:1px solid var(--sand-line); border-radius:6px; color:var(--ink-soft); }
+.institution-hiring-page .hiring-agent-about { border-top:1px solid var(--sand-line); padding-top:14px; }
+.institution-hiring-page .hiring-agent-about summary { cursor:pointer; color:var(--forest); font-size:12px; font-weight:600; }
+.institution-hiring-page .hiring-agent-about p { margin:12px 0 0; max-width:85ch; line-height:1.8; }
+.institution-hiring-page .hiring-agent-card > .btn { align-self:start !important; }
+@media(max-width:1000px) { .institution-hiring-page .hiring-agent-filters { grid-template-columns:repeat(2,minmax(0,1fr)); } .institution-hiring-page .hiring-agent-filters .btn { justify-self:start; } }
+@media(max-width:600px) { .institution-hiring-page .hiring-agent-filters,.institution-hiring-page .hiring-agent-card { grid-template-columns:minmax(0,1fr); } .institution-hiring-page .hiring-agent-filters { padding:18px; } }
+/* Fixed control height prevents the search action stretching to the label row. */
+.institution-hiring-page .hiring-agent-workspace .hiring-agent-filters { display:grid !important; grid-template-columns:repeat(3,minmax(0,1fr)); align-items:end; gap:18px !important; padding:22px; }
+.institution-hiring-page .hiring-agent-filters > label { margin:0; gap:8px; font-size:12px; font-weight:600; }
+.institution-hiring-page .hiring-agent-filters .form-input,.institution-hiring-page .hiring-agent-filters .form-select { height:46px; min-height:46px; border-radius:10px; font-weight:400; margin:0; }
+.institution-hiring-page .hiring-agent-filters > .hiring-agent-search { display:inline-flex; align-items:center; justify-content:center; align-self:end; justify-self:start; gap:10px; height:46px; min-height:46px; padding:0 22px; border-radius:10px; font-size:13px; font-weight:600; box-shadow:0 3px 8px color-mix(in srgb,var(--forest) 12%,transparent); transition:transform .15s,box-shadow .15s; }
+.institution-hiring-page .hiring-agent-search:hover { transform:translateY(-1px); box-shadow:0 5px 12px color-mix(in srgb,var(--forest) 18%,transparent); }
+.institution-hiring-page .hiring-agent-search:focus-visible { outline:2px solid var(--forest); outline-offset:3px; }
+@media(min-width:1200px) { .institution-hiring-page .hiring-agent-workspace .hiring-agent-filters { grid-template-columns:minmax(180px,1.5fr) repeat(3,minmax(120px,1fr)) auto; } }
+@media(max-width:850px) { .institution-hiring-page .hiring-agent-workspace .hiring-agent-filters { grid-template-columns:repeat(2,minmax(0,1fr)); } }
+@media(max-width:540px) { .institution-hiring-page .hiring-agent-workspace .hiring-agent-filters { grid-template-columns:minmax(0,1fr); padding:18px; } .institution-hiring-page .hiring-agent-filters > .hiring-agent-search { width:100%; justify-self:stretch; } }
+.institution-hiring-page .hiring-agent-filters > .hiring-agent-search { width:auto; height:34px; min-height:34px; padding:0 12px; gap:7px; font-size:12px; border-radius:8px; justify-self:start; box-shadow:none; }
+.institution-hiring-page .hiring-agent-search svg { width:12px; height:12px; }
+@media(max-width:700px) {
+ .institution-hiring-page .hiring-post-form > .card,.institution-hiring-page .hiring-agent-workspace .card { padding:18px !important; }
+ .institution-hiring-page .form-input,.institution-hiring-page .form-select { font-size:16px; }
+ .institution-hiring-page .hiring-post-form .flex > div { flex-basis:100% !important; }
+ .institution-hiring-page .hiring-post-form .flex > .hiring-field { flex-basis:100%; }
+ .institution-hiring-page .hiring-agent-workspace article > div[style] { overflow-wrap:anywhere; }
+ .institution-hiring-page .cz-tab { font-size:12px; padding:9px 12px; }
+}

@@ -14,6 +14,7 @@ import PublicPortfolio from './pages/PublicPortfolio';
 import TeacherPortfolio from './pages/TeacherPortfolio';
 import SiteAssistant from './components/SiteAssistant';
 import ApplicationStatus from './pages/ApplicationStatus';
+import MyOrders from './pages/MyOrders';
 import { ListingPage, JobDetail, ScholarshipDetail, InstituteDetail, ProductDetail, DonorDetail, CourseDetail } from './pages/Discover';
 import { takeIntent } from './utils/continueIntent';
 import VerifyFeeReceipt from './pages/VerifyFeeReceipt';
@@ -74,6 +75,7 @@ function ProtectedRoute({ children }) {
       </div>
     );
   }
+  if (user.quickBuyer && !(user.roles || []).length) return <Navigate to="/my-orders" replace />;
   if (accountStatus.state === 'profile_incomplete') return <Navigate to="/complete-profile" replace />;
   if (accountStatus.state !== 'ok') return <Navigate to="/onboarding" replace />;
   return <ContinueOrDashboard>{children}</ContinueOrDashboard>;
@@ -115,6 +117,7 @@ export default function App() {
       <Route path="/jobs" element={<ListingPage kind="jobs" />} />
       <Route path="/jobs/:id" element={<JobDetail />} />
       <Route path="/application-status" element={<ApplicationStatus />} />
+      <Route path="/my-orders" element={<MyOrders />} />
       <Route path="/scholarships" element={<ListingPage kind="scholarships" />} />
       <Route path="/scholarships/:id" element={<ScholarshipDetail />} />
       <Route path="/institutes" element={<ListingPage kind="institutes" />} />

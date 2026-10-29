@@ -1,0 +1,25 @@
+/* Component-local size: independent of dashboard wrapper and global button rules. */
+form.hiring-agent-filters > button.hiring-agent-search.btn {
+  box-sizing:border-box !important;
+  display:inline-flex !important;
+  width:118px !important;
+  min-width:0 !important;
+  max-width:118px !important;
+  height:34px !important;
+  min-height:34px !important;
+  max-height:34px !important;
+  padding:0 10px !important;
+  margin:0 !important;
+  gap:6px !important;
+  align-items:center !important;
+  justify-content:center !important;
+  align-self:end !important;
+  justify-self:start !important;
+  flex:0 0 auto !important;
+  font-size:12px !important;
+  line-height:1 !important;
+  border-radius:7px !important;
+  white-space:nowrap !important;
+  box-shadow:none !important;
+}
+form.hiring-agent-filters > button.hiring-agent-search.btn svg { width:12px !important; height:12px !important; flex-shrink:0; }

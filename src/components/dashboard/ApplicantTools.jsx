@@ -36,10 +36,12 @@ function StageSelect({ value, onChange, application, agentJob = false }) {
   );
 }
 
+export const MEETING_PROVIDERS = [['careerz', 'CareerZ video (built-in)'], ['google_meet', 'Google Meet'], ['zoom', 'Zoom'], ['teams', 'Microsoft Teams'], ['custom', 'Custom meeting link']];
+
 // Interview / Final interview: schedule it (date, online link or address); the candidate sees it
 // in their Interviews tab and is emailed.
 function InterviewForm({ application, round, onSaved, onFlash, onCancel }) {
-  const [f, setF] = useState({ scheduledDate: '', mode: 'online', location: '' }), [busy, setBusy] = useState(false);
+  const [f, setF] = useState({ scheduledDate: '', mode: 'online', location: '', provider: 'careerz', externalUrl: '' }), [busy, setBusy] = useState(false);
   async function submit(e) {
     e.preventDefault();
     setBusy(true);
@@ -55,8 +57,10 @@ function InterviewForm({ application, round, onSaved, onFlash, onCancel }) {
       <strong className="text-xs">Schedule the {round === 'final_interview' ? 'final interview' : 'interview'}</strong>
       <input className="form-input" style={small} type="datetime-local" required aria-label="Date and time" value={f.scheduledDate} onChange={(e) => setF({ ...f, scheduledDate: e.target.value })} />
       <select className="form-select" style={small} aria-label="Interview mode" value={f.mode} onChange={(e) => setF({ ...f, mode: e.target.value })}><option value="online">Online</option><option value="physical">In person</option></select>
+      {f.mode === 'online' && <select className="form-select" style={small} aria-label="Meeting service" value={f.provider} onChange={(e) => setF({ ...f, provider: e.target.value })}>{MEETING_PROVIDERS.map(([v, l]) => <option key={v} value={v}>{l}</option>)}</select>}
+      {f.mode === 'online' && f.provider !== 'careerz' && <input className="form-input" style={small} type="url" required placeholder={`${MEETING_PROVIDERS.find(([v]) => v === f.provider)[1]} link (https://…)`} value={f.externalUrl} onChange={(e) => setF({ ...f, externalUrl: e.target.value })} />}
       {f.mode === 'online'
-        ? <small style={{ color: 'var(--ink-soft)' }}>Held in CareerZ's own video room. You and the candidate get a Join Interview button.</small>
+        ? <small style={{ color: 'var(--ink-soft)' }}>{f.provider === 'careerz' ? "Held in CareerZ's own video room. You and the candidate get a Join Interview button." : 'The candidate gets a Join button that opens this link.'}</small>
         : <input className="form-input" style={small} required placeholder="Address / room" value={f.location} onChange={(e) => setF({ ...f, location: e.target.value })} />}
       <div style={{ display: 'flex', gap: 6 }}>
         <button type="submit" className="btn btn-primary" disabled={busy} style={{ padding: '5px 10px', fontSize: '0.75rem' }}>{busy ? 'Scheduling…' : 'Schedule'}</button>

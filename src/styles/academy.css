@@ -1,0 +1,49 @@
+/* Academy: courses, batches, enrolments. Institute look: white cards, sand borders. */
+.ac-wrap { display: grid; gap: 16px; }
+.ac-head { display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; flex-wrap: wrap; }
+.ac-head h3 { margin: 0; font-size: 18px; }
+.ac-head p { margin: 4px 0 0; font-size: 13px; color: var(--ink-soft); max-width: 760px; }
+.ac-muted { color: var(--ink-soft); font-size: 13px; margin: 0; }
+.ac-actions { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.ac-actions .btn { padding: 7px 14px; font-size: 0.8rem; }
+.ac-cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 14px; }
+.ac-card { display: grid; gap: 10px; align-content: start; padding: 16px !important; border: 1px solid var(--sand-line); border-radius: 14px; background: var(--paper-raised, #fff); min-width: 0; text-align: start; }
+.ac-card-top { display: flex; justify-content: space-between; gap: 10px; align-items: flex-start; }
+.ac-card-top > div { display: grid; gap: 2px; min-width: 0; }
+.ac-card-top small { color: var(--ink-soft); font-size: 12px; overflow-wrap: anywhere; }
+.ac-pick { cursor: pointer; }
+.ac-pick:hover { border-color: var(--emerald); }
+.ac-chip { display: inline-flex; padding: 2px 10px; border-radius: 999px; font-size: 11.5px; font-weight: 700; border: 1px solid var(--sand-line); white-space: nowrap; text-transform: capitalize; }
+.ac-chip.good { border-color: color-mix(in srgb, var(--emerald) 45%, var(--sand-line)); background: color-mix(in srgb, var(--emerald) 9%, transparent); color: var(--emerald); }
+.ac-chip.warn { border-color: color-mix(in srgb, var(--gold) 50%, var(--sand-line)); background: color-mix(in srgb, var(--gold) 10%, transparent); }
+.ac-chip.bad { border-color: color-mix(in srgb, var(--rose) 45%, var(--sand-line)); background: color-mix(in srgb, var(--rose) 8%, transparent); color: var(--rose); }
+.ac-facts { display: grid; grid-template-columns: repeat(auto-fill, minmax(120px, 1fr)); gap: 8px; margin: 0; }
+.ac-facts div { padding: 8px 10px; border: 1px solid var(--sand-line); border-radius: 8px; min-width: 0; }
+.ac-facts dt { font-size: 11px; color: var(--ink-soft); }
+.ac-facts dd { margin: 2px 0 0; font-size: 13px; font-weight: 600; overflow-wrap: anywhere; }
+.ac-form { display: grid; gap: 14px; padding: 20px !important; border: 1px solid var(--sand-line); }
+.ac-form h3 { margin: 0; }
+.ac-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; }
+.ac-grid label, .ac-wide { display: grid; gap: 4px; font-size: 13px; font-weight: 600; min-width: 0; }
+.ac-sched { border: 1px solid var(--sand-line); border-radius: 12px; padding: 12px; margin: 0; display: grid; gap: 8px; }
+.ac-sched legend { font-weight: 700; padding: 0 6px; font-size: 13px; }
+.ac-sched-row { display: grid; grid-template-columns: 1fr 1fr 1fr auto; gap: 8px; }
+.ac-sched > .btn { justify-self: start; }
+.ac-tiles { display: grid; grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); gap: 12px; }
+.ac-tiles div { display: grid; gap: 4px; padding: 14px 16px; border: 1px solid var(--sand-line); border-radius: 12px; background: var(--paper-raised, #fff); }
+.ac-tiles span { font-size: 12px; color: var(--ink-soft); }
+.ac-tiles strong { font-size: 20px; }
+.ac-group { display: grid; gap: 10px; }
+.ac-group h4 { margin: 0; }
+.ac-fees { display: grid; gap: 6px; padding: 10px 12px; border: 1px dashed var(--sand-line); border-radius: 10px; font-size: 13px; }
+.ac-fee { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; justify-content: space-between; }
+.ac-fee span:first-child { flex: 1 1 200px; min-width: 0; }
+.ac-move { display: flex; flex-wrap: wrap; gap: 8px; }
+.ac-find { display: grid; gap: 12px; padding: 18px !important; border: 1px solid var(--sand-line); }
+.ac-find h4 { margin: 0; }
+.ac-search { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 8px; }
+.ac-connect { display: flex; justify-content: space-between; align-items: center; gap: 14px; flex-wrap: wrap; padding: 18px 20px !important; margin-bottom: 18px; border: 1px solid color-mix(in srgb, var(--emerald) 35%, var(--sand-line)); background: color-mix(in srgb, var(--emerald) 5%, var(--paper-raised, #fff)); }
+.ac-connect h3 { margin: 0; font-size: 17px; }
+.ac-connect p { margin: 4px 0 0; font-size: 13px; color: var(--ink-soft); max-width: 640px; }
+@media (max-width: 760px) { .ac-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+@media (max-width: 520px) { .ac-grid, .ac-search { grid-template-columns: 1fr; } .ac-sched-row { grid-template-columns: 1fr 1fr; } }

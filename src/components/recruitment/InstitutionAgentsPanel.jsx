@@ -5,6 +5,8 @@ import { CATEGORY_LABEL, REQUEST_STATUS, Thread, Agreements, InvoiceLine, label,
 import { readAsDataUrl, openPrivateFile, day } from './files';
 import AgentCandidates from './AgentCandidates';
 import { ManualPayButton } from '../payments/ManualPay';
+import { FaMagnifyingGlass } from 'react-icons/fa6';
+import './agent-search.css';
 
 // Institute side of Institute–Agent recruitment (optional; the institute can always post its own
 // jobs). Find a verified agent → send a request → agree terms → the agent recruits and publishes
@@ -16,7 +18,7 @@ export default function InstitutionAgentsPanel({ institution, onFlash }) {
   const [sub, setSub] = useState('requests'), [target, setTarget] = useState(null), [key, setKey] = useState(0);
   const refresh = () => setKey((k) => k + 1);
   return (
-    <div style={{ display: 'grid', gap: 12 }}>
+    <div className="hiring-agent-workspace" style={{ display: 'grid', gap: 12 }}>
       <p className="text-sm" style={{ color: 'var(--ink-soft)', margin: 0, maxWidth: 720 }}>Using an agent is optional. A verified agent recruits for you only under terms you both accept. You pay only after you confirm a candidate joined.</p>
       <nav className="cz-tabbar">{SUBS.map(([k, l]) => <button key={k} type="button" aria-pressed={sub === k} className={`cz-tab${sub === k ? ' active' : ''}`} onClick={() => setSub(k)}>{l}</button>)}</nav>
       {sub === 'find' && (target
@@ -35,23 +37,23 @@ function FindAgents({ onFlash, onPick }) {
   const load = (query = q) => { setList(null); apiRequest(`/recruitment/agents?${new URLSearchParams(query)}`).then(setList).catch((e) => { setList([]); onFlash(e.message); }); };
   useEffect(() => { load(); }, []); // eslint-disable-line react-hooks/exhaustive-deps
   return (
-    <div style={{ display: 'grid', gap: 12 }}>
-      <form onSubmit={(e) => { e.preventDefault(); load(); }} style={row}>
-        <input className="form-input" style={grow} placeholder="Agent or agency name" value={q.q} onChange={(e) => setQ({ ...q, q: e.target.value })} />
-        <input className="form-input" style={grow} placeholder="Country" value={q.country} onChange={(e) => setQ({ ...q, country: e.target.value })} />
-        <input className="form-input" style={grow} placeholder="City" value={q.city} onChange={(e) => setQ({ ...q, city: e.target.value })} />
-        <select className="form-select" style={grow} value={q.category} onChange={(e) => setQ({ ...q, category: e.target.value })} aria-label="Specialty"><option value="">Any specialty</option>{Object.entries(CATEGORY_LABEL).map(([v, l]) => <option key={v} value={v}>{l}</option>)}</select>
-        <button type="submit" className="btn btn-primary">Search</button>
+    <div className="hiring-find-agents" style={{ display: 'grid', gap: 12 }}>
+      <form className="hiring-agent-filters" onSubmit={(e) => { e.preventDefault(); load(); }} style={row}>
+<label>Agent or agency name<input className="form-input" style={grow} placeholder="Agent or agency name" value={q.q} onChange={(e) => setQ({ ...q, q: e.target.value })} /></label>
+<label>Country<input className="form-input" style={grow} placeholder="Country" value={q.country} onChange={(e) => setQ({ ...q, country: e.target.value })} /></label>
+<label>City<input className="form-input" style={grow} placeholder="City" value={q.city} onChange={(e) => setQ({ ...q, city: e.target.value })} /></label>
+<label>Specialty<select className="form-select" style={grow} value={q.category} onChange={(e) => setQ({ ...q, category: e.target.value })} aria-label="Specialty"><option value="">Any specialty</option>{Object.entries(CATEGORY_LABEL).map(([v, l]) => <option key={v} value={v}>{l}</option>)}</select></label>
+        <button type="submit" className="btn btn-primary hiring-agent-search"><FaMagnifyingGlass aria-hidden="true" /> Find agents</button>
       </form>
       {!list ? <p role="status">Loading…</p> : list.length === 0 ? <p className="admin-notice">No verified agents match. Try fewer filters.</p> : (
         <div style={{ display: 'grid', gap: 10 }}>
           {list.map((a) => (
-            <article key={a._id} className="card" style={{ padding: 14, display: 'flex', gap: 12, justifyContent: 'space-between', flexWrap: 'wrap' }}>
+            <article key={a._id} className="card hiring-agent-card" style={{ padding: 14, display: 'flex', gap: 12, justifyContent: 'space-between', flexWrap: 'wrap' }}>
               <div className="text-sm" style={{ display: 'grid', gap: 3, minWidth: 0 }}>
                 <strong>{a.name} <span className="badge" style={{ marginLeft: 6 }}>Verified {a.agency ? 'agency' : 'agent'}</span></strong>
                 <span style={{ color: 'var(--ink-soft)' }}>{[a.city, a.country].filter(Boolean).join(', ')}{a.serviceCountries?.length || a.serviceCities.length ? ` · serves ${[...(a.serviceCities || []), ...(a.serviceCountries || [])].join(', ')}` : ''}{a.experienceYears ? ` · ${a.experienceYears} years` : ''} · {a.confirmedHires} confirmed hire(s) on CareerZ</span>
-                {a.specialties.length > 0 && <span>{a.specialties.map((s) => CATEGORY_LABEL[s] || s).join(', ')}</span>}
-                {a.bio && <span style={{ whiteSpace: 'pre-wrap' }}>{a.bio}</span>}
+                {a.specialties.length > 0 && <div className="hiring-agent-specialties">{a.specialties.map((s) => <span key={s}>{CATEGORY_LABEL[s] || s}</span>)}</div>}
+                {a.bio && <details className="hiring-agent-about"><summary>About this {a.agency ? 'agency' : 'agent'}</summary><p style={{ whiteSpace: 'pre-wrap' }}>{a.bio}</p></details>}
               </div>
               <button type="button" className="btn btn-primary" onClick={() => onPick(a)} style={{ alignSelf: 'center' }}>Send request</button>
             </article>
@@ -127,11 +129,11 @@ function Requests({ institution, onFlash }) {
         <article key={r._id} className="card" style={{ padding: 14, display: 'grid', gap: 10 }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', gap: 10, flexWrap: 'wrap' }}>
             <div className="text-sm" style={{ display: 'grid', gap: 2 }}>
-              <strong>{r.agent?.fullName || 'Agent'} · {REQUEST_STATUS[r.status]}</strong>
-              <span>{r.positions.map((p) => `${p.vacancies} × ${p.title}`).join(', ')}</span>
-              <span style={{ color: 'var(--ink-soft)' }}>Sent {day(r.createdAt)}{r.hiringDeadline ? ` · hire by ${day(r.hiringDeadline)}` : ''}{r.proposedFee ? ` · proposed fee: ${r.proposedFee}` : ''}</span>
+              <span className="recruit-request-head"><strong>{r.agent?.fullName || 'Agent'}</strong><span className={`recruit-chip ${r.status}`}>{REQUEST_STATUS[r.status]}</span></span>
+              <span className="recruit-positions">{r.positions.map((p, i) => <span key={i} className="lib-chip">{p.vacancies} × {p.title}</span>)}</span>
+              <span style={{ color: 'var(--ink-soft)', fontSize: 12 }}>Sent {day(r.createdAt)}{r.hiringDeadline ? ` · hire by ${day(r.hiringDeadline)}` : ''}{r.proposedFee ? ` · proposed fee: ${r.proposedFee}` : ''}</span>
             </div>
-            {!['cancelled', 'completed', 'rejected'].includes(r.status) && <button type="button" className="btn" onClick={() => cancel(r)} style={{ alignSelf: 'start' }}>Cancel request</button>}
+            {!['cancelled', 'completed', 'rejected'].includes(r.status) && <button type="button" className="btn staff-remove" onClick={() => cancel(r)} style={{ alignSelf: 'start' }}>Cancel request</button>}
           </div>
           <Thread request={r} onFlash={onFlash} onSaved={load} />
           {['accepted', 'agreed', 'completed'].includes(r.status) && <Agreements request={r} side="institution" onFlash={onFlash} onSaved={load} />}
@@ -187,7 +189,7 @@ function Invoices({ institution, onFlash }) {
       {list.map((inv) => (
         <article key={inv._id} className="card" style={{ padding: 14, display: 'grid', gap: 10 }}>
           <InvoiceLine inv={inv} />
-          <button type="button" className="btn" style={{ justifySelf: 'start' }} onClick={() => setOpen(open === inv._id ? null : inv._id)}>{open === inv._id ? 'Close' : 'Pay / manage'}</button>
+          <button type="button" className={`btn${open === inv._id || inv.status === 'paid' ? '' : ' btn-primary'} recruit-small`} style={{ justifySelf: 'start' }} onClick={() => setOpen(open === inv._id ? null : inv._id)}>{open === inv._id ? 'Close' : 'Pay / manage'}</button>
           {open === inv._id && <InvoiceActions id={inv._id} onFlash={onFlash} onSaved={load} />}
         </article>
       ))}

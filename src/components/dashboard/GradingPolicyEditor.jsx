@@ -35,14 +35,15 @@ export default function GradingPolicyEditor({ institutionId, onFlash }) {
   const summary = policy.bands.map((b) => `${b.grade} ≥${b.minPercent}% (${b.points})`).join(' · ');
 
   return (
-    <div className="card" style={{ padding: 16, marginBottom: 16 }}>
-      <div className="flex" style={{ justifyContent: 'space-between', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
-        <div>
-          <strong>Grading scale {policy.isDefault && <span className="text-xs" style={{ color: 'var(--ink-soft)' }}>(platform default)</span>}</strong>
-          <p className="text-xs" style={{ color: 'var(--ink-soft)', marginTop: 4 }}>GPA out of {Number(policy.gpaScaleMax).toFixed(1)} · pass at {policy.passingPercent}% · {summary}</p>
+    <div className="card grading-card">
+      <div className="grading-head">
+        <div className="grading-title">
+          <strong>Grading scale</strong>{policy.isDefault && <span className="grading-chip">Platform default</span>}
+          <span className="grading-chip">GPA out of {Number(policy.gpaScaleMax).toFixed(1)}</span><span className="grading-chip pass">Pass at {policy.passingPercent}%</span>
         </div>
-        {!open && <button type="button" className="btn" onClick={() => setOpen(true)}>Edit scale</button>}
+        {!open && <button type="button" className="btn grading-edit" onClick={() => setOpen(true)}>Edit scale</button>}
       </div>
+      {!open && <div className="grading-bands" aria-label={summary}>{policy.bands.map((b) => <div key={b.grade} className={`grading-band${b.minPercent < policy.passingPercent ? ' fail' : ''}`}><strong>{b.grade}</strong><span>{b.minPercent}% and above</span><small>{b.points} points</small></div>)}</div>}
       {open && (
         <form onSubmit={save} style={{ display: 'grid', gap: 10, marginTop: 12 }}>
           <div className="flex gap-3 flex-wrap">

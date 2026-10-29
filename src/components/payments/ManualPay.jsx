@@ -150,21 +150,22 @@ export function MyManualPayments({ onFlash }) {
 }
 
 // The account buyers pay this person into (institute, teacher, seller, student receiving donations).
-export function ReceivingAccount({ onFlash }) {
+// onlyIfNeeded: hide it for people nobody pays (e.g. a donor), unless they already saved one.
+export function ReceivingAccount({ onFlash, onlyIfNeeded = false }) {
   const [data, setData] = useState(null);
   const [edit, setEdit] = useState(false);
   const [f, setF] = useState({ method: 'bank_transfer', bankName: '', accountTitle: '', accountNumber: '' });
   const load = () => apiRequest('/wallet/payout-account').then((d) => { setData(d); if (d.account) setF({ method: d.account.method, bankName: d.account.bankName, accountTitle: d.account.accountTitle, accountNumber: d.account.accountNumber }); }).catch(() => setData({ account: null, banks: [], wallets: [] }));
   useEffect(() => { load(); }, []); // eslint-disable-line react-hooks/exhaustive-deps
-  if (!data) return null;
+  if (!data || (onlyIfNeeded && !data.needed && !data.account)) return null;
   async function save(e) {
     e.preventDefault();
     try { await apiRequest('/wallet/payout-account', { method: 'PUT', body: f }); onFlash?.('Account saved. Buyers will pay you here.', 'success'); setEdit(false); load(); window.dispatchEvent(new Event('careerz:payout-account-saved')); } catch (err) { onFlash?.(err.message); }
   }
   return (
-    <div id="receiving-account" style={{ ...box, marginTop: 12 }}>
-      <span className="text-sm"><strong>Account where buyers pay you</strong></span>
-      {!edit && data.account && <><Account a={data.account} /><button type="button" className="btn" style={{ justifySelf: 'start', padding: '4px 10px', fontSize: '0.75rem' }} onClick={() => setEdit(true)}>Change</button></>}
+    <div id="receiving-account" className="receiving-card">
+      <div className="receiving-head"><strong className="text-sm">Account where buyers pay you</strong>{!edit && data.account && <button type="button" className="btn" onClick={() => setEdit(true)}>Change</button>}</div>
+      {!edit && data.account && <dl className="receiving-details"><div><dt>Account holder</dt><dd>{data.account.accountTitle}</dd></div><div><dt>{data.account.method === 'mobile_wallet' ? 'Wallet' : 'Bank'}</dt><dd>{data.account.bankName}</dd></div><div><dt>{data.account.method === 'mobile_wallet' ? 'Wallet number' : 'Account number'}</dt><dd className="mono">{data.account.accountNumber}</dd></div>{data.account.iban && <div><dt>IBAN</dt><dd className="mono">{data.account.iban}</dd></div>}</dl>}
       {!edit && !data.account && <><span className="text-xs" style={{ color: 'var(--ink-soft)' }}>Add your bank or wallet account so students, parents and buyers can pay you for fees, courses, tuition and orders.</span><button type="button" className="btn btn-primary" style={{ justifySelf: 'start', padding: '4px 10px', fontSize: '0.75rem' }} onClick={() => setEdit(true)}>Add account</button></>}
       {edit && <form onSubmit={save} style={{ display: 'grid', gap: 6, maxWidth: 360 }}>
         <select className="form-select" value={f.method} onChange={(e) => setF({ ...f, method: e.target.value, bankName: '' })}>
@@ -204,9 +205,9 @@ export function PayoutAccountReminder({ onAdd }) {
 }
 
 // Payments buyers say they sent to this person: confirm whether the money arrived.
-export function IncomingManualPayments({ onFlash }) {
+export function IncomingManualPayments({ onFlash, exclude = [] }) {
   const [rows, setRows] = useState(null);
-  const load = () => apiRequest('/manual-payments/incoming').then(setRows).catch(() => setRows([]));
+  const load = () => apiRequest('/manual-payments/incoming').then((list) => setRows(list.filter((m) => !exclude.includes(m.kind)))).catch(() => setRows([]));
   useEffect(() => { load(); }, []); // eslint-disable-line react-hooks/exhaustive-deps
   if (!rows?.length) return null;
   async function answer(m, received) {
@@ -305,7 +306,7 @@ export function AdminManualPayments({ onFlash, isSuperAdmin }) {
       <div style={{ display: 'grid', gap: 10 }}>
         {(rows || []).map((m) => (
           <article key={m._id} style={{ ...box, background: 'var(--card, #fff)', border: '1px solid var(--sand-line)' }}>
-            <span className="text-sm"><strong>{KIND_LABEL[m.kind]}: {m.title}</strong> · {m.number} · {new Date(m.createdAt).toLocaleString()}</span>
+            <span className="text-sm"><strong>{!KIND_LABEL[m.kind] || m.title?.startsWith(KIND_LABEL[m.kind]) ? m.title : KIND_LABEL[m.kind] + ": " + m.title}</strong> · {m.number} · {new Date(m.createdAt).toLocaleString()}</span>
             {person(m.payerSnapshot, m.payer, 'Paid by')}
             {(m.recipient || m.recipientSnapshot) && <>{person(m.recipientSnapshot, m.recipient, 'Paid to')}<span className="text-xs">Their account: {m.recipientSnapshot?.account?.accountTitle} · {m.recipientSnapshot?.account?.bankName} {m.recipientSnapshot?.account?.accountNumber}</span></>}
             {legView(m, 'commission', m.recipient ? `CareerZ service fee (${m.commissionRate}%)` : 'Paid to CareerZ')}

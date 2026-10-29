@@ -1,9 +1,12 @@
 import { useEffect, useState } from 'react';
+import { ManualPayButton } from '../components/payments/ManualPay';
+import { SellerTrustCard, ShippingFields, useSavedShipping, ProductReviews } from '../components/marketplace/Escrow';
+import { OpenBatches } from '../components/academy/Academy';
 import { Link, useParams, useSearchParams } from 'react-router-dom';
 import AuthNavbar from '../components/AuthNavbar';
 import SiteFooter from '../components/SiteFooter';
 import PageSeo from '../components/PageSeo';
-import { apiRequest } from '../api/client';
+import { apiRequest, API_BASE, session } from '../api/client';
 import { JobCard, ScholarshipCard, InstituteCard, ProductCard, DonorCard, CourseCard, CardSkeleton, place, dateText, money } from '../components/discover/DiscoverCards';
 import ActionPanel, { post } from '../components/discover/ActionPanel';
 import GuestApplyPanel from '../components/discover/GuestApplyPanel';
@@ -12,6 +15,7 @@ import AppliedStatus from '../components/discover/AppliedStatus';
 import { SavedLetterPicker } from '../components/dashboard/CoverLetters';
 import MarkdownText from '../components/shared/MarkdownText';
 import { ScholarshipApplyButton } from '../components/donors/ScholarshipApply';
+import { CompanyTrustCard } from '../components/employer/EmployerMaster';
 import '../styles/discover.css';
 
 // Public "View All" pages (/jobs, /scholarships, /institutes, /marketplace, /donors) and their
@@ -125,10 +129,12 @@ export function JobDetail() {
   const state = useDetail('jobs', id);
   const [cover, setCover] = useState(''), [cv, setCv] = useState('');
   return <DetailShell kind="jobs" state={state}>{(job) => <article className="discover-detail">
-    <header><h1>{job.title}</h1><p className="dc-sub">{job.company}{job.postedBy ? ` · posted by ${job.postedBy.kind} ${job.postedBy.name}` : ''}</p></header>
-    <Facts rows={[['Location', place(job.city, job.country)], ['Employment type', job.type.replace('_', ' ')], ['Work mode', job.workMode], ['Salary', job.salaryMin || job.salaryMax ? `${job.currency} ${[job.salaryMin, job.salaryMax].filter(Boolean).join(' – ')}` : ''], ['Experience', job.experienceYears ? `${job.experienceYears}+ years` : ''], ['Education', job.education], ['Apply by', dateText(job.applicationDeadline)], ['Posted', dateText(job.postedAt)], ['Visa sponsorship', job.visaSponsorship ? 'Yes' : '']]} />
+    <header><h1>{job.title}</h1><p className="dc-sub">{job.company}{job.postedBy ? ` · posted by ${job.postedBy.kind} ${job.postedBy.name}` : ''}</p>
+      {(job.featured || job.sponsored || job.urgent || job.topHiring) && <p className="dc-badges">{job.featured && <span className="dc-badge">Featured</span>}{job.sponsored && <span className="dc-badge">Sponsored</span>}{job.urgent && <span className="dc-badge urgent">Urgent hiring</span>}{job.topHiring && <span className="dc-badge top">Top Hiring</span>}</p>}</header>
+    <Facts rows={[['Location', place(job.city, job.country)], ['Employment type', job.type.replace('_', ' ')], ['Work mode', job.workMode], ['Salary', job.salaryMin || job.salaryMax ? `${job.currency} ${[job.salaryMin, job.salaryMax].filter(Boolean).join(' – ')}` : ''], ['Experience', job.experienceYears ? `${job.experienceYears}+ years` : ''], ['Education', job.education], ['Apply by', dateText(job.applicationDeadline)], ['Posted', dateText(job.postedAt)], ['Visa sponsorship', job.visaSponsorship ? 'Yes' : ''], ['Vacancies', job.vacancies > 1 ? String(job.vacancies) : ''], ['Gender', job.genderPreference && job.genderPreference !== 'any' ? (job.genderPreference === 'female' ? 'Female' : 'Male') : ''], ['Age', job.ageMin || job.ageMax ? [job.ageMin, job.ageMax].filter(Boolean).join(' – ') + ' years' : '']]} />
     {job.skills?.length > 0 && <p className="dc-tags">{job.skills.map((s) => <span key={s}>{s}</span>)}</p>}
     {job.description && <section><h2>About the job</h2><MarkdownText text={job.description} /></section>}
+    {job.employerId && <CompanyTrustCard employerId={job.employerId} jobId={job._id} onFlash={(m) => window.alert(m)} />}
     <AppliedStatus jobId={job._id}>
     <ActionPanel kind="jobs" item={job} autoOpen={params.get('action') === 'apply'} actionLabel="Apply for this job" eligibleRoles={['student', 'teacher']} signupType="student"
       onSubmit={() => { if (!cv) throw new Error('Choose the CV to send, or upload one.'); return post(`/jobs/${job._id}/apply`, { coverLetter: cover, cv }); }} successText="Application sent. The employer can now see it." trackLink={{ to: '/dashboard', label: 'Track it in your dashboard → Jobs → My Applications' }}>
@@ -168,6 +174,7 @@ export function InstituteDetail() {
     {i.coverImage && <img className="dp-cover" src={i.coverImage} alt="" />}
     <header className="dp-head">{i.logo && <img src={i.logo} alt="" className="dc-logo" />}<div><h1>{i.name}</h1><p className="dc-sub">{i.type.replace('_', ' ')} · {place(i.city, i.country)} · Verified institute</p></div></header>
     {i.description && <section><h2>Overview</h2><MarkdownText text={i.description} /></section>}
+    {['academy', 'tuition_center', 'training_institute', 'online_institute'].includes(i.type) && <section><h2>Courses & batches</h2><OpenBatches institution={i} onFlash={(m) => window.alert(m)} /></section>}
     {Object.keys(i.socialLinks || {}).length > 0 && <p className="dc-tags" aria-label="Social links">{Object.entries(i.socialLinks).map(([k, href]) => <a key={k} href={href} target="_blank" rel="noreferrer noopener" style={{ textDecoration: 'none' }}><span>{SOCIAL_LABEL[k] || k}</span></a>)}</p>}
     {i.accreditations?.length > 0 && <section><h2>Accreditation</h2><ul className="dp-list">{i.accreditations.map((a) => <li key={a.body + a.reference}><strong>{a.body}</strong>{a.reference ? ` · Ref. ${a.reference}` : ''}{a.validUntil ? ` · ${a.current ? 'valid until' : 'expired'} ${dateText(a.validUntil)}` : ''}{a.documentUrl && <> · <a href={a.documentUrl} target="_blank" rel="noreferrer noopener">certificate</a></>}</li>)}</ul></section>}
     {i.affiliations?.length > 0 && <section><h2>Affiliations</h2><ul className="dp-list">{i.affiliations.map((a) => <li key={a.name}><strong>{a.name}</strong> · {AFFILIATION_LABEL[a.kind] || 'Affiliation'}{a.since ? ` · since ${a.since}` : ''}</li>)}</ul></section>}
@@ -190,18 +197,24 @@ export function InstituteDetail() {
 export function ProductDetail() {
   const { id } = useParams(); const [params] = useSearchParams();
   const state = useDetail('marketplace', id);
-  const [order, setOrder] = useState({ quantity: 1, shippingAddress: '', note: '' });
+  const [order, setOrder] = useState({ quantity: 1, note: '' }), [placed, setPlaced] = useState(null);
+  const [shipping, setShipping] = useSavedShipping(Boolean(session.getAccessToken()));
   return <DetailShell kind="marketplace" state={state}>{(p) => <article className="discover-detail">
     {p.images?.length > 0 && <div className="dp-gallery">{p.images.map((src) => <img key={src} src={src} alt="" loading="lazy" />)}</div>}
     <header><h1>{p.title}</h1><p className="dc-sub">{p.category}{p.seller ? ` · sold by ${p.seller.name}` : ''}</p></header>
     <Facts rows={[['Price', money(p.price, p.currency)], ['In stock', p.stock], ['Seller city', p.seller?.city], ['Listed', dateText(p.postedAt)]]} />
     {p.description && <section><h2>Description</h2><MarkdownText text={p.description} /></section>}
+    {p.digital && <div className="dp-digital"><p><strong>Digital file (PDF, {p.digital.pages} page{p.digital.pages === 1 ? '' : 's'})</strong> · {p.digital.access === 'online' ? 'read online after purchase' : 'download after purchase'}. Your copy carries your name and purchase date.</p><a className="btn" href={`${API_BASE}/marketplace/products/${p._id}/preview`} target="_blank" rel="noreferrer">See a free preview (first 3 pages)</a></div>}
+    <p className="dp-note">Safe buying: you pay CareerZ, and the seller is paid only after you receive the item (or open the file). Something wrong? Open a dispute from My orders.</p>
+    {p.sellerId && <section><h2>About the seller</h2><SellerTrustCard sellerId={p.sellerId} /></section>}
+    <ProductReviews productId={p._id} />
     <ActionPanel kind="marketplace" item={p} autoOpen={params.get('action') === 'order'} actionLabel="Order this item" signupType="student"
-      onSubmit={() => post(`/marketplace/products/${p._id}/orders`, order)} successText="Order placed. The seller has been notified." trackLink={{ to: '/dashboard', label: 'See it in your dashboard → Marketplace → My Orders' }}>
+      onSubmit={async () => setPlaced(await post(`/marketplace/products/${p._id}/orders`, { ...order, ...(p.digital || ['courses', 'services', 'notes'].includes(p.category) ? {} : { shipping }) }))} successText="Order placed. The seller has been notified. Pay below to send it on its way." trackLink={{ to: '/my-orders', label: 'Track it in My orders' }}>
       <label>Quantity<input className="form-input" type="number" min={1} max={p.stock} required value={order.quantity} onChange={(e) => setOrder({ ...order, quantity: Number(e.target.value) })} /></label>
-      <label>Delivery address<textarea className="form-input" rows={2} required value={order.shippingAddress} onChange={(e) => setOrder({ ...order, shippingAddress: e.target.value })} /></label>
+      {!(p.digital || ['courses', 'services', 'notes'].includes(p.category)) && <ShippingFields value={shipping} onChange={setShipping} />}
       <label>Note to seller (optional)<input className="form-input" value={order.note} onChange={(e) => setOrder({ ...order, note: e.target.value })} /></label>
     </ActionPanel>
+    {placed && <div className="dp-action"><strong>Pay for your order</strong><p>{placed.currency} {Number(placed.totalPrice).toLocaleString()} by bank transfer. The seller sends the item once CareerZ confirms your payment.</p><ManualPayButton kind="marketplace_order" id={placed._id} label="Pay by bank transfer" onFlash={(m) => window.alert(m)} onDone={() => {}} /></div>}
   </article>}</DetailShell>;
 }
 

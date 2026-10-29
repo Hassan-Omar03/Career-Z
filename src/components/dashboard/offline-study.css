@@ -1,0 +1,40 @@
+.institution-offline-ui .offline-heading { display:flex; gap:14px; align-items:center; margin-bottom:20px; background:transparent; }
+.institution-offline-ui .offline-heading > span { width:44px; height:44px; display:grid; place-items:center; flex:none; background:#0e4e3e; color:white; font-size:20px; border-radius:13px; }
+.institution-offline-ui .offline-heading h2 { margin:0 0 6px; font-size:26px; }
+.institution-offline-ui .offline-heading p { margin:0; font-size:13px; }
+.institution-offline-ui .offline-intro { padding:16px 18px; border:1px solid var(--sand-line); border-radius:12px; font-size:12px; line-height:1.8; background:#fff; margin-bottom:20px; }
+.institution-offline-ui .offline-sync { display:flex; align-items:center; justify-content:space-between; gap:16px; padding:18px 22px; border:1px solid var(--sand-line); background:#fff; border-radius:15px; margin-bottom:26px; }
+.institution-offline-ui .offline-sync strong { font-size:14px; }
+.institution-offline-ui .offline-sync p { font-size:12px; margin:5px 0 0; }
+.institution-offline-ui .offline-course-section { margin:0 0 26px; }
+.institution-offline-ui .offline-course-section > h3,.institution-offline-ui .offline-draft h3 { margin:0 0 9px; font-size:21px; }
+.institution-offline-ui .offline-hint { font-size:12px; line-height:1.7; margin:0 0 16px; color:var(--ink-soft); }
+.institution-offline-ui .offline-course-list { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:14px; }
+.institution-offline-ui .offline-course-row { display:flex; align-items:center; justify-content:space-between; gap:14px; padding:20px; margin:0; background:#fff; border:1px solid var(--sand-line); border-radius:14px; min-width:0; }
+.institution-offline-ui .offline-course-row strong { font-size:14px; overflow-wrap:anywhere; }
+.institution-offline-ui .offline-empty { padding:28px 20px; border:1px dashed var(--sand-line); background:#fff; border-radius:14px; font-size:13px; text-align:center; }
+.institution-offline-ui .offline-draft { padding:24px; background:#fff; border:1px solid var(--sand-line); border-radius:18px; }
+.institution-offline-ui .offline-draft-label { display:block; font-size:12px; font-weight:600; }
+.institution-offline-ui .offline-draft textarea { display:block; margin:8px 0 12px; width:100%; box-sizing:border-box; min-height:150px; }
+.institution-offline-ui .btn { padding:8px 12px!important; font-size:12px!important; min-height:34px!important; width:auto; flex:none!important; border-radius:9px!important; }
+.institution-offline-ui .offline-intro { width:100%; max-width:none!important; box-sizing:border-box; background:var(--institution-tint); }
+.institution-offline-ui :is(.offline-course-section,.offline-draft,.offline-certificates) > h3,
+.institution-offline-ui .offline-certificates-heading h3 { font-family:var(--font-display, Fraunces, serif)!important; font-size:21px!important; margin:0 0 8px!important; }
+.institution-offline-ui .offline-course-row { padding:18px 20px; }
+.institution-offline-ui .offline-course-row strong { font-size:14px; line-height:1.6; }
+.institution-offline-ui .offline-course-row .btn-primary,
+.institution-offline-ui .offline-sync .btn-primary { background:var(--forest)!important; color:#fff!important; border-color:var(--forest)!important; }
+.institution-offline-ui .offline-certificates { padding:22px; border:1px solid var(--sand-line); border-radius:17px; background:var(--institution-surface); margin:0 0 24px; }
+.institution-offline-ui .offline-certificates-heading { display:flex; align-items:center; justify-content:space-between; gap:16px; }
+.institution-offline-ui .offline-certificates-heading p { font-size:12px; color:var(--ink-soft); margin:0; }
+.institution-offline-ui .offline-certificates article { border-top:1px solid var(--sand-line); padding-top:18px; margin-top:18px; }
+.institution-offline-ui .offline-draft { margin-top:0; }
+@media(max-width:700px) {
+ .institution-offline-ui .offline-course-list { grid-template-columns:minmax(0,1fr); }
+ .institution-offline-ui .offline-heading { align-items:flex-start; }
+ .institution-offline-ui .offline-heading h2 { font-size:23px; }
+ .institution-offline-ui .offline-course-row { align-items:flex-start; flex-direction:column; }
+ .institution-offline-ui .offline-draft { padding:16px; }
+ .institution-offline-ui .offline-certificates { padding:16px; }
+ .institution-offline-ui .offline-certificates-heading { flex-direction:column; align-items:flex-start; }
+}

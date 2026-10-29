@@ -1,0 +1,75 @@
+/* Employer master screens (analytics, trust, packages, payroll, admin). Institute look: white cards, sand borders. */
+.emp-section { display: grid; gap: 16px; padding: 20px !important; margin-bottom: 20px; border: 1px solid var(--sand-line); }
+.emp-section-head { display: flex; justify-content: space-between; align-items: flex-start; gap: 14px; flex-wrap: wrap; }
+.emp-section-head h3 { margin: 0; font-size: 17px; }
+.emp-section-head p { margin: 4px 0 0; font-size: 13px; color: var(--ink-soft); max-width: 720px; }
+.emp-empty { margin: 0; font-size: 13px; color: var(--ink-soft); }
+.emp-muted { color: var(--ink-soft); font-size: 12px; line-height: 1.45; }
+.emp-block { display: block; margin-top: 2px; overflow-wrap: anywhere; }
+.emp-text { margin: 0; font-size: 14px; line-height: 1.55; color: var(--ink); white-space: pre-wrap; overflow-wrap: anywhere; }
+.emp-reply { margin: 0; padding: 10px 12px; border-radius: 10px; font-size: 13px; background: color-mix(in srgb, var(--emerald) 6%, var(--paper-raised, #fff)); border: 1px solid color-mix(in srgb, var(--emerald) 25%, var(--sand-line)); }
+.emp-warn { margin: 0; padding: 10px 12px; border-radius: 10px; font-size: 13px; border: 1px solid color-mix(in srgb, var(--rose) 40%, var(--sand-line)); background: color-mix(in srgb, var(--rose) 7%, var(--paper-raised, #fff)); }
+
+.emp-tiles { display: grid; grid-template-columns: repeat(auto-fill, minmax(170px, 1fr)); gap: 12px; }
+.emp-tile { display: grid; gap: 4px; align-content: start; padding: 14px 16px; border: 1px solid var(--sand-line); border-radius: 12px; background: var(--paper-raised, #fff); min-width: 0; }
+.emp-tile span { font-size: 12px; font-weight: 600; color: var(--ink-soft); }
+.emp-tile strong { font-size: 20px; color: var(--ink); overflow-wrap: anywhere; }
+.emp-tile small { font-size: 12px; color: var(--ink-soft); overflow-wrap: anywhere; }
+
+.emp-cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 14px; }
+.emp-cards-wide { grid-template-columns: 1fr; }
+.emp-card { display: grid; gap: 10px; align-content: start; padding: 16px; border: 1px solid var(--sand-line); border-radius: 12px; background: var(--paper-raised, #fff); min-width: 0; }
+.emp-card-top { display: flex; justify-content: space-between; align-items: flex-start; gap: 10px; }
+.emp-card-top > strong, .emp-card-top > div { min-width: 0; overflow-wrap: anywhere; }
+.emp-facts { display: grid; grid-template-columns: repeat(auto-fill, minmax(110px, 1fr)); gap: 8px; margin: 0; }
+.emp-facts div { padding: 8px 10px; border: 1px solid var(--sand-line); border-radius: 8px; min-width: 0; }
+.emp-facts dt { font-size: 11px; color: var(--ink-soft); }
+.emp-facts dd { margin: 2px 0 0; font-size: 14px; font-weight: 600; overflow-wrap: anywhere; }
+.emp-actions, .emp-chips { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.emp-chip { display: inline-flex; align-items: center; white-space: nowrap; padding: 3px 10px; border-radius: 999px; font-size: 12px; font-weight: 600; border: 1px solid var(--sand-line); background: var(--paper-raised, #fff); color: var(--ink); text-transform: capitalize; }
+.emp-chip.good { border-color: color-mix(in srgb, var(--emerald) 40%, var(--sand-line)); background: color-mix(in srgb, var(--emerald) 8%, transparent); }
+.emp-chip.warn { border-color: color-mix(in srgb, var(--gold) 45%, var(--sand-line)); background: color-mix(in srgb, var(--gold) 9%, transparent); }
+.emp-chip.bad { border-color: color-mix(in srgb, var(--rose) 45%, var(--sand-line)); background: color-mix(in srgb, var(--rose) 8%, transparent); }
+.emp-package .btn { justify-self: start; }
+
+.emp-trust { display: grid; grid-template-columns: 150px minmax(0, 1fr); gap: 16px; align-items: start; }
+.emp-trust-score { display: grid; justify-items: center; gap: 2px; padding: 18px 10px; border-radius: 14px; border: 1px solid var(--sand-line); background: color-mix(in srgb, var(--emerald) 6%, var(--paper-raised, #fff)); }
+.emp-trust-score strong { font-size: 36px; line-height: 1; color: var(--emerald); }
+.emp-trust-score span { font-size: 12px; color: var(--ink-soft); }
+.emp-trust-score small { font-size: 13px; font-weight: 600; }
+.emp-trust-score.lvl-fair, .emp-trust-score.lvl-low { background: color-mix(in srgb, var(--gold) 8%, var(--paper-raised, #fff)); }
+.emp-trust-score.lvl-low strong { color: var(--rose); }
+.emp-trust-factors { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 10px; }
+.emp-factor { display: flex; justify-content: space-between; align-items: center; gap: 10px; padding: 10px 12px; border: 1px solid var(--sand-line); border-radius: 10px; background: var(--paper-raised, #fff); }
+.emp-factor > div { display: grid; gap: 2px; min-width: 0; }
+.emp-factor strong { font-size: 13px; }
+.emp-factor small { font-size: 12px; color: var(--ink-soft); }
+.emp-factor > span { font-weight: 700; font-size: 13px; white-space: nowrap; }
+.emp-factor.muted > span { color: var(--ink-soft); font-weight: 500; }
+
+.emp-form { display: grid; gap: 14px; }
+.emp-grid4 { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; }
+.emp-grid2 { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+.emp-lines { display: grid; gap: 8px; padding: 12px; border: 1px solid var(--sand-line); border-radius: 10px; }
+.emp-lines h5 { margin: 0; font-size: 13px; }
+.emp-lines > .btn { justify-self: start; }
+.emp-line { display: grid; grid-template-columns: minmax(0, 2fr) minmax(0, 1fr) auto; gap: 8px; }
+.emp-evidence { display: grid; gap: 6px; padding: 10px 12px; border: 1px dashed var(--sand-line); border-radius: 10px; }
+.emp-evidence h5 { margin: 0; font-size: 13px; }
+.emp-evidence p { margin: 0; font-size: 13px; }
+.emp-search { display: flex; gap: 8px; }
+.emp-report { padding: 14px; border: 1px solid var(--sand-line); border-radius: 12px; width: 100%; }
+.emp-public-trust { margin-top: 20px; }
+.emp-admin > .cz-tabbar { margin-bottom: 16px; }
+.emp-employee { margin-top: 20px; }
+
+@media (max-width: 760px) {
+  .emp-grid4 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .emp-trust { grid-template-columns: 1fr; }
+}
+@media (max-width: 520px) {
+  .emp-grid4, .emp-grid2, .emp-line { grid-template-columns: 1fr; }
+  .emp-search { width: 100%; }
+}
+.emp-modal { position: fixed; inset: 0; z-index: 1500; display: grid; place-items: center; padding: 16px; background: rgba(15, 23, 20, 0.45); }
+.emp-modal-card { width: min(560px, 100%); max-height: calc(100vh - 32px); overflow-y: auto; padding: 22px !important; }

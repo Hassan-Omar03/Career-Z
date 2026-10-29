@@ -294,7 +294,7 @@ export function WalletCard({ onFlash }) {
         )}
         <MyManualPayments onFlash={onFlash} />
         <IncomingManualPayments onFlash={onFlash} />
-        <ReceivingAccount onFlash={onFlash} />
+        <ReceivingAccount onFlash={onFlash} onlyIfNeeded />
       </div>
     </>
   );

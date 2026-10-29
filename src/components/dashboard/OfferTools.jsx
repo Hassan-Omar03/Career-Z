@@ -16,14 +16,17 @@ export function OfferForm({ application, job, onSaved, onFlash, onCancel }) {
   const e = application.employment;
   const [f, setF] = useState({ salary: e?.salary || job?.salaryMin || '', currency: e?.currency || job?.currency || 'PKR', salaryPeriod: e?.offer?.salaryPeriod || 'month',
     startDate: e?.startDate ? e.startDate.slice(0, 10) : '', expiresAt: e?.offer?.expiresAt ? e.offer.expiresAt.slice(0, 10) : '', terms: e?.offer?.terms || '' });
+  const [letter, setLetter] = useState(() => e?.offerLetter?.text || letterTemplate(application, job)), [letterFile, setLetterFile] = useState(null), [view, setView] = useState(null);
   const [busy, setBusy] = useState(false);
   const set = (k) => (ev) => setF({ ...f, [k]: ev.target.value });
   async function submit(ev) {
     ev.preventDefault();
     setBusy(true);
     try {
+      if (letterFile && letterFile.size > 3 * 1024 * 1024) throw new Error('The PDF must be 3 MB or smaller.');
       await apiRequest(`/jobs/applications/${application._id}/offer`, { method: 'POST', body: { ...f, salary: Number(f.salary) } });
-      onFlash?.('Offer sent. The candidate was notified by email.', 'success');
+      await apiRequest(`/jobs/applications/${application._id}/offer-letter`, { method: 'POST', body: { text: letter, ...(letterFile ? { file: { name: letterFile.name, data: await readAsDataUrl(letterFile) } } : {}) } });
+      onFlash?.('Offer and offer letter sent. The candidate was notified by email.', 'success');
       onSaved?.();
     } catch (err) { onFlash?.(err.message); } finally { setBusy(false); }
   }
@@ -38,10 +41,16 @@ export function OfferForm({ application, job, onSaved, onFlash, onCancel }) {
       <label className="text-xs">Joining date<input className="form-input" style={small} type="date" value={f.startDate} onChange={set('startDate')} /></label>
       <label className="text-xs">Reply by (optional)<input className="form-input" style={small} type="date" value={f.expiresAt} onChange={set('expiresAt')} /></label>
       <textarea className="form-input" style={small} rows={2} maxLength={3000} placeholder="Terms: probation, hours, benefits… (optional)" value={f.terms} onChange={set('terms')} />
-      <div style={{ display: 'flex', gap: 6 }}>
-        <button type="submit" className="btn btn-primary" disabled={busy} style={{ padding: '5px 10px', fontSize: '0.75rem' }}>{busy ? 'Sending…' : 'Send offer'}</button>
+      <label className="text-xs">Offer letter (sent with the offer; salary, dates and signatures are added automatically)
+        <textarea className="form-input" style={small} rows={6} maxLength={12000} required minLength={50} value={letter} onChange={(ev) => setLetter(ev.target.value)} />
+      </label>
+      <label className="text-xs">Signed letter PDF (optional)<input className="form-input" style={small} type="file" accept="application/pdf,.pdf" onChange={(ev) => setLetterFile(ev.target.files?.[0] || null)} /></label>
+      <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+        <button type="button" className="btn" style={{ padding: '5px 10px', fontSize: '0.75rem' }} onClick={() => setView(letterData({ employment: { ...(e || {}), salary: Number(f.salary), currency: f.currency, startDate: f.startDate || null, offer: { ...(e?.offer || {}), salaryPeriod: f.salaryPeriod, expiresAt: f.expiresAt || null, terms: f.terms } }, job, candidate: application.applicant?.fullName, text: letter }))}>Preview letter</button>
+        <button type="submit" className="btn btn-primary" disabled={busy} style={{ padding: '5px 10px', fontSize: '0.75rem' }}>{busy ? 'Sending…' : 'Send offer + letter'}</button>
         {onCancel && <button type="button" className="btn" onClick={onCancel} style={{ padding: '5px 10px', fontSize: '0.75rem' }}>Cancel</button>}
       </div>
+      {view && <OfferLetterViewer data={view} onClose={() => setView(null)} onFlash={onFlash} />}
     </form>
   );
 }
@@ -99,7 +108,7 @@ export function OfferLetterForm({ application, job, onSaved, onFlash }) {
 export function OfferSummary({ employment }) {
   if (!employment?.offer?.sentAt) return null;
   const label = { offered: 'waiting for the candidate', accepted: 'accepted', declined: 'declined', active: 'joined' }[employment.status] || employment.status;
-  return <small style={{ color: employment.status === 'declined' ? 'var(--rose)' : 'var(--ink-soft)' }}>Offer {money(employment.currency, employment.salary)} / {employment.offer.salaryPeriod || 'month'}: {label}{employment.offerLetter?.sentAt ? ' · letter sent' : ''}</small>;
+  return <small style={{ color: employment.status === 'declined' ? 'var(--rose)' : 'var(--ink-soft)' }}>Offer {money(employment.currency, employment.salary)} / {employment.offer.salaryPeriod || 'month'}: {label}{employment.signature?.name ? ` · signed by ${employment.signature.name}${employment.signature.at ? ' on ' + new Date(employment.signature.at).toLocaleDateString(undefined, { day: 'numeric', month: 'short', year: 'numeric' }) : ''}` : ''}{employment.offerLetter?.sentAt ? ' · letter sent' : ''}</small>;
 }
 
 // Candidate side: open the designed letter (with Download PDF and the signed copy, if any).

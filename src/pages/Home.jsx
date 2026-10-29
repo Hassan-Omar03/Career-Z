@@ -5,7 +5,7 @@ import { useEffect, useRef, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import LiveTicker from '../components/LiveTicker';
 import AiConsole from '../components/AiConsole';
-import { apiRequest } from '../api/client';
+import { apiRequest, API_BASE } from '../api/client';
 import { DonorCard, CardSkeleton, place, daysLeft, dateText } from '../components/discover/DiscoverCards';
 import '../styles/discover.css';
 import {
@@ -471,7 +471,7 @@ export default function Home() {
             <div className="grid g4">
               {sections.blog.map((b, i) => (
                 <Link key={b.slug} to={`/blog/${b.slug}`} className="card blog-card reveal home-card-link">
-                  {b.image ? <img className="thumb" src={b.image} alt="" loading="lazy" style={{ width: '100%', objectFit: 'cover' }} /> : <div className="thumb" style={{ background: color(i) }}></div>}
+                  {b.image || b.coverPath ? <img className="thumb" src={b.image || API_BASE + b.coverPath} alt="" loading="lazy" style={{ width: '100%', objectFit: 'cover' }} /> : <div className="thumb" style={{ background: color(i) }}></div>}
                   <div className="body">{b.category && <span className="tag">{b.category}</span>}<h4>{b.title}</h4><div className="meta">{dateText(b.publishedAt)} · {b.readMinutes} min read</div></div>
                 </Link>
               ))}

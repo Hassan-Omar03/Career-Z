@@ -18,6 +18,10 @@ export default function InterviewJoin({ interview, label = 'Join Interview', sty
   }
   useEffect(() => { if (id && new URLSearchParams(window.location.search).get('interview') === String(id)) join(); }, [id]); // eslint-disable-line react-hooks/exhaustive-deps
   if (!interview || interview.mode !== 'online' || interview.status !== 'scheduled') return null;
+  if (interview.provider && interview.provider !== 'careerz' && interview.externalUrl) {
+    const name = { google_meet: 'Google Meet', zoom: 'Zoom', teams: 'Teams', custom: 'meeting' }[interview.provider] || 'meeting';
+    return <a className="btn btn-primary" style={{ padding: '6px 14px', fontSize: '0.78rem', flexShrink: 0, ...style }} href={interview.externalUrl} target="_blank" rel="noopener noreferrer">{label} on {name}</a>;
+  }
   return (
     <>
       <button type="button" className="btn btn-primary" style={{ padding: '6px 14px', fontSize: '0.78rem', flexShrink: 0, ...style }} disabled={busy} onClick={join}>{busy ? 'Connecting…' : label}</button>

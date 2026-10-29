@@ -1,0 +1,59 @@
+/* Reference: institution white cards / cream canvas / compact forest actions. */
+.teacher-ai-workspace { color:var(--ink,#142c26); min-width:0; }
+.teacher-ai-workspace .tai-heading { display:flex; align-items:center; gap:14px; margin:0 0 24px; background:transparent; }
+.teacher-ai-workspace .tai-heading-icon { width:44px; height:44px; border-radius:13px; display:grid; place-items:center; flex:none; background:#0e4e3e; color:#fff; font-size:20px; }
+.teacher-ai-workspace .tai-heading h2 { font-size:27px; line-height:1.2; margin:0 0 5px; }
+.teacher-ai-workspace .tai-heading p { margin:0; font-size:13px; color:var(--ink-soft,#50625c); }
+.teacher-ai-workspace .cz-tabbar { width:fit-content; max-width:100%; padding:6px!important; gap:4px; border-radius:14px!important; box-shadow:0 2px 8px #183c2710; }
+.teacher-ai-workspace .cz-tabbar .cz-tab { min-height:36px!important; padding:8px 14px!important; font-size:13px!important; border-radius:9px!important; }
+.teacher-ai-workspace .card { background:#fff; border:1px solid var(--sand-line,#e5dac6); border-radius:18px; padding:22px!important; box-shadow:none; min-width:0; }
+.teacher-ai-workspace .teacher-ai-class { grid-template-columns:repeat(2,minmax(0,1fr))!important; gap:14px!important; margin:18px 0 22px!important; }
+.teacher-ai-workspace label { font-size:12px; font-weight:600; color:var(--ink-soft,#50625c); min-width:0; }
+.teacher-ai-workspace :is(input.form-input,select.form-select) { box-sizing:border-box; height:44px!important; min-height:44px!important; max-height:44px!important; min-width:0!important; width:100%; padding:10px 12px!important; border-radius:10px!important; font-size:13px!important; flex:none!important; background:#fff; }
+.teacher-ai-workspace label > :is(input,select) { margin-top:7px; }
+.teacher-ai-workspace textarea.form-input { min-height:104px; font-size:13px; padding:12px!important; border-radius:10px!important; }
+.teacher-ai-workspace .teacher-ai-class > p { font-size:12px; color:var(--ink-soft,#50625c); padding-top:4px; line-height:1.6; }
+.teacher-ai-workspace .ai-provider-settings { margin-top:12px; }
+.teacher-ai-workspace .ai-provider-settings > h4 { font-size:18px!important; margin:0 0 8px; }
+.teacher-ai-workspace .ai-provider-settings > p { max-width:850px; font-size:12px; line-height:1.7; margin-bottom:18px; }
+.teacher-ai-workspace .ai-provider-list { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:12px; }
+.teacher-ai-workspace .ai-provider-row { padding:15px!important; margin:0!important; border:1px solid var(--sand-line,#e5dac6); border-radius:12px; min-width:0; }
+.teacher-ai-workspace .ai-provider-row > p { font-size:12px; margin:0 0 10px; }
+.teacher-ai-workspace .ai-provider-row form { display:flex; gap:8px; align-items:center; flex-wrap:wrap; }
+.teacher-ai-workspace .ai-provider-row form > :not(button) { flex:1 1 150px!important; min-width:0!important; max-width:100%; }
+.teacher-ai-workspace .btn { display:inline-flex; align-items:center; justify-content:center; gap:6px; min-width:0!important; width:auto; min-height:34px!important; height:auto; padding:8px 12px!important; font-size:12px!important; line-height:1.4; border-radius:9px!important; flex:0 0 auto!important; box-shadow:none; }
+.teacher-ai-workspace .btn-primary { background:#0e4e3e; color:#fff; }
+.teacher-ai-workspace .btn:disabled { opacity:.58; cursor:not-allowed; }
+.teacher-ai-workspace .tai-tool-grid { gap:16px!important; margin:24px 0 18px; grid-template-columns:repeat(3,minmax(0,1fr))!important; }
+.teacher-ai-workspace :is(.tai-tool-grid,.tai-media-grid) .card { display:flex; flex-direction:column; align-items:flex-start; gap:10px; }
+.teacher-ai-workspace :is(.tai-tool-grid,.tai-media-grid) .card > :is(h3,h4,strong) { margin:0; font-size:16px; }
+.teacher-ai-workspace :is(.tai-tool-grid,.tai-media-grid) .card > p { margin:0; font-size:13px; line-height:1.7; color:var(--ink-soft,#50625c); }
+.teacher-ai-workspace :is(.tai-tool-grid,.tai-media-grid) .card > .btn { margin-top:auto; text-align:left; }
+.teacher-ai-workspace .tai-performance { margin:18px 0; }
+.teacher-ai-workspace .tai-performance h3 { font-size:20px; margin:0 0 8px; }
+.teacher-ai-workspace .tai-performance p { font-size:13px; margin:0 0 14px; }
+.teacher-ai-workspace .tai-media > h4 { margin:26px 0 8px!important; font-size:20px!important; }
+.teacher-ai-workspace .tai-media > p { font-size:13px; line-height:1.7; }
+.teacher-ai-workspace .tai-media-grid { gap:16px!important; }
+.teacher-ai-workspace .tai-storage-form { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)) auto; gap:14px; align-items:end; margin-top:18px; }
+.teacher-ai-workspace .tai-storage-form label { display:flex; flex-direction:column; gap:7px; }
+.teacher-ai-workspace .tai-storage-form label input { margin:0; }
+.teacher-ai-workspace .tai-storage-form > button.btn { height:34px!important; min-height:34px!important; max-height:34px!important; margin-bottom:5px; padding:0 14px!important; }
+.teacher-ai-workspace .tai-video-creator > p { margin:0; font-size:12px; line-height:1.6; }
+.teacher-ai-workspace .tai-live > h3 { margin:20px 0 8px; font-size:24px; }
+.teacher-ai-workspace .tai-live > p { max-width:950px; line-height:1.7; font-size:13px; margin-bottom:20px; }
+.teacher-ai-workspace :is(button,input,select,textarea):focus-visible { outline:2px solid #26836a; outline-offset:3px; }
+@media(min-width:701px) and (max-width:1000px) {
+ .teacher-ai-workspace .tai-tool-grid { grid-template-columns:repeat(2,minmax(0,1fr))!important; }
+}
+@media(max-width:700px) {
+ .teacher-ai-workspace .tai-storage-form { grid-template-columns:minmax(0,1fr); }
+ .teacher-ai-workspace .tai-storage-form > button.btn { justify-self:start; margin:0; }
+ .teacher-ai-workspace .ai-provider-list,.teacher-ai-workspace .teacher-ai-class { grid-template-columns:minmax(0,1fr)!important; }
+ .teacher-ai-workspace .card { padding:16px!important; }
+ .teacher-ai-workspace .tai-heading { align-items:flex-start; gap:10px; }
+ .teacher-ai-workspace .tai-heading h2 { font-size:23px; }
+ .teacher-ai-workspace .cz-tabbar { width:100%; }
+ .teacher-ai-workspace .cz-tabbar .cz-tab { flex:1 1 auto; font-size:12px!important; padding:8px 9px!important; }
+ .teacher-ai-workspace .tai-tool-grid,.teacher-ai-workspace .tai-media-grid { grid-template-columns:minmax(0,1fr)!important; }
+}

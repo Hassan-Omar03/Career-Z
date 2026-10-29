@@ -1,0 +1,34 @@
+.institution-helpdesk-page .helpdesk-heading { display:flex; align-items:center; gap:16px; margin-bottom:26px; background:transparent; }
+.institution-helpdesk-page .helpdesk-heading > span { display:grid; place-items:center; width:48px; height:48px; flex-shrink:0; border-radius:14px; background:var(--forest); color:white; font-size:20px; }
+.institution-helpdesk-page .helpdesk-heading h2 { margin:0 0 6px; }
+.institution-helpdesk-page .helpdesk-heading p { margin:0; font-size:13px; }
+.institution-helpdesk-page > label { max-width:520px; }
+.institution-helpdesk-page form.dash-card { grid-template-columns:repeat(2,minmax(0,1fr)) !important; gap:20px !important; }
+.institution-helpdesk-page .helpdesk-form-heading,.institution-helpdesk-page .helpdesk-wide,.institution-helpdesk-page .helpdesk-editor-heading { grid-column:1/-1; }
+.institution-helpdesk-page .helpdesk-form-heading { padding-bottom:18px; border-bottom:1px solid var(--sand-line); }
+.institution-helpdesk-page .helpdesk-form-heading h3 { margin:0 0 6px; font-size:20px; }
+.institution-helpdesk-page .helpdesk-form-heading p,.institution-helpdesk-page .helpdesk-editor-heading p { margin:0; font-size:13px; }
+.institution-helpdesk-page select { text-transform:capitalize; }
+.institution-helpdesk-page .helpdesk-list-heading { display:flex; justify-content:space-between; align-items:center; gap:12px; margin:30px 0 18px; }
+.institution-helpdesk-page .helpdesk-list-heading h3 { margin:0; }
+.institution-helpdesk-page .helpdesk-list-heading > span { padding:5px 12px; font-size:12px; border:1px solid var(--sand-line); border-radius:30px; color:var(--ink-soft); }
+.institution-helpdesk-page article.dash-card { padding:26px !important; }
+.institution-helpdesk-page .helpdesk-ticket-number { display:block; font-size:11px; font-weight:700; letter-spacing:.06em; color:var(--forest); margin-bottom:8px; }
+.institution-helpdesk-page article > h3 { font-size:21px; margin-bottom:12px; overflow-wrap:anywhere; }
+.institution-helpdesk-page .helpdesk-badges { display:flex; align-items:center; gap:8px; font-size:0; }
+.institution-helpdesk-page .helpdesk-badges span { font-size:11px; font-weight:600; padding:4px 11px; border-radius:6px; background:var(--institution-tint); text-transform:capitalize; }
+.institution-helpdesk-page .helpdesk-badges [data-status=resolved],.institution-helpdesk-page .helpdesk-badges [data-status=closed] { color:var(--forest); background:color-mix(in srgb,var(--forest) 9%,var(--paper-raised)); }
+.institution-helpdesk-page .helpdesk-meta { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:20px; padding:18px 0; border-top:1px solid var(--sand-line); border-bottom:1px solid var(--sand-line); margin:20px 0; }
+.institution-helpdesk-page .helpdesk-meta dt { font-size:11px; color:var(--ink-soft); margin-bottom:6px; }
+.institution-helpdesk-page .helpdesk-meta dd { margin:0; font-size:13px; font-weight:600; overflow-wrap:anywhere; }
+.institution-helpdesk-page [data-priority] { text-transform:capitalize; }
+.institution-helpdesk-page [data-priority=urgent],.institution-helpdesk-page [data-priority=high] { color:var(--rose); }
+.institution-helpdesk-page article > .helpdesk-resolution { display:block; padding:16px 18px; border-left:3px solid var(--forest); background:var(--institution-tint); border-radius:8px; }
+.institution-helpdesk-page .helpdesk-resolution strong { font-size:12px; }
+.institution-helpdesk-page .helpdesk-resolution p { margin:5px 0 0; font-size:13px; white-space:pre-wrap; }
+.institution-helpdesk-page article > .helpdesk-ticket-editor { grid-template-columns:repeat(3,minmax(0,1fr)); gap:20px !important; margin-top:22px; padding-top:22px; border-top:1px solid var(--sand-line); }
+.institution-helpdesk-page .helpdesk-editor-heading h4 { margin:0 0 6px; font-size:15px; }
+.institution-helpdesk-page .helpdesk-ticket-editor > .btn { justify-self:start; min-width:120px; }
+.institution-helpdesk-page .helpdesk-ticket-editor > [role=status] { grid-column:1/-1; background:var(--institution-tint) !important; border-color:var(--sand-line) !important; font-size:12px; line-height:1.8; }
+.institution-helpdesk-page details { margin:20px 0; }
+@media(max-width:700px) { .institution-helpdesk-page form.dash-card,.institution-helpdesk-page article > .helpdesk-ticket-editor { grid-template-columns:minmax(0,1fr) !important; } .institution-helpdesk-page .helpdesk-meta { grid-template-columns:minmax(0,1fr); gap:14px; } .institution-helpdesk-page article.dash-card { padding:20px !important; } .institution-helpdesk-page .helpdesk-heading { align-items:start; } }
