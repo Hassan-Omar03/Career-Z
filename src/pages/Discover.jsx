@@ -46,8 +46,8 @@ export const KINDS = {
     filters: [['country', 'Country'], ['city', 'City']] }
 };
 
-function Shell({ title, description, path, children }) {
-  return <><PageSeo title={title} description={description} path={path} /><AuthNavbar /><main className="discover-page">{children}</main><SiteFooter /></>;
+function Shell({ title, description, path, image, type, custom, keywords, children }) {
+  return <><PageSeo title={title} description={description} path={path} image={image} type={type} custom={custom} keywords={keywords} /><AuthNavbar /><main className="discover-page">{children}</main><SiteFooter /></>;
 }
 
 export function ListingPage({ kind }) {
@@ -74,7 +74,15 @@ export function ListingPage({ kind }) {
   const page = Number(params.get('page')) || 1;
   const goPage = (n) => { const next = Object.fromEntries(params.entries()); next.page = String(n); setParams(next); window.scrollTo({ top: 0, behavior: 'smooth' }); };
   const { Card } = cfg;
-  return <Shell title={cfg.title} description={cfg.intro} path={`/${kind}`}>
+  // City and category landing pages ("jobs in Lahore", "schools in Karachi") get their own title
+  // and address for search engines; any other filter mix points back to the main list.
+  const city = params.get('city'), cat = params.get('category') || params.get('type');
+  const landing = [...params.keys()].every((k) => ['city', 'category', 'type'].includes(k)) && (city || cat);
+  const noun = { jobs: 'Jobs', scholarships: 'Scholarships', institutes: 'Schools, colleges & universities', courses: 'Courses', marketplace: 'Books, notes & uniforms for sale', donors: 'Education donors' }[kind] || cfg.title;
+  const catLabel = cat ? String(cat).replace(/_/g, ' ') : '';
+  const landingTitle = landing ? `${catLabel ? `${catLabel.charAt(0).toUpperCase()}${catLabel.slice(1)} ` : ''}${catLabel ? noun.toLowerCase() : noun} in ${city || 'Pakistan'} ${new Date().getFullYear()}` : cfg.title;
+  const landingPath = landing ? `/${kind}?${new URLSearchParams([...params.entries()].filter(([k]) => ['city', 'category', 'type'].includes(k)).sort()).toString()}` : `/${kind}`;
+  return <Shell title={landingTitle} description={landing ? `${landingTitle}: verified listings on CareerZ. ${cfg.intro}` : cfg.intro} path={landingPath} custom={Boolean(landing)} keywords={landing ? [landingTitle, `${noun.toLowerCase()} in ${city || 'Pakistan'}`, city && `${kind} ${city}`] : []}>
     <header className="discover-hero"><nav className="public-breadcrumb" aria-label="Breadcrumb"><Link to="/">Home</Link><span>/</span><span>{cfg.title}</span></nav><h1>{cfg.title}</h1><p>{cfg.intro}</p></header>
     {['courses', 'jobs', 'institutes', 'marketplace'].includes(kind) && <AdSlot placement={kind} />}
     <form className="discover-filters" onSubmit={apply} role="search">
@@ -116,7 +124,13 @@ function useDetail(kind, id) {
 function DetailShell({ kind, state, children }) {
   const cfg = KINDS[kind];
   const name = state.item?.title || state.item?.name;
-  return <Shell title={name || cfg.title} description={cfg.intro} path={`/${kind}`}>
+  const it = state.item;
+  // The page's own address and text, so search engines index each listing on its own.
+  const about = String(it?.description || it?.about || it?.eligibility || '').replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim();
+  const where = [it?.city, it?.country].filter(Boolean).join(', ');
+  const desc = it ? `${name}${it.company ? ` at ${it.company}` : ''}${where ? ` in ${where}` : ''}. ${about}`.slice(0, 158) : cfg.intro;
+  const img = [it?.coverImage, it?.image, it?.images?.[0], it?.logo, it?.companyLogo].find((u) => /^https:\/\//.test(u || ''));
+  return <Shell title={name || cfg.title} description={desc} path={it?._id ? `/${kind}/${it._id}` : `/${kind}`} image={kind === 'marketplace' ? img : undefined} type={kind === 'marketplace' ? 'product' : 'website'}>
     <nav className="public-breadcrumb discover-crumb" aria-label="Breadcrumb"><Link to="/">Home</Link><span>/</span><Link to={`/${kind}`}>{cfg.title}</Link>{name && <><span>/</span><span>{name}</span></>}</nav>
     {state.loading && <div className="discover-detail"><CardSkeleton /></div>}
     {state.error && <div className="discover-empty"><h1>Not available</h1><p>{state.error}</p><Link className="btn btn-primary" to={`/${kind}`}>See all {cfg.title.toLowerCase()}</Link></div>}

@@ -9,9 +9,13 @@ import { initOfflineLearning } from './utils/offlineLearning';
 
 initOfflineLearning();
 
+// /ur/… addresses are the Urdu version of the site (for Urdu search results): the same app,
+// opened in Urdu, with every in-app link kept under /ur.
+const URDU = /^\/ur(\/|$)/.test(window.location.pathname);
+
 createRoot(document.getElementById('root')).render(
   <StrictMode>
-    <BrowserRouter>
+    <BrowserRouter basename={URDU ? '/ur' : undefined}>
       <TranslationProvider>
         <AuthProvider>
           <App />

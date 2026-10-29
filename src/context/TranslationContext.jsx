@@ -13,6 +13,7 @@ import { apiRequest } from '../api/client';
 const TranslationContext = createContext(null);
 
 const LANG_KEY = 'careerz_lang';
+const URDU_PATH = () => /^\/ur(\/|$)/.test(window.location.pathname);
 const CACHE_KEY = 'careerz_translation_cache_v2'; // v2: v1 held poor LibreTranslate output
 export const RTL_LANGS = ['ur', 'ar', 'fa', 'he'];
 const SKIP_TAGS = new Set(['SCRIPT', 'STYLE', 'NOSCRIPT', 'TEXTAREA', 'INPUT', 'TITLE']);
@@ -32,7 +33,8 @@ function saveCache(cache) {
 }
 
 export function TranslationProvider({ children }) {
-  const [lang, setLangState] = useState(() => localStorage.getItem(LANG_KEY) || 'en');
+  // An /ur/… address always opens in Urdu.
+  const [lang, setLangState] = useState(() => (URDU_PATH() ? 'ur' : localStorage.getItem(LANG_KEY) || 'en'));
   const [enabled, setEnabled] = useState(null); // null = still checking with the backend
   const [translating, setTranslating] = useState(false);
 
@@ -142,6 +144,8 @@ export function TranslationProvider({ children }) {
   }, [collectTextNodes, translateNodes, restoreOriginals]);
 
   const setLang = useCallback((code) => {
+    // Leaving Urdu on an /ur/… address goes to the same page's normal address.
+    if (code !== 'ur' && URDU_PATH()) { localStorage.setItem(LANG_KEY, code); window.location.assign((window.location.pathname.slice(3) || '/') + window.location.search + window.location.hash); return; }
     langRef.current = code;
     setLangState(code);
     localStorage.setItem(LANG_KEY, code);

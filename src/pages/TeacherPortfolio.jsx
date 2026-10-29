@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { FaArrowLeft, FaStar, FaGraduationCap, FaClock, FaUsers, FaBookOpen } from 'react-icons/fa6';
 import { apiRequest } from '../api/client';
+import PageSeo from '../components/PageSeo';
 import { categoryLabel, MODE_LABEL, videoEmbed, BADGE_COLOR } from '../utils/teacherProfile';
 
 // Public teacher portfolio (/teacher/:teacherId): only exists when the teacher switched it on.
@@ -25,6 +26,7 @@ export default function TeacherPortfolio() {
   const place = [teacher.city, teacher.country].filter(Boolean).join(', ');
   return (
     <main className="tp-page">
+      <PageSeo title={`${teacher.fullName} – ${profile.categories.map(categoryLabel)[0] || 'Teacher'}${teacher.city ? ` in ${teacher.city}` : ''}`} description={`${teacher.fullName}, ${profile.categories.map(categoryLabel).join(', ') || 'teacher'}${place ? ` in ${place}` : ''}. Verified teacher portfolio on CareerZ with experience, courses and reviews.`} path={`/teacher/${teacherId}`} type="profile" image={teacher.profilePhoto} keywords={[teacher.fullName, ...profile.categories.map(categoryLabel), teacher.city && `tutor in ${teacher.city}`, 'online tutor Pakistan']} />
       <Link to="/" className="tp-back"><FaArrowLeft aria-hidden="true" /> CareerZ</Link>
       <header className="tp-hero" style={profile.coverPhotoUrl ? { backgroundImage: `linear-gradient(180deg, rgba(0,0,0,.05), rgba(0,0,0,.55)), url(${profile.coverPhotoUrl})` } : undefined}>
         <div className="tp-identity">

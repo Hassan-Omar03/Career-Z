@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import { apiRequest } from '../api/client';
+import PageSeo from '../components/PageSeo';
 
 const DAYS = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
 
@@ -26,6 +27,7 @@ export default function InstitutionPublic() {
   const accent = info.branding?.accentColor || '#d4a017';
   return (
     <div style={{ minHeight: '100vh', background: 'var(--paper, #faf7f0)' }}>
+      <PageSeo title={page ? `${content?.title || page.replace(/-/g, ' ')} – ${info.institution.name}` : `${info.institution.name} – official website`} description={`${info.institution.name}${info.branding?.tagline ? `: ${info.branding.tagline}` : ''}. Admissions, programs, fee structure and news on the official CareerZ website of the institute.`} path={`/i/${subdomain}${page ? `/${page}` : ''}`} image={info.branding?.bannerUrl || info.institution.logo} keywords={[info.institution.name, `${info.institution.name} admissions`, `${info.institution.name} fee structure`]} />
       <header style={{ color: '#fff', padding: '40px 24px', background: info.branding?.bannerUrl ? `linear-gradient(rgba(0,0,0,.45), rgba(0,0,0,.45)), url(${info.branding.bannerUrl}) center/cover` : `linear-gradient(135deg, ${primary}, ${accent})` }}>
         <div style={{ maxWidth: 960, margin: '0 auto', display: 'flex', gap: 16, alignItems: 'center' }}>
           {info.institution.logo && <img src={info.institution.logo} alt="" style={{ width: 64, height: 64, borderRadius: 12, background: '#fff', objectFit: 'contain' }} />}

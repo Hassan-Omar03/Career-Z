@@ -127,3 +127,31 @@
 .dc-badge { display: inline-flex; padding: 2px 9px; border-radius: 999px; font-size: 0.72rem; font-weight: 700; border: 1px solid color-mix(in srgb, var(--emerald) 40%, var(--sand-line)); background: color-mix(in srgb, var(--emerald) 8%, transparent); color: var(--ink); }
 .dc-badge.urgent { border-color: color-mix(in srgb, var(--rose) 45%, var(--sand-line)); background: color-mix(in srgb, var(--rose) 8%, transparent); }
 .dc-badge.top { border-color: color-mix(in srgb, var(--gold) 50%, var(--sand-line)); background: color-mix(in srgb, var(--gold) 10%, transparent); }
+
+/* Detail pages (institute, job, product, course, scholarship, donor): a green title banner and
+   each part of the page in its own card. */
+.discover-detail { max-width: 980px; gap: 18px; }
+.discover-detail > header { padding: 26px 26px 22px; border-radius: 20px; background: linear-gradient(135deg, var(--forest, #0f3d2e) 0%, #1d6b52 100%); color: #fff; box-shadow: 0 12px 32px rgba(15, 61, 46, 0.18); }
+.discover-detail > header h1 { color: #fff; }
+.discover-detail > header .dc-sub { color: rgba(255, 255, 255, 0.85); font-size: 0.92rem; margin-top: 6px; }
+.discover-detail > header a { color: #fff; text-decoration: underline; }
+.discover-detail > header .dc-logo { background: #fff; border: 2px solid rgba(255, 255, 255, 0.7); }
+.discover-detail > header .dc-badges { margin: 12px 0 0; }
+.discover-detail > section { padding: 18px 20px; border: 1px solid var(--sand-line); border-radius: 16px; background: var(--paper-raised, #fff); min-width: 0; }
+.discover-detail > section h2 { display: flex; align-items: center; gap: 8px; font-size: 1.05rem; margin: 0 0 10px; }
+.discover-detail > section h2::before { content: ''; width: 4px; height: 18px; border-radius: 2px; background: var(--gold, #e3a23c); flex-shrink: 0; }
+.discover-detail > section > p { margin: 0; line-height: 1.65; color: var(--ink, inherit); overflow-wrap: anywhere; }
+.discover-detail .dp-list { list-style: none; padding: 0; gap: 0; }
+.discover-detail .dp-list li { padding: 10px 0; border-bottom: 1px dashed var(--sand-line); line-height: 1.5; overflow-wrap: anywhere; }
+.discover-detail .dp-list li:first-child { padding-top: 0; }
+.discover-detail .dp-list li:last-child { border-bottom: 0; padding-bottom: 0; }
+.discover-detail .dp-list li strong { color: var(--forest, #0f3d2e); }
+.discover-detail .dp-cover { border-radius: 20px; max-height: 300px; }
+.discover-detail > .dp-facts div { background: var(--paper-raised, #fff); border: 1px solid var(--sand-line); }
+.discover-detail > .dp-action { box-shadow: 0 6px 20px rgba(15, 61, 46, 0.06); }
+.discover-detail > .dc-tags, .discover-detail > .dc-actions, .discover-detail > .dp-note { padding: 0 4px; }
+[data-theme="dark"] .discover-detail .dp-list li strong { color: #8fe0bd; }
+@media (max-width: 600px) {
+  .discover-detail > header { padding: 20px 18px 18px; border-radius: 16px; }
+  .discover-detail > section { padding: 16px; }
+}
