@@ -1,0 +1,29 @@
+/* Plugin System */
+.pl-wrap { display: grid; gap: 16px; }
+.pl-wrap h3 { margin: 0 0 4px; }
+.pl-mods { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 10px; margin-top: 12px; }
+.pl-mod { display: flex; justify-content: space-between; gap: 12px; align-items: center; padding: 12px; border: 1px solid var(--border, #e5e7eb); border-radius: 12px; }
+.pl-mod p { margin: 2px 0 0; }
+.pl-mod.off { background: var(--sand, #f8f7f4); }
+.pl-switch { flex-shrink: 0; width: 44px; height: 24px; border-radius: 999px; border: 0; background: #cbd5e1; position: relative; cursor: pointer; padding: 0; }
+.pl-switch span { position: absolute; top: 3px; left: 3px; width: 18px; height: 18px; border-radius: 50%; background: #fff; transition: transform .15s; }
+.pl-switch.on { background: var(--forest, #166534); }
+.pl-switch.on span { transform: translateX(20px); }
+.pl-head { display: flex; justify-content: space-between; gap: 12px; align-items: flex-start; flex-wrap: wrap; margin-bottom: 10px; }
+.pl-secret { display: grid; gap: 6px; padding: 12px; border-radius: 10px; background: #fef3c7; color: #78350f; margin-bottom: 12px; }
+.pl-secret code { overflow-wrap: anywhere; }
+.pl-form { display: grid; gap: 8px; padding: 12px; border-radius: 10px; background: var(--sand, #f8f7f4); margin-bottom: 12px; }
+.pl-events { display: grid; gap: 6px; }
+.pl-events label { display: flex; gap: 8px; align-items: flex-start; font-size: 14px; }
+.pl-actions { display: flex; gap: 6px; flex-wrap: wrap; }
+.pl-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 10px; }
+.pl-item { border: 1px solid var(--border, #e5e7eb); border-radius: 12px; padding: 12px; display: grid; gap: 4px; }
+.pl-item p { margin: 0; }
+.pl-item.off { opacity: .7; }
+.pl-item-head { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+.pl-url { overflow-wrap: anywhere; }
+.pl-log-wrap { overflow-x: auto; margin-top: 6px; }
+.pl-log { width: 100%; border-collapse: collapse; font-size: 12px; }
+.pl-log th, .pl-log td { text-align: left; padding: 6px; border-bottom: 1px solid var(--border, #e5e7eb); white-space: nowrap; }
+.pl-log td.ok { color: #15803d; }
+.pl-log td.bad { color: #b91c1c; }

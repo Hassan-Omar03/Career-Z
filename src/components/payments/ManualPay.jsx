@@ -13,7 +13,7 @@ const today = () => new Date().toISOString().slice(0, 10);
 const MAX = 2 * 1024 * 1024;
 const box = { padding: 12, background: 'var(--sand)', borderRadius: 10, display: 'grid', gap: 8 };
 const STATUS_LABEL = { commission_submitted: 'Service fee sent, CareerZ is checking', commission_verified: 'Service fee confirmed: pay the seller now', submitted: 'Being checked by CareerZ', approved: 'Verified' };
-const KIND_LABEL = { fee: 'Fee', course: 'Course', tutoring: 'Tuition', marketplace_order: 'Order', donation: 'Donation', featured_job: 'Featured job', subscription: 'Plan', wallet_topup: 'Wallet top-up' };
+const KIND_LABEL = { fee: 'Fee', course: 'Course', tutoring: 'Tuition', marketplace_order: 'Order', donation: 'Donation', featured_job: 'Featured job', subscription: 'Plan', wallet_topup: 'Wallet top-up', ad_free: 'Ad-free dashboards' };
 
 function Account({ a }) {
   return (

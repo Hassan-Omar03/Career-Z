@@ -17,6 +17,7 @@ import MarkdownText from '../components/shared/MarkdownText';
 import { ScholarshipApplyButton } from '../components/donors/ScholarshipApply';
 import { CompanyTrustCard } from '../components/employer/EmployerMaster';
 import '../styles/discover.css';
+import { AdSlot } from '../components/ads/Ads';
 
 // Public "View All" pages (/jobs, /scholarships, /institutes, /marketplace, /donors) and their
 // detail pages. Filters are sent to the server, so they search every eligible record, not just
@@ -75,6 +76,7 @@ export function ListingPage({ kind }) {
   const { Card } = cfg;
   return <Shell title={cfg.title} description={cfg.intro} path={`/${kind}`}>
     <header className="discover-hero"><nav className="public-breadcrumb" aria-label="Breadcrumb"><Link to="/">Home</Link><span>/</span><span>{cfg.title}</span></nav><h1>{cfg.title}</h1><p>{cfg.intro}</p></header>
+    {['courses', 'jobs', 'institutes', 'marketplace'].includes(kind) && <AdSlot placement={kind} />}
     <form className="discover-filters" onSubmit={apply} role="search">
       <label className="df-wide">Search<input className="form-input" type="search" placeholder={cfg.search} value={draft.q || ''} onChange={(e) => setDraft({ ...draft, q: e.target.value })} /></label>
       {cfg.filters.map(([key, text, opts]) => <label key={key}>{text}

@@ -8,6 +8,7 @@ import AiConsole from '../components/AiConsole';
 import { apiRequest, API_BASE } from '../api/client';
 import { DonorCard, CardSkeleton, place, daysLeft, dateText } from '../components/discover/DiscoverCards';
 import '../styles/discover.css';
+import { AdSlot } from '../components/ads/Ads';
 import {
   FaBullseye, FaChartLine, FaUserTie, FaShieldHalved, FaGraduationCap, FaRobot, FaBriefcase, FaChartColumn, FaClipboardList, FaCommentDots,
   FaFilePen, FaChalkboardUser, FaBuilding, FaMoneyBillWave, FaChartPie, FaPaperPlane, FaMagnifyingGlass, FaFolderOpen, FaHandshake, FaSackDollar,
@@ -287,6 +288,7 @@ export default function Home() {
 
       <section className="section-pad" id="institutions">
         <div className="container">
+          <AdSlot placement="home" />
           <SectionHead eyebrow="Verified Network" title="Featured institutions across our global network" intro="Verified schools, colleges, universities and academies — all in one place." more={['/institutes', 'View All Institutes']} />
           <InstituteGrid items={data?.institutes} empty={<Empty to="/signup?type=institute" action="Register your institution">No verified institutions yet.</Empty>} />
         </div>

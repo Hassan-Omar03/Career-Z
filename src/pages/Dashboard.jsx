@@ -44,7 +44,7 @@ import FamilyClassrooms from '../components/dashboard/FamilyClassrooms';
   FaGraduationCap, FaBriefcase, FaStore, FaWallet, FaSackDollar, FaSchool, FaChartLine,
   FaCalendarCheck, FaMoneyBillWave, FaHandshake, FaHourglassHalf, FaGear, FaBell, FaCommentDots, FaCircleQuestion, FaChevronDown,
   FaCartShopping, FaBoxOpen, FaBoxesStacked, FaTruck, FaStar, FaRegStar, FaTriangleExclamation, FaQrcode, FaLock,
-  FaEarthAmericas, FaDatabase, FaUserGear, FaNewspaper, FaWandMagicSparkles,
+  FaEarthAmericas, FaBullhorn, FaPuzzlePiece, FaDatabase, FaUserGear, FaNewspaper, FaWandMagicSparkles,
   FaUserGraduate, FaBed, FaKitMedical, FaCalendarDays, FaHeadset, FaRobot,
   FaCheck, FaLocationDot, FaExpand, FaMobileScreen, FaFaceSmile, FaCircleCheck,
   FaArrowLeft, FaArrowRight, FaArrowRotateLeft, FaCopy, FaEye, FaPaperPlane,
@@ -86,6 +86,11 @@ import { ScholarshipDocumentsPicker, ScholarshipApplyButton, ApplicationDetails 
 import { DonorForecastCard, DonorImpactCard, RankScholarshipApplicants, AdminDonorsPanel as DonorManagementPanel } from '../components/donors/DonorMaster';
 import { askMouSignature, MouButton, PartnerStats } from '../components/recruitment/PartnershipMou';
 import BlogAdmin from '../components/admin/BlogAdmin';
+import { VisaCases, StartVisaCase, AdminVisaPanel } from '../components/visa/Visa';
+import { AdSlot, AdminAdsPanel, AdFreeCard } from '../components/ads/Ads';
+import { AdminCommentsRatingsPanel } from '../components/admin/CommentsRatings';
+import { MockInterviewCard } from '../components/jobs/MockInterview';
+import { AdminPluginsPanel, useModules, NAV_MODULE } from '../components/admin/Plugins';
 import { AcademyBatchesPanel, StudentAcademies, ConnectLearningCard, TeacherBatches, ParentAcademies } from '../components/academy/Academy';
 import { BuyerEscrowActions, SellerEscrowActions, EscrowChip, DigitalListingFields, AdminEscrowPanel, AdminListingReview, BuyerOrdersList, SellerOrdersBoard, SellerReportPanel } from '../components/marketplace/Escrow';
 import { EmployerDashboardFull, EmployerAnalyticsPanel, EmployerReviewsPanel, EmployerPromotionsPanel, EmployerPayrollPanel, EmployeeCompanyPanel, AdminEmployersPanel, downloadApplicantsCsv, useCompanyReviewLookup, ReviewCompanyButton } from '../components/employer/EmployerMaster';
@@ -323,6 +328,7 @@ const WORKSPACES = {
       { key: 'payroll', label: 'Salary Management', icon: FaSackDollar },
       { key: 'partnerships', label: 'Institution Partnerships', icon: FaHandshake },
       { key: 'staff', label: 'Company Staff', icon: FaUserGear },
+      { key: 'visaCases', label: 'Visa Cases', icon: FaEarthAmericas },
       { key: 'aiSettings', label: 'AI Settings', icon: FaRobot },
       { key: 'profile', label: 'Profile', icon: FaUser }
     ]
@@ -350,6 +356,10 @@ const WORKSPACES = {
       { key: 'staff', label: 'Staff Management', icon: FaUserGear },
       { key: 'finance', label: 'Financial Management', icon: FaSackDollar },
       { key: 'marketplaceReview', label: 'Held Listings (auto-check)', icon: FaStore },
+      { key: 'visa', label: 'Visa Center', icon: FaEarthAmericas },
+      { key: 'ads', label: 'Ads Management', icon: FaBullhorn },
+      { key: 'commentsRatings', label: 'Comments & Ratings', icon: FaCommentDots },
+      { key: 'plugins', label: 'Plugins & Modules', icon: FaPuzzlePiece },
       { key: 'marketplaceEscrow', label: 'Marketplace Escrow & Disputes', icon: FaShieldHalved },
       { key: 'complaints', label: 'Complaint Management', icon: FaClipboardList },
       { key: 'security', label: 'Security & Monitoring', icon: FaShieldHalved },
@@ -430,6 +440,7 @@ const WORKSPACES = {
       { key: 'agentMessages', label: 'Messages', icon: FaCommentDots },
       { key: 'agentNotifications', label: 'Notifications', icon: FaBell },
       { key: 'agentVerification', label: 'Verification/Documents', icon: FaClipboardCheck },
+      { key: 'visaCases', label: 'Visa Cases', icon: FaEarthAmericas },
       { key: 'aiSettings', label: 'AI Settings', icon: FaRobot }
     ]
   }
@@ -784,7 +795,8 @@ export default function Dashboard() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  const ws = (isRepOnly && activeWorkspace === 'institution') ? REPRESENTATIVE_WORKSPACE
+  const modulesOn = useModules();
+  const wsBase = (isRepOnly && activeWorkspace === 'institution') ? REPRESENTATIVE_WORKSPACE
     : (isWardenOnly && activeWorkspace === 'institution') ? WARDEN_WORKSPACE
     : (isDriverOnly && activeWorkspace === 'institution') ? DRIVER_WORKSPACE
     : (isPlatformStaffOnly && activeWorkspace === 'admin')
@@ -794,6 +806,8 @@ export default function Dashboard() {
           if (activeWorkspace !== 'institution') return workspace;
           return { ...workspace, nav: workspace.nav.filter((item) => item.key !== 'wardenDashboard') };
         })();
+  // Optional modules the Super Admin turned off leave the menus (admins keep everything).
+  const ws = activeWorkspace === 'admin' ? wsBase : { ...wsBase, nav: wsBase.nav.filter((item) => modulesOn[NAV_MODULE[item.key]] !== false) };
   // The verified account type behind this workspace, whose mandatory profile lives under My Profile.
   const verifiedRole = { student: 'student', teacher: 'teacher', parent: 'parent', donor: 'donor', marketplace_seller: 'marketplace_seller', education_agent: 'education_agent',
     institution: (isRepOnly || isWardenOnly || isDriverOnly) ? null : roles.includes('institution_owner') ? 'institution_owner' : roles.includes('academy_owner') ? 'academy_owner' : null }[activeWorkspace] || null;
@@ -843,6 +857,7 @@ export default function Dashboard() {
       })()}
 
       <div className={`workspace-content${activeWorkspace === 'student' ? ' student-page-content institution-ui student-redesign' : ''}`} data-page={activeTab} key={`${activeWorkspace}-${activeTab}`}>
+        {['summary', 'overview'].includes(activeTab) && activeWorkspace !== 'admin' && <AdSlot placement="dashboard" />}
         {activeTab === 'messages' && <MessagesPanel onFlash={flash} user={user} restrictedStaffMessaging={isWardenOnly || isDriverOnly} initialUser={pendingMessageUser} onConsumedInitialUser={() => setPendingMessageUser(null)} />}
         {activeTab === 'notifications' && <NotificationsPanel onFlash={flash} />}
         {activeTab === 'calendar' && <CalendarPanel onFlash={flash} />}
@@ -2781,7 +2796,7 @@ function StudentJobsPanel({ onFlash, user }) {
   const groups = [
     { key: 'overview', label: 'Overview', icon: FaGauge, items: [['dashboard', 'Dashboard']] },
     { key: 'discover', label: 'Find work', icon: FaMagnifyingGlass, items: [['search', 'Search jobs'], ['internships', 'Internships'], ['recommended', 'Recommended'], ['smartApply', 'Smart Apply'], ['saved', 'Saved jobs']] },
-    { key: 'applications', label: 'Applications', icon: FaClipboardList, items: [['applications', 'My applications'], ['interviews', 'Interviews'], ['offers', 'Job offers'], ['referrals', 'Institution referrals']] },
+    { key: 'applications', label: 'Applications', icon: FaClipboardList, items: [['applications', 'My applications'], ['interviews', 'Interviews'], ['offers', 'Job offers'], ['visa', 'Visa cases'], ['referrals', 'Institution referrals']] },
     { key: 'career', label: 'CV & Career', icon: FaUser, items: [['profile', 'My profile'], ['resume', 'CV builder'], ['cvVersions', 'CV versions'], ['cvDesign', 'Templates & download'], ['coverLetters', 'Cover letters'], ['portfolio', 'Portfolio'], ['roadmap', 'Career roadmap'], ['tools', 'Career tools']] },
     { key: 'updates', label: 'Updates', icon: FaBell, items: [['alerts', 'Job alerts'], ['messages', 'Messages'], ['notifications', 'Notifications']] }
   ];
@@ -2811,6 +2826,7 @@ function StudentJobsPanel({ onFlash, user }) {
       {sub === 'interviews' && <InterviewsPanel onFlash={onFlash} />}
       {sub === 'offers' && <><JobOffersPanel onFlash={onFlash} /><EmployeeCompanyPanel onFlash={onFlash} /></>}
       {sub === 'referrals' && <StudentReferralsPanel onFlash={onFlash} />}
+      {sub === 'visa' && <VisaCases onFlash={onFlash} />}
       {sub === 'resume' && <ResumeEditorPanel onFlash={onFlash} user={user} onTemplates={() => setSub('cvDesign')} />}
       {sub === 'cvVersions' && <CvVersions onFlash={onFlash} />}
       {sub === 'cvDesign' && <CvDesigner user={user} onFlash={onFlash} />}
@@ -4941,6 +4957,7 @@ function CareerToolsPanel({ onFlash, onNavigate }) {
         <AiFeatureCard feature="cover_letter" title="Cover Letter Generator" description="Describe the job and your background — get a draft cover letter." placeholder="Job title, company, and a bit about your background..." aiEnabled={aiEnabled} />
         <AiFeatureCard feature="linkedin_optimize" title="LinkedIn Optimizer" description="Paste your current headline/summary — get a stronger rewrite." placeholder="Paste your LinkedIn headline or summary..." aiEnabled={aiEnabled} />
         <AiFeatureCard feature="interview_coach" title="AI Interview Coach" description="Get likely interview questions and tips for a specific role." placeholder="What role are you interviewing for?" aiEnabled={aiEnabled} />
+        <MockInterviewCard onFlash={onFlash} aiEnabled={aiEnabled} />
         <AiFeatureCard feature="career_advice" title="Career Coach" description="Describe your interests/situation for practical career guidance." placeholder="Tell it about your interests, skills, and goals..." aiEnabled={aiEnabled} />
       </div>
     </div>
@@ -16869,6 +16886,8 @@ function InstitutionSubscriptionPanel({ onFlash }) {
         </div>
       </div>
 
+      <div style={{ marginTop: 16 }}><AdFreeCard institution={institution} onFlash={onFlash} /></div>
+
       <div className="admin-section" style={{ marginTop: 16 }}>
         <div className="admin-section-heading"><div><h2>Optional plans</h2><p>CareerZ core access remains free. Paid packages are optional 30-day upgrades paid with JazzCash. Renew by paying again; an expired plan never disables an institution.</p></div></div>
         <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
@@ -17656,6 +17675,7 @@ function EmployerWorkspace({ tab, user, onFlash, onChanged }) {
   if (tab === 'employees') return <EmployerEmploymentsPanel onFlash={onFlash} />;
   if (tab === 'partnerships') return <EmployerPartnershipsPanel onFlash={onFlash} user={user} />;
   if (tab === 'staff') return <CompanyStaffPanel onFlash={onFlash} />;
+  if (tab === 'visaCases') return <VisaCases onFlash={onFlash} />;
   return <ComingSoon label={tab} />;
 }
 
@@ -18349,6 +18369,7 @@ function EmployerJobsPanel({ onFlash, institution = null, reloadKey = 0, employe
                   <div className="flex items-center" style={{ gap: 10, flexShrink: 0 }}>
                     <HiringStatusControl key={`${a._id}-${a.status}-${a.employment?.status || ''}-${a.employment?.offerLetter?.sentAt || ''}`} application={a} job={jobs.find((j) => j._id === openJob)} institutionConfirms={Boolean(jobs.find((j) => j._id === openJob)?.agreement)} onFlash={onFlash} onSaved={() => viewApplicants(openJob)} />
                     <button type="button" className="btn" style={{ padding: '8px 14px', fontSize: '0.75rem' }} onClick={() => { setInterviewForm((f) => ({ ...f, round: 'interview' })); setInterviewFormFor(interviewFormFor === a._id ? null : a._id); }}>Schedule Interview</button>
+                    <StartVisaCase application={a} job={jobs.find((j) => j._id === openJob)} onFlash={onFlash} />
                   </div>
                 </div>
                 {a.status === 'hired' && jobs.find((j) => j._id === openJob)?.type === 'internship' && (
@@ -20650,6 +20671,7 @@ function AgentWorkspace({ tab, user, onFlash, onChanged, onNavigate }) {
   if (tab === 'profile') return <><ProfilePanel user={user} onFlash={onFlash} onChanged={onChanged} /><RolesPanel onFlash={onFlash} onChanged={onChanged} /><SupportComplaintPanel onFlash={onFlash} /></>;
   if (tab === 'summary') return <><AgentDashboardPanel user={user} onFlash={onFlash} onNavigate={onNavigate} /><MarketTrendsCard onFlash={onFlash} /></>;
   if (tab === 'post') return <EmployerPostJobPanel onFlash={onFlash} asAgent />;
+  if (tab === 'visaCases') return <div className="institution-ui agent-ui"><VisaCases onFlash={onFlash} /></div>;
   if (tab === 'jobs') return <EmployerJobsPanel onFlash={onFlash} />;
   if (tab === 'instituteRequests') return <AgentRecruitmentPanel onFlash={onFlash} renderPostJob={(r, done) => <EmployerPostJobPanel key={r._id} onFlash={onFlash} institution={r.institution} agreementId={r.activeAgreement._id} onPosted={done} />} />;
   if (tab === 'agentScholarships') return <AgentScholarshipsPanel onFlash={onFlash} />;
@@ -21600,6 +21622,10 @@ function AdminWorkspace({ tab, user, roles, onFlash, onChanged }) {
     );
   }
   if (tab === 'summary' || tab === 'institutions_mgmt') return <><AdminPanel onFlash={onFlash} />{tab==='summary'&&roles.some(r=>['admin','super_admin'].includes(r))&&<FamilyAdminSummary onFlash={onFlash} />}</>;
+  if (tab === 'visa') return <div className="institution-ui"><AdminVisaPanel onFlash={onFlash} /></div>;
+  if (tab === 'ads') return <div className="institution-ui"><AdminAdsPanel onFlash={onFlash} /></div>;
+  if (tab === 'plugins') return <div className="institution-ui"><AdminPluginsPanel onFlash={onFlash} /></div>;
+  if (tab === 'commentsRatings') return <div className="institution-ui"><AdminCommentsRatingsPanel onFlash={onFlash} /></div>;
   if (tab === 'marketplaceReview') return <div className="institution-ui"><AdminListingReview onFlash={onFlash} /></div>;
   if (tab === 'marketplaceEscrow') return <div className="institution-ui"><AdminEscrowPanel onFlash={onFlash} isSuperAdmin={roles.includes('super_admin')} /></div>;
   if (tab === 'employers') return <div className="institution-ui employer-ui"><AdminEmployersPanel onFlash={onFlash} isSuperAdmin={roles.includes('super_admin')} /></div>;

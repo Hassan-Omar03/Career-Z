@@ -1,0 +1,35 @@
+/* AI Mock Interview */
+.mi-card { grid-column: 1 / -1; }
+.mi-wrap { display: grid; gap: 12px; margin-top: 14px; }
+.mi-start { display: grid; gap: 8px; }
+.mi-row { display: flex; gap: 10px; flex-wrap: wrap; }
+.mi-row label { display: grid; gap: 4px; font-size: 12px; flex: 1 1 140px; }
+.mi-history { display: grid; gap: 6px; padding-top: 8px; border-top: 1px solid var(--sand-line, #e5e7eb); }
+.mi-hist-row { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+.mi-link { background: none; border: 0; padding: 0; color: var(--forest, #166534); font-weight: 600; cursor: pointer; text-align: left; }
+.mi-top { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+.mi-steps { display: flex; gap: 6px; flex-wrap: wrap; }
+.mi-steps button { width: 32px; height: 32px; border-radius: 50%; border: 1px solid var(--sand-line, #e5e7eb); background: var(--card, #fff); color: inherit; cursor: pointer; }
+.mi-steps button.done { background: var(--institution-tint, #dcfce7); border-color: var(--forest, #166534); }
+.mi-steps button.on { outline: 2px solid var(--forest, #166534); outline-offset: 1px; }
+.mi-q { display: grid; gap: 8px; padding: 12px; border-radius: 10px; background: var(--sand, #f8f7f4); }
+.mi-q h4 { margin: 0; overflow-wrap: anywhere; }
+.mi-actions { display: flex; gap: 8px; flex-wrap: wrap; }
+.mi-rec { color: #dc2626; border-color: #dc2626; }
+.mi-result { display: grid; gap: 6px; }
+.mi-result p { margin: 0; overflow-wrap: anywhere; }
+.mi-answer { font-size: 14px; color: var(--ink-soft, #4b5563); }
+.mi-scores { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+.mi-score { font-weight: 700; font-size: 18px; }
+.mi-score.big { font-size: 28px; }
+.mi-conf { font-size: 12px; font-weight: 600; padding: 3px 10px; border-radius: 999px; background: #e5e7eb; }
+.mi-conf.good { background: #dcfce7; color: #166534; }
+.mi-conf.warn { background: #fef3c7; color: #92400e; }
+.mi-conf.bad { background: #fee2e2; color: #991b1b; }
+.mi-signals { margin: 0; padding-left: 18px; font-size: 12px; color: var(--ink-soft, #4b5563); }
+.mi-better { padding: 8px 10px; border-left: 3px solid var(--forest, #166534); background: var(--card, #fff); border-radius: 4px; }
+.mi-report { display: grid; gap: 10px; }
+.mi-cols { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 10px; }
+.mi-cols ul { margin: 4px 0 0; padding-left: 18px; font-size: 14px; }
+.mi-report details { display: grid; gap: 8px; }
+.mi-report summary { cursor: pointer; font-weight: 600; margin-bottom: 8px; }

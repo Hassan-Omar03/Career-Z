@@ -1,0 +1,31 @@
+/* Ad Management: ad slot, admin desk, ad-free card */
+.ad-slot { display: flex; gap: 12px; align-items: center; padding: 10px 12px; margin: 12px 0; border: 1px solid var(--border, #e5e7eb); border-radius: 12px; background: var(--card, #fff); color: inherit; text-decoration: none; max-width: 100%; overflow: hidden; }
+.ad-slot:hover { border-color: var(--primary, #2563eb); }
+.ad-slot img { width: 96px; height: 64px; object-fit: cover; border-radius: 8px; flex-shrink: 0; }
+.ad-slot-body { display: grid; gap: 2px; min-width: 0; }
+.ad-slot-body strong { overflow-wrap: anywhere; }
+.ad-slot-tag { font-size: 11px; text-transform: uppercase; letter-spacing: .04em; color: var(--muted, #6b7280); }
+.ad-slot-text { font-size: 13px; color: var(--muted, #6b7280); overflow-wrap: anywhere; }
+
+.ads-admin { display: grid; gap: 16px; }
+.ads-head { display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; flex-wrap: wrap; margin-bottom: 10px; }
+.ads-head h3 { margin: 0; }
+.ads-switch { display: flex; align-items: center; gap: 8px; font-weight: 600; }
+.ads-places { display: flex; flex-wrap: wrap; gap: 8px 16px; margin: 8px 0; }
+.ads-place { display: flex; align-items: center; gap: 6px; font-size: 14px; }
+.ads-price { display: flex; flex-wrap: wrap; gap: 10px 16px; align-items: flex-end; margin-top: 12px; }
+.ads-price b { width: 100%; font-size: 14px; }
+.ads-price label { display: grid; gap: 4px; font-size: 13px; width: 160px; }
+.ads-form { display: grid; gap: 8px; padding: 12px; margin-bottom: 14px; border-radius: 10px; background: var(--sand, #f8f7f4); }
+.ads-preview { display: flex; gap: 10px; align-items: center; }
+.ads-preview img { max-width: 160px; max-height: 90px; border-radius: 8px; }
+.ads-dates { display: flex; gap: 12px; flex-wrap: wrap; }
+.ads-dates label { display: grid; gap: 4px; }
+.ads-actions { display: flex; gap: 8px; flex-wrap: wrap; }
+.ads-table-wrap { overflow-x: auto; }
+.ads-table { width: 100%; border-collapse: collapse; font-size: 14px; }
+.ads-table th, .ads-table td { text-align: left; padding: 8px; border-bottom: 1px solid var(--border, #e5e7eb); vertical-align: top; }
+.ads-table tr.off { opacity: .55; }
+.ads-row-actions { display: flex; gap: 6px; flex-wrap: wrap; }
+.ads-free-list { margin: 0; padding-left: 18px; }
+.ads-free-on { color: var(--success, #15803d); font-weight: 600; }
