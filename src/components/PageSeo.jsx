@@ -10,7 +10,18 @@ import { BASE_KEYWORDS, seoFor, seoForUr } from '../content/seo';
 const urdu = () => /^\/ur(\/|$)/.test(window.location.pathname);
 const slugOf = (path) => (path === '/' ? 'home' : path.slice(1).replace(/\//g, '-'));
 
+// Google AdSense loads only on public pages (PageSeo is never used on the dashboard), so ads never
+// reach live classes, exams, chat, wallet or payment screens.
+const ADSENSE = 'https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-2364552447227705';
+function loadAdsense() {
+  if (document.querySelector(`script[src="${ADSENSE}"]`)) return;
+  const s = document.createElement('script');
+  s.async = true; s.src = ADSENSE; s.crossOrigin = 'anonymous';
+  document.head.appendChild(s);
+}
+
 export default function PageSeo({ title, description, path = '/', noindex = false, keywords = [], image, type = 'website', schema, custom = false }) {
+  useEffect(() => { if (!noindex) loadAdsense(); }, [noindex]);
   useEffect(() => {
     const origin = (import.meta.env.VITE_PUBLIC_SITE_URL || 'https://careerz.pk').replace(/\/$/, '');
     const ur = urdu();
