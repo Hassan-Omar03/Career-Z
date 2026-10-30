@@ -1,11 +1,11 @@
 import { createContext, useContext, useEffect, useRef, useState } from 'react';
 import { io } from 'socket.io-client';
-import { session, apiRequest } from '../api/client';
+import { session, apiRequest, API_BASE } from '../api/client';
 import { useAuth } from './AuthContext';
 
 const RealtimeContext = createContext(null);
 
-const SOCKET_URL = (import.meta.env.VITE_API_BASE || 'http://localhost:5000/api').replace(/\/api\/?$/, '');
+const SOCKET_URL = API_BASE.replace(/\/api\/?$/, '');
 
 // Live push over the backend's existing Socket.IO server (src/realtime/socket.js) — every
 // notify() call server-side now also emits 'notification:new' to the recipient's own room, and

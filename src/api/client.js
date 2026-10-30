@@ -1,5 +1,8 @@
 // Thin fetch() wrapper for the CareerZ backend API.
-export const API_BASE = import.meta.env?.VITE_API_BASE || 'http://localhost:5000/api';
+// On careerz.pk the API is served by the same address (careerz.pk/api), so everything stays on
+// the CareerZ domain whatever address the build was made with.
+const SAME_SITE_API = typeof window !== 'undefined' && /(^|\.)careerz\.pk$/i.test(window.location.hostname) ? `${window.location.origin}/api` : '';
+export const API_BASE = SAME_SITE_API || import.meta.env?.VITE_API_BASE || 'http://localhost:5000/api';
 
 const TOKEN_KEY = 'cz_access_token';
 const REFRESH_KEY = 'cz_refresh_token';
