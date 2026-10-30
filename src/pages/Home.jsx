@@ -8,6 +8,7 @@ import AiConsole from '../components/AiConsole';
 import { apiRequest, API_BASE } from '../api/client';
 import { DonorCard, CardSkeleton, place, daysLeft, dateText } from '../components/discover/DiscoverCards';
 import '../styles/discover.css';
+import '../styles/moderation.css';
 import { AdSlot } from '../components/ads/Ads';
 import {
   FaBullseye, FaChartLine, FaUserTie, FaShieldHalved, FaGraduationCap, FaRobot, FaBriefcase, FaChartColumn, FaClipboardList, FaCommentDots,
@@ -216,6 +217,10 @@ function InstituteGrid({ items, empty, offset = 0 }) {
 export default function Home() {
   const [scrollPct, setScrollPct] = useState(0);
   const [data, setData] = useState(null), [loadError, setLoadError] = useState('');
+  // Hero text the Super Admin edits in Content → Website Pages (built-in text until then).
+  const [hero, setHero] = useState({});
+  useEffect(() => { apiRequest('/site-content/home', { auth: false }).then((v) => setHero(v || {})).catch(() => {}); }, []);
+  const h = (k, d) => (hero[k] ? hero[k] : d);
   const [extra, setExtra] = useState(null);
   const [options, setOptions] = useState(null);
   const [portal, setPortal] = useState(0), [eco, setEco] = useState(0), [faq, setFaq] = useState(-1);
@@ -248,15 +253,16 @@ export default function Home() {
 
       <PageSeo title="Global AI-Powered Education Ecosystem" description="Connect education, learning and career opportunities with CareerZ." /><LiveTicker items={tickerItems(data)} />
 
-      <AuthNavbar />    <section className="hero">
+      <AuthNavbar />    {hero.announcement && <div className="home-announcement" role="status">{hero.announcement}</div>}
+    <section className="hero">
         <div className="container hero-grid">
           <div className="reveal in">
-            <div className="eyebrow">The Global AI Education Ecosystem</div>
-            <h1>The Complete <em>AI-Powered</em> Education Ecosystem</h1>
-            <p className="lead">CareerZ.pk connects students, parents, teachers, institutions, employers, agents and donors — guided by AI, from admission to career. Built for students, institutions and educators worldwide.</p>
+            <div className="eyebrow">{h('eyebrow', 'The Global AI Education Ecosystem')}</div>
+            <h1>{h('titleStart', 'The Complete')} <em>{h('titleEmphasis', 'AI-Powered')}</em> {h('titleEnd', 'Education Ecosystem')}</h1>
+            <p className="lead">{h('lead', 'CareerZ.pk connects students, parents, teachers, institutions, employers, agents and donors — guided by AI, from admission to career. Built for students, institutions and educators worldwide.')}</p>
             <div className="hero-actions">
-              <Link to="/signup" className="btn btn-primary">Explore CareerZ</Link>
-              <Link to="/signup?type=institute" className="btn btn-outline">Register Your Institution</Link>
+              <Link to="/signup" className="btn btn-primary">{h('primaryLabel', 'Explore CareerZ')}</Link>
+              <Link to="/signup?type=institute" className="btn btn-outline">{h('secondaryLabel', 'Register Your Institution')}</Link>
             </div>
             <div className="hero-roles">
               {ROLE_CHIPS.map((r) => <span key={r} className="role-chip">{r}</span>)}

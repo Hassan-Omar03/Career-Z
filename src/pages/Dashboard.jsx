@@ -44,7 +44,7 @@ import FamilyClassrooms from '../components/dashboard/FamilyClassrooms';
   FaGraduationCap, FaBriefcase, FaStore, FaWallet, FaSackDollar, FaSchool, FaChartLine,
   FaCalendarCheck, FaMoneyBillWave, FaHandshake, FaHourglassHalf, FaGear, FaBell, FaCommentDots, FaCircleQuestion, FaChevronDown,
   FaCartShopping, FaBoxOpen, FaBoxesStacked, FaTruck, FaStar, FaRegStar, FaTriangleExclamation, FaQrcode, FaLock,
-  FaEarthAmericas, FaBullhorn, FaPuzzlePiece, FaDatabase, FaUserGear, FaNewspaper, FaWandMagicSparkles,
+  FaEarthAmericas, FaBullhorn, FaPuzzlePiece, FaAddressBook, FaDatabase, FaUserGear, FaNewspaper, FaWandMagicSparkles,
   FaUserGraduate, FaBed, FaKitMedical, FaCalendarDays, FaHeadset, FaRobot,
   FaCheck, FaLocationDot, FaExpand, FaMobileScreen, FaFaceSmile, FaCircleCheck,
   FaArrowLeft, FaArrowRight, FaArrowRotateLeft, FaCopy, FaEye, FaPaperPlane,
@@ -91,6 +91,8 @@ import { AdSlot, AdminAdsPanel, AdFreeCard } from '../components/ads/Ads';
 import { AdminCommentsRatingsPanel } from '../components/admin/CommentsRatings';
 import { MockInterviewCard } from '../components/jobs/MockInterview';
 import { AdminPluginsPanel, useModules, NAV_MODULE } from '../components/admin/Plugins';
+import { AdminModerationPanel, AdminUsersPanel, AdminRemovedNote } from '../components/admin/Moderation';
+import { AdminSitePagesPanel } from '../components/admin/SitePages';
 import { AcademyBatchesPanel, StudentAcademies, ConnectLearningCard, TeacherBatches, ParentAcademies } from '../components/academy/Academy';
 import { BuyerEscrowActions, SellerEscrowActions, EscrowChip, DigitalListingFields, AdminEscrowPanel, AdminListingReview, BuyerOrdersList, SellerOrdersBoard, SellerReportPanel } from '../components/marketplace/Escrow';
 import { EmployerDashboardFull, EmployerAnalyticsPanel, EmployerReviewsPanel, EmployerPromotionsPanel, EmployerPayrollPanel, EmployeeCompanyPanel, AdminEmployersPanel, downloadApplicantsCsv, useCompanyReviewLookup, ReviewCompanyButton } from '../components/employer/EmployerMaster';
@@ -357,6 +359,8 @@ const WORKSPACES = {
       { key: 'finance', label: 'Financial Management', icon: FaSackDollar },
       { key: 'marketplaceReview', label: 'Held Listings (auto-check)', icon: FaStore },
       { key: 'visa', label: 'Visa Center', icon: FaEarthAmericas },
+      { key: 'moderation', label: 'Remove Fake Posts', icon: FaUserShield },
+      { key: 'allUsers', label: 'All Users', icon: FaAddressBook },
       { key: 'ads', label: 'Ads Management', icon: FaBullhorn },
       { key: 'commentsRatings', label: 'Comments & Ratings', icon: FaCommentDots },
       { key: 'plugins', label: 'Plugins & Modules', icon: FaPuzzlePiece },
@@ -5289,7 +5293,7 @@ function MyScholarshipsPanel({ onFlash, onNavigate }) {
       <Table
         loading={scholarships === null}
         headers={['Title', 'Amount', 'Seats', 'Deadline', 'Posted', 'Status', 'Action']}
-        rows={(scholarships || []).map((s) => [s.title, `${s.currency} ${Number(s.amount).toLocaleString()}`, s.seatsAvailable ?? '—', s.applicationDeadline ? new Date(s.applicationDeadline).toLocaleDateString() : '—', s.createdAt ? new Date(s.createdAt).toLocaleDateString() : '—', <Tag status={s.status === 'open' ? 'approved' : 'pending'} label={s.status} />, <div className="flex gap-1 flex-wrap"><button className="btn" style={{ padding: '4px 12px', fontSize: '0.78rem' }} onClick={() => viewApplicants(s._id)}>View Applicants</button><button type="button" className="btn" style={{ padding: '4px 12px', fontSize: '0.78rem' }} onClick={() => { setEditing(s); window.scrollTo({ top: 0, behavior: 'smooth' }); }}>Edit</button>{s.status === 'open' && <button type="button" className="btn" style={{ padding: '4px 12px', fontSize: '0.78rem' }} onClick={() => setOpen(s, 'closed')}>Close</button>}{s.status === 'closed' && !s.publishedBy && <button type="button" className="btn" style={{ padding: '4px 12px', fontSize: '0.78rem' }} onClick={() => setOpen(s, 'open')}>Reopen</button>}</div>])}
+        rows={(scholarships || []).map((s) => [s.title, `${s.currency} ${Number(s.amount).toLocaleString()}`, s.seatsAvailable ?? '—', s.applicationDeadline ? new Date(s.applicationDeadline).toLocaleDateString() : '—', s.createdAt ? new Date(s.createdAt).toLocaleDateString() : '—', <><Tag status={s.status === 'open' ? 'approved' : s.status === 'removed_by_admin' ? 'rejected' : 'pending'} label={s.status === 'removed_by_admin' ? 'Removed by CareerZ admin' : s.status} /><AdminRemovedNote item={s} /></>, <div className="flex gap-1 flex-wrap"><button className="btn" style={{ padding: '4px 12px', fontSize: '0.78rem' }} onClick={() => viewApplicants(s._id)}>View Applicants</button><button type="button" className="btn" style={{ padding: '4px 12px', fontSize: '0.78rem' }} onClick={() => { setEditing(s); window.scrollTo({ top: 0, behavior: 'smooth' }); }}>Edit</button>{s.status === 'open' && <button type="button" className="btn" style={{ padding: '4px 12px', fontSize: '0.78rem' }} onClick={() => setOpen(s, 'closed')}>Close</button>}{s.status === 'closed' && !s.publishedBy && <button type="button" className="btn" style={{ padding: '4px 12px', fontSize: '0.78rem' }} onClick={() => setOpen(s, 'open')}>Reopen</button>}</div>])}
         empty="You haven't posted any scholarships yet."
       />
       {openId && (
@@ -5417,7 +5421,8 @@ const PRODUCT_STATUS = {
   rejected: { tag: 'rejected', label: 'Rejected' },
   out_of_stock: { tag: 'pending', label: 'Out of Stock' },
   paused: { tag: 'under_review', label: 'Paused' },
-  removed: { tag: 'rejected', label: 'Removed' }
+  removed: { tag: 'rejected', label: 'Removed' },
+  removed_by_admin: { tag: 'rejected', label: 'Removed by CareerZ admin' }
 };
 const PRODUCT_CATEGORIES = ['books', 'stationery', 'uniform', 'electronics', 'notes', 'courses', 'services', 'other'];
 const EMPTY_PRODUCT_FORM = { title: '', description: '', category: 'other', price: '', currency: 'PKR', stock: 0, images: '' };
@@ -5558,7 +5563,7 @@ function MyListingsPanel({ onFlash }) {
             ) : p.category,
             isEditing ? <input className="form-input" type="number" style={{ padding: '4px 6px', fontSize: '0.75rem', width: 80 }} value={editForm.price} onChange={(e) => setEditForm({ ...editForm, price: e.target.value })} /> : `${p.currency} ${p.price}`,
             isEditing ? <input className="form-input" type="number" style={{ padding: '4px 6px', fontSize: '0.75rem', width: 70 }} value={editForm.stock} onChange={(e) => setEditForm({ ...editForm, stock: e.target.value })} /> : p.stock,
-            <Tag status={st.tag} label={st.label} />,
+            <><Tag status={st.tag} label={st.label} /><AdminRemovedNote item={p} /></>,
             `${p.totalSales ?? 0} sold`,
             p.views ?? 0,
             <div className="flex gap-2 flex-wrap">
@@ -6100,7 +6105,7 @@ function ServicesPanel({ onFlash }) {
         rows={services.map((p) => {
           const st = PRODUCT_STATUS[p.status] || PRODUCT_STATUS.draft;
           return [
-            p.title, `${p.currency} ${p.price}`, <Tag status={st.tag} label={st.label} />, `${p.totalSales ?? 0} sold`, p.views ?? 0,
+            p.title, `${p.currency} ${p.price}`, <><Tag status={st.tag} label={st.label} /><AdminRemovedNote item={p} /></>, `${p.totalSales ?? 0} sold`, p.views ?? 0,
             <div className="flex gap-2 flex-wrap">
               {(p.status === 'active' || p.status === 'paused') && <button type="button" className="btn" style={{ padding: '4px 10px', fontSize: '0.72rem' }} onClick={() => togglePause(p)}>{p.status === 'active' ? 'Pause' : 'Reactivate'}</button>}
               <button type="button" className="btn" style={{ padding: '4px 10px', fontSize: '0.72rem' }} onClick={() => remove(p._id)}>Delete</button>
@@ -18085,7 +18090,8 @@ const JOB_STATUS = {
   active: { tag: 'approved', label: 'Active' },
   paused: { tag: 'pending', label: 'Paused' },
   closed: { tag: 'rejected', label: 'Closed' },
-  filled: { tag: 'approved', label: 'Filled' }
+  filled: { tag: 'approved', label: 'Filled' },
+  removed_by_admin: { tag: 'rejected', label: 'Removed by CareerZ admin' }
 };
 
 // Recruiter-facing status wording (Employer/Agent's own candidate-management views) — kept
@@ -18290,6 +18296,7 @@ function EmployerJobsPanel({ onFlash, institution = null, reloadKey = 0, employe
             <><Tag status={JOB_STATUS[j.status]?.tag || 'pending'} label={JOB_STATUS[j.status]?.label || j.status} /> <EmployerConsentBadge job={j} /></>
             {j.status === 'pending_review' && <small style={{ color: 'var(--ink-soft)' }}>{(j.moderation?.flags || []).map((f) => f.label).join('; ') || 'Waiting for an admin.'}</small>}
             {j.status === 'rejected' && <small style={{ color: 'var(--rose, #b42318)' }}>{j.moderation?.note || 'Not approved.'} Edit and submit again.</small>}
+            <AdminRemovedNote item={j} />
           </div>,
           <div className="flex hiring-row-actions" style={{ gap: 8, flexWrap: 'wrap' }}>
             <button className="btn" style={{ padding: '6px 12px', fontSize: '0.78rem' }} onClick={() => setViewingJob(j)}>View</button>
@@ -21624,6 +21631,8 @@ function AdminWorkspace({ tab, user, roles, onFlash, onChanged }) {
   if (tab === 'summary' || tab === 'institutions_mgmt') return <><AdminPanel onFlash={onFlash} />{tab==='summary'&&roles.some(r=>['admin','super_admin'].includes(r))&&<FamilyAdminSummary onFlash={onFlash} />}</>;
   if (tab === 'visa') return <div className="institution-ui"><AdminVisaPanel onFlash={onFlash} /></div>;
   if (tab === 'ads') return <div className="institution-ui"><AdminAdsPanel onFlash={onFlash} /></div>;
+  if (tab === 'moderation') return <div className="institution-ui"><AdminModerationPanel onFlash={onFlash} /></div>;
+  if (tab === 'allUsers') return <div className="institution-ui"><AdminUsersPanel onFlash={onFlash} /></div>;
   if (tab === 'plugins') return <div className="institution-ui"><AdminPluginsPanel onFlash={onFlash} /></div>;
   if (tab === 'commentsRatings') return <div className="institution-ui"><AdminCommentsRatingsPanel onFlash={onFlash} /></div>;
   if (tab === 'marketplaceReview') return <div className="institution-ui"><AdminListingReview onFlash={onFlash} /></div>;
@@ -21840,15 +21849,16 @@ function AdminStaffPanel({ onFlash }) {
 
 // Super Admin — CMS (spec Part 16F.8/16F.9 "Website Content Management System" + Blog).
 function AdminCmsPanel({ onFlash }) {
-  const [sub, setSub] = useState('pages');
+  const [sub, setSub] = useState('site');
   return (
     <div>
       <h3 className="font-semibold mb-2">Content Management</h3>
       <nav className="cz-tabbar" style={{ marginBottom: 20 }}>
-        {[{ key: 'pages', label: 'Pages' }, { key: 'blog', label: 'Blog' }].map((t) => (
+        {[{ key: 'site', label: 'Website Pages' }, { key: 'pages', label: 'Extra Pages' }, { key: 'blog', label: 'Blog' }].map((t) => (
           <button key={t.key} type="button" aria-pressed={sub === t.key} className={`cz-tab${sub === t.key ? ' active' : ''}`} onClick={() => setSub(t.key)}>{t.label}</button>
         ))}
       </nav>
+      {sub === 'site' && <AdminSitePagesPanel onFlash={onFlash} />}
       {sub === 'pages' && <AdminCmsCollection onFlash={onFlash} kind="pages" />}
       {sub === 'blog' && <BlogAdmin onFlash={onFlash} />}
     </div>

@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { apiRequest } from '../../api/client';
+import { AdminRemovedNote } from '../admin/Moderation';
 
 // Agent scholarship listings for providers. The agent lists; the provider decides. With a CareerZ
 // Donor as provider the donor confirms and decides applications on CareerZ; otherwise students
@@ -71,6 +72,7 @@ export default function AgentScholarshipsPanel({ onFlash }) {
             <strong>{s.title}</strong>
             <span>{s.provider?.name} · {s.currency} {Number(s.amount).toLocaleString()} · {s.status === 'closed' ? 'Closed' : REVIEW[s.review?.status] || s.status}</span>
             {s.review?.note && <span style={{ color: 'var(--ink-soft)' }}>Note: {s.review.note}</span>}
+            <AdminRemovedNote item={s} />
             {s.applicationMode === 'internal' && <span style={{ color: 'var(--ink-soft)' }}>{s.applicationCount} application(s), decided by the donor</span>}
           </div>
           {s.status === 'open' && <button type="button" className="btn" onClick={() => close(s)} style={{ alignSelf: 'center' }}>Close</button>}
