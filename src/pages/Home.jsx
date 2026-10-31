@@ -10,6 +10,7 @@ import { DonorCard, CardSkeleton, place, daysLeft, dateText } from '../component
 import '../styles/discover.css';
 import '../styles/moderation.css';
 import { FaGooglePlay, FaApple } from 'react-icons/fa6';
+import LiveActivityToasts from '../components/discover/LiveActivityToasts';
 import { AdSlot } from '../components/ads/Ads';
 import {
   FaBullseye, FaChartLine, FaUserTie, FaShieldHalved, FaGraduationCap, FaRobot, FaBriefcase, FaChartColumn, FaClipboardList, FaCommentDots,
@@ -563,6 +564,7 @@ export default function Home() {
         </div>
       </section>
       <SiteFooter />
+      <LiveActivityToasts />
     </div>
   );
 }
