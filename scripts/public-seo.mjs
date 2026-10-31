@@ -66,7 +66,7 @@ function write(page, lang) {
   const ur = lang === 'ur';
   const t = ur ? { ...page, ...PAGE_SEO_UR[page.path] } : page;
   const own = ur ? urPath(page.path) : page.path;
-  const url = origin + own, title = t.title + ' | CareerZ.pk';
+  const url = origin + own, title = /^CareerZ/i.test(t.title) ? t.title : t.title + ' | CareerZ.pk';
   const hasUr = Boolean(PAGE_SEO_UR[page.path]);
   const words = [...new Set([...(t.keywords || []), ...(ur ? [] : page.keywords), ...BASE_KEYWORDS])];
   const image = `${origin}/og/${slugOf(page.path)}${ur ? '-ur' : ''}.png`;

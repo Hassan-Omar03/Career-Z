@@ -10,7 +10,7 @@ export const BASE_KEYWORDS = ['CareerZ', 'CareerZ.pk', 'education platform Pakis
 
 export const PAGE_SEO = {
   '/': {
-    title: 'Jobs, Scholarships, Admissions & Online Courses in Pakistan',
+    title: 'CareerZ.pk – Jobs, Scholarships, Admissions & Online Courses in Pakistan',
     description: `CareerZ.pk: find jobs in Pakistan, scholarships ${Y}, school and university admissions, online courses with certificates, tutors and a student marketplace in one place.`,
     keywords: [`jobs in Pakistan ${Y}`, `scholarships ${Y}`, `admissions ${Y}`, 'online courses with certificate', 'teacher jobs', 'school management system Pakistan', 'student portal', 'parent portal', 'AI career guidance', 'education ecosystem', 'study abroad', 'overseas jobs'],
     h1: 'CareerZ: jobs, scholarships, admissions and courses in Pakistan',

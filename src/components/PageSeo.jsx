@@ -37,7 +37,7 @@ export default function PageSeo({ title, description, path = '/', noindex = fals
       ? `${origin}/og/${slugOf(path.split('?')[0])}${ur && presetUr ? '-ur' : ''}.png`
       : `${origin}/api/seo/og.png?path=${encodeURIComponent(ur ? urPath : path)}${ur ? '&lang=ur' : ''}`;
     const img = image && /^https:\/\//.test(image) ? image : card;
-    document.title = `${name} | CareerZ.pk`;
+    document.title = /^CareerZ/i.test(name) ? name : `${name} | CareerZ.pk`;
     const set = (attr, key, value) => { let el = document.head.querySelector(`meta[${attr}="${key}"]`); if (!el) { el = document.createElement('meta'); el.setAttribute(attr, key); document.head.appendChild(el); } el.content = value || ''; };
     set('name', 'description', desc);
     set('name', 'keywords', words.join(', '));
