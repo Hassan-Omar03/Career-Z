@@ -14,3 +14,17 @@
 .footer-social { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 14px; }
 .site-footer .footer-social a { display: inline-flex; align-items: center; justify-content: center; width: 38px; height: 38px; margin: 0; border-radius: 50%; background: rgba(255, 255, 255, .12); color: #fff; font-size: 17px; transition: background .15s; }
 .site-footer .footer-social a:hover { background: var(--gold, #e3a23c); }
+
+/* Floating share on public pages: one round button bottom-right (above Ask CareerZ); it opens
+   the share icons to the left, so it never covers page text. */
+.float-share { position: fixed; right: 24px; bottom: 100px; z-index: 70; display: none; flex-direction: row; gap: 6px; padding: 6px; margin-right: 58px; background: var(--card, #fff); border: 1px solid var(--sand-line, #e5e7eb); border-radius: 999px; box-shadow: 0 8px 24px rgba(15, 61, 46, .15); }
+.float-share.open { display: flex; }
+.float-share .share-btn { width: 36px; height: 36px; font-size: 15px; }
+.float-share-copied { position: absolute; bottom: 100%; right: 0; margin-bottom: 6px; background: var(--forest, #0f3d2e); color: #fff; font-size: 11px; padding: 3px 8px; border-radius: 6px; white-space: nowrap; }
+.float-share-phone { position: fixed; right: 24px; bottom: 100px; z-index: 71; display: inline-flex; width: 50px; height: 50px; border-radius: 50%; border: 0; align-items: center; justify-content: center; background: var(--forest, #0f3d2e); color: #fff; font-size: 19px; box-shadow: 0 8px 20px rgba(15, 61, 46, .3); cursor: pointer; }
+.float-share-phone:hover { background: #1d6b52; }
+@media (max-width: 760px) {
+  .float-share-phone { right: 16px; bottom: 88px; width: 46px; height: 46px; }
+  .float-share { right: 16px; bottom: 88px; margin-right: 54px; flex-wrap: wrap; max-width: calc(100vw - 90px); border-radius: 18px; }
+}
+@media print { .float-share, .float-share-phone { display: none !important; } }

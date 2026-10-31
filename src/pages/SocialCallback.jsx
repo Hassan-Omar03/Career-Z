@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { finishSocialLogin } from '../api/socialAuth';
 import { useAuth } from '../context/AuthContext';
+import { peekIntent, takeIntent } from '../utils/continueIntent';
 import AuthNavbar from '../components/AuthNavbar';
 import PageSeo from '../components/PageSeo';
 export default function SocialCallback() {
@@ -19,7 +20,7 @@ export default function SocialCallback() {
       if(!alive)return;
       if(data.linkRequired){navigate('/login',{replace:true,state:{socialLinkRequired:true}});return;}
       if(data.twoFactorRequired){navigate('/login',{replace:true,state:{socialTwoFactorEmail:data.email}});return;}
-      await refreshProfile();if(alive)navigate('/dashboard',{replace:true});
+      await refreshProfile();const pending=peekIntent();if(alive&&pending&&pending.path.startsWith('/invite/')){takeIntent();navigate(pending.path,{replace:true});return;}if(alive)navigate('/dashboard',{replace:true});
     }).catch(e=>{if(alive)setError(e.message);});
     return()=>{alive=false;};
   },[navigate]);

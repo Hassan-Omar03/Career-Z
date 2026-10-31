@@ -16,6 +16,8 @@ import SiteAssistant from './components/SiteAssistant';
 import ApplicationStatus from './pages/ApplicationStatus';
 import MyOrders from './pages/MyOrders';
 import VisaPage from './pages/VisaPage';
+import InvitePage from './pages/InvitePage';
+import FloatingShare from './components/FloatingShare';
 import { ListingPage, JobDetail, ScholarshipDetail, InstituteDetail, ProductDetail, DonorDetail, CourseDetail } from './pages/Discover';
 import { takeIntent } from './utils/continueIntent';
 import VerifyFeeReceipt from './pages/VerifyFeeReceipt';
@@ -103,6 +105,7 @@ export default function App() {
   return (
     <>
     <ScrollToTop />
+    <FloatingShare />
     <PublicAssistant />
     <Routes>
       <Route path="/" element={<HomeOrInstitution />} />
@@ -138,6 +141,7 @@ export default function App() {
       <Route path="/application-status" element={<ApplicationStatus />} />
       <Route path="/my-orders" element={<MyOrders />} />
       <Route path="/visa" element={<VisaPage />} />
+      <Route path="/invite/:token" element={<InvitePage />} />
       <Route path="/scholarships" element={<ListingPage kind="scholarships" />} />
       <Route path="/scholarships/:id" element={<ScholarshipDetail />} />
       <Route path="/institutes" element={<ListingPage kind="institutes" />} />

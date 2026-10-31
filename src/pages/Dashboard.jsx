@@ -44,7 +44,7 @@ import FamilyClassrooms from '../components/dashboard/FamilyClassrooms';
   FaGraduationCap, FaBriefcase, FaStore, FaWallet, FaSackDollar, FaSchool, FaChartLine,
   FaCalendarCheck, FaMoneyBillWave, FaHandshake, FaHourglassHalf, FaGear, FaBell, FaCommentDots, FaCircleQuestion, FaChevronDown,
   FaCartShopping, FaBoxOpen, FaBoxesStacked, FaTruck, FaStar, FaRegStar, FaTriangleExclamation, FaQrcode, FaLock,
-  FaEarthAmericas, FaBullhorn, FaPuzzlePiece, FaAddressBook, FaDatabase, FaUserGear, FaNewspaper, FaWandMagicSparkles,
+  FaEarthAmericas, FaBullhorn, FaPuzzlePiece, FaAddressBook, FaEnvelope, FaDatabase, FaUserGear, FaNewspaper, FaWandMagicSparkles,
   FaUserGraduate, FaBed, FaKitMedical, FaCalendarDays, FaHeadset, FaRobot,
   FaCheck, FaLocationDot, FaExpand, FaMobileScreen, FaFaceSmile, FaCircleCheck,
   FaArrowLeft, FaArrowRight, FaArrowRotateLeft, FaCopy, FaEye, FaPaperPlane,
@@ -93,6 +93,7 @@ import { MockInterviewCard } from '../components/jobs/MockInterview';
 import { AdminPluginsPanel, useModules, NAV_MODULE } from '../components/admin/Plugins';
 import { AdminModerationPanel, AdminUsersPanel, AdminRemovedNote } from '../components/admin/Moderation';
 import { AdminSitePagesPanel } from '../components/admin/SitePages';
+import InvitePeople from '../components/institution/InvitePeople';
 import { AcademyBatchesPanel, StudentAcademies, ConnectLearningCard, TeacherBatches, ParentAcademies } from '../components/academy/Academy';
 import { BuyerEscrowActions, SellerEscrowActions, EscrowChip, DigitalListingFields, AdminEscrowPanel, AdminListingReview, BuyerOrdersList, SellerOrdersBoard, SellerReportPanel } from '../components/marketplace/Escrow';
 import { EmployerDashboardFull, EmployerAnalyticsPanel, EmployerReviewsPanel, EmployerPromotionsPanel, EmployerPayrollPanel, EmployeeCompanyPanel, AdminEmployersPanel, downloadApplicantsCsv, useCompanyReviewLookup, ReviewCompanyButton } from '../components/employer/EmployerMaster';
@@ -283,6 +284,7 @@ const WORKSPACES = {
       { key: 'institution', label: 'My Institution', icon: FaSchool },
       { key: 'instSettings', label: 'Institute Settings', icon: FaSchool },
       { key: 'admissions', label: 'Admission Management', icon: FaUserGraduate },
+      { key: 'invites', label: 'Invite People', icon: FaEnvelope },
       { key: 'staff', label: 'Staff Management', icon: FaUsers },
       { key: 'teachers', label: 'Teacher Management', icon: FaChalkboardUser },
       { key: 'students', label: 'Student Management', icon: FaUsers },
@@ -12738,6 +12740,7 @@ function InstitutionWorkspace({ tab, user, onFlash, onChanged, isWarden = false 
   if(tab==='cafeteria')return <FamilyCafeteria institution onFlash={onFlash}/>;
   if (tab === 'summary') return <InstitutionSummary />;
   if (tab === 'staff') return <InstitutionStaffPanel onFlash={onFlash} />;
+  if (tab === 'invites') return <InstitutionInvitesTab onFlash={onFlash} />;
   if (tab === 'classes') return <InstitutionClassesPanel onFlash={onFlash} />;
   if (tab === 'batches') return <AcademyBatchesPanel onFlash={onFlash} />;
   if (tab === 'liveClasses') return <InstitutionLiveClassesPanel onFlash={onFlash} />;
@@ -13835,6 +13838,15 @@ function InstitutionSettingsTab({ onFlash }) {
   const institution = useMyInstitution(onFlash);
   if (institution === undefined) return <p role="status" className="admin-notice">Loading...</p>;
   return <InstitutionSettingsPanel institution={institution} onFlash={onFlash} />;
+}
+
+// Invite teachers, staff and students by email.
+function InstitutionInvitesTab({ onFlash }) {
+  const institution = useMyInstitution(onFlash);
+  if (institution === undefined) return <p role="status" className="admin-notice">Loading...</p>;
+  if (!institution) return <p className="admin-notice">Register an institution first (My Institution tab).</p>;
+  if (institution.verificationStatus !== 'approved') return <p className="admin-notice">Invitations open once CareerZ verifies your institute.</p>;
+  return <div className="institution-ui"><InvitePeople institution={institution} onFlash={onFlash} /></div>;
 }
 
 function useMyInstitution(onFlash) {
