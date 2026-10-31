@@ -9,6 +9,7 @@ import { apiRequest, API_BASE } from '../api/client';
 import { DonorCard, CardSkeleton, place, daysLeft, dateText } from '../components/discover/DiscoverCards';
 import '../styles/discover.css';
 import '../styles/moderation.css';
+import { FaGooglePlay, FaApple } from 'react-icons/fa6';
 import { AdSlot } from '../components/ads/Ads';
 import {
   FaBullseye, FaChartLine, FaUserTie, FaShieldHalved, FaGraduationCap, FaRobot, FaBriefcase, FaChartColumn, FaClipboardList, FaCommentDots,
@@ -548,6 +549,16 @@ export default function Home() {
               <Link to="/signup" className="btn btn-primary">Get Started Free</Link>
               <Link to="/contact" className="btn btn-outline">Talk to Us</Link>
             </div>
+          </div>
+        </div>
+      </section>
+      {/* Mobile apps: coming soon */}
+      <section className="home-apps" aria-label="CareerZ mobile apps">
+        <div className="container home-apps-inner">
+          <div><h2>CareerZ on your phone</h2><p>The CareerZ mobile app for Android and iPhone is coming soon.</p></div>
+          <div className="home-app-badges">
+            <span className="home-app-badge" aria-label="Google Play, coming soon"><FaGooglePlay aria-hidden="true" /><span><small>Coming soon on</small><b>Google Play</b></span></span>
+            <span className="home-app-badge" aria-label="App Store, coming soon"><FaApple aria-hidden="true" /><span><small>Coming soon on the</small><b>App Store</b></span></span>
           </div>
         </div>
       </section>
