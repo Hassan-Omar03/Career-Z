@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import { apiRequest } from '../api/client';
 import PageSeo from '../components/PageSeo';
+import ShareBar from '../components/ShareBar';
 
 const DAYS = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
 
@@ -37,6 +38,7 @@ export default function InstitutionPublic() {
           </div>
         </div>
       </header>
+      <div style={{ maxWidth: 960, margin: '0 auto', padding: '12px 24px 0' }}><ShareBar title={info.institution.name} /></div>
       <nav style={{ maxWidth: 960, margin: '0 auto', padding: '12px 24px', display: 'flex', gap: 16, flexWrap: 'wrap', borderBottom: `3px solid ${accent}` }}>
         <Link to={`/i/${subdomain}`} style={{ color: primary, fontWeight: 700 }}>Home</Link>
         {info.pages.map((p) => <Link key={p.slug} to={`/i/${subdomain}/${p.slug}`} style={{ color: primary }}>{p.title}</Link>)}

@@ -20,6 +20,23 @@ export function useModules() {
 }
 
 const date = (d) => (d ? new Date(d).toLocaleString() : '');
+
+// IndexNow: new and changed pages go to Bing, Yandex and other search engines every 10 minutes.
+function IndexNowCard({ onFlash }) {
+  const [s, setS] = useState(null), [busy, setBusy] = useState(false);
+  useEffect(() => { apiRequest('/seo/indexnow').then(setS).catch(() => {}); }, []);
+  async function sendAll() {
+    setBusy(true);
+    try { const r = await apiRequest('/seo/indexnow/submit', { method: 'POST' }); setS((x) => ({ ...x, ...r })); onFlash(r.lastResult?.ok ? `Sent ${r.lastResult.count} pages to the search engines.` : `Not sent: ${r.lastResult?.error || `HTTP ${r.lastResult?.status}`}`); } catch (e) { onFlash(e.message); } finally { setBusy(false); }
+  }
+  return (
+    <section className="card">
+      <div className="pl-head"><div><h3>Search engines (IndexNow)</h3><p className="text-sm text-muted">New, changed and removed pages are sent to Bing, Yandex and other IndexNow search engines automatically every 10 minutes.</p></div>
+        <button type="button" className="btn btn-primary btn-sm" disabled={busy} onClick={sendAll}>{busy ? 'Sending…' : 'Send all pages now'}</button></div>
+      {s && <p className="text-sm">Last sent: <b>{s.lastSubmitted ? date(s.lastSubmitted) : 'not yet'}</b>{s.lastResult ? ` · last check ${date(s.lastAttempt)}: ${s.lastResult.ok ? `${s.lastResult.count} page(s) accepted` : `failed (${s.lastResult.error || `HTTP ${s.lastResult.status}`})`}` : ''} · total sent: {s.totalSubmitted || 0}</p>}
+    </section>
+  );
+}
 const blank = { name: '', description: '', url: 'https://', events: [] };
 
 export function AdminPluginsPanel({ onFlash }) {
@@ -55,6 +72,7 @@ export function AdminPluginsPanel({ onFlash }) {
   const choosable = Object.entries(events).filter(([k]) => k !== 'plugin.test');
   return (
     <div className="pl-wrap">
+      <IndexNowCard onFlash={onFlash} />
       <section className="card">
         <h3>Modules</h3>
         <p className="text-sm text-muted">Optional CareerZ features. A module that is off disappears from the menus and its pages say it is turned off. Data is never deleted, and admins can still open it to finish open work.</p>

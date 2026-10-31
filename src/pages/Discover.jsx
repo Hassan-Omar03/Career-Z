@@ -18,6 +18,7 @@ import { ScholarshipApplyButton } from '../components/donors/ScholarshipApply';
 import { CompanyTrustCard } from '../components/employer/EmployerMaster';
 import '../styles/discover.css';
 import { AdSlot } from '../components/ads/Ads';
+import ShareBar from '../components/ShareBar';
 
 // Public "View All" pages (/jobs, /scholarships, /institutes, /marketplace, /donors) and their
 // detail pages. Filters are sent to the server, so they search every eligible record, not just
@@ -134,6 +135,7 @@ function DetailShell({ kind, state, children }) {
     <nav className="public-breadcrumb discover-crumb" aria-label="Breadcrumb"><Link to="/">Home</Link><span>/</span><Link to={`/${kind}`}>{cfg.title}</Link>{name && <><span>/</span><span>{name}</span></>}</nav>
     {state.loading && <div className="discover-detail"><CardSkeleton /></div>}
     {state.error && <div className="discover-empty"><h1>Not available</h1><p>{state.error}</p><Link className="btn btn-primary" to={`/${kind}`}>See all {cfg.title.toLowerCase()}</Link></div>}
+    {state.item && <div className="discover-detail" style={{ marginBottom: 12 }}><ShareBar title={name} /></div>}
     {state.item && children(state.item)}
   </Shell>;
 }
