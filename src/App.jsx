@@ -82,9 +82,27 @@ function ProtectedRoute({ children }) {
   return <ContinueOrDashboard>{children}</ContinueOrDashboard>;
 }
 
+// Opening a new page (footer links, cards, menus) starts at the top, like a normal website.
+// Links to a #section and the back button keep their own position.
+function ScrollToTop() {
+  const { pathname, hash } = useLocation();
+  useEffect(() => {
+    if (hash) return;
+    if (window.history.state?.idx !== undefined && window.__czPopNav) { window.__czPopNav = false; return; }
+    window.scrollTo({ top: 0, left: 0, behavior: 'instant' });
+  }, [pathname, hash]);
+  useEffect(() => {
+    const onPop = () => { window.__czPopNav = true; };
+    window.addEventListener('popstate', onPop);
+    return () => window.removeEventListener('popstate', onPop);
+  }, []);
+  return null;
+}
+
 export default function App() {
   return (
     <>
+    <ScrollToTop />
     <PublicAssistant />
     <Routes>
       <Route path="/" element={<HomeOrInstitution />} />
