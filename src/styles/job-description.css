@@ -1,0 +1,51 @@
+/* Job description: easy to read at any length */
+.jd { display: grid; gap: 22px; font-size: 15.5px; line-height: 1.7; min-width: 0; }
+.jd-p { margin: 0 0 10px; max-width: 75ch; color: var(--ink, inherit); overflow-wrap: anywhere; }
+.jd-p:last-child { margin-bottom: 0; }
+.jd-part { scroll-margin-top: 90px; min-width: 0; }
+.jd-part + .jd-part { padding-top: 20px; border-top: 1px solid var(--sand-line, #e3dccb); }
+.jd-part h3 { margin: 0 0 10px; font-size: 1.15rem; line-height: 1.3; color: var(--forest, #0e4d3c); }
+.jd-sub { margin: 12px 0 6px; font-size: 1rem; }
+
+.jd-jump { display: flex; flex-wrap: wrap; gap: 6px; }
+.jd-jump button { border: 1px solid var(--sand-line, #e3dccb); background: var(--sand, #f1ece0); color: var(--forest, #0e4d3c); border-radius: 999px; padding: 5px 12px; font-size: 13px; font-weight: 600; line-height: 1.3; cursor: pointer; text-align: left; }
+.jd-jump button:hover { border-color: var(--forest, #0e4d3c); }
+
+.jd-list { margin: 0 0 10px; padding-left: 20px; max-width: 75ch; list-style: disc; display: grid; gap: 8px; }
+.jd-list li { padding-left: 2px; overflow-wrap: anywhere; }
+.jd-list li::marker { color: var(--emerald, #1b8a63); }
+
+.jd-facts { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 10px; margin: 0; }
+.jd-facts div { padding: 10px 12px; border-radius: 10px; background: var(--sand, #f1ece0); min-width: 0; }
+.jd-facts dt { font-size: 12px; color: var(--ink-soft, #3a4a45); line-height: 1.4; }
+.jd-facts dd { margin: 2px 0 0; font-weight: 600; font-size: 14.5px; line-height: 1.45; overflow-wrap: anywhere; }
+
+.jd-posts { display: grid; gap: 10px; min-width: 0; }
+.jd-search { max-width: 420px; }
+.jd-posts table { width: 100%; border-collapse: collapse; font-size: 14px; line-height: 1.5; }
+.jd-posts th { text-align: left; padding: 9px 10px; background: var(--forest, #0e4d3c); color: #fff; font-size: 13px; font-weight: 600; }
+.jd-posts th:first-child { border-radius: 8px 0 0 0; }
+.jd-posts th:last-child { border-radius: 0 8px 0 0; }
+.jd-posts td { padding: 10px; border-bottom: 1px solid var(--sand-line, #e3dccb); vertical-align: top; overflow-wrap: break-word; }
+.jd-posts tbody tr:nth-child(even) td { background: var(--sand, #f1ece0); }
+.jd-post-name { font-weight: 700; min-width: 170px; }
+.jd-line { display: block; }
+.jd-line + .jd-line { margin-top: 3px; }
+.jd-more { justify-self: start; }
+.jd-empty { margin: 0; color: var(--ink-soft, #3a4a45); }
+
+.jd-faq { border: 1px solid var(--sand-line, #e3dccb); border-radius: 10px; padding: 10px 14px; scroll-margin-top: 90px; }
+.jd-faq + .jd-faq { margin-top: -12px; }
+.jd-faq summary { cursor: pointer; font-weight: 600; }
+.jd-faq[open] summary { margin-bottom: 6px; }
+.jd-note { margin: 8px 0 0; padding: 10px 12px; border-left: 3px solid var(--gold, #e3a23c); background: var(--sand, #f1ece0); border-radius: 6px; font-size: 13px; line-height: 1.55; color: var(--ink-soft, #3a4a45); }
+
+/* Phones: each post becomes its own small card. */
+@media (max-width: 680px) {
+  .jd { font-size: 15px; }
+  .jd-posts thead { display: none; }
+  .jd-posts table, .jd-posts tbody, .jd-posts tr, .jd-posts td { display: block; width: 100%; }
+  .jd-posts tr { padding: 10px 12px; margin-bottom: 10px; border: 1px solid var(--sand-line, #e3dccb); border-radius: 10px; }
+  .jd-posts td, .jd-posts tbody tr:nth-child(even) td { padding: 3px 0; border: 0; background: none; }
+  .jd-posts td::before { content: attr(data-label); display: block; font-size: 11.5px; font-weight: 400; color: var(--ink-soft, #3a4a45); }
+}

@@ -24,6 +24,8 @@ function inline(text, keyBase) {
   });
 }
 
+export const inlineMarkdown = inline;
+
 const cells = (line) => line.trim().replace(/^\||\|$/g, '').split('|').map((c) => c.trim());
 
 export function parseMarkdown(text) {
