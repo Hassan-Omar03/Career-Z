@@ -1,5 +1,6 @@
 import { useMemo, useState } from 'react';
 import { parseMarkdown, inlineMarkdown } from '../shared/MarkdownText';
+import { pairsOf } from '../jobs/jobTable';
 import '../../styles/job-description.css';
 
 // A job's description, made easy to read. Long government-style adverts arrive as plain lines, so:
@@ -8,12 +9,6 @@ import '../../styles/job-description.css';
 // heading with quick links at the top. Ordinary descriptions simply read as clean paragraphs.
 
 const LABEL = { 'S#': 'No.', 'Name of Post': 'Post', 'Qualification / Experience': 'Qualification and experience' };
-const pairsOf = (line) => {
-  const parts = String(line).split(/\s+[—–]\s+/);
-  if (parts.length < 3) return null;
-  const pairs = parts.map((p) => p.match(/^([^:]{1,40}):\s*(.*)$/));
-  return pairs.every(Boolean) ? pairs.map((m) => [m[1].trim(), m[2].trim()]) : null;
-};
 const factOf = (text) => { const m = String(text).replace(/\*\*/g, '').match(/^([^:.]{2,32}):\s+(.+)$/); return m ? [m[1], m[2]] : null; };
 
 // Blocks from the Markdown parser, with post lines joined into one table and fact lists marked.
@@ -26,6 +21,12 @@ function arrange(text) {
       const row = Object.fromEntries(pairs);
       if (last?.kind === 'posts') { last.rows.push(row); pairs.forEach(([k]) => { if (!last.keys.includes(k)) last.keys.push(k); }); }
       else out.push({ kind: 'posts', keys: pairs.map(([k]) => k), rows: [row] });
+      continue;
+    }
+    if (b.kind === 'table') {
+      // Repeated column names stay separate columns.
+      const keys = b.head.map((h, i) => (b.head.indexOf(h) === i ? h : `${h} ${i + 1}`));
+      out.push({ kind: 'posts', keys, rows: b.rows.map((r) => Object.fromEntries(keys.map((k, i) => [k, r[i] ?? '']))) });
       continue;
     }
     if (b.kind === 'list' && !b.ordered) {
@@ -66,7 +67,7 @@ function PostsTable({ block }) {
         <thead><tr>{block.keys.map((k) => <th key={k}>{LABEL[k] || k}</th>)}</tr></thead>
         <tbody>{rows.map((r, i) => (
           <tr key={i}>{block.keys.map((k) => (
-            <td key={k} data-label={LABEL[k] || k} className={/name of post/i.test(k) ? 'jd-post-name' : ''}>{lines(r[k]).map((l, n) => <span key={n} className="jd-line">{l}</span>)}</td>
+            <td key={k} data-label={LABEL[k] || k} className={/^(name of post|post|job title|position|designation)$/i.test(k) ? 'jd-post-name' : ''}>{lines(r[k]).map((l, n) => <span key={n} className="jd-line">{inlineMarkdown(l, `${i}-${k}-${n}`)}</span>)}</td>
           ))}</tr>
         ))}</tbody>
       </table>
@@ -81,7 +82,6 @@ function Block({ b, k }) {
   if (b.kind === 'facts') return <dl className="jd-facts">{b.items.map(([key, val], i) => <div key={i}>{key && <dt>{key}</dt>}<dd>{inlineMarkdown(val, `${k}-${i}`)}</dd></div>)}</dl>;
   if (b.kind === 'h') return <h4 className="jd-sub">{inlineMarkdown(b.text, k)}</h4>;
   if (b.kind === 'list') { const L = b.ordered ? 'ol' : 'ul'; return <L className="jd-list">{b.items.map((it, i) => <li key={i} style={{ marginLeft: it.depth * 18 }}>{inlineMarkdown(it.text, `${k}-${i}`)}</li>)}</L>; }
-  if (b.kind === 'table') return <div className="jd-posts"><table><thead><tr>{b.head.map((h, i) => <th key={i}>{inlineMarkdown(h, `${k}h${i}`)}</th>)}</tr></thead><tbody>{b.rows.map((r, i) => <tr key={i}>{b.head.map((h, j) => <td key={j} data-label={h}>{inlineMarkdown(r[j] ?? '', `${k}-${i}-${j}`)}</td>)}</tr>)}</tbody></table></div>;
   if (b.kind === 'code') return <pre className="md-pre"><code>{b.text}</code></pre>;
   if (/^(disclaimer|note)\s*:/i.test(b.text)) return <p className="jd-note">{inlineMarkdown(b.text, k)}</p>;
   return <p className="jd-p">{inlineMarkdown(b.text, k)}</p>;

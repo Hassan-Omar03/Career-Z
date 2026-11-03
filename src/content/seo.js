@@ -14,7 +14,15 @@ export const PAGE_SEO = {
     description: `CareerZ.pk: find jobs in Pakistan, scholarships ${Y}, school and university admissions, online courses with certificates, tutors and a student marketplace in one place.`,
     keywords: [`jobs in Pakistan ${Y}`, `scholarships ${Y}`, `admissions ${Y}`, 'online courses with certificate', 'teacher jobs', 'school management system Pakistan', 'student portal', 'parent portal', 'AI career guidance', 'education ecosystem', 'study abroad', 'overseas jobs'],
     h1: 'CareerZ: jobs, scholarships, admissions and courses in Pakistan',
-    text: 'CareerZ connects students, parents, teachers, institutes, employers, education agents and donors on one verified platform. Search jobs in Pakistan and abroad, apply for scholarships, compare schools, colleges and universities, take online courses with certificates and buy or sell books and notes safely.'
+    text: 'CareerZ connects students, parents, teachers, institutes, employers, education agents and donors on one verified platform. Search jobs in Pakistan and abroad, apply for scholarships, compare schools, colleges and universities, take online courses with certificates and buy or sell books and notes safely.',
+    content: [
+      'What is CareerZ?\nCareerZ, also written CareerZ.pk or Career Z, is a Pakistani platform for education and careers at careerz.pk. Accounts are checked by the CareerZ team, so students and job seekers can see who they are dealing with.',
+      `Jobs in Pakistan ${Y}\nFind government and private jobs, teaching jobs and overseas jobs. Each job shows its posts, vacancies, qualification, age limit and last date, and you can apply online.`,
+      `Scholarships ${Y}\nSee scholarships for Pakistani students, with the amount, who can apply and the deadline.`,
+      `Admissions ${Y}\nCompare schools, colleges and universities, see their programs and fees, and send your admission form online.`,
+      'Online courses and tutors\nLearn online from verified teachers and institutes. Many courses give a certificate when you finish.',
+      'Student marketplace\nBuy and sell books, notes and uniforms with other students. The seller is paid after delivery.'
+    ].join('\n\n')
   },
   '/jobs': {
     title: `Jobs in Pakistan ${Y} – Latest Teacher, Government & Private Jobs`,

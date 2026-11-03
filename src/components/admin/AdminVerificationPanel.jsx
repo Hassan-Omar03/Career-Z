@@ -73,9 +73,10 @@ function Detail({ id, onBack, onFlash, currentUserId }) {
           {documents.map((d) => (
             <div key={d._id} className={`vf-doc${d.active ? '' : ' vf-doc-inactive'}`}>
               <div className="vf-card-head">
-                <div><strong>{d.label}</strong><span className="vf-muted">{d.contentType} · {(d.size / 1024).toFixed(0)} KB · uploaded {fmt(d.createdAt)}{!d.active ? ` · replaced ${fmt(d.replacedAt)}` : ''}</span></div>
+                <div><strong>{d.label}</strong>{d.isAlternate && <span className="vf-badge vf-info">Alternate document, the required one was not available</span>}{d.originalName && <span className="vf-muted">{d.originalName}</span>}<span className="vf-muted">{d.contentType} · {(d.size / 1024).toFixed(0)} KB · uploaded {fmt(d.createdAt)}{!d.active ? ` · replaced ${fmt(d.replacedAt)}` : ''}</span></div>
                 <span className={`vf-badge vf-${d.verificationStatus === 'approved' ? 'ok' : d.verificationStatus === 'rejected' ? 'bad' : 'warn'}`}>{d.active ? pretty(d.verificationStatus) : 'Previous version'}</span>
               </div>
+              {d.alternateNote && <p className="vf-reason"><strong>User's note:</strong> {d.alternateNote}</p>}
               {d.rejectionReason && <span className="vf-error">Reason: {d.rejectionReason}</span>}
               {d.alsoUsedBy.length > 0 && <p className="vf-banner vf-banner-bad"><FaTriangleExclamation aria-hidden="true" /> The same file was also submitted by: {d.alsoUsedBy.join(', ')}</p>}
               <DocumentPreview id={d._id} label={d.label} compact />

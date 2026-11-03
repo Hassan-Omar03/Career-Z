@@ -28,7 +28,7 @@ let pages = [...new Set(['/', ...LISTINGS, ...Object.keys(PAGE_SEO), ...PUBLIC_P
   .filter((path) => path !== '/institutions') // redirects to /institutes
   .map((path) => {
     const seo = PAGE_SEO[path] || {}, page = content.get(path) || {};
-    return { path, title: seo.title || page.title, description: seo.description || page.description, keywords: seo.keywords || [], h1: seo.h1 || page.title || seo.title, text: seo.text || '', content: page.content || '' };
+    return { path, title: seo.title || page.title, description: seo.description || page.description, keywords: seo.keywords || [], h1: seo.h1 || page.title || seo.title, text: seo.text || '', content: seo.content || page.content || '' };
   })
   .filter((p) => p.title && p.description);
 

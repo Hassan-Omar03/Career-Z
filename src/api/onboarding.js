@@ -32,8 +32,9 @@ function sendFile(url, file, onProgress) {
 }
 
 // Raw file upload with progress; the server checks the real file type, size and duplicates.
-export async function uploadVerificationDocument({ role, documentType, file, onProgress }) {
-  const url = `${API_BASE}/onboarding/documents?role=${encodeURIComponent(role)}&type=${encodeURIComponent(documentType)}`;
+// add keeps the files already uploaded; alternate is the note for a document sent instead of a required one.
+export async function uploadVerificationDocument({ role, documentType, file, onProgress, add = false, alternate = '' }) {
+  const url = `${API_BASE}/onboarding/documents?role=${encodeURIComponent(role)}&type=${encodeURIComponent(documentType)}${add ? '&add=1' : ''}${alternate ? `&alternate=${encodeURIComponent(alternate)}` : ''}`;
   try {
     return await sendFile(url, file, onProgress);
   } catch (err) {
@@ -41,6 +42,8 @@ export async function uploadVerificationDocument({ role, documentType, file, onP
     throw err;
   }
 }
+
+export const removeVerificationDocument = (id) => apiRequest(`/onboarding/documents/${id}`, { method: 'DELETE' });
 
 // Documents are never public — fetch with the session token and show them from a blob URL.
 export async function fetchVerificationDocument(id) {

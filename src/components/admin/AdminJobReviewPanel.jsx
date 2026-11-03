@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { apiRequest } from '../../api/client';
+import JobDescription from '../discover/JobDescription';
 
 // Admin Job Review queue (Master 12.5): jobs the automatic risk scan held before publishing.
 // Approve publishes the job (and sends its job alerts); reject needs a reason the publisher sees.
@@ -48,7 +49,7 @@ export default function AdminJobReviewPanel({ onFlash }) {
               {j.moderation?.note && <p className="text-sm" style={{ margin: 0 }}><strong>Admin note:</strong> {j.moderation.note}{j.moderation.reviewedBy?.fullName ? ` — ${j.moderation.reviewedBy.fullName}, ${when(j.moderation.reviewedAt)}` : ''}</p>}
               {open === j._id && (
                 <div style={{ display: 'grid', gap: 10 }}>
-                  <div className="text-sm" style={{ whiteSpace: 'pre-wrap', background: 'var(--sand)', padding: 12, borderRadius: 10 }}>{j.description || 'No description.'}</div>
+                  <div className="text-sm" style={{ background: 'var(--sand)', padding: 12, borderRadius: 10 }}>{j.description ? <JobDescription text={j.description} /> : 'No description.'}</div>
                   <div className="text-xs" style={{ color: 'var(--ink-soft)' }}>
                     {j.salaryMin || j.salaryMax ? `Salary ${j.currency} ${[j.salaryMin, j.salaryMax].filter(Boolean).join(' – ')} · ` : ''}{j.visaSponsorship ? 'Visa sponsorship · ' : ''}{j.contactEmail ? `Email ${j.contactEmail} · ` : ''}{j.contactPhone ? `Phone ${j.contactPhone}` : ''}
                   </div>

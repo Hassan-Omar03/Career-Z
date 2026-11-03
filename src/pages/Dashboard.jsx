@@ -90,6 +90,8 @@ import { VisaCases, StartVisaCase, AdminVisaPanel } from '../components/visa/Vis
 import { AdSlot, AdminAdsPanel, AdFreeCard } from '../components/ads/Ads';
 import { AdminCommentsRatingsPanel } from '../components/admin/CommentsRatings';
 import { MockInterviewCard } from '../components/jobs/MockInterview';
+import JobDescriptionEditor from '../components/jobs/JobDescriptionEditor';
+import JobDescription from '../components/discover/JobDescription';
 import { AdminPluginsPanel, useModules, NAV_MODULE } from '../components/admin/Plugins';
 import { AdminModerationPanel, AdminUsersPanel, AdminRemovedNote } from '../components/admin/Moderation';
 import { AdminSitePagesPanel } from '../components/admin/SitePages';
@@ -2902,7 +2904,7 @@ function JobDetailModal({ job, onClose, isSaved, onToggleSave, onApply }) {
           </p>
           {job.education && <p className="text-xs" style={{ marginBottom: 8 }}><strong>Education:</strong> {job.education}</p>}
           {job.skills?.length > 0 && <p className="text-xs" style={{ marginBottom: 8 }}><strong>Skills:</strong> {job.skills.join(', ')}</p>}
-          {job.description && <p className="text-sm" style={{ marginBottom: 8, whiteSpace: 'pre-wrap' }}>{job.description}</p>}
+          {job.description && <div className="text-sm" style={{ marginBottom: 8 }}><JobDescription text={job.description} /></div>}
           {(job.contactEmail || job.contactPhone) && (
             <p className="text-xs" style={{ color: 'var(--ink-soft)' }}>
               {job.contactEmail ? `Contact: ${job.contactEmail}` : ''}{job.contactEmail && job.contactPhone ? ' · ' : ''}{job.contactPhone || ''}
@@ -18068,7 +18070,7 @@ function EmployerPostJobPanel({ onFlash, institution = null, onPosted, agreement
 <p className="text-xs" style={{ color: 'var(--ink-soft)', margin: 0 }}>Set gender or age only where the law and the role genuinely require it.</p>
 <label className="hiring-field"><span>Education required</span><input className="form-input" placeholder="Education required" value={form.education} onChange={(e) => setForm({ ...form, education: e.target.value })} /></label>
 <label className="hiring-field"><span>Skills (comma separated)</span><input className="form-input" placeholder="Skills (comma separated)" value={form.skills} onChange={(e) => setForm({ ...form, skills: e.target.value })} /></label>
-<label className="hiring-field"><span>Job description</span><textarea className="form-input" placeholder="Job description" rows={5} value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} /></label>
+<JobDescriptionEditor value={form.description} onChange={(description) => setForm((f) => ({ ...f, description }))} />
         <ImproveDescriptionButton form={form} setForm={setForm} onFlash={onFlash} />
 <label className="hiring-field"><span>Interview questions (one per line, only you see them)</span><textarea className="form-input" rows={4} placeholder="e.g. How would you teach tenses to a weak class?" value={form.interviewQuestions} onChange={(e) => setForm({ ...form, interviewQuestions: e.target.value })} /></label>
         {asAgent && !agreementId && !institution && <EmployerEmailField value={form.employerEmail || ''} onChange={(v) => setForm({ ...form, employerEmail: v })} />}

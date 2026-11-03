@@ -129,3 +129,8 @@
   .vf-actions .btn { flex: 1 1 auto; justify-content: center; }
   .vf-preview iframe { height: 380px; }
 }
+
+/* Several files under one document, and alternate documents */
+.vf-file { display: grid; gap: 8px; padding-top: 8px; border-top: 1px solid var(--sand-line); min-width: 0; }
+.vf-add-file { justify-self: start; }
+.vf-alternate-form { display: grid; gap: 10px; padding: 12px; border-radius: var(--r-sm, 10px); background: var(--paper); border: 1px solid var(--sand-line); min-width: 0; }
