@@ -23,6 +23,7 @@ export function JobCard({ job }) {
   const salary = job.salaryMin || job.salaryMax ? `${job.currency} ${[job.salaryMin, job.salaryMax].filter(Boolean).map((n) => Number(n).toLocaleString()).join(' – ')}` : '';
   return (
     <article className="dc-card">
+      {job.image && <Link to={`/jobs/${job._id}`}><img className="dc-job-image" src={job.image} alt={`${job.title} job`} loading="lazy" /></Link>}
       <div className="dc-head">
         {job.companyLogo ? <img src={job.companyLogo} alt="" className="dc-logo" loading="lazy" /> : <span className="dc-logo dc-icon" aria-hidden="true"><FaBriefcase /></span>}
         <div><h3><Link to={`/jobs/${job._id}`}>{job.title}</Link></h3><p className="dc-sub">{job.company}{job.postedBy?.kind === 'institute' ? ' · verified institute' : job.postedBy ? ` · posted by ${job.postedBy.kind === 'agent' ? 'agent' : 'employer'} ${job.postedBy.name}` : ''}</p></div>

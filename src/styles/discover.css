@@ -157,3 +157,5 @@
 }
 
 .dp-facts .dp-fact-wide { grid-column: 1 / -1; }
+
+.dc-job-image { display: block; width: 100%; height: 170px; object-fit: contain; border-radius: 10px; background: var(--sand, #f1ece0); }

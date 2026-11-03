@@ -91,6 +91,7 @@ import { AdSlot, AdminAdsPanel, AdFreeCard } from '../components/ads/Ads';
 import { AdminCommentsRatingsPanel } from '../components/admin/CommentsRatings';
 import { MockInterviewCard } from '../components/jobs/MockInterview';
 import JobDescriptionEditor from '../components/jobs/JobDescriptionEditor';
+import JobImageField from '../components/jobs/JobImageField';
 import JobDescription from '../components/discover/JobDescription';
 import { AdminPluginsPanel, useModules, NAV_MODULE } from '../components/admin/Plugins';
 import { AdminModerationPanel, AdminUsersPanel, AdminRemovedNote } from '../components/admin/Moderation';
@@ -2904,6 +2905,7 @@ function JobDetailModal({ job, onClose, isSaved, onToggleSave, onApply }) {
           </p>
           {job.education && <p className="text-xs" style={{ marginBottom: 8 }}><strong>Education:</strong> {job.education}</p>}
           {job.skills?.length > 0 && <p className="text-xs" style={{ marginBottom: 8 }}><strong>Skills:</strong> {job.skills.join(', ')}</p>}
+          {job.image && <img className="jd-image" src={job.image} alt={`${job.title} job`} loading="lazy" />}
           {job.description && <div className="text-sm" style={{ marginBottom: 8 }}><JobDescription text={job.description} /></div>}
           {(job.contactEmail || job.contactPhone) && (
             <p className="text-xs" style={{ color: 'var(--ink-soft)' }}>
@@ -17941,7 +17943,7 @@ const SALARY_CURRENCIES = ['PKR', 'USD', 'AED', 'SAR', 'GBP', 'EUR', 'QAR', 'OMR
 const EMPTY_JOB_FORM = {
   title: '', company: '', type: 'full_time', workMode: 'onsite', country: '', city: '',
   salaryMin: '', salaryMax: '', experienceYears: '', education: '', skills: '', description: '',
-  companyLogo: '', visaSponsorship: false, applicationDeadline: '', status: 'active', category: 'other', currency: 'PKR',
+  companyLogo: '', image: '', visaSponsorship: false, applicationDeadline: '', status: 'active', category: 'other', currency: 'PKR',
   vacancies: '1', genderPreference: 'any', ageMin: '', ageMax: '', interviewQuestions: ''
 };
 
@@ -18070,6 +18072,7 @@ function EmployerPostJobPanel({ onFlash, institution = null, onPosted, agreement
 <p className="text-xs" style={{ color: 'var(--ink-soft)', margin: 0 }}>Set gender or age only where the law and the role genuinely require it.</p>
 <label className="hiring-field"><span>Education required</span><input className="form-input" placeholder="Education required" value={form.education} onChange={(e) => setForm({ ...form, education: e.target.value })} /></label>
 <label className="hiring-field"><span>Skills (comma separated)</span><input className="form-input" placeholder="Skills (comma separated)" value={form.skills} onChange={(e) => setForm({ ...form, skills: e.target.value })} /></label>
+<JobImageField value={form.image} onChange={(image) => setForm((f) => ({ ...f, image }))} />
 <JobDescriptionEditor value={form.description} onChange={(description) => setForm((f) => ({ ...f, description }))} />
         <ImproveDescriptionButton form={form} setForm={setForm} onFlash={onFlash} />
 <label className="hiring-field"><span>Interview questions (one per line, only you see them)</span><textarea className="form-input" rows={4} placeholder="e.g. How would you teach tenses to a weak class?" value={form.interviewQuestions} onChange={(e) => setForm({ ...form, interviewQuestions: e.target.value })} /></label>
@@ -18259,7 +18262,7 @@ function EmployerJobsPanel({ onFlash, institution = null, reloadKey = 0, employe
     setEditForm({
       title: job.title, company: job.company, city: job.city || '', country: job.country,
       type: job.type, workMode: job.workMode || 'onsite', salaryMin: job.salaryMin ?? '', salaryMax: job.salaryMax ?? '', currency: job.currency || 'PKR',
-      applicationDeadline: job.applicationDeadline ? job.applicationDeadline.slice(0, 10) : '', description: job.description || ''
+      applicationDeadline: job.applicationDeadline ? job.applicationDeadline.slice(0, 10) : '', description: job.description || '', image: job.image || ''
     });
   }
 
@@ -18349,7 +18352,8 @@ function EmployerJobsPanel({ onFlash, institution = null, reloadKey = 0, employe
             <label className="text-xs" style={{ color: 'var(--ink-soft)', fontWeight: 600 }}>Application deadline
               <input className="form-input" type="date" value={editForm.applicationDeadline} onChange={(e) => setEditForm({ ...editForm, applicationDeadline: e.target.value })} style={{ marginTop: 6, maxWidth: 220 }} />
             </label>
-            <textarea className="form-input" placeholder="Description" rows={3} value={editForm.description} onChange={(e) => setEditForm({ ...editForm, description: e.target.value })} />
+            <JobImageField value={editForm.image} onChange={(image) => setEditForm((f) => ({ ...f, image }))} />
+            <JobDescriptionEditor value={editForm.description} onChange={(description) => setEditForm((f) => ({ ...f, description }))} />
             <div className="flex" style={{ gap: 10 }}>
               <button type="button" className="btn btn-primary" style={{ padding: '7px 16px', fontSize: '0.78rem' }} onClick={() => saveEdit(editingJobId)}>Save Changes</button>
               <button type="button" className="btn" style={{ padding: '7px 16px', fontSize: '0.78rem' }} onClick={() => setEditingJobId(null)}>Cancel</button>
