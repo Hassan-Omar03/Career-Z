@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { FaFloppyDisk, FaCircleCheck, FaPen } from 'react-icons/fa6';
 import { saveProfile } from '../../api/onboarding';
 import SearchSelect from '../SearchSelect';
-import { loadCountries, loadCities } from '../../utils/geo';
+import { loadCountries, loadCities, loadRegions } from '../../utils/geo';
 
 const PATTERNS = {
   cnic: [/^\d{5}-?\d{7}-?\d$/, 'Enter 13 digits, e.g. 35202-1234567-1.'],
@@ -35,8 +35,21 @@ export default function RoleProfileForm({ roleStatus, onSaved, onFlash, complete
   // Recalculated live, including when a value is removed.
   const percent = required.length ? Math.round(((required.length - missing.length) / required.length) * 100) : 100;
 
+  // Provinces of the chosen country, and the cities of the chosen province.
+  const [regions, setRegions] = useState([]);
+  const sameName = (a, b) => String(a || '').trim().toLowerCase() === String(b || '').trim().toLowerCase();
+  const region = regions.find((r) => sameName(r.name, values.province));
+
   function localErrors() {
     const next = {};
+    if (regions.length && fields.some((f) => f.key === 'province')) {
+      const province = String(values.province ?? '').trim(), city = String(values.city ?? '').trim();
+      if (province && !region) next.province = `Choose a province of ${values.country} from the list.`;
+      else if (city && region && !region.cities.some((c) => sameName(c, city))) {
+        const actual = regions.find((r) => r.cities.some((c) => sameName(c, city)));
+        if (actual) next.city = `${city} is in ${actual.name}, not ${region.name}. Correct the province or the city.`;
+      }
+    }
     for (const f of fields) {
       const v = String(values[f.key] ?? '').trim();
       if (!v || v === MASK) continue;
@@ -82,18 +95,28 @@ export default function RoleProfileForm({ roleStatus, onSaved, onFlash, complete
   useEffect(() => { if (hasPlace) loadCountries().then(setCountries).catch(() => {}); }, [hasPlace]);
   useEffect(() => {
     const code = countries.find((c) => c.name.toLowerCase() === String(values.country || '').trim().toLowerCase())?.code;
+    loadRegions(code).then((list) => setRegions(list || []));
     if (!code) { setCities([]); return undefined; }
     let live = true; loadCities(code).then((list) => { if (live) setCities(list); });
     return () => { live = false; };
   }, [values.country, countries]);
 
   function input(f) {
+    const usesRegions = regions.length > 0 && fields.some((x) => x.key === 'province');
+    if (hasPlace && f.key === 'province' && usesRegions) {
+      return <SearchSelect id="pf-province" value={values.province || ''} options={regions.map((r) => r.name)}
+        placeholder="Search province…" onChange={(v) => setValues((cur) => ({ ...cur, province: v, ...(sameName(v, cur.province) ? {} : { city: '' }) }))} />;
+    }
+    if (hasPlace && f.key === 'province' && !values.country) {
+      return <SearchSelect id="pf-province" value="" options={[]} disabled placeholder="Choose a country first" onChange={() => {}} />;
+    }
     if (hasPlace && (f.key === 'country' || f.key === 'city')) {
       const isCountry = f.key === 'country';
-      return <SearchSelect id={`pf-${f.key}`} value={values[f.key] || ''} options={isCountry ? countries.map((c) => c.name) : cities} allowCustom={!isCountry}
-        loading={isCountry && !countries.length} disabled={!isCountry && !values.country}
-        placeholder={isCountry ? 'Search country…' : values.country ? 'Search city…' : 'Choose a country first'}
-        onChange={(v) => setValues((cur) => (isCountry ? { ...cur, country: v, ...(v !== cur.country ? { city: '' } : {}) } : { ...cur, city: v }))} />;
+      const cityBlocked = !values.country || (usesRegions && !values.province);
+      return <SearchSelect id={`pf-${f.key}`} value={values[f.key] || ''} options={isCountry ? countries.map((c) => c.name) : (region ? region.cities : cities)} allowCustom={!isCountry}
+        loading={isCountry && !countries.length} disabled={!isCountry && cityBlocked}
+        placeholder={isCountry ? 'Search country…' : !values.country ? 'Choose a country first' : cityBlocked ? 'Choose a province first' : 'Search city…'}
+        onChange={(v) => setValues((cur) => (isCountry ? { ...cur, country: v, ...(v !== cur.country ? { city: '', province: '' } : {}) } : { ...cur, city: v }))} />;
     }
     const common = { id: `pf-${f.key}`, className: f.type === 'select' ? 'form-select' : 'form-input', 'aria-invalid': Boolean(errors[f.key] || (showMissing && f.required && !filled(f))), value: values[f.key] ?? '', onChange: (e) => setValues((v) => ({ ...v, [f.key]: e.target.value })) };
     if (f.sensitive && values[f.key] === MASK) {

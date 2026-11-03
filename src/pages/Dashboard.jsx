@@ -11378,11 +11378,11 @@ function TeacherLiveClassesPanel({ user, onFlash }) {
   async function schedule(e) {
     e.preventDefault();
     const course = courses.find((item) => item._id === form.course);
-    if (!course?.institution?._id) return onFlash('This course is not connected to an institution.');
-    if (!course.classSection) return onFlash('Ask the institution to assign this course to a class section first.');
+    if (!course) return onFlash('Select a course.');
+    if (course.institution?._id && !course.classSection) return onFlash('Ask the institution to assign this course to a class section first.');
     setScheduleBusy(true);
     try {
-      await apiRequest('/live-classes', { method: 'POST', body: { ...form, institution: course.institution._id } });
+      await apiRequest('/live-classes', { method: 'POST', body: { ...form, ...(course.institution?._id ? { institution: course.institution._id } : {}) } });
       onFlash('Live class scheduled. Enrolled students have been notified.', 'success');
       setForm({ course: '', title: '', scheduledStart: '', scheduledEnd: '', provider: 'careerz_jitsi', externalMeetingUrl: '' });
       load();
@@ -11414,7 +11414,7 @@ function TeacherLiveClassesPanel({ user, onFlash }) {
         <div className="live-grid">
         <label className="institution-field live-wide"><span>Course</span><select className="form-select" required value={form.course} onChange={(e) => { const course = courses.find((item) => item._id === e.target.value); setForm({ ...form, course: e.target.value, title: course ? `${course.title} Live Class` : '' }); }}>
           <option value="">Select your assigned course</option>
-          {courses.map((course) => <option key={course._id} value={course._id}>{course.subject || course.title} — {course.classSection?.name || 'Class section not assigned'} — {course.institution?.name || 'No institution'}</option>)}
+          {courses.map((course) => <option key={course._id} value={course._id}>{course.subject || course.title} — {course.institution ? `${course.classSection?.name || 'Class section not assigned'} — ${course.institution.name}` : 'My own course'}</option>)}
         </select></label>
         <label className="institution-field live-wide"><span>Class title</span><input className="form-input" required placeholder="Live class title" value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })} /></label>
         <label className="institution-field"><span>Starts at</span><input className="form-input" type="datetime-local" required value={form.scheduledStart} onChange={(e) => setForm({ ...form, scheduledStart: e.target.value })} /></label><label className="institution-field"><span>Ends at</span><input className="form-input" type="datetime-local" required value={form.scheduledEnd} onChange={(e) => setForm({ ...form, scheduledEnd: e.target.value })} /></label>

@@ -11,6 +11,16 @@ export function loadCountries() {
   return countriesPromise;
 }
 
+// A country's provinces or states, each with its own cities. Empty when the data has none.
+const regionCache = new Map();
+export function loadRegions(code) {
+  if (!code) return Promise.resolve([]);
+  if (!regionCache.has(code)) {
+    regionCache.set(code, fetch(`/geo/regions/${code}.json`).then((r) => (r.ok && (r.headers.get('content-type') || '').includes('json') ? r.json() : [])).catch(() => { regionCache.delete(code); return []; }));
+  }
+  return regionCache.get(code);
+}
+
 export function loadCities(code) {
   if (!code) return Promise.resolve([]);
   if (!cityCache.has(code)) {
