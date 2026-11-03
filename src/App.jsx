@@ -1,31 +1,49 @@
-import SocialCallback from './pages/SocialCallback';
-import PublicPage from './pages/PublicPage';
-import { useEffect, useState } from 'react';
+import { Suspense, lazy, useEffect, useState } from 'react';
 import { Navigate, Route, Routes, useLocation } from 'react-router-dom';
 import Home from './pages/Home';
-import Login from './pages/Login';
-import Signup from './pages/Signup';
-import ForgotPassword from './pages/ForgotPassword';
-import ResetPassword from './pages/ResetPassword';
-import Dashboard from './pages/Dashboard';
-import VerifyCertificate from './pages/VerifyCertificate';
-import VerifyStudentId from './pages/VerifyStudentId';
-import PublicPortfolio from './pages/PublicPortfolio';
-import TeacherPortfolio from './pages/TeacherPortfolio';
 import SiteAssistant from './components/SiteAssistant';
-import ApplicationStatus from './pages/ApplicationStatus';
-import MyOrders from './pages/MyOrders';
-import VisaPage from './pages/VisaPage';
-import InvitePage from './pages/InvitePage';
 import FloatingShare from './components/FloatingShare';
-import { ListingPage, JobDetail, ScholarshipDetail, InstituteDetail, ProductDetail, DonorDetail, CourseDetail } from './pages/Discover';
 import { takeIntent } from './utils/continueIntent';
-import VerifyFeeReceipt from './pages/VerifyFeeReceipt';
-import InstitutionPublic from './pages/InstitutionPublic';
-import AccountVerification from './pages/AccountVerification';
-import CompleteProfile from './pages/CompleteProfile';
 import { useAuth } from './context/AuthContext';
 import { RealtimeProvider } from './context/RealtimeContext';
+
+// A deploy deletes the old page files, so a tab opened before it reloads once to get the new ones.
+function pageLoader(load) {
+  return lazy(() => load().then((page) => { try { sessionStorage.removeItem('cz_page_reload'); } catch { /* storage off */ } return page; }).catch((err) => {
+    let reloaded = true;
+    try { reloaded = sessionStorage.getItem('cz_page_reload') === '1'; if (!reloaded) sessionStorage.setItem('cz_page_reload', '1'); } catch { /* storage off */ }
+    if (reloaded) throw err;
+    window.location.reload();
+    return new Promise(() => {});
+  }));
+}
+const SocialCallback = pageLoader(() => import('./pages/SocialCallback'));
+const PublicPage = pageLoader(() => import('./pages/PublicPage'));
+const Login = pageLoader(() => import('./pages/Login'));
+const Signup = pageLoader(() => import('./pages/Signup'));
+const ForgotPassword = pageLoader(() => import('./pages/ForgotPassword'));
+const ResetPassword = pageLoader(() => import('./pages/ResetPassword'));
+const Dashboard = pageLoader(() => import('./pages/Dashboard'));
+const VerifyCertificate = pageLoader(() => import('./pages/VerifyCertificate'));
+const VerifyStudentId = pageLoader(() => import('./pages/VerifyStudentId'));
+const PublicPortfolio = pageLoader(() => import('./pages/PublicPortfolio'));
+const TeacherPortfolio = pageLoader(() => import('./pages/TeacherPortfolio'));
+const ApplicationStatus = pageLoader(() => import('./pages/ApplicationStatus'));
+const MyOrders = pageLoader(() => import('./pages/MyOrders'));
+const VisaPage = pageLoader(() => import('./pages/VisaPage'));
+const InvitePage = pageLoader(() => import('./pages/InvitePage'));
+const VerifyFeeReceipt = pageLoader(() => import('./pages/VerifyFeeReceipt'));
+const InstitutionPublic = pageLoader(() => import('./pages/InstitutionPublic'));
+const AccountVerification = pageLoader(() => import('./pages/AccountVerification'));
+const CompleteProfile = pageLoader(() => import('./pages/CompleteProfile'));
+const discover = (name) => pageLoader(() => import('./pages/Discover').then((m) => ({ default: m[name] })));
+const ListingPage = discover('ListingPage');
+const JobDetail = discover('JobDetail');
+const ScholarshipDetail = discover('ScholarshipDetail');
+const InstituteDetail = discover('InstituteDetail');
+const ProductDetail = discover('ProductDetail');
+const DonorDetail = discover('DonorDetail');
+const CourseDetail = discover('CourseDetail');
 
 // gcuf.careerz.pk (an institution subdomain) opens that institution's public page.
 function subdomainOf(hostname) {
@@ -107,6 +125,7 @@ export default function App() {
     <ScrollToTop />
     <FloatingShare />
     <PublicAssistant />
+    <Suspense fallback={<div style={{ padding: 40 }}>Loading…</div>}>
     <Routes>
       <Route path="/" element={<HomeOrInstitution />} />
       <Route path="/social-callback" element={<SocialCallback />} />
@@ -154,6 +173,7 @@ export default function App() {
       <Route path="/:slug" element={<PublicPage />} />
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
+    </Suspense>
     </>
   );
 }

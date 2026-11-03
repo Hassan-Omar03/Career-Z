@@ -6,6 +6,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import LiveTicker from '../components/LiveTicker';
 import AiConsole from '../components/AiConsole';
 import { apiRequest, API_BASE } from '../api/client';
+import { loadCountries, loadCities } from '../utils/geo';
 import { DonorCard, CardSkeleton, place, daysLeft, dateText } from '../components/discover/DiscoverCards';
 import '../styles/discover.css';
 import '../styles/moderation.css';
@@ -152,7 +153,7 @@ function HomeSearch({ options }) {
     setCities([]);
     if (!form.country) return undefined;
     let alive = true;
-    apiRequest(`/public/cities?country=${encodeURIComponent(form.country)}`, { auth: false }).then((c) => { if (alive) setCities(c); }).catch(() => {});
+    loadCities(form.country).then((c) => { if (alive) setCities(c); }).catch(() => {});
     return () => { alive = false; };
   }, [form.country]);
   const levels = tab === 'institutes' ? INSTITUTE_LEVELS : tab === 'courses' ? (options?.courseLevels || []).map((l) => [l, l]) : tab === 'jobs' ? JOB_TYPES : DEADLINES;
@@ -232,7 +233,11 @@ export default function Home() {
     apiRequest('/public/home/sections', { auth: false }).then(setExtra).catch(() => setExtra({ failed: true }));
   };
   useEffect(load, []);
-  useEffect(() => { apiRequest('/public/search-options', { auth: false }).then(setOptions).catch(() => setOptions({ countries: [], courseLevels: [] })); }, []);
+  useEffect(() => {
+    apiRequest('/public/search-options', { auth: false }).then((o) => setOptions((cur) => ({ ...o, countries: cur?.countries?.length ? cur.countries : [] }))).catch(() => setOptions((cur) => cur || { countries: [], courseLevels: [] }));
+    // Every country in the world, not only those with a listing today.
+    loadCountries().then((countries) => setOptions((cur) => ({ courseLevels: [], ...cur, countries }))).catch(() => {});
+  }, []);
   useReveal([data, extra, portal, eco]);
 
   useEffect(() => {
@@ -250,7 +255,7 @@ export default function Home() {
   const sections = extra && !extra.failed ? extra : null;
 
   return (
-    <div className="home-page">
+    <main className="home-page">
       <div id="scroll-progress" style={{ width: `${scrollPct}%` }}></div>
 
       <PageSeo title="Global AI-Powered Education Ecosystem" description="Connect education, learning and career opportunities with CareerZ." /><LiveTicker items={tickerItems(data)} />
@@ -565,6 +570,6 @@ export default function Home() {
       </section>
       <SiteFooter />
       <LiveActivityToasts />
-    </div>
+    </main>
   );
 }

@@ -159,3 +159,9 @@
 .dp-facts .dp-fact-wide { grid-column: 1 / -1; }
 
 .dc-job-image { display: block; width: 100%; height: 170px; object-fit: contain; border-radius: 10px; background: var(--sand, #f1ece0); }
+
+.home-page #blog { padding-bottom: 64px; }
+/* Long country and city names stay inside their own box. */
+.home-page .search-row { grid-template-columns: repeat(4, minmax(0, 1fr)) auto; }
+.home-page .search-row :is(input, select) { width: 100%; min-width: 0; text-overflow: ellipsis; }
+@media (max-width: 780px) { .home-page .search-row { grid-template-columns: minmax(0, 1fr); } }

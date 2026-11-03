@@ -1,0 +1,31 @@
+// Every stylesheet loads up front, in this order, even though pages load on demand. Later rules
+// override earlier ones, so a stylesheet arriving late with its page would change the design.
+import './index.css';
+import './styles/social.css';
+import './styles/blog.css';
+import './styles/ads.css';
+import './styles/discover.css';
+import './styles/moderation.css';
+import './styles/dashboard-messages.css';
+import './styles/institution-hiring.css';
+import './styles/institution-ai.css';
+import './styles/teacher-ai.css';
+import './styles/teacher-support.css';
+import './styles/job-workspace-nav.css';
+import './styles/job-description.css';
+import './components/recruitment/agent-search.css';
+import './components/dashboard/medical-health.css';
+import './components/dashboard/institution-events.css';
+import './components/dashboard/institution-helpdesk.css';
+import './components/dashboard/offline-study.css';
+import './components/dashboard/resource-library.css';
+import './styles/visa.css';
+import './styles/comments-ratings.css';
+import './styles/plugins.css';
+import './styles/mock-interview.css';
+import './styles/invite.css';
+import './styles/academy.css';
+import './styles/marketplace-escrow.css';
+import './styles/employer-master.css';
+import './components/dashboard/guided-resume.css';
+import './styles/dark-fixes.css';

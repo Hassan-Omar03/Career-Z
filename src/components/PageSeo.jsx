@@ -21,7 +21,8 @@ function loadAdsense() {
 }
 
 export default function PageSeo({ title, description, path = '/', noindex = false, keywords = [], image, type = 'website', schema, custom = false }) {
-  useEffect(() => { if (!noindex) loadAdsense(); }, [noindex]);
+  // Ads start after the page is ready, so they never slow its first paint.
+  useEffect(() => { if (noindex) return undefined; const timer = setTimeout(loadAdsense, 3500); return () => clearTimeout(timer); }, [noindex]);
   useEffect(() => {
     const origin = (import.meta.env.VITE_PUBLIC_SITE_URL || 'https://careerz.pk').replace(/\/$/, '');
     const ur = urdu();

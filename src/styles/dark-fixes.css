@@ -1,0 +1,148 @@
+/* Dark mode readability. Light mode is untouched: every rule here applies only under data-theme="dark".
+   Generated parts keep each original selector's own weight through :where(), so states such as
+   .tab.active still win over them. */
+
+html[data-theme="dark"] {
+  /* White text stays readable on the green used for buttons and active tabs. */
+  --forest: #177a57;
+  /* Colors some stylesheets ask for but the dark theme never defined, which fell back to white. */
+  --card: var(--paper-raised);
+  --surface: var(--paper-raised);
+  --surface-alt: var(--sand);
+  --border: var(--sand-line);
+  --line: var(--sand-line);
+  --muted: var(--ink-soft);
+  --ink-muted: var(--ink-soft);
+  --white: var(--paper-raised);
+}
+
+/* White cards */
+html[data-theme="dark"] .teacher-ai-workspace .card,
+html[data-theme="dark"] .teacher-support .funding-card,
+html[data-theme="dark"] .teacher-support .support-empty { background: var(--paper-raised); }
+html[data-theme="dark"] .teacher-ai-workspace :is(input.form-input, select.form-select) { background: var(--sand); color: var(--ink); }
+html[data-theme="dark"] :is(.public-content-card, .public-related) { background: var(--paper-raised); border-color: var(--sand-line); }
+html[data-theme="dark"] .public-header .public-menu { background: var(--paper-raised); border-color: var(--sand-line); }
+
+html[data-theme="dark"] .institution-offline-ui :is(.offline-intro, .offline-sync, .offline-course-row, .offline-empty, .offline-draft) { background: var(--paper-raised); }
+html[data-theme="dark"] :is(.guardian-updates, .guardian-form, .family-invite, .institution-family-ui, .institution-family-ui section, .institution-family-ui form) { background: var(--paper-raised); }
+
+/* Green words on the dark background */
+html[data-theme="dark"] [style^="color: var(--forest"],
+html[data-theme="dark"] [style*="; color: var(--forest"] { color: var(--emerald) !important; }
+
+/* Breadcrumbs */
+html[data-theme="dark"] .public-breadcrumb, html[data-theme="dark"] .public-breadcrumb a, html[data-theme="dark"] .public-breadcrumb span { color: var(--ink-soft); }
+
+/* Tabs whose active state used dark ink on the light theme */
+html[data-theme="dark"] :is(.mod-tabs, .cr-tabs, .cr-chips) button.on { background: var(--forest); color: #fff; }
+html[data-theme="dark"] .engage-tab.active { background: var(--forest); color: #fff; }
+
+/* Red words and buttons */
+html[data-theme="dark"] [style^="color: var(--rose)"],
+html[data-theme="dark"] [style*="; color: var(--rose)"] { color: #ee8f82 !important; }
+html[data-theme="dark"] [style*="color: rgb(180, 35, 24)"],
+html[data-theme="dark"] [style*="color: rgb(179, 38, 30)"] { color: #f19b92 !important; }
+html[data-theme="dark"] .btn.staff-remove, html[data-theme="dark"] .institution-ui .btn.staff-remove { color: #f19b92; border-color: #7a3a33; }
+html[data-theme="dark"] .btn.staff-remove:hover, html[data-theme="dark"] .institution-ui .btn.staff-remove:hover { background: #3a1c1a; }
+html[data-theme="dark"] .grading-band.fail { background: #3a1c1a; border-color: #5c2e29; }
+html[data-theme="dark"] .grading-band.fail > strong { color: #f19b92; }
+
+/* Light fills drawn inline */
+html[data-theme="dark"] [style*="background: var(--emerald)"],
+html[data-theme="dark"] [style*="background: rgb(47, 190, 139)"] { background: var(--forest) !important; }
+html[data-theme="dark"] [style*="background: var(--gold)"],
+html[data-theme="dark"] [style*="background: rgb(227, 162, 60)"] { color: #0f1a17 !important; }
+
+/* Gold panels and the dark green sections */
+html[data-theme="dark"] .btn-gold, html[data-theme="dark"] .ai-eco-tabs button.active { color: #0a2e22; }
+html[data-theme="dark"] :is(.cta-band, .metric-row) [style*="rgba(15, 26, 23"], html[data-theme="dark"] :is(.cta-band, .metric-row) [style*="color: var(--forest"] { color: #0a2e22 !important; }
+html[data-theme="dark"] .discover-detail > header .dc-sub, html[data-theme="dark"] .dp-head .dc-sub { color: #fff; }
+html[data-theme="dark"] [style*="color: rgb(99, 102, 241)"] { color: #4f46e5 !important; }
+html[data-theme="dark"] .health-field-group > h4 { color: var(--emerald) !important; }
+
+html[data-theme="dark"] .home-design-head .eyebrow { color: #f2b95a !important; }
+html[data-theme="dark"] .console-label { color: #f2c878; }
+html[data-theme="dark"] .logo-circle { color: var(--emerald) !important; }
+html[data-theme="dark"] .admin-stat p { color: #d5ded9; }
+
+/* Generated: every rule that colors words with the theme green */
+:where(html[data-theme="dark"]) .ai-eco-tabs button.active { color: var(--emerald); }
+:where(html[data-theme="dark"]) .auth-foot a { color: var(--emerald); }
+:where(html[data-theme="dark"]) .btn-ghost { color: var(--emerald); }
+:where(html[data-theme="dark"]) .btn-gold { color: var(--emerald); }
+:where(html[data-theme="dark"]) .career-roadmap-workspace > .card > h3 > svg { color: var(--emerald); }
+:where(html[data-theme="dark"]) .console-prompts button.active { color: var(--emerald); }
+:where(html[data-theme="dark"]) .dash-mini-icon { color: var(--emerald); }
+:where(html[data-theme="dark"]) .dash-mobile-nav a.active, :where(html[data-theme="dark"]) .dash-mobile-nav button.active { color: var(--emerald); }
+:where(html[data-theme="dark"]) .dash-nav-link .dash-nav-badge { color: var(--emerald); }
+:where(html[data-theme="dark"]) .dash-pill.pending { color: var(--emerald); }
+:where(html[data-theme="dark"]) .dash-section-title a { color: var(--emerald); }
+:where(html[data-theme="dark"]) .dash-sidebar .dash-nav-link.active { color: var(--emerald); }
+:where(html[data-theme="dark"]) .dash-sidebar .dash-nav-link.active .dash-nav-badge { color: var(--emerald); }
+:where(html[data-theme="dark"]) .dash-stat-icon { color: var(--emerald); }
+:where(html[data-theme="dark"]) .dash-wallet-chip svg { color: var(--emerald); }
+:where(html[data-theme="dark"]) .dc-icon { color: var(--emerald); }
+:where(html[data-theme="dark"]) .discover-detail .dp-list li strong { color: var(--emerald); }
+:where(html[data-theme="dark"]) .form-check a { color: var(--emerald); }
+:where(html[data-theme="dark"]) .guided-cv-progress [aria-current=step] { color: var(--emerald); }
+:where(html[data-theme="dark"]) .home-design-head .btn-ghost { color: var(--emerald); }
+:where(html[data-theme="dark"]) .home-page .ic svg { color: var(--emerald); }
+:where(html[data-theme="dark"]) .home-page .market-card .thumb svg { color: var(--emerald); }
+:where(html[data-theme="dark"]) .inst-card .logo-circle { color: var(--emerald); }
+:where(html[data-theme="dark"]) .institution-ai-ui .ops-eyebrow { color: var(--emerald); }
+:where(html[data-theme="dark"]) .institution-ai-ui .ops-suggestions .btn span { color: var(--emerald); }
+:where(html[data-theme="dark"]) .institution-attendance-stats strong { color: var(--emerald); }
+:where(html[data-theme="dark"]) .institution-events-page .events-audience label:has(:checked) { color: var(--emerald); }
+:where(html[data-theme="dark"]) .institution-events-page .events-badges [data-status=upcoming], :where(html[data-theme="dark"]) .institution-events-page .events-badges [data-status=ongoing] { color: var(--emerald); }
+:where(html[data-theme="dark"]) .institution-events-page .events-details svg { color: var(--emerald); }
+:where(html[data-theme="dark"]) .institution-health-ui .health-field-group h4 { color: var(--emerald); }
+:where(html[data-theme="dark"]) .institution-health-ui .health-history-empty > svg { color: var(--emerald); }
+:where(html[data-theme="dark"]) .institution-health-ui .health-privacy > svg { color: var(--emerald); }
+:where(html[data-theme="dark"]) .institution-helpdesk-page .helpdesk-badges [data-status=resolved], :where(html[data-theme="dark"]) .institution-helpdesk-page .helpdesk-badges [data-status=closed] { color: var(--emerald); }
+:where(html[data-theme="dark"]) .institution-helpdesk-page .helpdesk-ticket-number { color: var(--emerald); }
+:where(html[data-theme="dark"]) .institution-hiring-page .hiring-agent-about summary { color: var(--emerald); }
+:where(html[data-theme="dark"]) .institution-hiring-page .hiring-agent-card .badge { color: var(--emerald); }
+:where(html[data-theme="dark"]) .institution-hiring-page .hiring-agent-workspace article > strong { color: var(--emerald); }
+:where(html[data-theme="dark"]) .institution-messages-ui .message-attachment > span { color: var(--emerald); }
+:where(html[data-theme="dark"]) .institution-offer-form input[type="file"]::file-selector-button { color: var(--emerald); }
+:where(html[data-theme="dark"]) .institution-remaining-ui summary { color: var(--emerald); }
+:where(html[data-theme="dark"]) .institution-study-settings input[type="file"]::file-selector-button { color: var(--emerald); }
+:where(html[data-theme="dark"]) .jd-jump button { color: var(--emerald); }
+:where(html[data-theme="dark"]) .jd-part h3 { color: var(--emerald); }
+:where(html[data-theme="dark"]) .job-search-workspace .job-search-result-heading > span { color: var(--emerald); }
+:where(html[data-theme="dark"]) .job-seeker-workspace .job-primary-nav > button:not(.active):hover { color: var(--emerald); }
+:where(html[data-theme="dark"]) .job-seeker-workspace .job-secondary-nav > button.active { color: var(--emerald); }
+:where(html[data-theme="dark"]) .job-seeker-workspace .job-secondary-nav > button:hover { color: var(--emerald); }
+:where(html[data-theme="dark"]) .lang-dropdown button.active { color: var(--emerald); }
+:where(html[data-theme="dark"]) .link-muted { color: var(--emerald); }
+:where(html[data-theme="dark"]) .marketplace-browse-workspace .marketplace-empty > svg { color: var(--emerald); }
+:where(html[data-theme="dark"]) .mi-link { color: var(--emerald); }
+:where(html[data-theme="dark"]) .mod-link { color: var(--emerald); }
+:where(html[data-theme="dark"]) .password-toggle { color: var(--emerald); }
+:where(html[data-theme="dark"]) .public-page-content h2 { color: var(--emerald); }
+:where(html[data-theme="dark"]) .resource-library .rl-resource-links a { color: var(--emerald); }
+:where(html[data-theme="dark"]) .resource-library .rl-resource-title svg { color: var(--emerald); }
+:where(html[data-theme="dark"]) .resource-library .rl-search svg { color: var(--emerald); }
+:where(html[data-theme="dark"]) .resource-library .rl-section-heading h3 svg { color: var(--emerald); }
+:where(html[data-theme="dark"]) .search-select-list li.selected { color: var(--emerald); }
+:where(html[data-theme="dark"]) .sticky-cta button { color: var(--emerald); }
+:where(html[data-theme="dark"]) .student-page-content[data-page="calendar"] .student-calendar-agenda > strong { color: var(--emerald); }
+:where(html[data-theme="dark"]) .student-page-content[data-page="calendar"] .student-calendar-toolbar .btn { color: var(--emerald); }
+:where(html[data-theme="dark"]) .student-page-content[data-page="help"] .student-help .admin-section-heading > svg { color: var(--emerald); }
+:where(html[data-theme="dark"]) .student-redesign .student-detail-icon { color: var(--emerald); }
+:where(html[data-theme="dark"]) .student-redesign .student-metric-icon { color: var(--emerald); }
+:where(html[data-theme="dark"]) .student-redesign summary { color: var(--emerald); }
+:where(html[data-theme="dark"]) .u-alert.warning .u-alert-ic { color: var(--emerald); }
+:where(html[data-theme="dark"]) .u-empty .u-empty-ic { color: var(--emerald); }
+:where(html[data-theme="dark"]) .u-tab-btn.active { color: var(--emerald); }
+:where(html[data-theme="dark"]) .u-wallet-balance-item.pending .amount { color: var(--emerald); }
+:where(html[data-theme="dark"]) .vf-brand { color: var(--emerald); }
+:where(html[data-theme="dark"]) .vf-info { color: var(--emerald); }
+:where(html[data-theme="dark"]) [data-workspace="student"] .dash-sidebar .dash-nav-link.active { color: var(--emerald); }
+
+/* Generated: hover states with a light fill */
+:where(html[data-theme="dark"]) .btn.staff-remove:hover { background: var(--sand); }
+:where(html[data-theme="dark"]) .institution-ui .btn.staff-remove:hover { background: var(--sand); }
+:where(html[data-theme="dark"]) .public-header .public-navigation>a:hover, :where(html[data-theme="dark"]) .public-header .public-navigation summary:hover, :where(html[data-theme="dark"]) .public-header .public-navigation>a.active, :where(html[data-theme="dark"]) .public-header details[open]>summary { background: var(--sand); }
+:where(html[data-theme="dark"]) .public-menu a:hover { background: var(--sand); }
