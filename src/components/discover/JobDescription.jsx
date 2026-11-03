@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react';
 import { parseMarkdown, inlineMarkdown } from '../shared/MarkdownText';
-import { pairsOf } from '../jobs/jobTable';
+import { pairsOf, pipeRun, fitRow } from '../jobs/jobTable';
 import '../../styles/job-description.css';
 
 // A job's description, made easy to read. Long government-style adverts arrive as plain lines, so:
@@ -11,10 +11,26 @@ import '../../styles/job-description.css';
 const LABEL = { 'S#': 'No.', 'Name of Post': 'Post', 'Qualification / Experience': 'Qualification and experience' };
 const factOf = (text) => { const m = String(text).replace(/\*\*/g, '').match(/^([^:.]{2,32}):\s+(.+)$/); return m ? [m[1], m[2]] : null; };
 
+// Repeated column names stay separate columns.
+function tableBlock(head, rows) {
+  const keys = head.map((h, i) => (head.indexOf(h) === i ? h : `${h} ${i + 1}`));
+  return { kind: 'posts', keys, rows: rows.map((r) => Object.fromEntries(keys.map((k, i) => [k, r[i] ?? '']))) };
+}
+
 // Blocks from the Markdown parser, with post lines joined into one table and fact lists marked.
 function arrange(text) {
   const out = [];
-  for (const b of parseMarkdown(text)) {
+  const blocks = parseMarkdown(text);
+  const texts = blocks.map((b) => (b.kind === 'p' ? b.text : null));
+  for (let at = 0; at < blocks.length; at += 1) {
+    const b = blocks[at];
+    const run = b.kind === 'p' ? pipeRun(texts, at) : null;
+    if (run) {
+      if (run.wide) out.push(tableBlock(run.rows[0], run.rows.slice(1).map((r) => fitRow(r, run.rows[0].length))));
+      else out.push({ kind: 'details', rows: run.rows.map((r) => [r[0], r.slice(1).join(' ')]) });
+      at = run.end - 1;
+      continue;
+    }
     const pairs = b.kind === 'p' ? pairsOf(b.text) : null;
     const last = out[out.length - 1];
     if (pairs) {
@@ -24,9 +40,7 @@ function arrange(text) {
       continue;
     }
     if (b.kind === 'table') {
-      // Repeated column names stay separate columns.
-      const keys = b.head.map((h, i) => (b.head.indexOf(h) === i ? h : `${h} ${i + 1}`));
-      out.push({ kind: 'posts', keys, rows: b.rows.map((r) => Object.fromEntries(keys.map((k, i) => [k, r[i] ?? '']))) });
+      out.push(tableBlock(b.head, b.rows));
       continue;
     }
     if (b.kind === 'list' && !b.ordered) {
@@ -67,7 +81,7 @@ function PostsTable({ block }) {
         <thead><tr>{block.keys.map((k) => <th key={k}>{LABEL[k] || k}</th>)}</tr></thead>
         <tbody>{rows.map((r, i) => (
           <tr key={i}>{block.keys.map((k) => (
-            <td key={k} data-label={LABEL[k] || k} className={/^(name of post|post|job title|position|designation)$/i.test(k) ? 'jd-post-name' : ''}>{lines(r[k]).map((l, n) => <span key={n} className="jd-line">{inlineMarkdown(l, `${i}-${k}-${n}`)}</span>)}</td>
+            <td key={k} data-label={LABEL[k] || k} className={/^(name of post|post name|post|job title|position|designation)$/i.test(k) ? 'jd-post-name' : ''}>{lines(r[k]).map((l, n) => <span key={n} className="jd-line">{inlineMarkdown(l, `${i}-${k}-${n}`)}</span>)}</td>
           ))}</tr>
         ))}</tbody>
       </table>
@@ -79,6 +93,7 @@ function PostsTable({ block }) {
 
 function Block({ b, k }) {
   if (b.kind === 'posts') return <PostsTable block={b} />;
+  if (b.kind === 'details') return <table className="jd-details"><tbody>{b.rows.map(([key, val], i) => <tr key={i}><th scope="row">{inlineMarkdown(key, `${k}-k${i}`)}</th><td>{inlineMarkdown(val, `${k}-v${i}`)}</td></tr>)}</tbody></table>;
   if (b.kind === 'facts') return <dl className="jd-facts">{b.items.map(([key, val], i) => <div key={i}>{key && <dt>{key}</dt>}<dd>{inlineMarkdown(val, `${k}-${i}`)}</dd></div>)}</dl>;
   if (b.kind === 'h') return <h4 className="jd-sub">{inlineMarkdown(b.text, k)}</h4>;
   if (b.kind === 'list') { const L = b.ordered ? 'ol' : 'ul'; return <L className="jd-list">{b.items.map((it, i) => <li key={i} style={{ marginLeft: it.depth * 18 }}>{inlineMarkdown(it.text, `${k}-${i}`)}</li>)}</L>; }

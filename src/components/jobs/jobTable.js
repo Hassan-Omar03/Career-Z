@@ -10,6 +10,34 @@ export const pairsOf = (line) => {
   return pairs.every(Boolean) ? pairs.map((m) => [m[1].trim(), m[2].trim()]) : null;
 };
 
+// "S.No | Post Name | BPS" written as plain lines, with no Markdown divider under the first one.
+export const pipeCells = (line) => {
+  if (!String(line).includes('|')) return null;
+  const parts = String(line).trim().replace(/^\||\|$/g, '').split('|').map((c) => c.trim());
+  if (parts.length < 2 || (parts.length === 2 && parts[0].length > 60)) return null;
+  return parts;
+};
+const isDivider = (parts) => parts.every((c) => /^:?-{2,}:?$/.test(c));
+
+// Every row takes the header's width; anything extra stays together in the last column.
+export const fitRow = (parts, width) => (parts.length > width ? [...parts.slice(0, width - 1), parts.slice(width - 1).join(' / ')] : [...parts, ...Array(width - parts.length).fill('')]);
+
+// From blocks[start], the run of lines with the same shape: 3+ columns, or a two-column label and value.
+export function pipeRun(texts, start) {
+  const first = pipeCells(texts[start]);
+  if (!first) return null;
+  const wide = first.length >= 3;
+  const rows = [];
+  let end = start;
+  while (end < texts.length && texts[end] !== null) {
+    const parts = pipeCells(texts[end]);
+    if (!parts || (parts.length >= 3) !== wide) break;
+    if (!isDivider(parts)) rows.push(parts);
+    end += 1;
+  }
+  return rows.length >= 2 ? { wide, rows, end } : null;
+}
+
 const cells = (line) => line.trim().replace(/^\||\|$/g, '').split('|').map((c) => c.trim());
 const blankRows = (n, width) => Array.from({ length: n }, () => Array(width).fill(''));
 const textOf = (lines) => lines.join('\n').trim();
@@ -24,6 +52,17 @@ export function parseJobDescription(value) {
       const rows = lines.slice(i + 2, end).map((l) => head.map((_, c) => cells(l)[c] ?? ''));
       return { before: textOf(lines.slice(0, i)), head, rows: rows.length ? rows : blankRows(1, head.length), after: textOf(lines.slice(end)) };
     }
+  }
+  // Plain "a | b | c" lines; two-column label and value lines stay as text and still read as a table.
+  const seen = lines.map((l, i) => i).filter((i) => lines[i].trim());
+  const texts = seen.map((i) => lines[i]);
+  for (let i = 0; i < texts.length; i += 1) {
+    const run = pipeRun(texts, i);
+    if (run?.wide) {
+      const head = run.rows[0];
+      return { before: textOf(lines.slice(0, seen[i])), head, rows: run.rows.slice(1).map((r) => fitRow(r, head.length)), after: textOf(lines.slice(seen[run.end - 1] + 1)) };
+    }
+    if (run) i = run.end - 1;
   }
   const first = lines.findIndex((l) => pairsOf(l));
   if (first >= 0) {
