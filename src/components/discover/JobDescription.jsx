@@ -17,8 +17,18 @@ function tableBlock(head, rows) {
   return { kind: 'posts', keys, rows: rows.map((r) => Object.fromEntries(keys.map((k, i) => [k, r[i] ?? '']))) };
 }
 
+// A short line in capitals is a section heading: "VACANT POSTS TABLE" reads as "Vacant Posts".
+const SMALL = new Set(['of', 'and', 'the', 'to', 'in', 'for', 'on', 'at']);
+const isCapsHeading = (text) => text.length <= 90 && /[A-Z]{3}/.test(text) && text === text.toUpperCase() && !/[.:;,]$/.test(text);
+function headingOf(text) {
+  const clean = text.replace(/\s*\(FAQS?\)\s*$/, '').replace(/\s+TABLE$/, '');
+  if (clean === 'FAQS' || clean === 'FAQ') return 'FAQs';
+  return clean.toLowerCase().split(' ').map((w, i) => (i && SMALL.has(w) ? w : w.charAt(0).toUpperCase() + w.slice(1))).join(' ');
+}
+const sameText = (a, b) => String(a).toLowerCase().replace(/[^a-z0-9]/g, '') === String(b).toLowerCase().replace(/[^a-z0-9]/g, '');
+
 // Blocks from the Markdown parser, with post lines joined into one table and fact lists marked.
-function arrange(text) {
+function arrange(text, title) {
   const out = [];
   const blocks = parseMarkdown(text);
   const texts = blocks.map((b) => (b.kind === 'p' ? b.text : null));
@@ -30,6 +40,19 @@ function arrange(text) {
       else out.push({ kind: 'details', rows: run.rows.map((r) => [r[0], r.slice(1).join(' ')]) });
       at = run.end - 1;
       continue;
+    }
+    if (b.kind === 'p') {
+      // The first line often repeats the page title above it.
+      if (at === 0 && title && sameText(b.text, title)) continue;
+      if (isCapsHeading(b.text)) { out.push({ kind: 'h', level: 2, text: headingOf(b.text) }); continue; }
+      // "Q1: Who can apply? Anyone." opens and closes like the other questions.
+      const question = b.text.match(/^Q\d+\s*[:.)]\s*(.+?\?)\s*(.*)$/);
+      if (question) {
+        out.push({ kind: 'h', level: 2, text: question[1] });
+        if (question[2]) out.push({ kind: 'p', text: question[2].replace(/^A\d*\s*[:.)]\s*/, '') });
+        continue;
+      }
+      if (out[out.length - 1]?.kind === 'h' && /^A\d*\s*[:.)]\s/.test(b.text)) { out.push({ kind: 'p', text: b.text.replace(/^A\d*\s*[:.)]\s*/, '') }); continue; }
     }
     const pairs = b.kind === 'p' ? pairsOf(b.text) : null;
     const last = out[out.length - 1];
@@ -81,7 +104,7 @@ function PostsTable({ block }) {
         <thead><tr>{block.keys.map((k) => <th key={k}>{LABEL[k] || k}</th>)}</tr></thead>
         <tbody>{rows.map((r, i) => (
           <tr key={i}>{block.keys.map((k) => (
-            <td key={k} data-label={LABEL[k] || k} className={/^(name of post|post name|post|job title|position|designation)$/i.test(k) ? 'jd-post-name' : ''}>{lines(r[k]).map((l, n) => <span key={n} className="jd-line">{inlineMarkdown(l, `${i}-${k}-${n}`)}</span>)}</td>
+            <td key={k} data-label={LABEL[k] || k} className={`${/^(name of post|post name|post|job title|position|designation)$/i.test(k) ? 'jd-post-name' : ''}${String(r[k] ?? '').length <= 12 ? ' jd-short' : ''}`.trim()}>{lines(r[k]).map((l, n) => <span key={n} className="jd-line">{inlineMarkdown(l, `${i}-${k}-${n}`)}</span>)}</td>
           ))}</tr>
         ))}</tbody>
       </table>
@@ -102,8 +125,8 @@ function Block({ b, k }) {
   return <p className="jd-p">{inlineMarkdown(b.text, k)}</p>;
 }
 
-export default function JobDescription({ text }) {
-  const parts = useMemo(() => sections(arrange(text)), [text]);
+export default function JobDescription({ text, title = '' }) {
+  const parts = useMemo(() => sections(arrange(text, title)), [text, title]);
   const titled = parts.filter((s) => s.title && !s.title.trim().endsWith('?'));
   const go = (i) => document.getElementById(`jd-s${i}`)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
   return (

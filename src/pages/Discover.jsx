@@ -141,7 +141,12 @@ function DetailShell({ kind, state, children }) {
   </Shell>;
 }
 
-const Facts = ({ rows }) => <dl className="dp-facts">{rows.filter(([, v]) => v || v === 0).map(([k, v]) => <div key={k}><dt>{k}</dt><dd>{v}</dd></div>)}</dl>;
+// A long value takes its own full row at the end, so it does not stretch the small boxes.
+const Facts = ({ rows }) => {
+  const shown = rows.filter(([, v]) => v || v === 0);
+  const long = ([, v]) => String(v).length > 40;
+  return <dl className="dp-facts">{[...shown.filter((r) => !long(r)), ...shown.filter(long)].map((r) => <div key={r[0]} className={long(r) ? 'dp-fact-wide' : undefined}><dt>{r[0]}</dt><dd>{r[1]}</dd></div>)}</dl>;
+};
 
 export function JobDetail() {
   const { id } = useParams(); const [params] = useSearchParams();
@@ -152,7 +157,7 @@ export function JobDetail() {
       {(job.featured || job.sponsored || job.urgent || job.topHiring) && <p className="dc-badges">{job.featured && <span className="dc-badge">Featured</span>}{job.sponsored && <span className="dc-badge">Sponsored</span>}{job.urgent && <span className="dc-badge urgent">Urgent hiring</span>}{job.topHiring && <span className="dc-badge top">Top Hiring</span>}</p>}</header>
     <Facts rows={[['Location', place(job.city, job.country)], ['Employment type', job.type.replace('_', ' ')], ['Work mode', job.workMode], ['Salary', job.salaryMin || job.salaryMax ? `${job.currency} ${[job.salaryMin, job.salaryMax].filter(Boolean).join(' – ')}` : ''], ['Experience', job.experienceYears ? `${job.experienceYears}+ years` : ''], ['Education', job.education], ['Apply by', dateText(job.applicationDeadline)], ['Posted', dateText(job.postedAt)], ['Visa sponsorship', job.visaSponsorship ? 'Yes' : ''], ['Vacancies', job.vacancies > 1 ? String(job.vacancies) : ''], ['Gender', job.genderPreference && job.genderPreference !== 'any' ? (job.genderPreference === 'female' ? 'Female' : 'Male') : ''], ['Age', job.ageMin || job.ageMax ? [job.ageMin, job.ageMax].filter(Boolean).join(' – ') + ' years' : '']]} />
     {job.skills?.length > 0 && <p className="dc-tags">{job.skills.map((s) => <span key={s}>{s}</span>)}</p>}
-    {job.description && <section><h2>About the job</h2><JobDescription text={job.description} /></section>}
+    {job.description && <section><h2>About the job</h2><JobDescription text={job.description} title={job.title} /></section>}
     {job.employerId && <CompanyTrustCard employerId={job.employerId} jobId={job._id} onFlash={(m) => window.alert(m)} />}
     <AppliedStatus jobId={job._id}>
     <ActionPanel kind="jobs" item={job} autoOpen={params.get('action') === 'apply'} actionLabel="Apply for this job" eligibleRoles={['student', 'teacher']} signupType="student"

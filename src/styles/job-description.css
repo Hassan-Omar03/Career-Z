@@ -1,17 +1,17 @@
 /* Job description: easy to read at any length */
 .jd { display: grid; gap: 22px; font-size: 15.5px; line-height: 1.7; min-width: 0; }
-.jd-p { margin: 0 0 10px; max-width: 75ch; color: var(--ink, inherit); overflow-wrap: anywhere; }
+.jd-p { margin: 0 0 10px; color: var(--ink, inherit); overflow-wrap: anywhere; }
 .jd-p:last-child { margin-bottom: 0; }
 .jd-part { scroll-margin-top: 90px; min-width: 0; }
 .jd-part + .jd-part { padding-top: 20px; border-top: 1px solid var(--sand-line, #e3dccb); }
-.jd-part h3 { margin: 0 0 10px; font-size: 1.15rem; line-height: 1.3; color: var(--forest, #0e4d3c); }
+.jd-part h3 { margin: 0 0 12px; font-size: 1.25rem; font-weight: 700; line-height: 1.3; color: var(--forest, #0e4d3c); }
 .jd-sub { margin: 12px 0 6px; font-size: 1rem; }
 
 .jd-jump { display: flex; flex-wrap: wrap; gap: 6px; }
 .jd-jump button { border: 1px solid var(--sand-line, #e3dccb); background: var(--sand, #f1ece0); color: var(--forest, #0e4d3c); border-radius: 999px; padding: 5px 12px; font-size: 13px; font-weight: 600; line-height: 1.3; cursor: pointer; text-align: left; }
 .jd-jump button:hover { border-color: var(--forest, #0e4d3c); }
 
-.jd-list { margin: 0 0 10px; padding-left: 20px; max-width: 75ch; list-style: disc; display: grid; gap: 8px; }
+.jd-list { margin: 0 0 10px; padding-left: 20px; list-style: disc; display: grid; gap: 8px; }
 .jd-list li { padding-left: 2px; overflow-wrap: anywhere; }
 .jd-list li::marker { color: var(--emerald, #1b8a63); }
 
@@ -29,6 +29,7 @@
 .jd-posts td { padding: 10px; border-bottom: 1px solid var(--sand-line, #e3dccb); vertical-align: top; overflow-wrap: break-word; }
 .jd-posts tbody tr:nth-child(even) td { background: var(--sand, #f1ece0); }
 .jd-post-name { font-weight: 700; min-width: 170px; }
+.jd-short { white-space: nowrap; }
 .jd-line { display: block; }
 .jd-line + .jd-line { margin-top: 3px; }
 .jd-more { justify-self: start; }
@@ -36,7 +37,7 @@
 
 .jd-faq { border: 1px solid var(--sand-line, #e3dccb); border-radius: 10px; padding: 10px 14px; scroll-margin-top: 90px; }
 .jd-faq + .jd-faq { margin-top: -12px; }
-.jd-faq summary { cursor: pointer; font-weight: 600; }
+.jd-faq summary { cursor: pointer; font-weight: 700; }
 .jd-faq[open] summary { margin-bottom: 6px; }
 .jd-note { margin: 8px 0 0; padding: 10px 12px; border-left: 3px solid var(--gold, #e3a23c); background: var(--sand, #f1ece0); border-radius: 6px; font-size: 13px; line-height: 1.55; color: var(--ink-soft, #3a4a45); }
 

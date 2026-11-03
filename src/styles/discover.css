@@ -155,3 +155,5 @@
   .discover-detail > header { padding: 20px 18px 18px; border-radius: 16px; }
   .discover-detail > section { padding: 16px; }
 }
+
+.dp-facts .dp-fact-wide { grid-column: 1 / -1; }
