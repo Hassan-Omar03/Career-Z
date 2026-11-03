@@ -1,3 +1,4 @@
+import useUrlTab from '../../hooks/useUrlTab';
 import SavedForm from '../shared/SavedForm';
 import { useEffect, useState } from 'react';
 import { apiRequest } from '../../api/client';
@@ -106,7 +107,7 @@ function FavoritesPanel({ onFlash }) {
 }
 
 export default function AdminOperationsCenter({ onFlash }) {
-  const [tab, setTab] = useState('branding');
+  const [tab, setTab] = useUrlTab('adminOperationsCenter', 'branding');
   const resource = RESOURCES.find(([key]) => key === tab);
   const dataTabs = {
     monitoring: ['/admin-ops/monitoring', 'Platform Monitoring'], audit: ['/admin-ops/audit-logs', 'Permission & Admin Audit'],

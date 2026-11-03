@@ -1,3 +1,4 @@
+import useUrlTab from '../../hooks/useUrlTab';
 import { useEffect, useState } from 'react';
 import { apiRequest } from '../../api/client';
 import { CATEGORY_LABEL, REQUEST_STATUS, Thread, Agreements, AgreementSummary, InvoiceLine, label, row, grow } from './RecruitmentShared';
@@ -13,7 +14,7 @@ import { showPrompt } from '../../utils/appDialog';
 const SUBS = [['requests', 'Requests'], ['profile', 'Recruitment Profile'], ['invoices', 'Invoices & Earnings']];
 
 export default function AgentRecruitmentPanel({ onFlash, renderPostJob }) {
-  const [sub, setSub] = useState('requests');
+  const [sub, setSub] = useUrlTab('agentRecruitmentPanel', 'requests');
   return (
     <section style={{ display: 'grid', gap: 12 }}>
       <h2 style={{ margin: 0 }}>Institute Requests</h2>

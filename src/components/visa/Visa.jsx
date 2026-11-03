@@ -1,3 +1,4 @@
+import useUrlTab from '../../hooks/useUrlTab';
 import { useEffect, useState } from 'react';
 import { apiRequest, API_BASE, session } from '../../api/client';
 import { showConfirm, showPrompt } from '../../utils/appDialog';
@@ -147,7 +148,7 @@ export function StartVisaCase({ application, job, onFlash }) {
 // ---------------------------------------------------------------- admin
 const EMPTY_RULE = { country: '', name: '', visaTypes: '', requiredDocuments: '', officialLinks: '', ...Object.fromEntries(FIELDS.map(([k]) => [k, ''])) };
 export function AdminVisaPanel({ onFlash }) {
-  const [view, setView] = useState('countries'), [rules, setRules] = useState(null), [form, setForm] = useState(null), [agents, setAgents] = useState(null), [q, setQ] = useState(''), [cases, setCases] = useState(null);
+  const [view, setView] = useUrlTab('adminVisaPanel', 'countries'), [rules, setRules] = useState(null), [form, setForm] = useState(null), [agents, setAgents] = useState(null), [q, setQ] = useState(''), [cases, setCases] = useState(null);
   function load() { apiRequest('/visa/countries').then(setRules).catch(() => setRules([])); }
   useEffect(load, []);
   useEffect(() => { if (view === 'cases') apiRequest('/visa/admin/cases').then(setCases).catch(() => setCases([])); if (view === 'consultants') searchAgents(); }, [view]); // eslint-disable-line react-hooks/exhaustive-deps

@@ -53,6 +53,7 @@ import FamilyClassrooms from '../components/dashboard/FamilyClassrooms';
 } from 'react-icons/fa6';
 import { Children, useCallback, useEffect, useRef, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
+import useUrlTab from '../hooks/useUrlTab';
 import { notificationLink, TAB_ALIASES } from '../utils/notificationLink';
 import { useAuth } from '../context/AuthContext';
 import { useRealtime } from '../context/RealtimeContext';
@@ -562,9 +563,10 @@ function ComingSoon({ label, note }) {
 // Companies that added this user as staff (invited or active).
 function useCompanyMemberships(userId) {
   const [list, setList] = useState([]);
-  const load = useCallback(() => { if (userId) apiRequest('/employer-staff/mine/companies').then((d) => setList(d || [])).catch(() => setList([])); }, [userId]);
+  const [loaded, setLoaded] = useState(false);
+  const load = useCallback(() => { if (userId) apiRequest('/employer-staff/mine/companies').then((d) => setList(d || [])).catch(() => setList([])).finally(() => setLoaded(true)); }, [userId]);
   useEffect(load, [load]);
-  return [list, load];
+  return [list, load, loaded];
 }
 
 const STAFF_PERMISSION_LABEL = { post_jobs: 'Post jobs', manage_applicants: 'Applicants & interviews', make_offers: 'Offers', view_reports: 'Reports', manage_payments: 'Payments', manage_employees: 'Employees' };
@@ -608,7 +610,7 @@ function CompanyWorkPanel({ companies, onFlash, onChanged }) {
     has('manage_employees') && ['employees', 'Employees'],
     has('manage_payments') && ['payments', 'Payments & Salary']
   ].filter(Boolean);
-  const [section, setSection] = useState(sections[0]?.[0] || '');
+  const [section, setSection] = useUrlTab('companyWork', sections[0]?.[0] || '');
   const active = sections.some(([k]) => k === section) ? section : sections[0]?.[0];
   const [reloadKey, setReloadKey] = useState(0);
   if (!company) return <p className="text-sm" style={{ color: 'var(--ink-soft)' }}>When an employer adds you as staff and you accept, their company appears here.</p>;
@@ -707,9 +709,12 @@ function useInstitutionStaffInfo(roles) {
   return staffRoles;
 }
 
+const EXTRA_TABS = ['messages', 'notifications', 'calendar', 'settings', 'help', 'aiSettings', 'impactOverview', 'learningCenter', 'aiCreative', 'advancedControl'];
+
 export default function Dashboard() {
   const { user, refreshProfile, accountStatus } = useAuth();
   const location = useLocation();
+  const navigate = useNavigate();
   // Only account types that are admin-approved with a complete profile open a workspace (the API
   // enforces the same rule); exempt staff accounts keep all their roles.
   const roles = (accountStatus && !accountStatus.exempt ? accountStatus.accessibleRoles : user?.roles) || [];
@@ -723,7 +728,7 @@ export default function Dashboard() {
   const isDriverOnly = !!driverInfo && !roles.includes('institution_owner') && !roles.includes('academy_owner');
   const isPlatformStaffOnly = roles.includes('platform_staff') && !roles.some((role) => ['admin', 'super_admin'].includes(role));
 
-  const [companies, reloadCompanies] = useCompanyMemberships(user?._id);
+  const [companies, reloadCompanies, companiesLoaded] = useCompanyMemberships(user?._id);
   const available = [...WORKSPACE_PRIORITY.filter((key) => WORKSPACES[key].roles.some((r) => roles.includes(r))), ...(companies.some((c) => c.status === 'active') ? ['company_staff'] : [])];
   // Login's "Log in as" picker can request a specific workspace to open on directly,
   // overriding the usual priority order (admin > institution > ... > student).
@@ -733,24 +738,42 @@ export default function Dashboard() {
     const tabs = tab ? (TAB_ALIASES[tab] || [tab]) : [];
     const order = [ws, ...available].filter((k, i, a) => k && available.includes(k) && a.indexOf(k) === i);
     for (const k of order) { const hit = tabs.find((x) => WORKSPACES[k].nav.some((n) => n.key === x)); if (hit) return { ws: k, tab: hit }; }
-    return ws && available.includes(ws) ? { ws, tab: null } : null;
+    if (!ws || !available.includes(ws)) return null;
+    // Tabs outside the main menu: shared pages, and the institute staff's own menus.
+    const extra = tabs.find((x) => EXTRA_TABS.includes(x) || (ws === 'institution' && [REPRESENTATIVE_WORKSPACE, WARDEN_WORKSPACE, DRIVER_WORKSPACE].some((w) => w.nav.some((n) => n.key === x))));
+    return { ws, tab: extra || null };
   };
   const linkTarget = resolveTarget(deepLink.get('ws') || location.state?.workspace, deepLink.get('tab') || location.state?.tab);
   const requestedWorkspace = linkTarget?.ws || location.state?.workspace;
   const defaultWorkspace = (requestedWorkspace && available.includes(requestedWorkspace)) ? requestedWorkspace : (available[0] || 'student');
 
-  const [activeWorkspace, setActiveWorkspace] = useState(defaultWorkspace);
-  const [activeTab, setActiveTab] = useState(new URLSearchParams(location.search).has('ptm') && ['teacher','parent'].includes(defaultWorkspace) ? 'ptm' : location.search.includes('courseCheckout=success') && defaultWorkspace === 'student'
+  const [activeWorkspace, setWorkspaceState] = useState(defaultWorkspace);
+  const [activeTab, setTabState] = useState(new URLSearchParams(location.search).has('ptm') && ['teacher','parent'].includes(defaultWorkspace) ? 'ptm' : location.search.includes('courseCheckout=success') && defaultWorkspace === 'student'
     ? 'courses' : linkTarget?.tab && linkTarget.ws === defaultWorkspace ? linkTarget.tab : WORKSPACES[defaultWorkspace].nav.some((n) => n.key === location.state?.tab) ? location.state.tab : WORKSPACES[defaultWorkspace].nav[0].key);
-  // Following another deep link while the dashboard is open (e.g. clicking a notification).
+  // The open workspace and tab live in the address, so refresh keeps them and the browser's back
+  // and forward buttons move one tab at a time. Opening a tab adds a step and starts it clean;
+  // a correction the page makes by itself replaces the step, so back never gets stuck on it.
+  const openTab = (ws, tab, replace = false) => {
+    setWorkspaceState(ws);
+    setTabState(tab);
+    const q = replace ? new URLSearchParams(window.location.search) : new URLSearchParams();
+    if (q.get('ws') === ws && q.get('tab') === tab) return;
+    const current = new URLSearchParams(window.location.search);
+    if (!replace && current.get('ws') === ws && current.get('tab') === tab) return;
+    q.set('ws', ws);
+    q.set('tab', tab);
+    navigate(`/dashboard?${q}`, { replace, state: replace ? location.state : undefined });
+  };
+  const setActiveTab = (tab) => openTab(activeWorkspace, tab);
+  // Follows the address: back, forward, refresh, or a link such as a notification.
   useEffect(() => {
     const q = new URLSearchParams(location.search);
-    if (!q.get('tab') && !q.get('ws')) return;
-    const target = resolveTarget(q.get('ws'), q.get('tab'));
-    if (!target) return;
-    setActiveWorkspace(target.ws);
-    setActiveTab(target.tab || WORKSPACES[target.ws].nav[0].key);
-  }, [location.search]); // eslint-disable-line react-hooks/exhaustive-deps
+    if (q.get('ws') === 'company_staff' && !companiesLoaded) return;
+    const asked = q.get('tab') || q.get('ws');
+    const target = asked ? resolveTarget(q.get('ws'), q.get('tab')) : null;
+    if (target) openTab(target.ws, target.tab || WORKSPACES[target.ws].nav[0].key, true);
+    else openTab(activeWorkspace, activeTab, true);
+  }, [location.search, companiesLoaded, available.join(',')]); // eslint-disable-line react-hooks/exhaustive-deps
   // A newly opened tab starts at its top, not at the previous tab's scroll position.
   useEffect(() => { window.scrollTo(0, 0); }, [activeTab, activeWorkspace]);
   // Lets any panel (e.g. Teacher -> Student Communication) jump straight into a conversation with
@@ -761,8 +784,7 @@ export default function Dashboard() {
 
   useEffect(() => {
     if (!available.includes(activeWorkspace)) {
-      setActiveWorkspace(defaultWorkspace);
-      setActiveTab(WORKSPACES[defaultWorkspace].nav[0].key);
+      openTab(defaultWorkspace, WORKSPACES[defaultWorkspace].nav[0].key, true);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user?._id, roles.join(',')]);
@@ -770,20 +792,19 @@ export default function Dashboard() {
   useEffect(() => {
     const shared = ['messages', 'notifications', 'calendar', 'settings', 'help'];
     if (activeWorkspace === 'institution' && isWardenOnly && !shared.includes(activeTab) && !WARDEN_WORKSPACE.nav.some((item) => item.key === activeTab)) {
-      setActiveTab('wardenDashboard');
+      openTab(activeWorkspace, 'wardenDashboard', true);
     }
   }, [activeWorkspace, activeTab, isWardenOnly]);
 
   useEffect(() => {
     const shared = ['messages', 'notifications', 'calendar', 'settings', 'help'];
     if (activeWorkspace === 'institution' && isDriverOnly && !shared.includes(activeTab) && !DRIVER_WORKSPACE.nav.some((item) => item.key === activeTab)) {
-      setActiveTab('driverDashboard');
+      openTab(activeWorkspace, 'driverDashboard', true);
     }
   }, [activeWorkspace, activeTab, isDriverOnly]);
 
   function switchWorkspace(key) {
-    setActiveWorkspace(key);
-    setActiveTab(WORKSPACES[key].nav[0].key);
+    openTab(key, WORKSPACES[key].nav[0].key);
   }
 
   function flash(text, type = 'error') {
@@ -800,7 +821,9 @@ export default function Dashboard() {
     if (!result) return;
     const [text, type] = params.get('safepay') ? safepayResultMessage(result) : jazzCashResultMessage(result, params.get('code'));
     flash(params.get('ref') ? `${text} (Ref ${params.get('ref')})` : text, type);
-    window.history.replaceState(null, '', window.location.pathname);
+    const clean = new URLSearchParams(window.location.search);
+    ['jazzcash', 'safepay', 'ref', 'code'].forEach((k) => clean.delete(k));
+    navigate(`/dashboard?${clean}`, { replace: true });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -1056,7 +1079,7 @@ function StudentTutoringPanel({ onFlash }) {
 // languages) was already accepted by PATCH /students/me on the backend but had no form
 // anywhere in the UI to actually set it — this is that form.
 function StudentCampusLifePanel({ onFlash }) {
-  const [section, setSection] = useState('ask');
+  const [section, setSection] = useUrlTab('studentCampusLifePanel', 'ask');
   const [myQuestions, setMyQuestions] = useState(null);
   const [askForm, setAskForm] = useState({ course: '', question: '' });
   const [enrolledCourses, setEnrolledCourses] = useState([]);
@@ -2022,7 +2045,7 @@ const TIMELINE_ICON = {
 // Student sidebar — Goal Tracking (Part 10.22), Achievement Timeline (Part 10.23) and
 // Reputation/Badges (Part 10.19), as three sub-tabs of one panel.
 function StudentGoalsAchievementsPanel({ onFlash }) {
-  const [sub, setSub] = useState('goals');
+  const [sub, setSub] = useUrlTab('studentGoalsAchievementsPanel', 'goals');
   const tabs = [
     { key: 'goals', label: 'Goals' },
     { key: 'timeline', label: 'Achievement Timeline' },
@@ -2332,7 +2355,7 @@ function StudentBadgesSubPanel({ onFlash }) {
 // Course-linked and institution-scoped — a student only ever sees groups for their own actively
 // enrolled courses (see /study-groups?courseId= on the backend).
 function StudentCommunityPanel({ onFlash, user }) {
-  const [sub, setSub] = useState('browse');
+  const [sub, setSub] = useUrlTab('studentCommunityPanel', 'browse');
   const [courses, setCourses] = useState(null);
   const [courseId, setCourseId] = useState('');
   const [groups, setGroups] = useState(null);
@@ -2473,7 +2496,7 @@ function StudyGroupDetail({ groupId, user, onFlash, onBack }) {
   const [group, setGroup] = useState(null);
   const [posts, setPosts] = useState(null);
   const [text, setText] = useState('');
-  const [sub, setSub] = useState('chat');
+  const [sub, setSub] = useUrlTab('studyGroupDetail', 'chat');
   const [contributionNote, setContributionNote] = useState('');
   const [resourceForm, setResourceForm] = useState({ name: '', file: null, busy: false });
   const [taskForm, setTaskForm] = useState({ title: '', assignedTo: '', dueDate: '' });
@@ -2799,9 +2822,7 @@ function StudyGroupDetail({ groupId, user, onFlash, onBack }) {
 function StudentJobsPanel({ onFlash, user }) {
   const routeLocation = useLocation();
   const routeState = routeLocation.state;
-  const linkSub = new URLSearchParams(routeLocation.search).get('sub');
-  const [sub, setSub] = useState(linkSub || routeState?.sub || 'dashboard');
-  useEffect(() => { if (linkSub) setSub(linkSub); }, [routeLocation.search]); // eslint-disable-line react-hooks/exhaustive-deps
+  const [sub, setSub] = useUrlTab('sub', routeState?.sub || 'dashboard');
   const groups = [
     { key: 'overview', label: 'Overview', icon: FaGauge, items: [['dashboard', 'Dashboard']] },
     { key: 'discover', label: 'Find work', icon: FaMagnifyingGlass, items: [['search', 'Search jobs'], ['internships', 'Internships'], ['recommended', 'Recommended'], ['smartApply', 'Smart Apply'], ['saved', 'Saved jobs']] },
@@ -3342,7 +3363,7 @@ function JobSearchPanel({ onFlash }) {
 // infrastructure (Job.type = 'internship' already exists), with a dedicated "My Internships"
 // application-status view so internships don't get lost inside the general Jobs search.
 function InternshipsPanel({ onFlash }) {
-  const [sub, setSub] = useState('browse');
+  const [sub, setSub] = useUrlTab('internshipsPanel', 'browse');
   const [internships, setInternships] = useState(null);
   const [applications, setApplications] = useState(null);
   const [savedIds, setSavedIds] = useState([]);
@@ -5135,7 +5156,7 @@ function ResumeEditorPanel({ onFlash, user, onTemplates }) {
 
 function ScholarshipsPanel({ onFlash, user }) {
   const isDonor = (user?.roles || []).includes('donor');
-  const [sub, setSub] = useState('browse');
+  const [sub, setSub] = useUrlTab('scholarshipsPanel', 'browse');
   const tabs = [
     { key: 'browse', label: 'Browse Scholarships' },
     { key: 'applications', label: 'My Applications' },
@@ -5328,7 +5349,7 @@ function MyScholarshipsPanel({ onFlash, onNavigate }) {
 
 function MarketplacePanel({ onFlash, user }) {
   const isSeller = (user?.roles || []).some((r) => ['marketplace_seller', 'student'].includes(r));
-  const [sub, setSub] = useState('browse');
+  const [sub, setSub] = useUrlTab('marketplacePanel', 'browse');
   const tabs = [
     { key: 'browse', label: 'Browse' },
     { key: 'orders', label: 'My Orders' },
@@ -8153,8 +8174,7 @@ function AiScope({ scope, onScope, onStatus, onFlash }) {
 // One "AI Teacher" page: writing and planning tools, media creation, and live class control.
 function TeacherAiHub({ onFlash, initial = 'write' }) {
   const sections = [['write', 'Write & Plan', 'Notes, quizzes, lesson plans, assignments, papers, rubrics and slides for your class'], ['media', 'Create Media', 'Images, 3D models, narration, avatar video and animation'], ['live', 'Live Class Control', 'Run your live class: slides, polls and student inputs']];
-  const [section, setSection] = useState(initial);
-  useEffect(() => { setSection(initial); }, [initial]);
+  const [section, setSection] = useUrlTab('teacherAiHub', initial);
   const [courses, setCourses] = useState(null), [courseId, setCourseId] = useState('');
   useEffect(() => { apiRequest('/courses/mine/list').then((list) => { setCourses(list); if (list.length === 1) setCourseId(list[0]._id); }).catch(() => setCourses([])); }, []);
   const current = sections.find(([key]) => key === section);
@@ -9513,7 +9533,7 @@ function TeacherEarningsPanel({ onFlash }) {
 
 function TeacherEngagementPanel({ onFlash }) {
   const [institution, setInstitution] = useState(null);
-  const [section, setSection] = useState('questions');
+  const [section, setSection] = useUrlTab('teacherEngagementPanel', 'questions');
   const [questions, setQuestions] = useState(null);
   const [polls, setPolls] = useState(null);
   const { courses: myCourses } = useTeacherCourses(onFlash);
@@ -14376,7 +14396,7 @@ const FEE_TYPES = ['tuition', 'admission', 'exam', 'hostel', 'transport', 'libra
 function InstitutionFeesPanel({ onFlash }) {
   const [institution, setInstitution] = useState(null);
   const [fees, setFees] = useState([]);
-  const [section, setSection] = useState('overview');
+  const [section, setSection] = useUrlTab('institutionFeesPanel', 'overview');
   const [filters, setFilters] = useState({ student: '', status: '', feeType: '', academicYear: '', term: '', from: '', to: '' });
   const [allFees, setAllFees] = useState([]);
 
@@ -15508,7 +15528,7 @@ function InstitutionLibraryPanel({ onFlash }) {
   const institution = useMyInstitution(onFlash);
   const [books, setBooks] = useState(null);
   const [loans, setLoans] = useState(null);
-  const [tab, setTab] = useState('books');
+  const [tab, setTab] = useUrlTab('institutionLibraryPanel', 'books');
   const [form, setForm] = useState({ title: '', author: '', isbn: '', category: 'book', copies: 1, fileUrl: '', finePerDay: 0 });
   const [borrowForm, setBorrowForm] = useState({});
   const [libraryBorrowers, setLibraryBorrowers] = useState([]);
@@ -15819,7 +15839,7 @@ function InstitutionHostelPanel({ onFlash }) {
   const [rooms, setRooms] = useState(null);
   const [requests, setRequests] = useState(null);
   const [eligibleStudents, setEligibleStudents] = useState([]);
-  const [tab, setTab] = useState('rooms');
+  const [tab, setTab] = useUrlTab('institutionHostelPanel', 'rooms');
   const [form, setForm] = useState({ building: '', roomNumber: '', floor: '', capacity: 2 });
   const [roomWarden, setRoomWarden] = useState(null);
   const [allocForm, setAllocForm] = useState({});
@@ -16940,7 +16960,7 @@ function InstitutionSubscriptionPanel({ onFlash }) {
 
 function InstitutionCampusLifePanel({ onFlash }) {
   const [institution, setInstitution] = useState(null);
-  const [section, setSection] = useState('newsletter');
+  const [section, setSection] = useUrlTab('institutionCampusLifePanel', 'newsletter');
   const [newsletters, setNewsletters] = useState(null);
   const [nlForm, setNlForm] = useState({ title: '', content: '' });
   const [submissions, setSubmissions] = useState(null);
@@ -18132,8 +18152,7 @@ const CANDIDATE_STATUS = {
 // teaching and non-teaching, and manages applicants. Reuses the employer posting and jobs panels.
 function InstitutionJobsPanel({ onFlash }) {
   const [institutions, setInstitutions] = useState(null), [id, setId] = useState('');
-  const linkSub = new URLSearchParams(useLocation().search).get('sub');
-  const [sub, setSub] = useState(['jobs', 'post', 'agents'].includes(linkSub) ? linkSub : 'jobs'), [reloadKey, setReloadKey] = useState(0);
+  const [sub, setSub] = useUrlTab('sub', 'jobs', ['jobs', 'post', 'agents']), [reloadKey, setReloadKey] = useState(0);
   useEffect(() => { apiRequest('/institutions/mine/list').then((rows) => { setInstitutions(rows); setId(rows[0]?._id || ''); }).catch((e) => { setInstitutions([]); onFlash(e.message); }); }, []); // eslint-disable-line react-hooks/exhaustive-deps
   if (!institutions) return <p role="status" className="admin-notice">Loading...</p>;
   const institution = institutions.find((i) => i._id === id);
@@ -21867,7 +21886,7 @@ function AdminStaffPanel({ onFlash }) {
 
 // Super Admin — CMS (spec Part 16F.8/16F.9 "Website Content Management System" + Blog).
 function AdminCmsPanel({ onFlash }) {
-  const [sub, setSub] = useState('site');
+  const [sub, setSub] = useUrlTab('adminCmsPanel', 'site');
   return (
     <div>
       <h3 className="font-semibold mb-2">Content Management</h3>
@@ -22367,7 +22386,7 @@ function AdminRolePanel({ onFlash, role, title }) {
 }
 
 function AdminDonorsPanel({ onFlash }) {
-  const [sub, setSub] = useState('donors');
+  const [sub, setSub] = useUrlTab('adminDonorsPanel', 'donors');
   const [scholarships, setScholarships] = useState(null);
   const [donationsEnabled, setDonationsEnabled] = useState(null);
   useEffect(() => { apiRequest('/scholarships/admin/all').then(setScholarships).catch((err) => onFlash(err.message)); }, [onFlash]);
@@ -22509,7 +22528,7 @@ function AdminSecurityPanel({ onFlash }) {
 }
 
 function AdminSettingsPanel({ onFlash, isSuperAdmin }) {
-  const [sub, setSub] = useState('countries');
+  const [sub, setSub] = useUrlTab('adminSettingsPanel', 'countries');
   return (
     <div>
       <h3 className="font-semibold mb-2">Global Settings</h3>
@@ -23064,7 +23083,7 @@ const ADMIN_SUBTABS = [
 ];
 
 function AdminPanel({ onFlash }) {
-  const [sub, setSub] = useState('requests');
+  const [sub, setSub] = useUrlTab('adminPanel', 'requests');
   const [dash, setDash] = useState(null);
   const [revision, setRevision] = useState(0);
   const [statsError, setStatsError] = useState(false);
@@ -24008,7 +24027,7 @@ function MessagesPanel({ onFlash, user, restrictedStaffMessaging = false, initia
   const [sending, setSending] = useState(false);
   const { socket, refreshUnreadMessages } = useRealtime();
 
-  const [view, setView] = useState('direct'); // 'direct' | 'groups'
+  const [view, setView] = useUrlTab('messagesPanel', 'direct'); // 'direct' | 'groups'
   const [groups, setGroups] = useState(null);
   const [activeGroup, setActiveGroup] = useState(null);
   const [groupMessages, setGroupMessages] = useState(null);

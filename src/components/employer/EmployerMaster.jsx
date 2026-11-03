@@ -1,3 +1,4 @@
+import useUrlTab from '../../hooks/useUrlTab';
 import { useEffect, useState } from 'react';
 import { apiRequest, API_BASE, session } from '../../api/client';
 import { showConfirm, showPrompt } from '../../utils/appDialog';
@@ -499,7 +500,7 @@ export function CompanyTrustCard({ employerId, jobId, onFlash }) {
 
 // ---------------------------------------------------------------- Super Admin employers panel (12.17, 12.20)
 export function AdminEmployersPanel({ onFlash, isSuperAdmin }) {
-  const [view, setView] = useState('overview');
+  const [view, setView] = useUrlTab('adminEmployersPanel', 'overview');
   const VIEWS = [['overview', 'Overview'], ['employers', 'Employers'], ['fraud', 'Fraud reports'], ['archive', 'Evidence archive'], ['reviews', 'Review moderation'], ['packages', 'Packages & prices']];
   return (
     <div className="emp-admin">

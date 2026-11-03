@@ -1,3 +1,4 @@
+import useUrlTab from '../../hooks/useUrlTab';
 import { showPrompt, showConfirm } from '../../utils/appDialog';
 import { useEffect, useState } from 'react';
 import { apiRequest } from '../../api/client';
@@ -15,7 +16,7 @@ import './agent-search.css';
 const SUBS = [['find', 'Find Agents'], ['requests', 'Requests'], ['candidates', 'Candidates'], ['hires', 'Confirm Joining'], ['invoices', 'Invoices']];
 
 export default function InstitutionAgentsPanel({ institution, onFlash }) {
-  const [sub, setSub] = useState('requests'), [target, setTarget] = useState(null), [key, setKey] = useState(0);
+  const [sub, setSub] = useUrlTab('institutionAgentsPanel', 'requests'), [target, setTarget] = useState(null), [key, setKey] = useState(0);
   const refresh = () => setKey((k) => k + 1);
   return (
     <div className="hiring-agent-workspace" style={{ display: 'grid', gap: 12 }}>
