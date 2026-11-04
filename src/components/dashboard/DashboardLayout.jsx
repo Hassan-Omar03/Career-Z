@@ -4,7 +4,7 @@ import DashboardSidebar from './DashboardSidebar';
 import DashboardHeader from './DashboardHeader';
 import { useAuth } from '../../context/AuthContext';
 
-export default function DashboardLayout({ children, trail = ['Dashboard'], activeRole = 'student', navItems = [], activeKey, onSelect }) {
+export default function DashboardLayout({ children, trail = ['Dashboard'], activeRole = 'student', navItems = [], navGroups = null, showFreelance = true, activeKey, onSelect }) {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
   const [sidebarOpen, setSidebarOpen] = useState(false);
@@ -19,17 +19,19 @@ export default function DashboardLayout({ children, trail = ['Dashboard'], activ
 
   return (
     <div data-workspace={activeRole} className={`dash-body${isAdmin ? ' admin-layout' : ' member-layout'}`}>
-      {!isAdmin && sidebarOpen && <div className="dash-overlay show" onClick={() => setSidebarOpen(false)}></div>}
+      {sidebarOpen && <div className="dash-overlay show" onClick={() => setSidebarOpen(false)}></div>}
 
       <div className="dash-shell" data-sidebar-collapsed={collapsed ? 'true' : 'false'}>
-        {!isAdmin && <DashboardSidebar
+        <DashboardSidebar
           open={sidebarOpen}
           onClose={() => setSidebarOpen(false)}
           onLogout={handleLogout}
           navItems={navItems}
+          navGroups={isAdmin ? navGroups : null}
+          showFreelance={showFreelance}
           activeKey={activeKey}
           onSelect={(key) => { onSelect?.(key); setSidebarOpen(false); }}
-        />}
+        />
 
         <DashboardHeader
           user={user}
@@ -48,7 +50,6 @@ export default function DashboardLayout({ children, trail = ['Dashboard'], activ
               <span key={t}>{i > 0 && ' / '}{t}</span>
             ))}
           </nav>
-          {isAdmin && <nav className="workspace-admin-nav" aria-label="Admin modules">{navItems.map(item => <button key={item.key} type="button" aria-pressed={activeKey === item.key} className={activeKey === item.key ? 'active' : ''} onClick={() => onSelect?.(item.key)}><item.icon aria-hidden="true" /><span>{item.label}</span></button>)}</nav>}
           {children}
         </main>
       </div>

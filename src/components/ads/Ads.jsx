@@ -12,10 +12,20 @@ const PLACES = [['home', 'Home page'], ['blog', 'Blog'], ['courses', 'Courses'],
 const date = (d) => (d ? new Date(d).toLocaleDateString() : '');
 const readFile = (file) => new Promise((resolve, reject) => { const r = new FileReader(); r.onload = () => resolve(r.result); r.onerror = reject; r.readAsDataURL(file); });
 
+function AdSenseUnit({ client, slot, className }) {
+  useEffect(() => {
+    const src = `https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=${client}`;
+    if (!document.querySelector(`script[src="${src}"]`)) { const s = document.createElement('script'); s.async = true; s.src = src; s.crossOrigin = 'anonymous'; document.head.appendChild(s); }
+    try { (window.adsbygoogle = window.adsbygoogle || []).push({}); } catch { /* blocked by an ad blocker */ }
+  }, [client, slot]);
+  return <ins className={`adsbygoogle ${className}`} style={{ display: 'block' }} data-ad-client={client} data-ad-slot={slot} data-ad-format="auto" data-full-width-responsive="true" />;
+}
+
 export function AdSlot({ placement, className = '' }) {
   const [ad, setAd] = useState(null);
   useEffect(() => { let on = true; apiRequest(`/ads/slot?placement=${placement}`).then((a) => on && setAd(a)).catch(() => {}); return () => { on = false; }; }, [placement]);
   if (!ad) return null;
+  if (ad.network === 'adsense') return <AdSenseUnit client={ad.client} slot={ad.slot} className={className} />;
   return (
     <a className={`ad-slot ${className}`} href={`${API_BASE}/ads/${ad._id}/go`} target="_blank" rel="noreferrer sponsored">
       {ad.image && <img src={ad.image} alt="" loading="lazy" />}
@@ -69,6 +79,15 @@ export function AdminAdsPanel({ onFlash }) {
         <div className="ads-head">
           <div><h3>Ads</h3><p className="text-muted text-sm">Ads never show on live classes, exams, chat, wallet or payment screens.</p></div>
           <label className="ads-switch"><input type="checkbox" checked={cfg.enabled} onChange={(e) => saveCfg({ enabled: e.target.checked })} /> {cfg.enabled ? 'Ads are ON' : 'Ads are OFF'}</label>
+        </div>
+        <div className="ads-network">
+          <b>What runs on the ad spaces</b>
+          <label><input type="radio" name="ad-network" checked={cfg.network !== 'adsense'} disabled={!cfg.enabled} onChange={() => saveCfg({ network: 'banner' })} /> Our own banners</label>
+          <label><input type="radio" name="ad-network" checked={cfg.network === 'adsense'} disabled={!cfg.enabled} onChange={() => saveCfg({ network: 'adsense' })} /> Google AdSense (public pages only)</label>
+          {cfg.network === 'adsense' && <>
+            <label>Publisher ID <input className="form-input" defaultValue={cfg.adsenseClient} onBlur={(e) => e.target.value !== cfg.adsenseClient && saveCfg({ adsenseClient: e.target.value })} /></label>
+            <label>Ad unit ID <input className="form-input" inputMode="numeric" defaultValue={cfg.adsenseSlot} placeholder="From your AdSense account" onBlur={(e) => e.target.value !== cfg.adsenseSlot && saveCfg({ adsenseSlot: e.target.value })} /></label>
+          </>}
         </div>
         <div className="ads-places">
           {PLACES.map(([k, l]) => <label key={k} className="ads-place"><input type="checkbox" checked={cfg.placements[k]} disabled={!cfg.enabled} onChange={(e) => saveCfg({ placements: { [k]: e.target.checked } })} /> {l}</label>)}

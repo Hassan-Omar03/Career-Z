@@ -28,4 +28,6 @@ import './styles/academy.css';
 import './styles/marketplace-escrow.css';
 import './styles/employer-master.css';
 import './components/dashboard/guided-resume.css';
+import './styles/finance.css';
+import './styles/freelance.css';
 import './styles/dark-fixes.css';

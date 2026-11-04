@@ -29,3 +29,7 @@
 .ads-row-actions { display: flex; gap: 6px; flex-wrap: wrap; }
 .ads-free-list { margin: 0; padding-left: 18px; }
 .ads-free-on { color: var(--success, #15803d); font-weight: 600; }
+
+.ads-network { display: flex; flex-wrap: wrap; gap: 10px 18px; align-items: center; margin: 12px 0; }
+.ads-network b { flex-basis: 100%; }
+.ads-network label { display: inline-flex; gap: 8px; align-items: center; }

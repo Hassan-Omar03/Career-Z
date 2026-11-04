@@ -20,7 +20,7 @@ if (!shell.includes('<!--seo:head-->') || !shell.includes('<!--seo:body-->')) th
 fs.writeFileSync('dist/app.html', shell);
 fs.mkdirSync('dist/og', { recursive: true });
 
-const LISTINGS = ['/jobs', '/scholarships', '/institutes', '/courses', '/marketplace', '/donors', '/visa', '/blog'];
+const LISTINGS = ['/jobs', '/scholarships', '/institutes', '/courses', '/marketplace', '/freelance', '/donors', '/visa', '/blog'];
 const LABEL = { '/': 'CareerZ', '/jobs': 'Jobs', '/scholarships': 'Scholarships', '/institutes': 'Admissions', '/courses': 'Courses', '/marketplace': 'Marketplace', '/donors': 'Donors', '/visa': 'Visa Center', '/blog': 'Blog', '/faq': 'FAQ' };
 const LABEL_UR = { '/': 'CareerZ', '/jobs': 'نوکریاں', '/scholarships': 'اسکالرشپس', '/institutes': 'داخلے', '/courses': 'کورسز', '/marketplace': 'مارکیٹ پلیس', '/donors': 'ڈونرز', '/visa': 'ویزا سینٹر', '/blog': 'بلاگ', '/faq': 'سوالات' };
 const content = new Map(PUBLIC_PAGES.map((p) => ['/' + p.slug, p]));
@@ -99,7 +99,7 @@ fs.writeFileSync('dist/sitemap-static.xml', sitemap);
 fs.writeFileSync('dist/sitemap.xml', sitemap);
 fs.writeFileSync('dist/robots.txt', [
   'User-agent: *', 'Allow: /',
-  ...['/dashboard', '/onboarding', '/complete-profile', '/login', '/signup', '/forgot-password', '/reset-password', '/social-callback', '/my-orders', '/application-status', '/verify-certificate/', '/verify-student-id/', '/verify-fee-receipt/'].flatMap((p) => ['Disallow: ' + p, 'Disallow: /ur' + p]),
+  ...['/dashboard', '/onboarding', '/complete-profile', '/login', '/signup', '/forgot-password', '/reset-password', '/social-callback', '/my-orders', '/application-status', '/verify-certificate/', '/verify-student-id/', '/verify-fee-receipt/', '/verify-receipt/'].flatMap((p) => ['Disallow: ' + p, 'Disallow: /ur' + p]),
   'Disallow: /api/', 'Allow: /api/blog/cover/', 'Allow: /api/marketplace/products/', 'Allow: /api/seo/og.png',
   '', `Sitemap: ${origin}/sitemap.xml`, ''
 ].join('\n'));

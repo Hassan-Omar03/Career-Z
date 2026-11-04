@@ -20,6 +20,7 @@ import '../styles/discover.css';
 import { AdSlot } from '../components/ads/Ads';
 import ShareBar from '../components/ShareBar';
 import JobDescription from '../components/discover/JobDescription';
+import ProposalPanel from '../components/freelance/ProposalPanel';
 
 // Public "View All" pages (/jobs, /scholarships, /institutes, /marketplace, /donors) and their
 // detail pages. Filters are sent to the server, so they search every eligible record, not just
@@ -161,6 +162,7 @@ export function JobDetail() {
     {job.description && <section><h2>About the job</h2><JobDescription text={job.description} title={job.title} /></section>}
     {job.employerId && <CompanyTrustCard employerId={job.employerId} jobId={job._id} onFlash={(m) => window.alert(m)} />}
     <AppliedStatus jobId={job._id}>
+    {job.type === 'freelance' && <ProposalPanel job={job} />}
     <ActionPanel kind="jobs" item={job} autoOpen={params.get('action') === 'apply'} actionLabel="Apply for this job" eligibleRoles={['student', 'teacher']} signupType="student"
       onSubmit={() => { if (!cv) throw new Error('Choose the CV to send, or upload one.'); return post(`/jobs/${job._id}/apply`, { coverLetter: cover, cv }); }} successText="Application sent. The employer can now see it." trackLink={{ to: '/dashboard', label: 'Track it in your dashboard → Jobs → My Applications' }}>
       <SavedLetterPicker onPick={setCover} />

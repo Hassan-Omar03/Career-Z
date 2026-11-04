@@ -38,6 +38,11 @@ html[data-theme="dark"] .public-breadcrumb, html[data-theme="dark"] .public-brea
 html[data-theme="dark"] :is(.mod-tabs, .cr-tabs, .cr-chips) button.on { background: var(--forest); color: #fff; }
 html[data-theme="dark"] .engage-tab.active { background: var(--forest); color: #fff; }
 
+/* Status badges and messages */
+html[data-theme="dark"] .vf-warn { color: #f2c878; }
+html[data-theme="dark"] .vf-error { color: #f19b92; }
+html[data-theme="dark"] .dash-toast.error { background: #a8473a; }
+
 /* Red words and buttons */
 html[data-theme="dark"] [style^="color: var(--rose)"],
 html[data-theme="dark"] [style*="; color: var(--rose)"] { color: #ee8f82 !important; }

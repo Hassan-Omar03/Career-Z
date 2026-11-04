@@ -1,0 +1,40 @@
+/* Freelancer Hub */
+.fl-hub, .fl-order, .fl-list { display: grid; gap: 14px; min-width: 0; }
+.fl-hub-head { display: flex; flex-wrap: wrap; gap: 12px; align-items: center; justify-content: space-between; }
+.fl-hub-head h1, .fl-hub-head h2 { margin: 0 0 4px; }
+.fl-muted { display: block; font-size: 13px; color: var(--ink-soft); }
+.fl-card { padding: 20px; display: grid; gap: 12px; min-width: 0; }
+.fl-card h3 { margin: 0; }
+.fl-row { display: flex; flex-wrap: wrap; gap: 12px; align-items: center; justify-content: space-between; width: 100%; padding: 14px 16px; text-align: left; min-width: 0; }
+button.fl-row { cursor: pointer; border: 1px solid var(--sand-line); }
+button.fl-row:hover { border-color: var(--emerald); }
+.fl-row > span:first-child { display: grid; gap: 2px; min-width: 0; overflow-wrap: anywhere; color: var(--ink); }
+.fl-actions { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.fl-filters { margin: 14px 0; }
+.fl-grow { flex: 1 1 200px; min-width: 0; }
+.fl-small { flex: 0 1 140px; min-width: 0; }
+.fl-medium { flex: 0 1 240px; min-width: 0; }
+.fl-self-start { justify-self: start; align-self: start; }
+.fl-box { display: grid; gap: 10px; padding: 14px; border: 1px solid var(--sand-line); border-radius: 12px; min-width: 0; }
+.fl-box p { margin: 0; overflow-wrap: anywhere; }
+.fl-milestones { list-style: none; margin: 0; padding: 0; display: grid; gap: 10px; }
+.fl-milestone { display: grid; gap: 10px; padding: 14px; border: 1px solid var(--sand-line); border-radius: 12px; min-width: 0; }
+.fl-milestone-head { display: flex; flex-wrap: wrap; gap: 10px; align-items: flex-start; justify-content: space-between; }
+.fl-note { display: grid; gap: 6px; margin: 0; padding: 10px 12px; border-radius: 8px; background: var(--sand); font-size: 14px; overflow-wrap: anywhere; }
+.fl-note p { margin: 0; }
+.fl-log { list-style: none; margin: 0; padding: 0; display: grid; gap: 10px; max-height: 420px; overflow-y: auto; }
+.fl-log p { margin: 4px 0 0; overflow-wrap: anywhere; }
+.fl-mini { margin: 0; padding-left: 20px; display: grid; gap: 4px; font-size: 14px; }
+.fl-pre { white-space: pre-wrap; overflow-wrap: anywhere; }
+.fl-files { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.fl-file { display: inline-flex; gap: 6px; align-items: center; padding: 4px 10px; border-radius: 999px; background: var(--sand); font-size: 13px; overflow-wrap: anywhere; }
+.fl-file button { border: 0; background: none; color: inherit; cursor: pointer; font-size: 16px; line-height: 1; }
+.fl-thumb { display: block; max-width: 240px; max-height: 160px; object-fit: contain; border-radius: 10px; background: var(--sand); }
+.fl-facts { margin: 0; }
+.fl-scroll { overflow-x: auto; }
+.fl-table { width: 100%; border-collapse: collapse; font-size: 14px; }
+.fl-table th, .fl-table td { padding: 10px; text-align: left; vertical-align: top; border-bottom: 1px solid var(--sand-line); }
+.fl-table thead th { font-size: 13px; font-weight: 700; }
+.fl-table tbody th { font-weight: 600; white-space: nowrap; }
+.fl-table .form-input { min-width: 90px; }
+.fl-compare { min-width: 520px; }

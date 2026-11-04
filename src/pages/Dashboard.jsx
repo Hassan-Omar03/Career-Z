@@ -93,6 +93,10 @@ import { AdminCommentsRatingsPanel } from '../components/admin/CommentsRatings';
 import { MockInterviewCard } from '../components/jobs/MockInterview';
 import JobDescriptionEditor from '../components/jobs/JobDescriptionEditor';
 import JobImageField from '../components/jobs/JobImageField';
+import CommissionRules from '../components/finance/CommissionRules';
+import { MyReceipts, AdminReceipts } from '../components/finance/Receipts';
+import FreelanceHub from '../components/freelance/FreelanceHub';
+import FreelanceAdmin from '../components/freelance/FreelanceAdmin';
 import JobDescription from '../components/discover/JobDescription';
 import { AdminPluginsPanel, useModules, NAV_MODULE } from '../components/admin/Plugins';
 import { AdminModerationPanel, AdminUsersPanel, AdminRemovedNote } from '../components/admin/Moderation';
@@ -363,6 +367,8 @@ const WORKSPACES = {
       { key: 'employers', label: 'Employer Management', icon: FaBriefcase },
       { key: 'staff', label: 'Staff Management', icon: FaUserGear },
       { key: 'finance', label: 'Financial Management', icon: FaSackDollar },
+      { key: 'commissionRules', label: 'Commission Rules', icon: FaSackDollar },
+      { key: 'allReceipts', label: 'Receipts', icon: FaClipboardList },
       { key: 'marketplaceReview', label: 'Held Listings (auto-check)', icon: FaStore },
       { key: 'visa', label: 'Visa Center', icon: FaEarthAmericas },
       { key: 'moderation', label: 'Remove Fake Posts', icon: FaUserShield },
@@ -371,6 +377,7 @@ const WORKSPACES = {
       { key: 'commentsRatings', label: 'Comments & Ratings', icon: FaCommentDots },
       { key: 'plugins', label: 'Plugins & Modules', icon: FaPuzzlePiece },
       { key: 'marketplaceEscrow', label: 'Marketplace Escrow & Disputes', icon: FaShieldHalved },
+      { key: 'freelanceAdmin', label: 'Freelancer Hub', icon: FaHandshake },
       { key: 'complaints', label: 'Complaint Management', icon: FaClipboardList },
       { key: 'security', label: 'Security & Monitoring', icon: FaShieldHalved },
       { key: 'cms', label: 'Content (Pages & Blog)', icon: FaNewspaper },
@@ -709,7 +716,15 @@ function useInstitutionStaffInfo(roles) {
   return staffRoles;
 }
 
-const EXTRA_TABS = ['messages', 'notifications', 'calendar', 'settings', 'help', 'aiSettings', 'impactOverview', 'learningCenter', 'aiCreative', 'advancedControl'];
+const ADMIN_NAV_GROUPS = [
+  { title: 'Overview', keys: ['summary', 'analytics', 'worldmap', 'aiInsights'] },
+  { title: 'Verification & Moderation', keys: ['verifications', 'jobReview', 'scholarshipReview', 'marketplaceReview', 'moderation', 'commentsRatings', 'complaints'] },
+  { title: 'Academic Operations', keys: ['institutions_mgmt', 'allUsers', 'staff', 'agents', 'donors', 'employers', 'visa'] },
+  { title: 'Finance & Commercial', keys: ['finance', 'commissionRules', 'allReceipts', 'recruitmentPayments', 'marketplaceEscrow', 'freelanceAdmin'] },
+  { title: 'System Administration', keys: ['settings', 'operationsCenter', 'plugins', 'ads', 'cms', 'security', 'backups', 'aiSettings', 'profile'] }
+];
+
+const EXTRA_TABS = ['messages', 'notifications', 'calendar', 'settings', 'help', 'aiSettings', 'receipts', 'freelance', 'impactOverview', 'learningCenter', 'aiCreative', 'advancedControl'];
 
 export default function Dashboard() {
   const { user, refreshProfile, accountStatus } = useAuth();
@@ -738,6 +753,8 @@ export default function Dashboard() {
     const tabs = tab ? (TAB_ALIASES[tab] || [tab]) : [];
     const order = [ws, ...available].filter((k, i, a) => k && available.includes(k) && a.indexOf(k) === i);
     for (const k of order) { const hit = tabs.find((x) => WORKSPACES[k].nav.some((n) => n.key === x)); if (hit) return { ws: k, tab: hit }; }
+    // A shared page reached by a link with no workspace named: it opens in the first workspace.
+    if (!ws && tabs.some((x) => EXTRA_TABS.includes(x)) && available[0]) return { ws: available[0], tab: tabs.find((x) => EXTRA_TABS.includes(x)) };
     if (!ws || !available.includes(ws)) return null;
     // Tabs outside the main menu: shared pages, and the institute staff's own menus.
     const extra = tabs.find((x) => EXTRA_TABS.includes(x) || (ws === 'institution' && [REPRESENTATIVE_WORKSPACE, WARDEN_WORKSPACE, DRIVER_WORKSPACE].some((w) => w.nav.some((n) => n.key === x))));
@@ -846,7 +863,7 @@ export default function Dashboard() {
   const NAME_TITLES = new Set(['mr', 'mr.', 'mrs', 'mrs.', 'ms', 'ms.', 'miss', 'dr', 'dr.', 'prof', 'prof.', 'sir', 'madam']);
   const nameWords = (user?.fullName || '').split(' ').filter(Boolean);
   const firstName = nameWords.find((w) => !NAME_TITLES.has(w.toLowerCase())) || nameWords[0] || 'there';
-  const SHARED_TAB_LABELS = { messages: 'Messages', notifications: 'Notifications', calendar: 'Calendar', settings: 'Settings', help: 'Help Center', aiSettings: 'AI Settings' };
+  const SHARED_TAB_LABELS = { freelance: 'Freelancer Hub', receipts: 'My Receipts', messages: 'Messages', notifications: 'Notifications', calendar: 'Calendar', settings: 'Settings', help: 'Help Center', aiSettings: 'AI Settings' };
   const SHARED_TABS = Object.keys(SHARED_TAB_LABELS);
   const activeTabLabel = SHARED_TAB_LABELS[activeTab] || ws.nav.find((t) => t.key === activeTab)?.label || ws.label;
 
@@ -855,6 +872,8 @@ export default function Dashboard() {
       trail={[ws.label, activeTabLabel]}
       activeRole={activeWorkspace}
       navItems={ws.nav}
+      navGroups={ADMIN_NAV_GROUPS}
+      showFreelance={modulesOn.freelance !== false}
       activeKey={activeTab}
       onSelect={setActiveTab}
     >
@@ -892,6 +911,8 @@ export default function Dashboard() {
         {['summary', 'overview'].includes(activeTab) && activeWorkspace !== 'admin' && <AdSlot placement="dashboard" />}
         {activeTab === 'messages' && <MessagesPanel onFlash={flash} user={user} restrictedStaffMessaging={isWardenOnly || isDriverOnly} initialUser={pendingMessageUser} onConsumedInitialUser={() => setPendingMessageUser(null)} />}
         {activeTab === 'notifications' && <NotificationsPanel onFlash={flash} />}
+        {activeTab === 'receipts' && <MyReceipts onFlash={flash} />}
+        {activeTab === 'freelance' && <FreelanceHub onFlash={flash} />}
         {activeTab === 'calendar' && <CalendarPanel onFlash={flash} />}
         {activeTab === 'settings' && (activeWorkspace !== 'admin' || isPlatformStaffOnly) && <><SettingsPanel user={user} onFlash={flash} onChanged={refreshProfile} />{activeWorkspace==='student'&&<><ProfilePanel user={user} onFlash={flash} onChanged={refreshProfile}/><RolesPanel onFlash={flash} onChanged={refreshProfile}/><SupportComplaintPanel onFlash={flash}/></>}</>}
         {activeTab === 'help' && <HelpCenterPanel onFlash={flash} />}
@@ -21681,6 +21702,9 @@ function AdminWorkspace({ tab, user, roles, onFlash, onChanged }) {
   if (tab === 'security') return <AdminSecurityPanel onFlash={onFlash} />;
   if (tab === 'settings') return <AdminSettingsPanel onFlash={onFlash} isSuperAdmin={roles.includes('super_admin')} />;
   if (tab === 'finance') return <AdminFinancePanel onFlash={onFlash} isSuperAdmin={roles.includes('super_admin')} />;
+  if (tab === 'freelanceAdmin') return <FreelanceAdmin onFlash={onFlash} />;
+  if (tab === 'commissionRules') return <CommissionRules onFlash={onFlash} canEdit={roles.includes('super_admin')} />;
+  if (tab === 'allReceipts') return <AdminReceipts onFlash={onFlash} canEdit={roles.includes('super_admin')} />;
   if (tab === 'analytics') return <AdminReportsPanel onFlash={onFlash} />;
   if (tab === 'worldmap') return <AdminWorldMapPanel onFlash={onFlash} />;
   if (tab === 'staff') return <AdminStaffPanel onFlash={onFlash} />;

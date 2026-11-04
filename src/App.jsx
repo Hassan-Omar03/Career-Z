@@ -33,6 +33,10 @@ const MyOrders = pageLoader(() => import('./pages/MyOrders'));
 const VisaPage = pageLoader(() => import('./pages/VisaPage'));
 const InvitePage = pageLoader(() => import('./pages/InvitePage'));
 const VerifyFeeReceipt = pageLoader(() => import('./pages/VerifyFeeReceipt'));
+const VerifyReceipt = pageLoader(() => import('./pages/VerifyReceipt'));
+const FreelanceList = pageLoader(() => import('./pages/Freelance').then((m) => ({ default: m.FreelanceList })));
+const FreelanceDetail = pageLoader(() => import('./pages/Freelance').then((m) => ({ default: m.FreelanceDetail })));
+const FreelancerProfile = pageLoader(() => import('./pages/Freelance').then((m) => ({ default: m.FreelancerProfile })));
 const InstitutionPublic = pageLoader(() => import('./pages/InstitutionPublic'));
 const AccountVerification = pageLoader(() => import('./pages/AccountVerification'));
 const CompleteProfile = pageLoader(() => import('./pages/CompleteProfile'));
@@ -136,6 +140,10 @@ export default function App() {
       <Route path="/verify-certificate/:code" element={<VerifyCertificate />} />
       <Route path="/verify-student-id/:code" element={<VerifyStudentId />} />
       <Route path="/verify-fee-receipt/:code" element={<VerifyFeeReceipt />} />
+      <Route path="/verify-receipt/:number" element={<VerifyReceipt />} />
+      <Route path="/freelance" element={<FreelanceList />} />
+      <Route path="/freelance/:id" element={<FreelanceDetail />} />
+      <Route path="/freelancer/:id" element={<FreelancerProfile />} />
       <Route path="/portfolio/:userId" element={<PublicPortfolio />} />
       <Route path="/teacher/:teacherId" element={<TeacherPortfolio />} />
       <Route path="/i/:subdomain" element={<InstitutionPublic />} />

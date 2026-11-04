@@ -34,6 +34,7 @@ export default function DashboardHeader({ user, onSidebarToggle, onLogout, onNav
   if (user?.roles?.some((role) => ['admin', 'super_admin'].includes(role))) {
     return (
       <header className="dash-header admin-header">
+        <button className="icon-btn dash-sidebar-toggle" aria-label="Toggle sidebar" onClick={onSidebarToggle}><FaBars size={17} /></button>
         <a href="/" className="logo" aria-label="CareerZ home"><span className="dot" /><span className="logo-text">Career<span className="pk">Z.pk</span></span></a>
         <span className="admin-header-label"><FaShieldHalved aria-hidden="true" /> Administration</span>
         <div className="dash-header-right">
