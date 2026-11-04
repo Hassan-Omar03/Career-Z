@@ -299,7 +299,6 @@ const WORKSPACES = {
       { key: 'parents', label: 'Parent Management', icon: FaUsers },
       { key: 'classes', label: 'Classes & Timetable', icon: FaClipboardList },
       { key: 'batches', label: 'Courses & Batches', icon: FaChalkboardUser },
-      { key: 'liveClasses', label: 'Live Classes', icon: FaChalkboardUser },
       { key: 'attendance', label: 'Attendance Management', icon: FaCalendarCheck },
       { key: 'fees', label: 'Fee Management', icon: FaSackDollar },
       { key: 'receivedDonations', label: 'Received Donations', icon: FaMoneyBillWave },
@@ -10634,6 +10633,60 @@ function TeacherSelfAttendancePanel({ onFlash }) {
 // being reused). The teacher generates ONE short-lived QR for the whole class, shown on screen;
 // each student scans it with their own device to check themselves in. The QR encodes only a
 // random one-time token — never a student's permanent Digital ID — and expires in a few minutes.
+// The attendance section under a running live class: who is in the class right now, plus the same
+// QR and face check-in the Student Attendance page uses. Ending the class saves the attendance.
+function LiveClassAttendance({ session, onFlash }) {
+  const courseId = session.course?._id || session.course;
+  const [students, setStudents] = useState(null);
+  const [participants, setParticipants] = useState([]);
+  const [marks, setMarks] = useState({});
+  const [mode, setMode] = useState('');
+  async function mark(studentId, status) {
+    const next = { ...marks, [studentId]: status };
+    if (!status) delete next[studentId];
+    setMarks(next);
+    try {
+      await apiRequest(`/live-classes/${session._id}/physical-attendance`, { method: 'PATCH', body: { records: Object.entries(next).map(([student, value]) => ({ student, status: value })) } });
+      onFlash('Attendance saved for this class.', 'success');
+    } catch (err) { setMarks(marks); onFlash(err.message); }
+  }
+  const now = new Date();
+  const date = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+  useEffect(() => {
+    apiRequest(`/live-classes/${session._id}/roster`).then((r) => { setStudents(r.students || []); setMarks(Object.fromEntries((r.records || []).map((x) => [String(x.student), x.status]))); }).catch((err) => { setStudents([]); onFlash(err.message); });
+    const refresh = () => apiRequest('/live-classes/teacher/mine').then((list) => setParticipants(list.find((s) => s._id === session._id)?.participants || [])).catch(() => {});
+    refresh();
+    const timer = setInterval(refresh, 10000);
+    return () => clearInterval(timer);
+  }, [session._id, onFlash]);
+  const stateOf = (studentId) => {
+    const p = participants.find((x) => String(x.student?._id || x.student) === String(studentId));
+    if (!p) return { label: 'Not joined', status: 'pending' };
+    if (p.leftAt) return { label: 'Left the class', status: 'pending' };
+    return { label: p.attendanceStatus === 'late' ? 'In class (late)' : 'In class', status: 'approved' };
+  };
+  return (
+    <div className="card live-attendance">
+      <h3 className="font-semibold mb-2">Attendance</h3>
+      <p className="text-xs mb-3" style={{ color: 'var(--ink-soft)' }}>Saved automatically when you end this class: students who joined are Present (Late if they joined more than 15 minutes after the start), and the rest are Absent. A student who checks in with QR or face also counts as Present.</p>
+      {students === null ? <p role="status" className="text-xs">Loading...</p> : students.length === 0 ? <p className="admin-notice">No students are enrolled in this course.</p> : (
+        <div style={{ display: 'grid', gap: 8, marginBottom: 14 }}>
+          {students.filter(Boolean).map((s) => { const st = stateOf(s._id); return <div key={s._id} className="flex items-center justify-between flex-wrap" style={{ gap: 8, padding: '8px 12px', borderRadius: 10, background: 'var(--sand)' }}><span className="text-sm">{s.fullName}</span><span className="flex items-center flex-wrap" style={{ gap: 8 }}><Tag status={st.status} label={st.label} />{mode === 'manual' && <select className="form-select" aria-label={`Attendance for ${s.fullName}`} style={{ width: 'auto', padding: '4px 30px 4px 10px', height: 34 }} value={marks[s._id] || ''} onChange={(e) => mark(s._id, e.target.value)}><option value="">Automatic</option><option value="present">Present</option><option value="late">Late</option><option value="absent">Absent</option><option value="excused">Excused</option></select>}</span></div>; })}
+        </div>
+      )}
+      <div className="flex gap-2 mb-3 flex-wrap">
+        <button type="button" className={mode === 'manual' ? 'btn btn-primary' : 'btn'} style={{ padding: '6px 16px', fontSize: '0.8rem' }} onClick={() => setMode(mode === 'manual' ? '' : 'manual')}>Manual</button>
+        <button type="button" className={mode === 'qr' ? 'btn btn-primary' : 'btn'} style={{ padding: '6px 16px', fontSize: '0.8rem' }} onClick={() => setMode(mode === 'qr' ? '' : 'qr')}><FaQrcode aria-hidden="true" /> QR Session</button>
+        <button type="button" className={mode === 'face' ? 'btn btn-primary' : 'btn'} style={{ padding: '6px 16px', fontSize: '0.8rem' }} onClick={() => setMode(mode === 'face' ? '' : 'face')}><FaFaceSmile aria-hidden="true" /> Face Scan</button>
+        <button type="button" className={mode === 'gps' ? 'btn btn-primary' : 'btn'} style={{ padding: '6px 16px', fontSize: '0.8rem' }} onClick={() => setMode(mode === 'gps' ? '' : 'gps')}><FaLocationDot aria-hidden="true" /> GPS</button>
+      </div>
+      {mode === 'qr' && <TeacherQrAttendancePanel courseId={courseId} date={date} onFlash={onFlash} />}
+      {mode === 'face' && <TeacherFaceAttendancePanel courseId={courseId} date={date} onFlash={onFlash} />}
+      {mode === 'gps' && <TeacherGpsAttendancePanel courseId={courseId} onFlash={onFlash} />}
+    </div>
+  );
+}
+
 function TeacherQrAttendancePanel({ courseId, date, onFlash }) {
   const [session, setSession] = useState(null);
   const [minutesValid, setMinutesValid] = useState(10);
@@ -11370,7 +11423,7 @@ function StudentScheduledLiveClasses({ user, onFlash }) {
     if (session) await apiRequest(`/live-classes/${session._id}/leave`, { method: 'POST' }).catch(() => {});
     load();
   }
-  if (active) return <CareerZLiveClassroom session={active} user={user} role="student" onLeave={leave} onError={(err) => onFlash(err.message)} />;
+  if (active) return <><CareerZLiveClassroom session={active} user={user} role="student" onLeave={leave} onError={(err) => onFlash(err.message)} /><details className="card live-attendance"><summary className="font-semibold" style={{ cursor: 'pointer' }}>Attendance</summary><p className="text-xs" style={{ color: 'var(--ink-soft)', margin: '8px 0 14px' }}>Joining this class marks your attendance automatically. If your teacher asks for a QR code, a session code or your face, do it here.</p><StudentAttendanceCheckInPanel onFlash={onFlash} /></details></>;
   const visible = sessions || [];
   return (
     <div style={{ marginBottom: 22 }}>
@@ -11425,7 +11478,7 @@ function TeacherLiveClassesPanel({ user, onFlash }) {
     try { await apiRequest(`/live-classes/${session._id}/end`, { method: 'PATCH' }); setActive(null); onFlash('Class ended and attendance recorded.', 'success'); load(); }
     catch (err) { onFlash(err.message); } finally { setBusyId(''); }
   }
-  if (active) return <div><div className="flex items-center justify-between mb-3"><div><h3 className="font-semibold">Class is live</h3><p className="text-xs" style={{ color: 'var(--ink-soft)' }}>Students can now join from My Classes.</p></div><button type="button" className="btn" style={{ color: 'var(--rose)' }} onClick={() => end(active)}>End Class & Record Attendance</button></div><CareerZLiveClassroom session={active} user={user} role="teacher" onLeave={() => setActive(null)} onError={(err) => onFlash(err.message)} /></div>;
+  if (active) return <div><div className="flex items-center justify-between mb-3"><div><h3 className="font-semibold">Class is live</h3><p className="text-xs" style={{ color: 'var(--ink-soft)' }}>Students can now join from My Classes.</p></div><button type="button" className="btn" style={{ color: 'var(--rose)' }} onClick={() => end(active)}>End Class & Record Attendance</button></div><CareerZLiveClassroom session={active} user={user} role="teacher" onLeave={() => setActive(null)} onError={(err) => onFlash(err.message)} /><LiveClassAttendance session={active} onFlash={onFlash} /></div>;
   return (
     <div>
       <h3 className="font-semibold mb-2">Live Classes</h3>

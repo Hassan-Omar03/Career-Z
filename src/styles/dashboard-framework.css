@@ -715,3 +715,32 @@ table.u-table tbody tr.is-selected{background:rgba(27,138,99,0.08);}
   .u-modal{animation:none;}
 }
 
+
+/* Live classroom: the tools and attendance under the video, for teacher and student. Spacing only. */
+.live-tools { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; padding: 24px; margin-top: 16px; }
+.live-tools > h3, .live-tools > h4, .live-tools > p, .live-tools > details, .live-tools > div, .live-tools > form, .live-tools > svg,
+.live-tools > .form-input, .live-tools > .form-select { flex: 0 0 100%; max-width: 100%; margin: 0; }
+.live-tools > h4 { margin-top: 12px; padding-top: 20px; border-top: 1px solid var(--sand-line); }
+.live-tools > details > summary { cursor: pointer; padding: 4px 0; }
+.live-tools > details > label { display: flex !important; align-items: center; gap: 10px; padding: 6px 0; }
+.live-tools > details > label:first-of-type { margin-top: 8px; }
+.live-tools > input[type="number"], .live-tools form label input[type="number"] { width: 90px; height: 44px; padding: 0 12px; border: 1px solid var(--sand-line); border-radius: 12px; background: transparent; color: inherit; }
+.live-tools > input[type="color"] { width: 56px; height: 44px; padding: 4px; border: 1px solid var(--sand-line); border-radius: 12px; background: transparent; cursor: pointer; }
+.live-tools form { display: flex; flex-direction: column; gap: 12px; }
+.live-tools form > label { display: flex; align-items: center; flex-wrap: wrap; gap: 12px; font-size: 13px; font-weight: 600; }
+.live-tools form > .btn { align-self: flex-start; }
+.live-tools > div > .btn { margin: 8px 8px 0 0; }
+.live-attendance { padding: 24px; margin-top: 16px; }
+.live-attendance > summary { padding: 4px 0; }
+.live-attendance .mb-2 { margin-bottom: 8px; }
+.live-attendance .mb-3 { margin-bottom: 14px; }
+.live-attendance .mb-4 { margin-bottom: 18px; }
+.live-attendance .mt-2 { margin-top: 8px; }
+.live-attendance .mt-3 { margin-top: 14px; }
+.live-attendance .gap-2 { gap: 10px; }
+.live-attendance .gap-3 { gap: 16px; }
+.live-attendance .card { margin-top: 16px; margin-bottom: 0 !important; }
+.live-attendance .card .flex.items-end { align-items: flex-end; gap: 16px; }
+.live-attendance label .form-input { display: block; }
+.live-attendance form .form-input { flex: 1 1 220px; }
+.live-attendance details > summary { margin-top: 4px; }

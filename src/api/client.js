@@ -84,9 +84,13 @@ export async function apiRequest(path, { method = 'GET', body, auth = true, retr
 }
 
 let refreshInFlight = null;
+// A refresh the server refused is not sent again. Without this every failing request on the page
+// repeated it, and the requests used up the sign-in limit, so nobody on that network could log in.
+let refreshPausedUntil = 0;
 
 export function tryRefreshToken() {
   const refreshToken = session.getRefreshToken();
+  if (!refreshToken || Date.now() < refreshPausedUntil) return Promise.resolve(false);
   if (refreshInFlight?.token === refreshToken) return refreshInFlight.promise;
   const pending = { token: refreshToken };
   pending.promise = refreshSession(refreshToken).finally(() => {
@@ -105,7 +109,11 @@ async function refreshSession(refreshToken) {
     });
     const payload = await res.json();
     // Do not restore a session after logout or overwrite a different account's login.
-    if (!res.ok || session.getRefreshToken() !== refreshToken) return false;
+    if (session.getRefreshToken() !== refreshToken) return false;
+    if (res.status === 429) { refreshPausedUntil = Date.now() + 60000; return false; }
+    // The sign-in has ended for good, so end it here too and let the person log in again.
+    if (res.status === 401) { session.clear(); return false; }
+    if (!res.ok) return false;
     session.set(payload.data);
     return true;
   } catch {
