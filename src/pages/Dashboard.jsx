@@ -17508,6 +17508,74 @@ function nextDateForDow(dow, startTime) {
   return date;
 }
 
+// The institute sees a teacher's degree and subjects while choosing who teaches a course.
+const teacherOptionLabel = (t) => [t.user.fullName, t.qualifications?.[0]?.title].filter(Boolean).join(' — ');
+function TeacherDetailBox({ teacher }) {
+  if (!teacher) return null;
+  const degrees = (teacher.qualifications || []).filter((q) => q.title);
+  return (
+    <div className="admin-notice" style={{ marginTop: 14 }}>
+      <strong>{teacher.user.fullName}</strong>{teacher.user.email ? <span> · {teacher.user.email}</span> : null}
+      <p className="text-xs" style={{ marginTop: 6 }}><strong>Degree:</strong> {degrees.length ? degrees.map((q) => [q.title, q.institutionName, q.year].filter(Boolean).join(', ')).join(' | ') : 'Not added by the teacher yet'}</p>
+      <p className="text-xs" style={{ marginTop: 4 }}><strong>Subjects:</strong> {teacher.subjects?.length ? teacher.subjects.join(', ') : 'Not added yet'} · <strong>Experience:</strong> {teacher.experienceYears || 0} years</p>
+    </div>
+  );
+}
+
+// The institute picks a course, sees its teacher, and chooses which students are in it.
+function InstitutionCourseStudents({ institution, courses, teachers, onFlash }) {
+  const [courseId, setCourseId] = useState('');
+  const [students, setStudents] = useState(null);
+  const [selected, setSelected] = useState([]);
+  const [busy, setBusy] = useState(false);
+  const [search, setSearch] = useState('');
+  const course = courses.find((c) => c._id === courseId);
+  const assigned = courses.filter((c) => c.teacher);
+  const sectionId = course?.classSection?._id || course?.classSection;
+  useEffect(() => {
+    if (!courseId) { setSelected([]); return; }
+    setSelected(null);
+    apiRequest(`/institutions/${institution._id}/courses/${courseId}/students`).then((ids) => setSelected(ids.map(String))).catch((err) => { setSelected([]); onFlash(err.message); });
+    if (students === null) apiRequest(`/institutions/${institution._id}/students`).then((list) => setStudents(list.filter((s) => s.user))).catch((err) => { setStudents([]); onFlash(err.message); });
+  }, [courseId]); // eslint-disable-line react-hooks/exhaustive-deps
+  const shown = (students || []).filter((s) => s.user.fullName.toLowerCase().includes(search.trim().toLowerCase()));
+  const toggle = (id) => setSelected((prev) => (prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]));
+  async function save() {
+    setBusy(true);
+    try {
+      const r = await apiRequest(`/institutions/${institution._id}/courses/${courseId}/students`, { method: 'PUT', body: { students: selected } });
+      onFlash(`Saved: ${r.total} students in this course (${r.added} added, ${r.removed} removed).`, 'success');
+    } catch (err) { onFlash(err.message); } finally { setBusy(false); }
+  }
+  return (
+    <div className="card" style={{ padding: 20, marginTop: 20 }}>
+      <h4 className="font-semibold" style={{ marginBottom: 6 }}>Allot students to a course</h4>
+      <p className="text-xs" style={{ color: 'var(--ink-soft)', marginBottom: 14 }}>Only courses with an assigned teacher appear here. Students placed in the course's class are added automatically; you can add or remove anyone here.</p>
+      <label style={{ display: 'block', maxWidth: 460 }}><span className="text-xs" style={{ display: 'block', fontWeight: 600, marginBottom: 6 }}>Course</span>
+        <select className="form-select" value={courseId} onChange={(e) => setCourseId(e.target.value)}><option value="">Select course</option>{assigned.map((c) => <option key={c._id} value={c._id}>{c.title} — {c.teacher?.fullName}{c.classSection?.name ? ` (${c.classSection.name})` : ''}</option>)}</select>
+      </label>
+      {course && <TeacherDetailBox teacher={teachers.find((t) => t.user._id === (course.teacher?._id || course.teacher))} />}
+      {course && (students === null || selected === null ? <p role="status" className="text-xs" style={{ marginTop: 14 }}>Loading...</p> : students.length === 0 ? <p className="admin-notice" style={{ marginTop: 14 }}>This institute has no students yet.</p> : (
+        <div style={{ marginTop: 14 }}>
+          <div className="flex items-center justify-between flex-wrap" style={{ gap: 10, marginBottom: 10 }}>
+            <input className="form-input" style={{ maxWidth: 280 }} placeholder="Search student by name" value={search} onChange={(e) => setSearch(e.target.value)} />
+            <span className="text-xs" style={{ fontWeight: 600 }}>{selected.length} selected</span>
+          </div>
+          <div style={{ display: 'grid', gap: 6, maxHeight: 320, overflowY: 'auto', marginBottom: 14 }}>
+            {shown.map((s) => (
+              <label key={s._id} className="flex items-center justify-between flex-wrap" style={{ gap: 8, padding: '8px 12px', borderRadius: 10, background: 'var(--sand)', cursor: 'pointer' }}>
+                <span className="flex items-center text-sm" style={{ gap: 10 }}><input type="checkbox" checked={selected.includes(String(s.user._id))} onChange={() => toggle(String(s.user._id))} />{s.user.fullName}</span>
+                <span className="text-xs" style={{ color: 'var(--ink-soft)' }}>{s.classSection?.name || 'No class'}{(s.classSection?._id && s.classSection._id === sectionId) ? ' · this class' : ''}</span>
+              </label>
+            ))}
+          </div>
+          <button type="button" className="btn btn-primary" disabled={busy} onClick={save}>{busy ? 'Saving...' : 'Save Students'}</button>
+        </div>
+      ))}
+    </div>
+  );
+}
+
 function InstitutionClassesPanel({ onFlash }) {
   const [institution, setInstitution] = useState(null);
   const [campuses, setCampuses] = useState([]);
@@ -17571,6 +17639,17 @@ function InstitutionClassesPanel({ onFlash }) {
       if (firstLinkedSection) setTimetableSection(firstLinkedSection._id);
     }
   }, [courses, sections, timetableSection]);
+
+  const [courseForm, setCourseForm] = useState({ title: '', subject: '', classSection: '', teacher: '', creditHours: 3, academicTerm: '' });
+  async function createCourse(e) {
+    e.preventDefault();
+    try {
+      await apiRequest(`/institutions/${institution._id}/courses`, { method: 'POST', body: courseForm });
+      onFlash('Course created and assigned to the teacher.', 'success');
+      setCourseForm({ title: '', subject: '', classSection: '', teacher: '', creditHours: 3, academicTerm: '' });
+      load();
+    } catch (err) { onFlash(err.message); }
+  }
 
   async function saveCourseAssignment(course) {
     const edit = courseEdits[course._id] || { subject: course.subject || '', classSection: course.classSection?._id || '', teacher: course.teacher?._id || '', creditHours: course.creditHours || 3, academicTerm: course.academicTerm || '' };
@@ -17684,14 +17763,28 @@ function InstitutionClassesPanel({ onFlash }) {
 
       </section><section className="institution-class-section"><h3 className="font-semibold mb-2 mt-6">Course Academic Assignments</h3>
       <p className="admin-notice">Link every course to its real subject, class/section and teacher. Timetable and examinations use this assignment automatically.</p>
+      <form onSubmit={createCourse} className="card course-create-form" style={{ padding: 20, margin: '16px 0' }}>
+        <h4 className="font-semibold" style={{ marginBottom: 14 }}>Add a course and assign a teacher</h4>
+        <div className="flex flex-wrap items-end" style={{ gap: 14 }}>
+          <label style={{ flex: '1 1 200px', minWidth: 0 }}><span className="text-xs" style={{ display: 'block', fontWeight: 600, marginBottom: 6 }}>Course title</span><input className="form-input" required maxLength={150} placeholder="e.g. Grade 9 Physics" value={courseForm.title} onChange={(e) => setCourseForm({ ...courseForm, title: e.target.value })} /></label>
+          <label style={{ flex: '1 1 160px', minWidth: 0 }}><span className="text-xs" style={{ display: 'block', fontWeight: 600, marginBottom: 6 }}>Subject</span><input className="form-input" required maxLength={150} placeholder="e.g. Physics" value={courseForm.subject} onChange={(e) => setCourseForm({ ...courseForm, subject: e.target.value })} /></label>
+          <label style={{ flex: '1 1 180px', minWidth: 0 }}><span className="text-xs" style={{ display: 'block', fontWeight: 600, marginBottom: 6 }}>Class / Section</span><select className="form-select" required value={courseForm.classSection} onChange={(e) => setCourseForm({ ...courseForm, classSection: e.target.value })}><option value="">Select class</option>{sections.map((s) => <option key={s._id} value={s._id}>{s.name}</option>)}</select></label>
+          <label style={{ flex: '1 1 180px', minWidth: 0 }}><span className="text-xs" style={{ display: 'block', fontWeight: 600, marginBottom: 6 }}>Teacher</span><select className="form-select" required value={courseForm.teacher} onChange={(e) => setCourseForm({ ...courseForm, teacher: e.target.value })}><option value="">Select teacher</option>{teachers.map((t) => <option key={t.user._id} value={t.user._id}>{teacherOptionLabel(t)}</option>)}</select></label>
+          <label style={{ flex: '0 1 100px', minWidth: 0 }}><span className="text-xs" style={{ display: 'block', fontWeight: 600, marginBottom: 6 }}>Credits</span><input className="form-input" type="number" min="0" max="30" value={courseForm.creditHours} onChange={(e) => setCourseForm({ ...courseForm, creditHours: e.target.value })} /></label>
+          <label style={{ flex: '1 1 150px', minWidth: 0 }}><span className="text-xs" style={{ display: 'block', fontWeight: 600, marginBottom: 6 }}>Semester / Term</span><input className="form-input" placeholder="e.g. Semester 1" value={courseForm.academicTerm} onChange={(e) => setCourseForm({ ...courseForm, academicTerm: e.target.value })} /></label>
+          <button type="submit" className="btn btn-primary" style={{ flexShrink: 0 }}>Add Course</button>
+        </div>
+        <TeacherDetailBox teacher={teachers.find((t) => t.user._id === courseForm.teacher)} />
+      </form>
       <Table
         headers={['Course', 'Subject', 'Class / Section', 'Teacher', 'Credits', 'Semester / Term', 'Action']}
         rows={courses.map((course) => {
           const edit = courseEdits[course._id] || { subject: course.subject || '', classSection: course.classSection?._id || '', teacher: course.teacher?._id || '', creditHours: course.creditHours || 3, academicTerm: course.academicTerm || '' };
-          return [course.title, course.subject || '—', course.classSection?.name || '—', course.teacher?.fullName || '—', course.creditHours || 3, course.academicTerm || '—', <SavedForm key={course._id} showValues={false} value={edit} onRestore={value=>setCourseEdits(prev=>({...prev,[course._id]:value}))} onSubmit={()=>saveCourseAssignment(course)} style={{display:'grid',gap:10,minWidth:220}}><label>Subject<input className="form-input" value={edit.subject} onChange={e=>setCourseEdits(prev=>({...prev,[course._id]:{...edit,subject:e.target.value}}))}/></label><label>Class / Section<select className="form-select" value={edit.classSection} onChange={e=>setCourseEdits(prev=>({...prev,[course._id]:{...edit,classSection:e.target.value}}))}><option value="">Select class</option>{sections.map(row=><option key={row._id} value={row._id}>{row.name}</option>)}</select></label><label>Teacher<select className="form-select" value={edit.teacher} onChange={e=>setCourseEdits(prev=>({...prev,[course._id]:{...edit,teacher:e.target.value}}))}><option value="">Select teacher</option>{teachers.map(row=><option key={row.user._id} value={row.user._id}>{row.user.fullName}</option>)}</select></label><label>Credits<input className="form-input" type="number" min="0.5" max="12" step="0.5" value={edit.creditHours} onChange={e=>setCourseEdits(prev=>({...prev,[course._id]:{...edit,creditHours:e.target.value}}))}/></label><label>Semester / Term<input className="form-input" value={edit.academicTerm} onChange={e=>setCourseEdits(prev=>({...prev,[course._id]:{...edit,academicTerm:e.target.value}}))}/></label><button type="submit" className="btn btn-primary">Save assignment</button></SavedForm>];
+          return [course.title, course.subject || '—', course.classSection?.name || '—', course.teacher?.fullName || '—', course.creditHours || 3, course.academicTerm || '—', <SavedForm key={course._id} showValues={false} value={edit} onRestore={value=>setCourseEdits(prev=>({...prev,[course._id]:value}))} onSubmit={()=>saveCourseAssignment(course)} style={{display:'grid',gap:10,minWidth:220}}><label>Subject<input className="form-input" value={edit.subject} onChange={e=>setCourseEdits(prev=>({...prev,[course._id]:{...edit,subject:e.target.value}}))}/></label><label>Class / Section<select className="form-select" value={edit.classSection} onChange={e=>setCourseEdits(prev=>({...prev,[course._id]:{...edit,classSection:e.target.value}}))}><option value="">Select class</option>{sections.map(row=><option key={row._id} value={row._id}>{row.name}</option>)}</select></label><label>Teacher<select className="form-select" value={edit.teacher} onChange={e=>setCourseEdits(prev=>({...prev,[course._id]:{...edit,teacher:e.target.value}}))}><option value="">Select teacher</option>{teachers.map(row=><option key={row.user._id} value={row.user._id}>{teacherOptionLabel(row)}</option>)}</select></label><label>Credits<input className="form-input" type="number" min="0.5" max="12" step="0.5" value={edit.creditHours} onChange={e=>setCourseEdits(prev=>({...prev,[course._id]:{...edit,creditHours:e.target.value}}))}/></label><label>Semester / Term<input className="form-input" value={edit.academicTerm} onChange={e=>setCourseEdits(prev=>({...prev,[course._id]:{...edit,academicTerm:e.target.value}}))}/></label><button type="submit" className="btn btn-primary">Save assignment</button></SavedForm>];
         })}
-        empty="No institution courses found. Create an institution course first."
+        empty="No institution courses yet. Add one above."
       />
+      {institution && <InstitutionCourseStudents institution={institution} courses={courses} teachers={teachers} onFlash={onFlash} />}
       </section><div className="institution-study-settings" style={{ marginTop: 16 }}><h3 className="institution-study-title">Course study settings and approvals</h3><LearningCenter workspace="institution" embedded onFlash={onFlash} renderLessonExtras={l => <LessonMetadata lessonId={l._id} canReview onFlash={onFlash} />} /></div>
 
       {sections.length > 0 && <AutoTimetable institution={institution} sections={sections} courses={courses} onFlash={onFlash} onSaved={() => loadTimetable(timetableSection)} />}
@@ -23683,24 +23776,17 @@ function TeacherReputationWidget({ teacherId, onFlash }) {
 
 function TeacherPanel({ onFlash }) {
   const [courses, setCourses] = useState([]);
-  const [form, setForm] = useState({ title: '', subject: '', institution: '', classSection: '' });
+  const [form, setForm] = useState({ title: '', subject: '' });
   const [openCourseId, setOpenCourseId] = useState(null);
-  const [myInstitutions, setMyInstitutions] = useState([]);
-  const [sectionsForInstitution, setSectionsForInstitution] = useState([]);
   async function load() { try { setCourses(await apiRequest('/courses/mine/list')); } catch (err) { onFlash(err.message); } }
   useEffect(() => { load(); }, []);
-  useEffect(() => { apiRequest('/institutions/mine/list').then(setMyInstitutions).catch(() => {}); }, []);
-  useEffect(() => {
-    if (!form.institution) { setSectionsForInstitution([]); return; }
-    apiRequest(`/institutions/${form.institution}/class-sections`).then(setSectionsForInstitution).catch(() => setSectionsForInstitution([]));
-  }, [form.institution]);
 
   async function create(e) {
     e.preventDefault();
     try {
-      await apiRequest('/courses', { method: 'POST', body: { title: form.title, subject: form.subject, institution: form.institution || undefined, classSection: form.classSection || undefined } });
+      await apiRequest('/courses', { method: 'POST', body: { title: form.title, subject: form.subject } });
       onFlash('Course created (unpublished).', 'success');
-      setForm({ title: '', subject: '', institution: '', classSection: '' });
+      setForm({ title: '', subject: '' });
       load();
     } catch (err) { onFlash(err.message); }
   }
@@ -23713,6 +23799,7 @@ function TeacherPanel({ onFlash }) {
   return (
     <div>
       <h3 className="font-semibold" style={{ marginBottom: 14 }}>Create a New Course</h3>
+      <p className="text-xs" style={{ color: 'var(--ink-soft)', marginBottom: 14 }}>This creates your own independent course. Courses at your institute are created and assigned by the institute, and appear in your list automatically.</p>
       <form onSubmit={create} className="card course-create-form" style={{ padding: 20, marginBottom: 28 }}>
         <div className="flex flex-wrap items-end" style={{ gap: 14 }}>
           <label style={{ flex: '1 1 200px', minWidth: 0 }}>
@@ -23723,22 +23810,6 @@ function TeacherPanel({ onFlash }) {
             <span style={fieldLabel}>Subject</span>
             <input className="form-input" placeholder="e.g. Physics" value={form.subject} onChange={(e) => setForm({ ...form, subject: e.target.value })} />
           </label>
-          <label style={{ flex: '1 1 200px', minWidth: 0 }}>
-            <span style={fieldLabel}>Institution</span>
-            <select className="form-select" value={form.institution} onChange={(e) => setForm({ ...form, institution: e.target.value, classSection: '' })}>
-              <option value="">Independent (no institution)</option>
-              {myInstitutions.map((i) => <option key={i._id} value={i._id}>{i.name}</option>)}
-            </select>
-          </label>
-          {form.institution && (
-            <label style={{ flex: '1 1 180px', minWidth: 0 }}>
-              <span style={fieldLabel}>Class section</span>
-              <select className="form-select" value={form.classSection} onChange={(e) => setForm({ ...form, classSection: e.target.value })}>
-                <option value="">No class section</option>
-                {sectionsForInstitution.map((s) => <option key={s._id} value={s._id}>{s.name}</option>)}
-              </select>
-            </label>
-          )}
           <button type="submit" className="btn btn-primary" style={{ flexShrink: 0 }}>Create Course</button>
         </div>
       </form>
