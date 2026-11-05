@@ -72,6 +72,9 @@ export async function apiRequest(path, { method = 'GET', body, auth = true, retr
     if (refreshed) return apiRequest(path, { method, body, auth, retry: false });
   }
 
+  // Signed out while the page still shows the account: end it properly so the person logs in again.
+  if (res.status === 401 && auth && !session.getRefreshToken() && session.getUser()) session.clear();
+
   if (!res.ok) {
     // The server locks unverified/incomplete accounts; let the app route to the right page.
     if (res.status === 403 && payload.errors?.code === 'ACCOUNT_GATE' && typeof window !== 'undefined') {
@@ -87,6 +90,7 @@ let refreshInFlight = null;
 // A refresh the server refused is not sent again. Without this every failing request on the page
 // repeated it, and the requests used up the sign-in limit, so nobody on that network could log in.
 let refreshPausedUntil = 0;
+const RENEW_GRACE_MS = 800;
 
 export function tryRefreshToken() {
   const refreshToken = session.getRefreshToken();
@@ -112,7 +116,13 @@ async function refreshSession(refreshToken) {
     if (session.getRefreshToken() !== refreshToken) return false;
     if (res.status === 429) { refreshPausedUntil = Date.now() + 60000; return false; }
     // The sign-in has ended for good, so end it here too and let the person log in again.
-    if (res.status === 401) { session.clear(); return false; }
+    if (res.status === 401) {
+      // Another tab may have just renewed this same sign-in; give it a moment to save the new one.
+      await new Promise((resolve) => { setTimeout(resolve, RENEW_GRACE_MS); });
+      if (session.getRefreshToken() !== refreshToken) return Boolean(session.getRefreshToken());
+      session.clear();
+      return false;
+    }
     if (!res.ok) return false;
     session.set(payload.data);
     return true;

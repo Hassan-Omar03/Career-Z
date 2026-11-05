@@ -41,6 +41,14 @@ export function AuthProvider({ children }) {
     bootstrap();
   }, [refreshAccountStatus]);
 
+  // The sign-in ended (refused by the server, or logged out in another place): show the login page
+  // instead of a page that looks signed in while every request fails.
+  useEffect(() => {
+    const onSignedOut = () => { setUser(null); setAccountStatus(null); };
+    window.addEventListener('careerz:logout', onSignedOut);
+    return () => window.removeEventListener('careerz:logout', onSignedOut);
+  }, []);
+
   // Any API call refused by the account gate means our cached state is stale.
   useEffect(() => {
     const onGate = () => { refreshAccountStatus(); };
