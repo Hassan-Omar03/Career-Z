@@ -2,15 +2,15 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { detectLanguage } from '../src/utils/detectLanguage.js';
 
-test('the region of the device decides the language', () => {
-  assert.equal(detectLanguage('Asia/Karachi', ['en-US']), 'ur');
-  assert.equal(detectLanguage('Asia/Dubai', ['en-US']), 'ar');
-  assert.equal(detectLanguage('Asia/Kolkata', []), 'hi');
-  assert.equal(detectLanguage('Europe/Paris', ['en']), 'fr');
+const SUPPORTED = ['en', 'ur', 'ar', 'fr'];
+test('the language chosen in the browser decides, wherever the visitor is', () => {
+  assert.equal(detectLanguage(['en-US', 'ar'], SUPPORTED), 'en');
+  assert.equal(detectLanguage(['ar-SA', 'en'], SUPPORTED), 'ar');
+  assert.equal(detectLanguage(['ur-PK'], SUPPORTED), 'ur');
+  assert.equal(detectLanguage(['fr-FR', 'en'], SUPPORTED), 'fr');
 });
-test('a region with no language of its own follows the browser, then English', () => {
-  assert.equal(detectLanguage('Europe/London', ['en-GB']), 'en');
-  assert.equal(detectLanguage('America/New_York', ['es-US', 'en']), 'es');
-  assert.equal(detectLanguage('UTC', ['ja-JP']), 'en');
-  assert.equal(detectLanguage('', []), 'en');
+test('a browser language the site cannot translate into falls to the next one, then English', () => {
+  assert.equal(detectLanguage(['ja-JP', 'ar'], SUPPORTED), 'ar');
+  assert.equal(detectLanguage(['ja-JP'], SUPPORTED), 'en');
+  assert.equal(detectLanguage([], SUPPORTED), 'en');
 });

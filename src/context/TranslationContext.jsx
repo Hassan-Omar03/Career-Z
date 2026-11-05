@@ -22,6 +22,8 @@ try { localStorage.removeItem(LANG_KEY); } catch { /* unavailable */ } // older 
 const URDU_PATH = () => /^\/ur(\/|$)/.test(window.location.pathname);
 const CACHE_KEY = 'careerz_translation_cache_v2'; // v2: v1 held poor LibreTranslate output
 export const RTL_LANGS = ['ur', 'ar', 'fa', 'he'];
+// Chrome's own translation marks <html> with translated-ltr / translated-rtl while it is showing the page.
+const BROWSER_TRANSLATING = () => /\btranslated-(ltr|rtl)\b/.test(document.documentElement.className);
 const SKIP_TAGS = new Set(['SCRIPT', 'STYLE', 'NOSCRIPT', 'TEXTAREA', 'INPUT', 'TITLE']);
 // Small batches, two at a time, each shown as soon as it arrives: the self-hosted translator
 // needs up to a second per new string, so a page fills in progressively instead of all at once.
@@ -55,9 +57,9 @@ export function TranslationProvider({ children }) {
   useEffect(() => {
     apiRequest('/translate/config', { auth: false }).then((cfg) => {
       setEnabled(cfg.enabled);
-      // First visit with no language chosen yet: open in the language of the visitor's region.
+      // No language chosen in this session: open in the language set in the visitor's browser.
       if (!cfg.enabled || URDU_PATH() || chosenLang()) return;
-      const detected = detectLanguage();
+      const detected = detectLanguage(undefined, cfg.supportedLanguages);
       if (detected !== 'en') setLangState(detected);
     }).catch(() => setEnabled(false));
   }, []);
@@ -81,7 +83,7 @@ export function TranslationProvider({ children }) {
   }, []);
 
   const translateNodes = useCallback(async (nodes, targetLang) => {
-    if (!nodes || nodes.length === 0 || targetLang === 'en') return;
+    if (!nodes || nodes.length === 0 || targetLang === 'en' || BROWSER_TRANSLATING()) return;
     const cache = cacheRef.current;
     const toFetchTexts = [];
     const toFetchNodes = [];
@@ -191,6 +193,7 @@ export function TranslationProvider({ children }) {
     }
 
     const observer = new MutationObserver((mutations) => {
+      if (BROWSER_TRANSLATING()) return;
       mutations.forEach((m) => {
         if (m.type === 'childList') {
           m.addedNodes.forEach((added) => collectTextNodes(added).forEach((n) => pendingRef.current.add(n)));
