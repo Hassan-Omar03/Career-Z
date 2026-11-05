@@ -5,7 +5,7 @@ import { useTranslation } from '../context/TranslationContext';
 // Each language is listed in its own script (never translated), so anyone can find theirs
 // whatever language the page is currently in. Codes replace flag emoji, which Windows shows as
 // plain letters and which the page translator used to turn into nonsense.
-const LANGUAGES = [
+export const LANGUAGES = [
   { code: 'en', label: 'EN', name: 'English' },
   { code: 'ur', label: 'اردو', name: 'اردو', rtl: true },
   { code: 'ar', label: 'AR', name: 'العربية', rtl: true },

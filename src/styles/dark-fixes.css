@@ -151,3 +151,6 @@ html[data-theme="dark"] .admin-stat p { color: #d5ded9; }
 :where(html[data-theme="dark"]) .institution-ui .btn.staff-remove:hover { background: var(--sand); }
 :where(html[data-theme="dark"]) .public-header .public-navigation>a:hover, :where(html[data-theme="dark"]) .public-header .public-navigation summary:hover, :where(html[data-theme="dark"]) .public-header .public-navigation>a.active, :where(html[data-theme="dark"]) .public-header details[open]>summary { background: var(--sand); }
 :where(html[data-theme="dark"]) .public-menu a:hover { background: var(--sand); }
+
+/* Question bank: the letter on the correct answer */
+html[data-theme="dark"] .qb-option.correct > .qb-option-letter { color: #0a2e22; }

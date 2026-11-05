@@ -911,7 +911,7 @@ export default function Dashboard() {
         {activeTab === 'messages' && <MessagesPanel onFlash={flash} user={user} restrictedStaffMessaging={isWardenOnly || isDriverOnly} initialUser={pendingMessageUser} onConsumedInitialUser={() => setPendingMessageUser(null)} />}
         {activeTab === 'notifications' && <NotificationsPanel onFlash={flash} />}
         {activeTab === 'receipts' && <MyReceipts onFlash={flash} />}
-        {activeTab === 'freelance' && <FreelanceHub onFlash={flash} />}
+        {activeTab === 'freelance' && <div className="institution-ui institution-remaining-ui fl-ui"><FreelanceHub onFlash={flash} /></div>}
         {activeTab === 'calendar' && <CalendarPanel onFlash={flash} />}
         {activeTab === 'settings' && (activeWorkspace !== 'admin' || isPlatformStaffOnly) && <><SettingsPanel user={user} onFlash={flash} onChanged={refreshProfile} />{activeWorkspace==='student'&&<><ProfilePanel user={user} onFlash={flash} onChanged={refreshProfile}/><RolesPanel onFlash={flash} onChanged={refreshProfile}/><SupportComplaintPanel onFlash={flash}/></>}</>}
         {activeTab === 'help' && <HelpCenterPanel onFlash={flash} />}
@@ -927,7 +927,7 @@ export default function Dashboard() {
               : <InstitutionWorkspace tab={activeTab} user={user} onFlash={flash} onChanged={refreshProfile} isWarden={isWardenOnly} />)}
             {activeWorkspace === 'employer' && <div className="institution-ui employer-ui"><EmployerWorkspace tab={activeTab} user={user} onFlash={flash} onChanged={refreshProfile} /></div>}
             {activeWorkspace === 'company_staff' && <div className="institution-ui employer-ui"><CompanyWorkPanel companies={companies.filter((c) => c.status === 'active')} onFlash={flash} onChanged={reloadCompanies} /></div>}
-            {activeWorkspace === 'admin' && <AdminWorkspace tab={activeTab} user={user} roles={roles} onFlash={flash} onChanged={refreshProfile} />}
+            {activeWorkspace === 'admin' && <div className="institution-ui institution-remaining-ui admin-ui"><AdminWorkspace tab={activeTab} user={user} roles={roles} onFlash={flash} onChanged={refreshProfile} /></div>}
             {activeWorkspace === 'donor' && <div className="institution-ui donor-ui"><DonorWorkspace tab={activeTab} user={user} onFlash={flash} onChanged={refreshProfile} onNavigate={setActiveTab} /></div>}
             {activeWorkspace === 'marketplace_seller' && <div className="institution-ui seller-ui"><SellerWorkspace tab={activeTab} user={user} onFlash={flash} onChanged={refreshProfile} onNavigate={setActiveTab} /></div>}
             {activeWorkspace === 'education_agent' && <div className="institution-ui agent-ui"><AgentWorkspace tab={activeTab} user={user} onFlash={flash} onChanged={refreshProfile} onNavigate={setActiveTab} /></div>}
@@ -21905,15 +21905,17 @@ function AdminAiInsightsPanel({ onFlash }) {
   );
 }
 
-// Super Admin — World Map (spec Part 16A.3). Real per-country user + institution counts, plotted
-// as bubbles over a plain lat/long graticule. Positions come from approximate geographic
-// centroids (see backend utils/countryCentroids.js), not traced coastlines — an honest
-// proportional-distribution view rather than a claim of cartographic precision.
+// Super Admin — World Map (spec Part 16A.3). Real per-country user + institution counts on a real
+// map of the world (public/geo/world-map.json, drawn in the same projection as the bubbles).
+// Countries with activity are coloured, and each has a bubble sized by its total.
 function AdminWorldMapPanel({ onFlash }) {
   const [data, setData] = useState(null);
+  const [world, setWorld] = useState([]);
   useEffect(() => { apiRequest('/admin/world-map').then(setData).catch((err) => onFlash(err.message)); }, [onFlash]);
+  useEffect(() => { fetch('/geo/world-map.json').then((r) => r.json()).then(setWorld).catch(() => setWorld([])); }, []);
 
   if (!data) return <p role="status" className="admin-notice">Loading...</p>;
+  const activeCodes = new Map(data.points.map((p) => [p.code, p]));
 
   const maxCount = Math.max(...data.points.map((p) => p.userCount + p.institutionCount), 1);
   const project = (lat, lng) => ({ x: ((lng + 180) / 360) * 100, y: ((90 - lat) / 180) * 100 });
@@ -21921,14 +21923,11 @@ function AdminWorldMapPanel({ onFlash }) {
   return (
     <div>
       <h3 className="font-semibold mb-2">Global World Map</h3>
-      <p className="text-xs" style={{ color: 'var(--ink-soft)', marginBottom: 16 }}>Bubble size = combined users + institutions in that country. Real counts, approximate positions.</p>
+      <p className="text-xs" style={{ color: 'var(--ink-soft)', marginBottom: 16 }}>Countries with accounts are coloured. Bubble size = combined users + institutions in that country.</p>
 
-      <div className="card" style={{ padding: 0, position: 'relative', aspectRatio: '2 / 1', overflow: 'hidden', background: 'linear-gradient(180deg, var(--sand) 0%, var(--paper) 100%)' }}>
-        {/* Graticule background — lat/long reference lines, not a traced coastline. */}
-        <svg viewBox="0 0 100 50" style={{ position: 'absolute', inset: 0, width: '100%', height: '100%' }} aria-hidden="true">
-          {[10, 20, 30, 40, 50, 60, 70, 80, 90].map((x) => <line key={`v${x}`} x1={x} y1="0" x2={x} y2="50" stroke="var(--sand-line)" strokeWidth="0.15" />)}
-          {[5, 10, 15, 20, 25, 30, 35, 40, 45].map((y) => <line key={`h${y}`} x1="0" y1={y} x2="100" y2={y} stroke="var(--sand-line)" strokeWidth="0.15" />)}
-          <line x1="0" y1="25" x2="100" y2="25" stroke="var(--sand-line)" strokeWidth="0.4" />
+      <div className="card" style={{ padding: 0, position: 'relative', aspectRatio: '2 / 1', overflow: 'hidden', background: 'var(--paper-raised)' }}>
+        <svg viewBox="0 0 1000 500" style={{ position: 'absolute', inset: 0, width: '100%', height: '100%' }} role="img" aria-label="World map of CareerZ accounts">
+          {world.map((country, i) => { const active = activeCodes.get(country.c); return <path key={`${country.c || country.n}-${i}`} d={country.d} fill={active ? 'var(--emerald)' : 'var(--sand)'} stroke="var(--sand-line)" strokeWidth="0.5"><title>{active ? `${active.name}: ${active.userCount} users, ${active.institutionCount} institutions` : country.n}</title></path>; })}
         </svg>
         {data.points.map((p) => {
           const { x, y } = project(p.lat, p.lng);
@@ -21939,8 +21938,8 @@ function AdminWorldMapPanel({ onFlash }) {
               style={{
                 position: 'absolute', left: `${x}%`, top: `${y}%`, width: size, height: size,
                 transform: 'translate(-50%, -50%)', borderRadius: '50%',
-                background: 'color-mix(in srgb, var(--forest) 55%, transparent)',
-                border: '1.5px solid var(--forest)', display: 'grid', placeItems: 'center', cursor: 'default'
+                background: 'var(--forest)', boxShadow: '0 0 0 4px color-mix(in srgb, var(--forest) 25%, transparent)',
+                display: 'grid', placeItems: 'center', cursor: 'default'
               }}>
               <span style={{ fontSize: 9, fontWeight: 700, color: '#fff', textShadow: '0 1px 2px rgba(0,0,0,.4)' }}>{p.code}</span>
             </div>

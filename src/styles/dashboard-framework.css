@@ -751,3 +751,57 @@ table.u-table tbody tr.is-selected{background:rgba(27,138,99,0.08);}
   .dash-sidebar-nav { min-height: 0; overscroll-behavior: contain; -webkit-overflow-scrolling: touch; }
   .dash-sidebar-foot { padding-block-end: env(safe-area-inset-bottom, 0px); }
 }
+
+/* The language a first-time visitor's region opened the site in. */
+.lang-notice { position: fixed; left: 50%; transform: translateX(-50%); width: max-content; inset-block-end: 18px; z-index: 950; display: flex; align-items: center; flex-wrap: wrap; gap: 10px; max-width: min(460px, calc(100vw - 36px)); padding: 14px 16px; background: var(--paper-raised); color: var(--ink); border: 1px solid var(--sand-line); border-radius: 16px; box-shadow: var(--shadow-lg); }
+.lang-notice-text { flex: 1 1 100%; font-size: 13.5px; }
+.lang-notice .form-select { flex: 1 1 150px; width: auto; height: 42px; padding-block: 0; }
+.lang-notice .btn { padding: 9px 20px; }
+@media (max-width: 640px) { .lang-notice { inset-block-end: 84px; } }
+
+/* Admin uses the institute design (institution-ui); these fill in what its older panels lacked. */
+.admin-ui .card { padding: 24px; margin-bottom: 20px; }
+.admin-ui .card:hover { transform: none; box-shadow: none; }
+.admin-ui .card .card { margin-bottom: 0; }
+.admin-ui :is(h2, h3) { margin-bottom: 14px; }
+.admin-ui h4 { margin: 18px 0 12px; }
+.admin-ui :is(.pl-head, .ads-head) :is(h2, h3) { margin-bottom: 6px; }
+.admin-ui :is(.mod-wrap, .cr-wrap, .pl-wrap, .ads-admin) { gap: 20px; }
+.admin-ui .ads-admin > .card, .admin-ui .pl-wrap > .card { margin-bottom: 0; }
+.admin-ui :is(.cr-filters, .mod-filters) { gap: 12px; margin-bottom: 16px; }
+.admin-ui :is(.cr-filters, .mod-filters) > :is(.form-input, .form-select) { flex: 1 1 180px; width: auto; max-width: 320px !important; }
+.admin-ui :is(.cr-filters, .mod-filters) > .btn { flex: 0 0 auto; }
+.admin-ui .cr-item { padding: 18px; }
+.admin-ui .cr-item .btn { margin: 8px 8px 0 0; }
+.admin-ui .pl-mods { gap: 14px; margin-top: 16px; }
+.admin-ui .pl-mod { padding: 16px; }
+.admin-ui .ads-places { gap: 12px 20px; margin: 14px 0; }
+.admin-ui .ads-price { gap: 14px 20px; margin-top: 16px; }
+.admin-ui .ads-price label { flex: 0 1 200px; }
+.admin-ui .mod-table th, .admin-ui .mod-table td { padding: 12px 10px; }
+.admin-ui .mod-row-actions .btn { margin: 0; }
+.admin-ui .mod-list { gap: 12px; }
+.admin-ui .mod-item { padding: 16px; }
+.admin-ui form.flex, .admin-ui .flex.flex-wrap { gap: 12px; }
+.admin-ui .dash-tabs, .admin-ui .admin-tabs { margin-bottom: 18px; }
+
+/* Freelancer Hub uses the institute design too. */
+.fl-ui .card:hover { transform: none; box-shadow: none; }
+.fl-ui .fl-hub { gap: 18px; }
+.fl-ui .fl-card { padding: 24px; }
+.fl-ui .fl-card h3 { margin-bottom: 4px; }
+
+/* Headings and the content under them, on every account's screens. Low weight on purpose, so a
+   panel's own spacing still wins. */
+.institution-ui :where(h2, h3, h4) + :where(p, form) { margin-top: 8px; }
+.institution-ui :where(section, .admin-card) > :where(h2) + :where(div) { margin-top: 12px; }
+.institution-ui .grid-cols-7 + .card { margin-top: 14px; }
+.institution-ui form + h3 { margin-top: 22px; }
+.institution-ui form.flex + p { margin-top: 12px; }
+
+/* The institute design colours every bold word with the ink colour; on admin's dark panels and
+   old radio labels that needs undoing. */
+.institution-remaining-ui.admin-ui strong { color: inherit; }
+.institution-remaining-ui.admin-ui .admin-stat:first-child p { color: #fff; opacity: .85; }
+.institution-remaining-ui:is(.admin-ui, .fl-ui) label:has(input[type=radio]) { display: inline-flex; flex-direction: row; align-items: center; gap: 8px; margin-right: 16px; }
+.admin-ui .admin-stats { grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); }
