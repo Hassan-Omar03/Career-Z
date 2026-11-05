@@ -64,6 +64,7 @@ export default function VerifyStudentId() {
           </div>
         )}
 
+        <p style={{ margin: '16px 0 8px' }}><Link to="/verify-student-id">Check another number</Link></p>
         <Link to="/" style={{ ...styles.homeLink, display: 'inline-flex', alignItems: 'center', gap: 5 }}>
           <FaArrowLeft aria-hidden="true" /> Back to CareerZ
         </Link>

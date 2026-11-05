@@ -744,3 +744,10 @@ table.u-table tbody tr.is-selected{background:rgba(27,138,99,0.08);}
 .live-attendance label .form-input { display: block; }
 .live-attendance form .form-input { flex: 1 1 220px; }
 .live-attendance details > summary { margin-top: 4px; }
+
+/* Phones and tablets: the menu opens as its own full screen above the header, and only the list scrolls. */
+@media (max-width: 980px) {
+  .dash-sidebar { z-index: 1000; width: 100%; height: 100dvh; max-height: 100dvh; box-shadow: none; }
+  .dash-sidebar-nav { min-height: 0; overscroll-behavior: contain; -webkit-overflow-scrolling: touch; }
+  .dash-sidebar-foot { padding-block-end: env(safe-area-inset-bottom, 0px); }
+}

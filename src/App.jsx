@@ -34,6 +34,7 @@ const VisaPage = pageLoader(() => import('./pages/VisaPage'));
 const InvitePage = pageLoader(() => import('./pages/InvitePage'));
 const VerifyFeeReceipt = pageLoader(() => import('./pages/VerifyFeeReceipt'));
 const VerifyReceipt = pageLoader(() => import('./pages/VerifyReceipt'));
+const VerifyLookup = pageLoader(() => import('./pages/VerifyLookup'));
 const FreelanceList = pageLoader(() => import('./pages/Freelance').then((m) => ({ default: m.FreelanceList })));
 const FreelanceDetail = pageLoader(() => import('./pages/Freelance').then((m) => ({ default: m.FreelanceDetail })));
 const FreelancerProfile = pageLoader(() => import('./pages/Freelance').then((m) => ({ default: m.FreelancerProfile })));
@@ -137,6 +138,9 @@ export default function App() {
       <Route path="/signup" element={<Signup />} />
       <Route path="/forgot-password" element={<ForgotPassword />} />
       <Route path="/reset-password" element={<ResetPassword />} />
+      <Route path="/verify-certificate" element={<VerifyLookup title="Certificate Verification" label="Verification ID" placeholder="Enter the Verification ID" hint="The Verification ID is printed on the certificate, under its QR code." path="/verify-certificate" />} />
+      <Route path="/verify-student-id" element={<VerifyLookup title="Student ID Verification" label="Student ID number" placeholder="Enter the student ID number" hint="The number is shown on the student's Digital Student ID, next to its QR code." path="/verify-student-id" />} />
+      <Route path="/verify-fee-receipt" element={<VerifyLookup title="Fee Receipt Verification" label="Receipt number" placeholder="Enter the receipt number" hint="The number is printed on the fee receipt." path="/verify-fee-receipt" />} />
       <Route path="/verify-certificate/:code" element={<VerifyCertificate />} />
       <Route path="/verify-student-id/:code" element={<VerifyStudentId />} />
       <Route path="/verify-fee-receipt/:code" element={<VerifyFeeReceipt />} />

@@ -60,6 +60,7 @@ export default function VerifyCertificate() {
           </div>
         )}
 
+        <p style={{ margin: '16px 0 8px' }}><Link to="/verify-certificate">Check another number</Link></p>
         <Link to="/" style={{ ...styles.homeLink, display: 'inline-flex', alignItems: 'center', gap: 5 }}>
           <FaArrowLeft aria-hidden="true" /> Back to CareerZ
         </Link>

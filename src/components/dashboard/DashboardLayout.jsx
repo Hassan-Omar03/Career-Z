@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import DashboardSidebar from './DashboardSidebar';
 import DashboardHeader from './DashboardHeader';
@@ -16,6 +16,14 @@ export default function DashboardLayout({ children, trail = ['Dashboard'], activ
   }
 
   const isAdmin = activeRole === 'admin';
+
+  // The page behind the open phone menu must not scroll.
+  useEffect(() => {
+    if (!sidebarOpen) return undefined;
+    const previous = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    return () => { document.body.style.overflow = previous; };
+  }, [sidebarOpen]);
 
   return (
     <div data-workspace={activeRole} className={`dash-body${isAdmin ? ' admin-layout' : ' member-layout'}`}>

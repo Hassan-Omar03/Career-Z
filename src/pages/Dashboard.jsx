@@ -1959,6 +1959,7 @@ function StudentDigitalIdPanel({ onFlash }) {
           <img src={id.qrDataUrl} alt="Student ID verification QR code" style={{ width: 84, height: 84, borderRadius: 10, border: '1px solid var(--sand-line)' }} />
           <div style={{ minWidth: 0 }}>
             <p className="text-xs" style={{ color: 'var(--ink-soft)', lineHeight: 1.6 }}>Anyone can scan this code to verify your enrollment status instantly — no login required.</p>
+            {id.verifyUrl && <p className="text-xs" style={{ marginTop: 6, overflowWrap: 'anywhere' }}><strong>Student ID number:</strong> {id.verifyUrl.split('/').pop()}</p>}
             <a href={id.verifyUrl} target="_blank" rel="noreferrer" className="text-xs flex items-center" style={{ color: 'var(--emerald)', display: 'inline-flex', marginTop: 6, gap: 4 }}>Open verification link <FaArrowUpRightFromSquare aria-hidden="true" size={10} /></a>
           </div>
         </div>

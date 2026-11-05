@@ -25,6 +25,7 @@ export default function VerifyFeeReceipt() {
       {r.transactionReference && <Row label="Transaction reference" value={r.transactionReference} />}
       <Row label="Paid at" value={r.paidAt ? new Date(r.paidAt).toLocaleString() : '—'} /><Row label="Status" value={r.status} />
     </dl><p style={s.proof}>This verified record is permanent digital proof of payment.</p></>}
+    <p style={{ margin: '16px 0 0' }}><Link to="/verify-fee-receipt">Check another number</Link></p>
     <Link to="/" style={s.link}><FaArrowLeft /> Back to CareerZ</Link>
   </section></main>;
 }
