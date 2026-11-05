@@ -14,6 +14,11 @@ import { detectLanguage } from '../utils/detectLanguage';
 const TranslationContext = createContext(null);
 
 const LANG_KEY = 'careerz_lang';
+// A language the visitor picks lasts for this browser session (refreshing keeps it). When the
+// browser is opened again the site detects the language from the region again.
+const chosenLang = () => { try { return sessionStorage.getItem(LANG_KEY); } catch { return null; } };
+const rememberLang = (code) => { try { sessionStorage.setItem(LANG_KEY, code); } catch { /* unavailable */ } };
+try { localStorage.removeItem(LANG_KEY); } catch { /* unavailable */ } // older versions kept it for good
 const URDU_PATH = () => /^\/ur(\/|$)/.test(window.location.pathname);
 const CACHE_KEY = 'careerz_translation_cache_v2'; // v2: v1 held poor LibreTranslate output
 export const RTL_LANGS = ['ur', 'ar', 'fa', 'he'];
@@ -35,7 +40,7 @@ function saveCache(cache) {
 
 export function TranslationProvider({ children }) {
   // An /ur/… address always opens in Urdu.
-  const [lang, setLangState] = useState(() => (URDU_PATH() ? 'ur' : localStorage.getItem(LANG_KEY) || 'en'));
+  const [lang, setLangState] = useState(() => (URDU_PATH() ? 'ur' : chosenLang() || 'en'));
   const [enabled, setEnabled] = useState(null); // null = still checking with the backend
   const [translating, setTranslating] = useState(false);
 
@@ -51,7 +56,7 @@ export function TranslationProvider({ children }) {
     apiRequest('/translate/config', { auth: false }).then((cfg) => {
       setEnabled(cfg.enabled);
       // First visit with no language chosen yet: open in the language of the visitor's region.
-      if (!cfg.enabled || URDU_PATH() || localStorage.getItem(LANG_KEY)) return;
+      if (!cfg.enabled || URDU_PATH() || chosenLang()) return;
       const detected = detectLanguage();
       if (detected !== 'en') setLangState(detected);
     }).catch(() => setEnabled(false));
@@ -153,10 +158,10 @@ export function TranslationProvider({ children }) {
 
   const setLang = useCallback((code) => {
     // Leaving Urdu on an /ur/… address goes to the same page's normal address.
-    if (code !== 'ur' && URDU_PATH()) { localStorage.setItem(LANG_KEY, code); window.location.assign((window.location.pathname.slice(3) || '/') + window.location.search + window.location.hash); return; }
+    if (code !== 'ur' && URDU_PATH()) { rememberLang(code); window.location.assign((window.location.pathname.slice(3) || '/') + window.location.search + window.location.hash); return; }
     langRef.current = code;
     setLangState(code);
-    localStorage.setItem(LANG_KEY, code);
+    rememberLang(code);
   }, []);
 
   useEffect(() => {
