@@ -802,3 +802,28 @@ table.u-table tbody tr.is-selected{background:rgba(27,138,99,0.08);}
 
 /* The first stat card is dark in every account: its words stay white. */
 .institution-ui .admin-stat:first-child :is(p, strong) { color: #fff; }
+
+/* Admin sections drawn as the institute's cards, tiles and tables. */
+.admin-ui .card > h4:first-child { margin-top: 0; margin-bottom: 14px; font-size: 17px; }
+.admin-ui .admin-card { padding: 28px; margin: 0 0 24px; border: 1px solid var(--sand-line); border-radius: 20px; background: var(--institution-surface); }
+.admin-ui .admin-card > h2:first-child { margin-bottom: 18px; }
+.admin-ui .admin-card > div > article { padding: 18px; border: 1px solid var(--sand-line); border-radius: 14px; background: var(--institution-tint); }
+.admin-ui .admin-card > div > article h3 { margin: 0 0 4px; font-size: 24px; }
+.admin-ui .admin-card > div > article p { margin: 0; font-size: 13px; color: var(--ink-soft); }
+.admin-ui .admin-card > div:not(:first-of-type) { margin-top: 18px; padding-top: 18px; border-top: 1px solid var(--sand-line); }
+.admin-ui .admin-card > div > h3, .admin-ui .admin-card > h3 { margin: 0 0 4px; font-size: 15px; }
+.admin-ui .admin-card > h3 { margin-top: 18px; padding-top: 18px; border-top: 1px solid var(--sand-line); }
+.admin-ui .admin-card > div > h3 + p, .admin-ui .admin-card > h3 + p { margin-top: 0; font-size: 13px; color: var(--ink-soft); }
+.admin-ui .admin-card > .saved-form { margin-top: 14px; }
+
+.admin-ui .mod-table-wrap, :is(.admin-ui, .fl-ui) .fl-scroll { max-width: 100%; overflow-x: auto; border: 1px solid var(--sand-line); border-radius: 14px; background: var(--institution-surface); }
+:is(.admin-ui .mod-table, .admin-ui .fl-table, .fl-ui .fl-table) { width: 100%; border-collapse: collapse; }
+:is(.admin-ui .mod-table, .admin-ui .fl-table, .fl-ui .fl-table) thead th { padding: 15px 18px; background: var(--institution-tint); color: var(--ink-soft); font-size: 10px; font-weight: 700; letter-spacing: .065em; line-height: 1.5; text-transform: uppercase; white-space: nowrap; text-align: start; border-bottom: 1px solid var(--sand-line); }
+:is(.admin-ui .mod-table, .admin-ui .fl-table, .fl-ui .fl-table) tbody :is(td, th) { padding: 16px 18px; font-size: 13px; line-height: 1.6; vertical-align: middle; border-bottom: 1px solid var(--sand-line); }
+:is(.admin-ui .mod-table, .admin-ui .fl-table, .fl-ui .fl-table) tbody tr:last-child :is(td, th) { border-bottom: 0; }
+.admin-ui .mod-table td:first-child { min-width: 150px; }
+.admin-ui .mod-table td:first-child .mod-link { overflow-wrap: normal; word-break: normal; }
+.admin-ui td.mod-row-actions { display: table-cell; min-width: 190px; white-space: nowrap; }
+.admin-ui td.mod-row-actions .btn { margin: 3px 5px 3px 0; }
+.admin-ui .fl-table td:last-child:has(button, a) { text-align: end; white-space: nowrap; }
+.admin-ui .mod-table td:nth-child(3) a, .admin-ui .mod-table td:nth-child(3) { white-space: nowrap; }

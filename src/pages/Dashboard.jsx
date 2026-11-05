@@ -22510,16 +22510,20 @@ function AdminReportsPanel({ onFlash }) {
       <div className="grid g2 mt-6" style={{ gap: 16 }}>
         <div className="card" style={{ padding: 20 }}>
           <h4 className="font-semibold mb-3">Users by Role</h4>
-          {Object.entries(data.usersByRole).map(([role, count]) => (
-            <p key={role} className="text-sm">{role.replace(/_/g, ' ')}: <strong>{count}</strong></p>
+          <div style={{ display: 'grid', gap: 8 }}>
+          {Object.entries(data.usersByRole).sort((a, b) => b[1] - a[1]).map(([role, count]) => (
+            <div key={role} className="flex items-center justify-between text-sm"><span style={{ color: 'var(--ink-soft)', textTransform: 'capitalize' }}>{role.replace(/_/g, ' ')}</span><strong>{count}</strong></div>
           ))}
+          </div>
         </div>
         <div className="card" style={{ padding: 20 }}>
           <h4 className="font-semibold mb-3">Institutions by Verification Status</h4>
+          <div style={{ display: 'grid', gap: 8 }}>
           {Object.entries(data.institutionsByStatus).map(([status, count]) => (
-            <p key={status} className="text-sm">{status.replace(/_/g, ' ')}: <strong>{count}</strong></p>
+            <div key={status} className="flex items-center justify-between text-sm"><span style={{ color: 'var(--ink-soft)', textTransform: 'capitalize' }}>{status.replace(/_/g, ' ')}</span><strong>{count}</strong></div>
           ))}
-          <p className="text-sm mt-2">Scholarships open: <strong>{data.openScholarships}</strong> / {data.totalScholarships} total</p>
+            <div className="flex items-center justify-between text-sm"><span style={{ color: 'var(--ink-soft)' }}>Scholarships open</span><span><strong>{data.openScholarships}</strong> / {data.totalScholarships} total</span></div>
+          </div>
         </div>
       </div>
     </div>
