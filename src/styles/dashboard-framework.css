@@ -752,12 +752,6 @@ table.u-table tbody tr.is-selected{background:rgba(27,138,99,0.08);}
   .dash-sidebar-foot { padding-block-end: env(safe-area-inset-bottom, 0px); }
 }
 
-/* The language a first-time visitor's region opened the site in. */
-.lang-notice { position: fixed; left: 50%; transform: translateX(-50%); width: max-content; inset-block-end: 18px; z-index: 950; display: flex; align-items: center; flex-wrap: wrap; gap: 10px; max-width: min(460px, calc(100vw - 36px)); padding: 14px 16px; background: var(--paper-raised); color: var(--ink); border: 1px solid var(--sand-line); border-radius: 16px; box-shadow: var(--shadow-lg); }
-.lang-notice-text { flex: 1 1 100%; font-size: 13.5px; }
-.lang-notice .form-select { flex: 1 1 150px; width: auto; height: 42px; padding-block: 0; }
-.lang-notice .btn { padding: 9px 20px; }
-@media (max-width: 640px) { .lang-notice { inset-block-end: 84px; } }
 
 /* Admin uses the institute design (institution-ui); these fill in what its older panels lacked. */
 .admin-ui .card { padding: 24px; margin-bottom: 20px; }
@@ -805,3 +799,6 @@ table.u-table tbody tr.is-selected{background:rgba(27,138,99,0.08);}
 .institution-remaining-ui.admin-ui .admin-stat:first-child p { color: #fff; opacity: .85; }
 .institution-remaining-ui:is(.admin-ui, .fl-ui) label:has(input[type=radio]) { display: inline-flex; flex-direction: row; align-items: center; gap: 8px; margin-right: 16px; }
 .admin-ui .admin-stats { grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); }
+
+/* The first stat card is dark in every account: its words stay white. */
+.institution-ui .admin-stat:first-child :is(p, strong) { color: #fff; }

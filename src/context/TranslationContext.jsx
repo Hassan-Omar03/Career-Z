@@ -1,7 +1,6 @@
 import { createContext, useContext, useEffect, useRef, useState, useCallback } from 'react';
 import { apiRequest } from '../api/client';
 import { detectLanguage } from '../utils/detectLanguage';
-import LanguageNotice from '../components/LanguageNotice';
 
 // Real, live machine translation (spec Part 16F "Smart Language Engine") — not a hardcoded
 // per-language dictionary. There is no way to hand-write translation files for the entire app
@@ -15,7 +14,6 @@ import LanguageNotice from '../components/LanguageNotice';
 const TranslationContext = createContext(null);
 
 const LANG_KEY = 'careerz_lang';
-const AUTO_SEEN_KEY = 'careerz_lang_notice_seen';
 const URDU_PATH = () => /^\/ur(\/|$)/.test(window.location.pathname);
 const CACHE_KEY = 'careerz_translation_cache_v2'; // v2: v1 held poor LibreTranslate output
 export const RTL_LANGS = ['ur', 'ar', 'fa', 'he'];
@@ -40,7 +38,6 @@ export function TranslationProvider({ children }) {
   const [lang, setLangState] = useState(() => (URDU_PATH() ? 'ur' : localStorage.getItem(LANG_KEY) || 'en'));
   const [enabled, setEnabled] = useState(null); // null = still checking with the backend
   const [translating, setTranslating] = useState(false);
-  const [autoLang, setAutoLang] = useState(null); // the language picked from the region, until the visitor confirms or changes it
 
   const cacheRef = useRef(loadCache());
   const originalsRef = useRef(new WeakMap()); // DOM text node -> its original (English) text
@@ -56,13 +53,10 @@ export function TranslationProvider({ children }) {
       // First visit with no language chosen yet: open in the language of the visitor's region.
       if (!cfg.enabled || URDU_PATH() || localStorage.getItem(LANG_KEY)) return;
       const detected = detectLanguage();
-      if (detected === 'en') return;
-      setLangState(detected);
-      if (!localStorage.getItem(AUTO_SEEN_KEY)) setAutoLang(detected);
+      if (detected !== 'en') setLangState(detected);
     }).catch(() => setEnabled(false));
   }, []);
 
-  const closeNotice = useCallback(() => { setAutoLang(null); try { localStorage.setItem(AUTO_SEEN_KEY, '1'); } catch { /* unavailable */ } }, []);
 
   const collectTextNodes = useCallback((root) => {
     if (root.nodeType === Node.TEXT_NODE) return root.nodeValue?.trim() ? [root] : [];
@@ -163,7 +157,6 @@ export function TranslationProvider({ children }) {
     langRef.current = code;
     setLangState(code);
     localStorage.setItem(LANG_KEY, code);
-    setAutoLang(null);
   }, []);
 
   useEffect(() => {
@@ -215,8 +208,7 @@ export function TranslationProvider({ children }) {
   return (
     <TranslationContext.Provider value={{ lang, setLang, enabled, translating }}>
       {children}
-      {autoLang && lang === autoLang && <LanguageNotice lang={lang} onChange={setLang} onClose={closeNotice} />}
-    </TranslationContext.Provider>
+          </TranslationContext.Provider>
   );
 }
 
