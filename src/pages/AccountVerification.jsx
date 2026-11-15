@@ -5,6 +5,7 @@ import { FaArrowRightFromBracket, FaPaperPlane, FaUserPen, FaGauge, FaPlus, FaCl
 import { useAuth } from '../context/AuthContext';
 import { getRequirements, getMyVerificationHistory, submitForVerification, setAccountSubtype, addAccountType } from '../api/onboarding';
 import { DocumentGroup, StatusBadge } from '../components/verification/VerificationParts';
+import EmailVerifyCard from '../components/verification/EmailVerifyCard';
 
 const EDITABLE = ['awaiting_documents', 'rejected', 'resubmission_required'];
 const MESSAGES = {
@@ -31,6 +32,7 @@ export function VerificationShell({ title, subtitle, children }) {
       </header>
       <main className="vf-main">
         <div className="vf-head"><h1>{title}</h1>{subtitle && <p>{subtitle}</p>}</div>
+        <EmailVerifyCard />
         {children}
       </main>
     </div>

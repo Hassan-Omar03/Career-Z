@@ -887,6 +887,7 @@ export default function Dashboard() {
 
       <PendingRoleBanner />
       <CompanyInviteBanner invites={companies.filter((c) => c.status === 'invited')} onFlash={flash} onDone={reloadCompanies} />
+      <InstituteInviteBanner onFlash={flash} onJoined={refreshProfile} />
 
       {available.length > 1 && (
         <nav className="cz-tabbar" aria-label="Switch workspace" style={{ marginBottom: 20 }}>
@@ -1547,6 +1548,7 @@ function StudentApplicationsPanel({ onFlash }) {
   const [profile, setProfile] = useState(null);
   const [enrollments, setEnrollments] = useState(null);
   const [programApps, setProgramApps] = useState(null);
+  const [memberships, setMemberships] = useState(null);
   const [admissionTestSession, setAdmissionTestSession] = useState(null);
   const [admissionAnswers, setAdmissionAnswers] = useState({});
   const [admissionResult, setAdmissionResult] = useState(null);
@@ -1558,6 +1560,7 @@ function StudentApplicationsPanel({ onFlash }) {
     apiRequest('/students/me').then(setProfile).catch((err) => onFlash(err.message));
     apiRequest('/students/me/enrollments').then(setEnrollments).catch((err) => onFlash(err.message));
     apiRequest('/institution-applications/mine').then(setProgramApps).catch((err) => onFlash(err.message));
+    apiRequest('/students/me/institutions').then(setMemberships).catch(() => setMemberships([]));
   }, [onFlash]);
 
   useEffect(() => {
@@ -1625,11 +1628,11 @@ function StudentApplicationsPanel({ onFlash }) {
       {admissionResult && <div className="admin-notice mt-3"><strong>{admissionResult.passed ? 'Passed' : 'Not passed'}</strong> — Score {admissionResult.score}/{admissionResult.maxScore} ({admissionResult.percent}%).</div>}
 
       <h3 className="font-semibold mb-2 mt-6">Institution Connection</h3>
-      <p className="text-xs mb-2" style={{ color: 'var(--ink-soft)' }}>Connecting to an institution here is instant, so every connection shows as Accepted right away — there's no waiting period. This is separate from the formal Program Applications above.</p>
+      <p className="text-xs mb-2" style={{ color: 'var(--ink-soft)' }}>Connecting sends a request to the institution. It shows as Pending until the institution approves it, and you get a notification when they decide. This is separate from the formal Program Applications above.</p>
       <Table
         loading={profile === null}
         headers={['Institution', 'Status', 'Connected']}
-        rows={profile?.primaryInstitution ? [[profile.primaryInstitution.name, <Tag status="approved" />, profile.admissionDate ? new Date(profile.admissionDate).toLocaleDateString() : '—']] : []}
+        rows={(memberships || []).map((m) => [m.institution?.name || '—', <Tag status={MEMBERSHIP_STATUS_TAG[m.status] || 'pending'} label={m.status === 'pending' ? 'Pending approval' : m.status} />, m.joinedAt ? new Date(m.joinedAt).toLocaleDateString() : m.createdAt ? `Requested ${new Date(m.createdAt).toLocaleDateString()}` : '—'])}
         empty="Not connected to an institution yet — go to My Institutions to connect."
       />
 
@@ -17250,6 +17253,7 @@ function InstitutionStaffPanel({ onFlash }) {
 
   async function addStaffMember(e) {
     e.preventDefault();
+    if (!form.userId) return onFlash('Choose the staff member: search their name or email and pick them from the list.');
     try {
       // The role's starting permissions plus any AI access ticked here.
       const preset = roleCatalog.roles.find((r) => r.key === form.role)?.permissions || [];
@@ -17309,7 +17313,7 @@ function InstitutionStaffPanel({ onFlash }) {
         <label className="flex items-center gap-2 text-xs"><input type="checkbox" checked={form.canManageAi} onChange={(e) => setForm({ ...form, canManageAi: e.target.checked, canUseAi: e.target.checked || form.canUseAi })} /> Can manage institution AI keys</label>
         <button type="submit" className="btn btn-primary">Add Staff</button>
       </form>
-      <p style={{ fontSize: 12, color: 'var(--ink-soft)', marginBottom: 16 }}>Ask the staff member for their account's User ID from their Profile tab — a search-by-email lookup isn't built yet. Representatives can review inquiries/applications, but can only accept/reject applications if you grant that permission here.</p>
+      <p style={{ fontSize: 12, color: 'var(--ink-soft)', marginBottom: 16 }}>Search the staff member by name or email above and pick them from the list. They need a CareerZ account; if they don't have one, send them an invitation instead. Representatives can review inquiries/applications, but can only accept/reject applications if you grant that permission here.</p>
       <Table
         headers={['Role', 'Designation', 'Department', 'AI permissions', 'Permissions', 'Added', 'Action']}
         rows={(institution.staff || []).map((s) => [
@@ -17641,13 +17645,13 @@ function InstitutionClassesPanel({ onFlash }) {
     }
   }, [courses, sections, timetableSection]);
 
-  const [courseForm, setCourseForm] = useState({ title: '', subject: '', classSection: '', teacher: '', creditHours: 3, academicTerm: '' });
+  const [courseForm, setCourseForm] = useState({ title: '', subject: '', classSection: '', teacher: '', creditHours: 3, academicTerm: '', certificateEnabled: false });
   async function createCourse(e) {
     e.preventDefault();
     try {
       await apiRequest(`/institutions/${institution._id}/courses`, { method: 'POST', body: courseForm });
       onFlash('Course created and assigned to the teacher.', 'success');
-      setCourseForm({ title: '', subject: '', classSection: '', teacher: '', creditHours: 3, academicTerm: '' });
+      setCourseForm({ title: '', subject: '', classSection: '', teacher: '', creditHours: 3, academicTerm: '', certificateEnabled: false });
       load();
     } catch (err) { onFlash(err.message); }
   }
@@ -17773,6 +17777,7 @@ function InstitutionClassesPanel({ onFlash }) {
           <label style={{ flex: '1 1 180px', minWidth: 0 }}><span className="text-xs" style={{ display: 'block', fontWeight: 600, marginBottom: 6 }}>Teacher</span><select className="form-select" required value={courseForm.teacher} onChange={(e) => setCourseForm({ ...courseForm, teacher: e.target.value })}><option value="">Select teacher</option>{teachers.map((t) => <option key={t.user._id} value={t.user._id}>{teacherOptionLabel(t)}</option>)}</select></label>
           <label style={{ flex: '0 1 100px', minWidth: 0 }}><span className="text-xs" style={{ display: 'block', fontWeight: 600, marginBottom: 6 }}>Credits</span><input className="form-input" type="number" min="0" max="30" value={courseForm.creditHours} onChange={(e) => setCourseForm({ ...courseForm, creditHours: e.target.value })} /></label>
           <label style={{ flex: '1 1 150px', minWidth: 0 }}><span className="text-xs" style={{ display: 'block', fontWeight: 600, marginBottom: 6 }}>Semester / Term</span><input className="form-input" placeholder="e.g. Semester 1" value={courseForm.academicTerm} onChange={(e) => setCourseForm({ ...courseForm, academicTerm: e.target.value })} /></label>
+          <label className="flex items-center" style={{ gap: 8, fontSize: 13, fontWeight: 600, flex: '1 1 100%' }}><input type="checkbox" checked={courseForm.certificateEnabled} onChange={(e) => setCourseForm({ ...courseForm, certificateEnabled: e.target.checked })} /> Issue a certificate to students who complete this course</label>
           <button type="submit" className="btn btn-primary" style={{ flexShrink: 0 }}>Add Course</button>
         </div>
         <TeacherDetailBox teacher={teachers.find((t) => t.user._id === courseForm.teacher)} />
@@ -23018,7 +23023,6 @@ function ProfilePanel({ user, onFlash, onChanged }) {
             </span>
             <div>
               <strong className="text-sm">Verify your email</strong>
-              <p className="text-xs" style={{ color: 'var(--ink-soft)', marginTop: 4 }}>The code is printed in the backend terminal — SMTP isn't configured yet, so it isn't emailed for real.</p>
             </div>
           </div>
 
@@ -23725,7 +23729,8 @@ function CourseResourcesPanel({ courseId, onFlash, onClose }) {
           {totalLessons > 0 && <p className="text-xs mb-1" style={{ color: 'var(--ink-soft)' }}>Lesson Progress: {completedIds.length}/{totalLessons} lessons ({progressPercent}%)</p>}
           {enrollment && (
             <p className="text-xs mb-4" style={{ color: 'var(--ink-soft)' }}>
-              Overall Course Score: {enrollment.overallScore || 0}% (lessons + assignments + tests + attendance) — <strong>{COMPLETION_STATUS_LABEL[enrollment.completionStatus] || 'In progress'}</strong>
+              Overall Course Score: {enrollment.overallScore || 0}% — <strong>{COMPLETION_STATUS_LABEL[enrollment.completionStatus] || 'In progress'}</strong>
+              {enrollment.scoreParts && <span style={{ display: 'block', marginTop: 4 }}>Made of: {[['lessons', 'Lessons done'], ['assignments', 'Assignments graded'], ['tests', 'Tests graded'], ['attendance', 'Classes attended']].filter(([k]) => enrollment.scoreParts[k]?.weight > 0).map(([k, label]) => `${label} ${enrollment.scoreParts[k].done}/${enrollment.scoreParts[k].total} (${enrollment.scoreParts[k].pct}%, counts ${enrollment.scoreParts[k].weight})`).join(' · ')}</span>}
             </p>
           )}
           <LearningCenter key={courseId} selectedCourseId={courseId} workspace="student" embedded onFlash={onFlash} onUpdated={load} renderLessonExtras={l => <><LessonMetadata lessonId={l._id} canEdit={false} canReview={false} onFlash={onFlash} /><CourseForum courseId={courseId} lesson={l} onFlash={onFlash} compact />{l.kind === "slide_deck" && l.deck?.slides?.length > 0 ? <SlideDeckViewer title={l.title} slides={l.deck.slides} /> : null}</>} />
@@ -23840,6 +23845,62 @@ function TeacherPanel({ onFlash }) {
 // backend/src/utils/courseProgress.js. Weights only need to sum to 100; a category with no items
 // in this course (e.g. no assignments) is automatically excluded and its weight redistributed,
 // so leaving assignments/tests at their default weight never blocks a course that never uses them.
+// Invitations from an institute to the signed-in person's email, with Accept and Decline in the app.
+function InstituteInviteBanner({ onFlash, onJoined }) {
+  const [invites, setInvites] = useState([]);
+  const [busy, setBusy] = useState(null);
+  const load = () => apiRequest('/my-invitations').then(setInvites).catch(() => setInvites([]));
+  useEffect(() => { load(); }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  if (!invites.length) return null;
+  async function respond(id, decision) {
+    setBusy(id);
+    try {
+      await apiRequest(`/my-invitations/${id}/${decision}`, { method: 'POST' });
+      onFlash(decision === 'accept' ? 'You joined the institute.' : 'Invitation declined.', 'success');
+      load();
+      if (decision === 'accept') await onJoined?.();
+    } catch (err) { onFlash(err.message); } finally { setBusy(null); }
+  }
+  return (
+    <div className="company-invites">
+      {invites.map((i) => (
+        <div key={i._id} className="card company-invite">
+          <div>
+            <strong>{i.institution?.name || 'An institute'} invited you to join as {i.kind === 'staff' ? i.role : i.kind}{i.designation ? ` (${i.designation})` : ''}</strong>
+            <p className="text-xs" style={{ color: 'var(--ink-soft)', margin: '4px 0 0' }}>{[i.department, i.classSection && `Class ${i.classSection}`, i.message && `"${i.message}"`].filter(Boolean).join(' · ') || `Valid until ${new Date(i.expiresAt).toLocaleDateString()}`}</p>
+          </div>
+          <div className="flex gap-2">
+            <button type="button" className="btn btn-primary" disabled={busy === i._id} onClick={() => respond(i._id, 'accept')}>Accept</button>
+            <button type="button" className="btn" disabled={busy === i._id} onClick={() => respond(i._id, 'decline')}>Decline</button>
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+// Switches certificates on or off for one course. A student who already finished gets theirs
+// as soon as it is switched on.
+function CertificateToggle({ course, onFlash, onSaved }) {
+  const [on, setOn] = useState(Boolean(course.certificateEnabled));
+  const [busy, setBusy] = useState(false);
+  async function change(value) {
+    setBusy(true);
+    try {
+      await apiRequest(`/courses/${course._id}`, { method: 'PATCH', body: { certificateEnabled: value } });
+      setOn(value);
+      onFlash(value ? 'Certificates switched on for this course.' : 'Certificates switched off for this course.', 'success');
+      onSaved?.();
+    } catch (err) { onFlash(err.message); } finally { setBusy(false); }
+  }
+  return (
+    <div className="completion-row">
+      <div><strong>Certificate</strong><p>{on ? 'Students who complete this course receive a certificate with a public verification link.' : 'No certificate is issued for this course yet.'}</p></div>
+      <label className="flex items-center" style={{ gap: 8, fontSize: 13, fontWeight: 600 }}><input type="checkbox" checked={on} disabled={busy} onChange={(e) => change(e.target.checked)} /> Issue certificates</label>
+    </div>
+  );
+}
+
 function CompletionRulesEditor({ course, onFlash, onSaved }) {
   const [open, setOpen] = useState(false);
   const [weights, setWeights] = useState(course.completionRules?.weights || { lessons: 40, assignments: 20, tests: 25, attendance: 15 });
@@ -23994,7 +24055,7 @@ function TeacherLessonsPanel({ courseId, onFlash, onClose }) {
 
   return <div className="card reveal in material-panel">
     <div className="material-panel-head"><div><span className="material-eyebrow">Course</span><h4>{data?.course?.title || 'Lessons'}</h4></div>{onClose && <button type="button" className="btn" onClick={onClose}>Close</button>}</div>
-    {data?.course && <CompletionRulesEditor course={data.course} onFlash={onFlash} onSaved={load} />}
+    {data?.course && <><CompletionRulesEditor course={data.course} onFlash={onFlash} onSaved={load} /><CertificateToggle course={data.course} onFlash={onFlash} onSaved={load} /></>}
     <LearningCenter key={courseId} selectedCourseId={courseId} refreshKey={refreshKey} workspace="teacher" embedded onFlash={onFlash} onUpdated={load} onDeleteLesson={removeLesson} renderLessonExtras={l => <><LessonMetadata lessonId={l._id} canEdit={true} canReview={true} onFlash={onFlash} /><SubtitleManager lesson={l} onFlash={onFlash} onChanged={load} /><CourseForum courseId={courseId} lesson={l} onFlash={onFlash} compact />{l.kind === 'slide_deck' && l.deck?.slides?.length > 0 ? <><SlideDeckViewer title={l.title} slides={l.deck.slides} /><TeacherSlideDeckManager lesson={l} onFlash={onFlash} onChanged={load} /></> : null}</>} />
     <CourseForum courseId={courseId} onFlash={onFlash} />
   </div>;

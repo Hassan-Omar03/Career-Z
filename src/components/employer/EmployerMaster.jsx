@@ -49,7 +49,7 @@ export function EmployerDashboardFull({ employer = null }) {
         { label: 'Active employees', value: d?.employees }, { label: 'Unread messages', value: d?.unreadMessages },
         { label: 'Unread notifications', value: d?.unreadNotifications }, { label: 'Verification', value: d ? VER[d.verification] || d.verification : null },
         { label: 'Rating', value: d?.rating != null ? `${d.rating} / 5` : d ? 'No reviews' : null, detail: d ? `${d.reviewCount} review${d.reviewCount === 1 ? '' : 's'}` : '' },
-        { label: 'Trust score', value: d ? `${d.trustScore} / 100` : null, detail: d?.trustLevel }
+        { label: 'Trust score', value: d ? (d.trustScore == null ? 'New' : `${d.trustScore} / 100`) : null, detail: d?.trustScore == null && d ? 'Not enough hiring activity yet' : d?.trustLevel }
       ]} />
       {d?.sanction && d.sanction !== 'none' && <p className="emp-warn">CareerZ status: {d.sanction === 'warning' ? 'You have a warning on your account.' : d.sanction === 'suspended' ? 'Your account is suspended; you cannot post jobs until the date in your notification.' : 'Your employer account is banned.'}</p>}
     </Section>
@@ -95,7 +95,7 @@ export function EmployerAnalyticsPanel({ employer = null }) {
 function TrustFactors({ trust }) {
   return (
     <div className="emp-trust">
-      <div className={`emp-trust-score lvl-${(trust.level || '').toLowerCase()}`}><strong>{trust.score}</strong><span>/ 100</span><small>{trust.level} trust</small></div>
+      <div className={`emp-trust-score lvl-${(trust.level || '').toLowerCase()}`}>{trust.score == null ? <><strong>New</strong><small>Not enough hiring activity yet</small></> : <><strong>{trust.score}</strong><span>/ 100</span><small>{trust.level} trust</small></>}</div>
       <div className="emp-trust-factors">
         {trust.factors.map((f) => (
           <div key={f.key} className={`emp-factor${f.hasData ? '' : ' muted'}`}>

@@ -285,6 +285,7 @@ export default function CareerZLiveClassroom({ session, user, role, observeStude
           <div style={{ display: 'grid', gridTemplateColumns: Object.keys(remoteStreams).length ? 'repeat(auto-fit,minmax(280px,1fr))' : '1fr', gap: 12 }}>
             <VideoTile stream={localStream} name={`${user?.fullName || 'You'} (You${role === 'teacher' ? ', Teacher' : ''})`} muted />
             {Object.entries(remoteStreams).map(([id, stream]) => <VideoTile key={id} stream={stream} name={participants.find((p) => p.userId === id)?.name || 'Participant'} />)}
+            {participants.filter((p) => !remoteStreams[p.userId]).map((p) => <div key={`wait-${p.userId}`} style={{ minHeight: 180, borderRadius: 14, background: '#1b2a26', color: '#fff', display: 'grid', placeItems: 'center', textAlign: 'center', padding: 12 }}><div><strong>{p.name}</strong><p className="text-xs" style={{ opacity: 0.75, marginTop: 4 }}>{p.role === 'teacher' ? 'Teacher' : 'Student'} · camera off or connecting</p></div></div>)}
           </div>
           <div className="flex flex-wrap justify-center gap-2" style={{ paddingTop: 14 }}>
             <button type="button" className="btn" disabled={role !== 'teacher' && !policy.microphoneAllowed} onClick={() => toggleTrack('audio', setMicOn)}>{micOn ? 'Mute mic' : 'Unmute mic'}</button>
@@ -296,6 +297,11 @@ export default function CareerZLiveClassroom({ session, user, role, observeStude
           </div>
         </div>
         <aside style={{ background: '#fff', borderRadius: 14, padding: 12, display: 'flex', flexDirection: 'column', minHeight: 430 }}>
+          <strong>In this class ({participants.length + 1})</strong>
+          <ul className="text-xs" style={{ listStyle: 'none', padding: 0, margin: '6px 0 12px', display: 'grid', gap: 4, maxHeight: 140, overflowY: 'auto' }}>
+            <li>{user?.fullName || 'You'} (you{role === 'teacher' ? ', teacher' : ''})</li>
+            {participants.map((p) => <li key={`list-${p.userId}`}>{p.name}{p.role === 'teacher' ? ' (teacher)' : ''}{p.raised ? ' ✋' : ''}</li>)}
+          </ul>
           <strong>Class chat</strong>
           {classEnergy?.total > 0 && <div className="text-xs" style={{ marginTop: 8, padding: 8, borderRadius: 8, background: 'var(--sand)' }}><strong>Energy: {classEnergy.average}%</strong> · {classEnergy.attentiveCount}/{classEnergy.total} focused{role === 'teacher' && classEnergy.roster?.length > 0 && <div>{classEnergy.roster.map((row) => <span key={row.userId} style={{ display: 'block', color: row.attentive ? 'var(--emerald)' : 'var(--rose)' }}>{row.name}: {row.attentive ? 'Focused' : 'Distracted'}</span>)}</div>}</div>}
           {poll ? <div style={{ marginTop: 8, padding: 8, borderRadius: 8, background: 'var(--sand)' }}><strong className="text-xs">{poll.question}</strong>{poll.options.map((option) => <button key={option.index} type="button" className={myVote === option.index ? 'btn btn-primary' : 'btn'} disabled={role === 'teacher' || poll.status === 'closed' || myVote !== null} onClick={() => votePoll(option.index)} style={{ display: 'block', width: '100%', marginTop: 5 }}>{option.text} · {option.votes}</button>)}{role === 'teacher' && poll.status === 'open' && <button type="button" className="btn" onClick={closePoll} style={{ marginTop: 6 }}>Close Poll</button>}</div> : role === 'teacher' && !session.ptmId && <form onSubmit={createPoll} style={{ marginTop: 8 }}><input className="form-input" required placeholder="Live poll question" value={pollQuestion} onChange={(e) => setPollQuestion(e.target.value)} />{pollOptions.map((option, index) => <input key={index} className="form-input" required placeholder={`Option ${index + 1}`} value={option} onChange={(e) => setPollOptions((current) => current.map((item, i) => i === index ? e.target.value : item))} style={{ marginTop: 5 }} />)}<button type="submit" className="btn" style={{ marginTop: 5 }}>Launch Poll</button></form>}

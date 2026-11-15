@@ -168,7 +168,7 @@ export function AdminEscrowPanel({ onFlash, isSuperAdmin }) {
   const tabs = [['disputed', 'Disputes'], ['refund_due', 'Refunds to send'], ['held', 'Money held']];
   return (
     <div className="esc-admin">
-      <div className="esc-admin-tiles">{tabs.map(([k, l]) => <div key={k}><span>{l}</span><strong>{(d?.rows || []).filter((o) => o.escrow.status === k).length}</strong><small>PKR {Math.round(d?.totals?.[k] || 0).toLocaleString()}</small></div>)}</div>
+      <div className="esc-admin-tiles">{tabs.map(([k, l]) => <div key={k}><span>{l}</span><strong>{d?.counts?.[k] ?? (d?.rows || []).filter((o) => o.escrow.status === k).length}</strong><small>{Object.entries(d?.totals?.[k] || {}).map(([cur, amt]) => `${cur} ${Math.round(amt).toLocaleString()}`).join(' · ') || 'PKR 0'}</small></div>)}</div>
       <nav className="cz-tabbar">{tabs.map(([k, l]) => <button key={k} type="button" className={`cz-tab${filter === k ? ' active' : ''}`} aria-pressed={filter === k} onClick={() => setFilter(k)}>{l}</button>)}</nav>
       {d === null ? <p>Loading…</p> : !rows.length ? <p className="esc-muted">Nothing here.</p> : (
         <div className="esc-admin-cards">

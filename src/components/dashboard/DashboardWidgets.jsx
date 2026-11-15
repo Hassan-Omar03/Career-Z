@@ -7,6 +7,9 @@ import { apiRequest } from '../../api/client';
 import { startJazzCashCheckout, getJazzCashConfig, startSafepayCheckout, getSafepayConfig } from '../../utils/jazzcashCheckout';
 import { ManualPayButton, MyManualPayments, ReceivingAccount, IncomingManualPayments } from '../payments/ManualPay';
 
+// One id per money action; the server returns the first result if the same id comes again.
+const newRequestId = () => (globalThis.crypto?.randomUUID ? globalThis.crypto.randomUUID() : `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 12)}`);
+
 export function WelcomeBanner({ name }) {
   return (
     <div className="dash-welcome reveal in">
@@ -47,6 +50,8 @@ export function OverviewStats({ stats }) {
 // real internal ledger (Withdraw/Transfer). Available/Pending only ever change via a confirmed
 // server-side transaction — never optimistically bumped on the client.
 export function WalletCard({ onFlash }) {
+  const withdrawKey = useRef(null);
+  const transferKey = useRef(null);
   const [currency, setCurrency] = useState('PKR');
   const [wallet, setWallet] = useState(null);
   const [modal, setModal] = useState(null); // 'topup' | 'withdraw' | 'transfer' | null
@@ -67,9 +72,10 @@ export function WalletCard({ onFlash }) {
   const [payCurrency, setPayCurrency] = useState('usdttrc20');
   const [cryptoPayment, setCryptoPayment] = useState(null);
   const pollRef = useRef(null);
+  const [walletError, setWalletError] = useState('');
 
   function load() {
-    apiRequest(`/wallet/me${currency ? `?currency=${currency}` : ''}`).then((w) => { setWallet(w); if (!currency) setCurrency(w.currency); }).catch(() => setWallet({ available: 0, pending: 0, transactions: [] }));
+    apiRequest(`/wallet/me${currency ? `?currency=${currency}` : ''}`).then((w) => { setWalletError(''); setWallet(w); if (!currency) setCurrency(w.currency); }).catch((err) => { setWallet(null); setWalletError(err.message || 'Your wallet could not be loaded.'); });
   }
   useEffect(load, [currency]);
   useEffect(() => {
@@ -136,7 +142,9 @@ export function WalletCard({ onFlash }) {
     setBusy(true);
     try {
       const account = useSaved ? {} : { method: payoutMethod, bankName: payoutBank, accountTitle: accountTitle.trim(), accountNumber: payoutDetails.trim() };
-      const result = await apiRequest('/wallet/withdraw', { method: 'POST', body: { amount: Number(amount), currency, ...account } });
+      if (!withdrawKey.current) withdrawKey.current = newRequestId();
+      const result = await apiRequest('/wallet/withdraw', { method: 'POST', body: { amount: Number(amount), currency, ...account, requestId: withdrawKey.current } });
+      withdrawKey.current = null;
       if (!useSaved) apiRequest('/wallet/payout-account').then(setPayout).catch(() => {});
       setWithdrawReceipt(result.reference);
       onFlash?.(`Withdrawal requested. CareerZ will send it to your account. Receipt ${result.reference}.`, 'success');
@@ -167,7 +175,9 @@ export function WalletCard({ onFlash }) {
     if (recipientPreview === 'not_found') return onFlash?.('No CareerZ account found with that email.');
     setBusy(true);
     try {
-      const result = await apiRequest('/wallet/transfer', { method: 'POST', body: { amount: Number(amount), currency, recipientEmail: recipientEmail.trim() } });
+      if (!transferKey.current) transferKey.current = newRequestId();
+      const result = await apiRequest('/wallet/transfer', { method: 'POST', body: { amount: Number(amount), currency, recipientEmail: recipientEmail.trim(), requestId: transferKey.current } });
+      transferKey.current = null;
       onFlash?.(`Sent to ${result.recipient?.fullName || recipientEmail} — receipt ${result.reference}.`, 'success');
       closeModal();
       load();
@@ -186,11 +196,12 @@ export function WalletCard({ onFlash }) {
             {[...new Set(['PKR', 'USD', 'EUR', 'GBP', 'SAR', 'AED', 'INR', ...(wallet?.balances || []).map((b) => b.currency)])].map((c) => <option key={c} value={c}>{c}</option>)}
           </select>
         </div>
-        <div className="grid g2" style={{ gap: 12, padding: '12px 0' }}>
+        {walletError && <div className="admin-notice" role="alert" style={{ margin: '12px 0' }}>Your balance could not be loaded: {walletError} <button type="button" className="btn btn-sm" style={{ marginInlineStart: 8 }} onClick={load}>Try again</button></div>}
+        {!walletError && <div className="grid g2" style={{ gap: 12, padding: '12px 0' }}>
           <div><div style={{ fontSize: 12, color: 'var(--ink-soft)' }}>Available Balance</div><strong style={{ fontSize: 20 }}>{converted ? '≈ ' : ''}{currency} {(wallet?.converted?.available ?? wallet?.available ?? 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</strong></div>
           <div><div style={{ fontSize: 12, color: 'var(--ink-soft)' }}>Pending Balance</div><strong style={{ fontSize: 20 }}>{converted ? '≈ ' : ''}{currency} {(wallet?.converted?.pending ?? wallet?.pending ?? 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</strong></div>
           {(wallet?.balances || []).length > 0 && (converted || wallet.balances.length > 1) && <div className="text-xs" style={{ gridColumn: '1 / -1', color: 'var(--ink-soft)' }}>Your money is held as {wallet.balances.map((b) => `${b.currency} ${b.available.toLocaleString(undefined, { maximumFractionDigits: 2 })}`).join(' · ')}{converted && <>, shown here in {currency} at daily exchange rates (<a href="https://www.exchangerate-api.com" target="_blank" rel="noreferrer">Rates by Exchange Rate API</a>)</>}.{(wallet.converted?.unconverted || []).length > 0 && ` No rate yet for ${wallet.converted.unconverted.map((u) => u.currency).join(', ')}, so it is not included.`} Withdrawals and transfers are made in the currency the money is held in.</div>}
-        </div>
+        </div>}
 
         {!modal ? (
           <div className="flex gap-2 flex-wrap" style={{ padding: '4px 0 12px' }}>
