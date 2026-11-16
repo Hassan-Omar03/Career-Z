@@ -42,6 +42,21 @@ export class ApiError extends Error {
   }
 }
 
+// A date-and-time picker gives the person's local time without a time zone ("2026-11-16T10:00").
+// The server would read that as UTC, so a class set for 10:00 in Riyadh showed at 13:00. The time
+// is sent with the person's own zone applied, as a full UTC timestamp. Dates without a time are left as they are.
+const LOCAL_DATE_TIME = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}(:\d{2}(\.\d{1,3})?)?$/;
+export function withTimeZone(value) {
+  if (typeof value === 'string') {
+    if (!LOCAL_DATE_TIME.test(value)) return value;
+    const d = new Date(value);
+    return Number.isNaN(d.getTime()) ? value : d.toISOString();
+  }
+  if (Array.isArray(value)) return value.map(withTimeZone);
+  if (value && Object.getPrototypeOf(value) === Object.prototype) return Object.fromEntries(Object.entries(value).map(([k, v]) => [k, withTimeZone(v)]));
+  return value;
+}
+
 export async function apiRequest(path, { method = 'GET', body, auth = true, retry = true } = {}) {
   const headers = { 'Content-Type': 'application/json' };
   if (auth && session.getAccessToken()) {
@@ -53,7 +68,7 @@ export async function apiRequest(path, { method = 'GET', body, auth = true, retr
     res = await fetch(`${API_BASE}${path}`, {
       method,
       headers,
-      body: body ? JSON.stringify(body) : undefined
+      body: body ? JSON.stringify(withTimeZone(body)) : undefined
     });
   } catch {
     throw new ApiError('Cannot reach the CareerZ server. Is the backend running?', 0);

@@ -43,6 +43,7 @@ export function ScholarshipApplyButton({ scholarship, onFlash, onDone }) {
   const [docs, setDocs] = useState({}); // key -> { fileId, name } | 'uploading'
   const [errors, setErrors] = useState({});
   const [busy, setBusy] = useState(false);
+  const [formError, setFormError] = useState('');
 
   async function start() {
     setOpen(true);
@@ -61,13 +62,13 @@ export function ScholarshipApplyButton({ scholarship, onFlash, onDone }) {
     e.preventDefault();
     e.stopPropagation(); // the dialog may sit inside another form on the page
     const missing = info.documents.filter((d) => !docs[d.key]?.fileId);
-    if (missing.length) return onFlash(`Upload: ${missing.map((d) => d.label).join(', ')}.`);
-    setBusy(true); setErrors({});
+    if (missing.length) { setFormError(`Upload: ${missing.map((d) => d.label).join(', ')}.`); return onFlash(`Upload: ${missing.map((d) => d.label).join(', ')}.`); }
+    setBusy(true); setErrors({}); setFormError('');
     try {
       await apiRequest(`/scholarships/${scholarship._id}/apply`, { method: 'POST', body: { form, reason, documents: info.documents.map((d) => ({ key: d.key, fileId: docs[d.key].fileId })) } });
       onFlash('Application submitted. The donor will review it.', 'success');
       setOpen(false); onDone?.();
-    } catch (err) { setErrors(err.errors || {}); onFlash(err.message); } finally { setBusy(false); }
+    } catch (err) { setErrors(err.errors || {}); setFormError(err.message); onFlash(err.message); } finally { setBusy(false); }
   }
 
   if (!open) return <button type="button" className="btn btn-primary" onClick={start}>Apply</button>;
@@ -115,6 +116,8 @@ export function ScholarshipApplyButton({ scholarship, onFlash, onDone }) {
               ))}
             </fieldset>}
           </div>
+          {/* Shown inside the dialog: a message on the page behind it cannot be seen while it is open. */}
+          {formError && <p role="alert" className="text-sm" style={{ color: 'var(--rose)', margin: '0 20px 10px' }}>{formError}</p>}
           <div className="u-modal-foot">
             <button type="button" className="btn" disabled={busy} onClick={() => setOpen(false)}>Cancel</button>
             {info && <button type="submit" className="btn btn-primary" disabled={busy}>{busy ? 'Submitting…' : 'Submit application'}</button>}

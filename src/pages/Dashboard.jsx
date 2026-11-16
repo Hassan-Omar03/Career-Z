@@ -7589,9 +7589,10 @@ function StudentExamsSection({ onFlash }) {
       q.type === 'mcq' ? { questionIndex: i, selectedOption: answers[i] ?? null } : { questionIndex: i, textAnswer: answers[i] || '' }
     ));
     try {
-      await apiRequest(`/courses/exams/${openExam._id}/submit`, { method: 'POST', body: { answers: payload } });
-      onFlash('Exam submitted.', 'success');
-      setAttempts({ ...attempts, [openExam._id]: { ...(attempts[openExam._id] || {}), status: 'submitted' } });
+      const saved = await apiRequest(`/courses/exams/${openExam._id}/submit`, { method: 'POST', body: { answers: payload } });
+      // An all-MCQ paper is checked at once; a paper with written answers waits for the teacher.
+      onFlash(saved?.status === 'graded' ? `Exam checked: ${saved.score}/${openExam.totalMarks ?? '—'} · Grade ${saved.finalGrade}` : 'Exam submitted. MCQs were checked automatically; your teacher will mark the written answers.', 'success');
+      setAttempts({ ...attempts, [openExam._id]: { ...(attempts[openExam._id] || {}), status: saved?.status || 'submitted', score: saved?.score, finalGrade: saved?.finalGrade } });
       setOpenExam(null);
     } catch (err) { onFlash(err.message); }
   }
@@ -7633,7 +7634,9 @@ function StudentExamsSection({ onFlash }) {
         rows={(exams || []).map((ex) => [
           <span><strong>{ex.title}</strong><br /><small>{ex.type}</small></span>, <span className="text-xs">{ex.subject || ex.courseTitle}<br />{ex.classSection?.name || 'No section'}</span>, <span className="text-xs">{ex.academicSession || '—'}<br />{ex.term || '—'}</span>, ex.teacher?.fullName || '—', ex.scheduledDate ? new Date(ex.scheduledDate).toLocaleString() : 'Available now', `${ex.questionCount ?? ex.questions.length} Q · ${ex.totalMarks ?? "varies"} marks · ${ex.durationMinutes ? `${ex.durationMinutes} min` : 'Untimed'}`,
           attempts[ex._id]?.status && attempts[ex._id].status !== 'in_progress'
-            ? <Tag status="approved" label={attempts[ex._id].status} />
+            ? attempts[ex._id].status === 'graded'
+              ? <span><Tag status="approved" label="graded" /><br /><strong className="text-sm">{attempts[ex._id].score}/{ex.totalMarks ?? '—'}{attempts[ex._id].finalGrade ? ` · Grade ${attempts[ex._id].finalGrade}` : ''}</strong></span>
+              : <span><Tag status="approved" label={attempts[ex._id].status} /><br /><small>Waiting for the teacher to mark written answers</small></span>
             : ex.closesAt && Date.now() > new Date(ex.closesAt).getTime()
               ? <Tag status="rejected" label="closed" />
             : ex.scheduledDate && Date.now() < new Date(ex.scheduledDate).getTime()
@@ -10302,17 +10305,20 @@ function ExamSubmissionsView({ exam, submissions, onGrade }) {
       {submissions.map((s) => {
         const reviewAnswers = [...s.answers].sort((a, b) => a.questionIndex - b.questionIndex);
         const totalMarks = reviewAnswers.reduce((sum, answer) => sum + (Number(exam?.questions?.[answer.questionIndex]?.marks) || 0), 0);
-        const obtainedMarks = s.status === 'graded' ? Number(s.score) || 0 : reviewAnswers.reduce((sum, answer) => sum + (Number(drafts[`${s._id}-${answer.questionIndex}`]) || 0), 0);
+        // MCQs arrive already checked; their mark is the starting value and the teacher can still change it.
+        const isMcq = (answer) => exam?.questions?.[answer.questionIndex]?.type === 'mcq';
+        const draftOf = (answer) => drafts[`${s._id}-${answer.questionIndex}`] ?? (isMcq(answer) ? answer.marksAwarded : undefined);
+        const obtainedMarks = s.status === 'graded' ? Number(s.score) || 0 : reviewAnswers.reduce((sum, answer) => sum + (Number(draftOf(answer)) || 0), 0);
         const percentage = totalMarks > 0 ? (obtainedMarks / totalMarks) * 100 : 0;
         const needsFinalGrade = s.status !== 'graded' || !s.finalGrade;
-        const allMarksEntered = s.status === 'graded' || reviewAnswers.every((answer) => drafts[`${s._id}-${answer.questionIndex}`] !== undefined && drafts[`${s._id}-${answer.questionIndex}`] !== '');
+        const allMarksEntered = s.status === 'graded' || reviewAnswers.every((answer) => draftOf(answer) !== undefined && draftOf(answer) !== '');
         return (
           <div key={s._id} className="card" style={{ padding: 18, marginBottom: 14 }}>
             <div className="flex items-center justify-between">
               <strong>{s.student?.fullName}</strong><StudentGuardians studentId={s.student?._id}/>
               <span className="text-sm">{s.status === 'graded' ? `Final score: ${s.score}/${totalMarks || '—'}` : 'Teacher review pending'} · <Tag status={s.status === 'graded' ? 'approved' : 'pending'} label={s.status === 'graded' ? 'graded' : 'pending'} /></span>
             </div>
-            <p className="text-sm" style={{ color: 'var(--ink-soft)', marginTop: 8 }}>Review every MCQ, short answer and long answer, then enter marks for each question.</p>
+            <p className="text-sm" style={{ color: 'var(--ink-soft)', marginTop: 8 }}>MCQs are checked automatically against the answer key. Enter marks for the short and long answers; you can still change an MCQ mark.</p>
             <p style={{ marginTop: 6 }}><IntegrityBadge submission={s} /></p>
             <div className="admin-notice" style={{ display: 'flex', gap: 24, flexWrap: 'wrap', marginTop: 14 }}>
               <span><small>Obtained marks</small><br /><strong>{obtainedMarks}/{totalMarks}</strong></span>
@@ -10329,10 +10335,10 @@ function ExamSubmissionsView({ exam, submissions, onGrade }) {
               <div key={a.questionIndex} className="mt-2 text-sm" style={{ padding: 14, border: '1px solid var(--sand-line)', borderRadius: 14 }}>
                 <p><strong>Q{a.questionIndex + 1} · {question.type === 'mcq' ? 'MCQ' : question.type === 'long' ? 'Long answer' : 'Short answer'}:</strong> {question.text}</p>
                 {question.type === 'mcq' ? <div style={{ marginTop: 8 }}><p><strong>Student selected:</strong> {selectedOption || 'No option selected'}</p><p style={{ color: 'var(--ink-soft)' }}><strong>Answer key:</strong> {correctOption || 'Not configured'}</p></div> : <p className="text-[var(--ink-soft)]" style={{ marginTop: 8 }}>{a.textAnswer || '(no answer)'}</p>}
-                <label className="text-xs" style={{ display: 'block', marginTop: 10, fontWeight: 700 }}>Marks awarded (maximum {question.marks})</label>
+                <label className="text-xs" style={{ display: 'block', marginTop: 10, fontWeight: 700 }}>Marks awarded (maximum {question.marks}){question.type === 'mcq' ? ' · checked automatically' : ''}</label>
                 <input
                   className="form-input" type="number" min="0" max={question.marks} placeholder={`0–${question.marks}`} style={{ maxWidth: 160, marginTop: 5 }}
-                  value={s.status === 'graded' ? a.marksAwarded : (drafts[`${s._id}-${a.questionIndex}`] ?? '')}
+                  value={s.status === 'graded' ? a.marksAwarded : (draftOf(a) ?? '')}
                   onChange={(e) => setDrafts({ ...drafts, [`${s._id}-${a.questionIndex}`]: e.target.value })}
                   disabled={s.status === 'graded'}
                 />
@@ -18287,7 +18293,7 @@ function EmployerPostJobPanel({ onFlash, institution = null, onPosted, agreement
           </div>
           <button type="submit" className="btn btn-primary" style={{ flexShrink: 0, padding: '11px 22px', height: 46 }}>{form.status === 'draft' ? 'Save Draft' : 'Post Job'}</button>
         </div>
-        <p className="text-xs" style={{ color: 'var(--ink-soft)', margin: 0 }}>Every job is checked before it goes live. Jobs that ask applicants for money, promise guaranteed visas or look like duplicates wait for an admin to review them.</p>
+        <p className="text-xs" style={{ color: 'var(--ink-soft)', margin: 0 }}>Every job is checked automatically when you publish it. Most jobs go live straight away; jobs that ask applicants for money, promise guaranteed visas or look like duplicates wait for an admin to review them.</p>
       </div>
     </form>
   );
