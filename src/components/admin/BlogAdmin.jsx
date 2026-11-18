@@ -5,16 +5,33 @@ import '../../styles/blog.css';
 
 // Super Admin / content staff blog editor. A published post goes live at once on the home page
 // ("Latest from the education blog"), the /blog list and its own page.
-// Writing: a blank line starts a new paragraph, "## " a heading, "- " a bullet point.
+// Writing: a blank line starts a new paragraph, "## " a heading, "### " a smaller heading,
+// "- " a bullet point and "1. " a numbered point. Lists and headings work anywhere in a block (audit point 10).
 
 const esc = (s) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+const BULLET = /^(?:[-*•])\s+/, NUMBER = /^\d+[.)]\s+/;
 export function textToHtml(text) {
   return String(text || '').trim().split(/\n\s*\n/).map((block) => {
     const lines = block.split('\n').map((l) => l.trim()).filter(Boolean);
-    if (!lines.length) return '';
-    if (lines.every((l) => l.startsWith('- '))) return `<ul>${lines.map((l) => `<li>${esc(l.slice(2))}</li>`).join('')}</ul>`;
-    if (lines.length === 1 && lines[0].startsWith('## ')) return `<h2>${esc(lines[0].slice(3))}</h2>`;
-    return lines.map((l) => (l.startsWith('## ') ? `<h2>${esc(l.slice(3))}</h2>` : `<p>${esc(l)}</p>`)).join('');
+    const out = [];
+    let list = null; // { tag, items }
+    const close = () => { if (list) { out.push(`<${list.tag}>${list.items.map((i) => `<li>${esc(i)}</li>`).join('')}</${list.tag}>`); list = null; } };
+    for (const l of lines) {
+      const kind = BULLET.test(l) ? 'ul' : NUMBER.test(l) ? 'ol' : null;
+      if (kind) {
+        if (list && list.tag !== kind) close();
+        if (!list) list = { tag: kind, items: [] };
+        list.items.push(l.replace(kind === 'ul' ? BULLET : NUMBER, ''));
+        continue;
+      }
+      close();
+      if (l.startsWith('### ')) out.push(`<h3>${esc(l.slice(4))}</h3>`);
+      else if (l.startsWith('## ')) out.push(`<h2>${esc(l.slice(3))}</h2>`);
+      else if (l.startsWith('# ')) out.push(`<h2>${esc(l.slice(2))}</h2>`);
+      else out.push(`<p>${esc(l)}</p>`);
+    }
+    close();
+    return out.join('');
   }).join('\n');
 }
 export function htmlToText(html) {
@@ -23,8 +40,10 @@ export function htmlToText(html) {
   const out = [];
   doc.body.childNodes.forEach((n) => {
     const tag = n.nodeName.toLowerCase();
-    if (tag === 'h1' || tag === 'h2' || tag === 'h3') out.push(`## ${n.textContent.trim()}`);
-    else if (tag === 'ul' || tag === 'ol') out.push([...n.querySelectorAll('li')].map((li) => `- ${li.textContent.trim()}`).join('\n'));
+    if (tag === 'h3' || tag === 'h4') out.push(`### ${n.textContent.trim()}`);
+    else if (tag === 'h1' || tag === 'h2') out.push(`## ${n.textContent.trim()}`);
+    else if (tag === 'ul') out.push([...n.querySelectorAll('li')].map((li) => `- ${li.textContent.trim()}`).join('\n'));
+    else if (tag === 'ol') out.push([...n.querySelectorAll('li')].map((li, i) => `${i + 1}. ${li.textContent.trim()}`).join('\n'));
     else if (n.textContent.trim()) out.push(n.textContent.trim());
   });
   return out.join('\n\n');
@@ -91,7 +110,7 @@ export default function BlogAdmin({ onFlash }) {
         <div className="blog-editor-head"><div><h3>{editing ? 'Edit post' : 'New blog post'}</h3><p>Published posts show at once on the home page, on /blog and on their own page.</p></div>{editing && <button type="button" className="btn" onClick={() => { setEditing(null); setForm(EMPTY); }}>Cancel edit</button>}</div>
         <label className="hiring-field"><span>Title</span><input className="form-input" maxLength={160} value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })} placeholder="e.g. 10 tips to prepare for your first teaching interview" /></label>
         <div className="blog-editor-row">
-          <label className="hiring-field"><span>Category</span><input className="form-input" maxLength={60} value={form.category} onChange={(e) => setForm({ ...form, category: e.target.value })} placeholder="e.g. Careers, Scholarships, Study tips" /></label>
+          <label className="hiring-field"><span>Category</span><input className="form-input" maxLength={60} value={form.category} onChange={(e) => setForm({ ...form, category: e.target.value })} placeholder="e.g. Careers, Scholarships, Study tips. Use News or Press to show it on those pages" /></label>
           <label className="hiring-field"><span>Short summary (shown on cards)</span><input className="form-input" maxLength={240} value={form.excerpt} onChange={(e) => setForm({ ...form, excerpt: e.target.value })} placeholder="One or two lines about the post" /></label>
         </div>
         <div className="blog-cover-field">
@@ -103,7 +122,7 @@ export default function BlogAdmin({ onFlash }) {
           </div>
         </div>
         <label className="hiring-field"><span>Post</span><textarea className="form-input blog-text" rows={14} value={form.text} onChange={(e) => setForm({ ...form, text: e.target.value })} placeholder={'Write your post here.\n\nLeave a blank line for a new paragraph.\n## A heading\n- A bullet point'} /></label>
-        <small className="blog-hint">Blank line = new paragraph · start a line with <b>## </b> for a heading · start lines with <b>- </b> for bullet points.</small>
+        <small className="blog-hint">Blank line = new paragraph · <b>## </b> heading · <b>### </b> smaller heading · <b>- </b> bullet points · <b>1. </b> numbered points.</small>
         <div className="blog-actions">
           <button type="button" className="btn btn-primary" disabled={busy} onClick={() => save('published')}>{busy ? 'Saving…' : editing ? 'Save and publish' : 'Publish now'}</button>
           <button type="button" className="btn" disabled={busy} onClick={() => save('draft')}>Save as draft</button>

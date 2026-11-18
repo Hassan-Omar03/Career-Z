@@ -36,13 +36,14 @@ export default function AiConsole() {
     if (busy) return;
     setActive(index);
     const { q } = PROMPTS[index];
+    // A saved answer is reused for 10 minutes only, so counts like "how many jobs" stay current (audit N-30).
     const cached = readCache()[q];
-    if (cached) return typeOut(cached);
+    if (cached && typeof cached === 'object' && Date.now() - cached.at < 10 * 60 * 1000) return typeOut(cached.text);
     setBusy(true); setTyped('');
     try {
       const { reply } = await apiRequest('/site-assistant/chat', { method: 'POST', auth: false, body: { messages: [{ role: 'user', content: q }] } });
       const plain = String(reply || '').replace(/\*\*/g, '').replace(/\[([^\]]+)\]\(([^)]+)\)/g, '$1 ($2)');
-      try { sessionStorage.setItem(CACHE, JSON.stringify({ ...readCache(), [q]: plain })); } catch { /* not cached */ }
+      try { sessionStorage.setItem(CACHE, JSON.stringify({ ...readCache(), [q]: { text: plain, at: Date.now() } })); } catch { /* not cached */ }
       typeOut(plain);
     } catch (err) {
       setTyped(err.message || 'The assistant is temporarily unavailable. Please try again.');

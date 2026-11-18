@@ -46,6 +46,7 @@ export default function Login() {
   const [success, setSuccess] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [twoFactorEmail, setTwoFactorEmail] = useState(location.state?.socialTwoFactorEmail || null);
+  const [twoFactorMethod, setTwoFactorMethod] = useState(location.state?.socialTwoFactorMethod || 'email');
   const [twoFactorCode, setTwoFactorCode] = useState('');
 
   const [providers, setProviders] = useState([]);
@@ -82,6 +83,7 @@ export default function Login() {
 
       if (result.twoFactorRequired) {
         setTwoFactorEmail(result.email);
+        setTwoFactorMethod(result.method || 'email');
         setSubmitting(false);
         return;
       }
@@ -155,16 +157,16 @@ export default function Login() {
             {twoFactorEmail ? (
               <form id="login-2fa-form" noValidate onSubmit={handleVerifyTwoFactor}>
                 <p style={{ fontSize: 13.5, color: 'var(--ink-soft, #6b7280)', marginBottom: 16, lineHeight: 1.6 }}>
-                  Two-factor authentication is on for <strong>{twoFactorEmail}</strong>. Enter the code we just emailed you.
+                  Two-factor authentication is on for <strong>{twoFactorEmail}</strong>. {twoFactorMethod === 'totp' ? 'Enter the 6-digit code from your authenticator app. Lost your phone? Enter one of your backup codes.' : 'Enter the code we just emailed you.'}
                 </p>
                 <div className="form-group">
                   <label htmlFor="login-2fa-code">Login code</label>
                   <input
                     className="form-input"
                     type="text"
-                    inputMode="numeric"
+                    inputMode={twoFactorMethod === 'totp' ? 'text' : 'numeric'}
                     id="login-2fa-code"
-                    placeholder="6-digit code"
+                    placeholder={twoFactorMethod === 'totp' ? '6-digit code or backup code' : '6-digit code'}
                     autoComplete="one-time-code"
                     value={twoFactorCode}
                     onChange={(e) => setTwoFactorCode(e.target.value)}

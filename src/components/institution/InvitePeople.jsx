@@ -26,7 +26,7 @@ export default function InvitePeople({ institution, onFlash }) {
   const load = () => apiRequest(`/institutions/${institution._id}/invites?kind=${kind}`).then(setList).catch((e) => { onFlash(e.message); setList([]); });
   useEffect(() => { load(); setResults(null); }, [kind]); // eslint-disable-line react-hooks/exhaustive-deps
   useEffect(() => {
-    apiRequest('/institutions/staff-roles').then((r) => setRoles((r.roles || []).filter((x) => x.key !== 'teacher'))).catch(() => {});
+    apiRequest(`/institutions/staff-roles?institution=${institution._id}`).then((r) => setRoles((r.roles || []).filter((x) => x.key !== 'teacher'))).catch(() => {});
     apiRequest(`/institutions/${institution._id}/class-sections`).then(setSections).catch(() => {});
   }, [institution._id]);
 

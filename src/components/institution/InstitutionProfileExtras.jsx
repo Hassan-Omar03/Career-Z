@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { apiRequest } from '../../api/client';
+import { uploadToPlatformStorage } from '../../utils/platformUpload';
 
 // Accreditation, affiliations, social links and map location for the institution's public
 // profile (shown on /institutes/:id). Saved with PATCH /institutions/:id; the server validates
@@ -14,13 +15,27 @@ function fromInstitution(i) {
     accreditations: (i.accreditations || []).map((a) => ({ body: a.body || '', reference: a.reference || '', validUntil: day(a.validUntil), documentUrl: a.documentUrl || '' })),
     affiliations: (i.affiliations || []).map((a) => ({ name: a.name || '', kind: a.kind || 'other', since: a.since || '' })),
     socialLinks: Object.fromEntries(NETWORKS.map(([k]) => [k, i.socialLinks?.[k] || ''])),
-    location: { lat: i.location?.lat ?? '', lng: i.location?.lng ?? '' }
+    location: { lat: i.location?.lat ?? '', lng: i.location?.lng ?? '' },
+    // Master 8.4 and 15D.21.
+    vision: i.vision || '', mission: i.mission || '', history: i.history || '',
+    principalMessage: { name: i.principalMessage?.name || '', title: i.principalMessage?.title || '', message: i.principalMessage?.message || '', photo: i.principalMessage?.photo || '' },
+    gallery: (i.gallery || []).map((g) => ({ url: g.url, caption: g.caption || '' })),
+    schoolLanguage: i.schoolLanguage || '', uniform: i.uniform || ''
   };
 }
 
 export default function InstitutionProfileExtras({ institution, onFlash, onSaved }) {
   const [form, setForm] = useState(() => fromInstitution(institution));
-  const [saving, setSaving] = useState(false), [locating, setLocating] = useState(false);
+  const [saving, setSaving] = useState(false), [locating, setLocating] = useState(false), [uploading, setUploading] = useState('');
+  // Photos go to CareerZ storage first; only the https link is saved with the profile.
+  async function upload(files, onUrl, what) {
+    const list = [...(files || [])].filter((f) => /^image\/(png|jpe?g|webp)$/.test(f.type));
+    if (!list.length) return onFlash('Choose a PNG, JPG or WebP photo.');
+    if (list.some((f) => f.size > 5 * 1024 * 1024)) return onFlash('Each photo must be 5 MB or smaller.');
+    setUploading(what);
+    try { for (const f of list) onUrl(await uploadToPlatformStorage(f, 'institution-gallery', 'image', `${institution.name}-${what}`)); }
+    catch (err) { onFlash(err.message || 'The photo could not be uploaded.'); } finally { setUploading(''); }
+  }
   useEffect(() => { setForm(fromInstitution(institution)); }, [institution._id]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const setRow = (list, idx, patch) => setForm((f) => ({ ...f, [list]: f[list].map((r, i) => (i === idx ? { ...r, ...patch } : r)) }));
@@ -48,10 +63,12 @@ export default function InstitutionProfileExtras({ institution, onFlash, onSaved
         accreditations: form.accreditations.filter((a) => a.body.trim()).map((a) => ({ ...a, validUntil: a.validUntil || null })),
         affiliations: form.affiliations.filter((a) => a.name.trim()).map((a) => ({ ...a, since: a.since ? Number(a.since) : null })),
         socialLinks: form.socialLinks,
-        location: form.location.lat === '' && form.location.lng === '' ? null : form.location
+        location: form.location.lat === '' && form.location.lng === '' ? null : form.location,
+        vision: form.vision, mission: form.mission, history: form.history, principalMessage: form.principalMessage,
+        gallery: form.gallery, schoolLanguage: form.schoolLanguage, uniform: form.uniform
       };
       await apiRequest(`/institutions/${institution._id}`, { method: 'PATCH', body });
-      onFlash('Accreditation, affiliations, links and map saved. They now show on your public profile.', 'success');
+      onFlash('Profile saved. It now shows on your public profile.', 'success');
       onSaved?.();
     } catch (err) { onFlash(err.message); } finally { setSaving(false); }
   }
@@ -61,6 +78,43 @@ export default function InstitutionProfileExtras({ institution, onFlash, onSaved
   return (
     <form onSubmit={save} className="institution-details-card institution-extras card">
       <div className="institution-card-heading"><h3>Accreditation, affiliations, links and map</h3><p>Shown on your public profile so students and parents can check who recognises you and find your campus.</p></div>
+
+      <fieldset className="institution-extras-group">
+        <legend>About your institution</legend>
+        {[['vision', 'Vision'], ['mission', 'Mission'], ['history', 'History']].map(([k, t]) => <label key={k} className="institution-field"><span>{t}</span><textarea className="form-input" rows={3} maxLength={k === 'history' ? 8000 : 3000} value={form[k]} onChange={(e) => setForm((f) => ({ ...f, [k]: e.target.value }))} /></label>)}
+      </fieldset>
+
+      <fieldset className="institution-extras-group">
+        <legend>Principal / head's message</legend>
+        <div className="institution-extras-links">
+          <label className="institution-field"><span>Name</span><input className="form-input" maxLength={120} value={form.principalMessage.name} onChange={(e) => setForm((f) => ({ ...f, principalMessage: { ...f.principalMessage, name: e.target.value } }))} /></label>
+          <label className="institution-field"><span>Title</span><input className="form-input" maxLength={120} placeholder="e.g. Principal" value={form.principalMessage.title} onChange={(e) => setForm((f) => ({ ...f, principalMessage: { ...f.principalMessage, title: e.target.value } }))} /></label>
+        </div>
+        <label className="institution-field"><span>Message</span><textarea className="form-input" rows={4} maxLength={5000} value={form.principalMessage.message} onChange={(e) => setForm((f) => ({ ...f, principalMessage: { ...f.principalMessage, message: e.target.value } }))} /></label>
+        <div className="institution-extras-map">
+          {form.principalMessage.photo && <img src={form.principalMessage.photo} alt="" style={{ width: 72, height: 72, objectFit: 'cover', borderRadius: 12 }} />}
+          <label className="btn">{uploading === 'principal' ? 'Uploading…' : form.principalMessage.photo ? 'Change photo' : 'Add photo'}<input type="file" accept="image/png,image/jpeg,image/webp" hidden onChange={(e) => upload(e.target.files, (url) => setForm((f) => ({ ...f, principalMessage: { ...f.principalMessage, photo: url } })), 'principal')} /></label>
+          {form.principalMessage.photo && <button type="button" className="btn" onClick={() => setForm((f) => ({ ...f, principalMessage: { ...f.principalMessage, photo: '' } }))}>Remove photo</button>}
+        </div>
+      </fieldset>
+
+      <fieldset className="institution-extras-group">
+        <legend>Gallery</legend>
+        {form.gallery.map((g, i) => (
+          <div key={g.url} className="institution-extras-row">
+            <img src={g.url} alt={g.caption} style={{ width: 96, height: 64, objectFit: 'cover', borderRadius: 8 }} />
+            <input className="form-input" aria-label="Caption" placeholder="Caption (optional)" maxLength={160} value={g.caption} onChange={(e) => setRow('gallery', i, { caption: e.target.value })} />
+            <button type="button" className="btn institution-extras-remove" onClick={() => removeRow('gallery', i)}>Remove</button>
+          </div>
+        ))}
+        {form.gallery.length < 40 && <label className="btn institution-extras-add">{uploading === 'gallery' ? 'Uploading…' : '+ Add photos'}<input type="file" accept="image/png,image/jpeg,image/webp" multiple hidden onChange={(e) => upload(e.target.files, (url) => addRow('gallery', { url, caption: '' }), 'gallery')} /></label>}
+      </fieldset>
+
+      <fieldset className="institution-extras-group">
+        <legend>Language and uniform</legend>
+        <label className="institution-field"><span>Language of teaching</span><input className="form-input" maxLength={160} placeholder="e.g. English and Urdu" value={form.schoolLanguage} onChange={(e) => setForm((f) => ({ ...f, schoolLanguage: e.target.value }))} /></label>
+        <label className="institution-field"><span>Uniform information</span><textarea className="form-input" rows={3} maxLength={3000} placeholder="e.g. Summer: white shirt, grey trousers. Winter: navy blazer. Where to buy." value={form.uniform} onChange={(e) => setForm((f) => ({ ...f, uniform: e.target.value }))} /></label>
+      </fieldset>
 
       <fieldset className="institution-extras-group">
         <legend>Accreditations</legend>
@@ -108,7 +162,7 @@ export default function InstitutionProfileExtras({ institution, onFlash, onSaved
           src={`https://www.openstreetmap.org/export/embed.html?bbox=${Number(lng) - 0.01}%2C${Number(lat) - 0.006}%2C${Number(lng) + 0.01}%2C${Number(lat) + 0.006}&layer=mapnik&marker=${lat}%2C${lng}`} />}
       </fieldset>
 
-      <button type="submit" className="btn btn-primary institution-extras-save" disabled={saving}>{saving ? 'Saving...' : 'Save'}</button>
+      <button type="submit" className="btn btn-primary institution-extras-save" disabled={saving || Boolean(uploading)}>{saving ? 'Saving...' : 'Save'}</button>
     </form>
   );
 }

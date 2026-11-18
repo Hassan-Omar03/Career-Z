@@ -18,6 +18,7 @@ export function RealtimeProvider({ children }) {
   const [unreadMessageCount, setUnreadMessageCount] = useState(0);
   const [latestNotification, setLatestNotification] = useState(null);
   const [dashboardUpdateSignal, setDashboardUpdateSignal] = useState(0);
+  const [staffSignal, setStaffSignal] = useState(0);
   const [socket, setSocket] = useState(null);
   const socketRef = useRef(null);
 
@@ -68,6 +69,9 @@ export function RealtimeProvider({ children }) {
       setDashboardUpdateSignal((s) => s + 1);
       // Approve/suspend/re-verification changes what this account may open.
       if (payload?.reason === 'verification') refreshAccountStatus();
+      // Institute staff access changed (role, permissions, suspended, added or removed): the account's
+      // roles may change too, and the dashboard reloads its staff menu on this signal.
+      if (payload?.reason === 'staff') { refreshAccountStatus(); setStaffSignal((s) => s + 1); }
     });
     // A new message bumps the header badge for the recipient; markThreadRead (opening that
     // thread) emits this same event back to the sender, so both sides stay in sync live.
@@ -79,7 +83,7 @@ export function RealtimeProvider({ children }) {
   }, [user?._id]); // eslint-disable-line react-hooks/exhaustive-deps
 
   return (
-    <RealtimeContext.Provider value={{ unreadCount, latestNotification, dashboardUpdateSignal, markAllNotificationsRead, refreshUnreadNotifications, socket, unreadMessageCount, refreshUnreadMessages }}>
+    <RealtimeContext.Provider value={{ unreadCount, latestNotification, dashboardUpdateSignal, staffSignal, markAllNotificationsRead, refreshUnreadNotifications, socket, unreadMessageCount, refreshUnreadMessages }}>
       {children}
     </RealtimeContext.Provider>
   );
@@ -88,5 +92,5 @@ export function RealtimeProvider({ children }) {
 export function useRealtime() {
   const ctx = useContext(RealtimeContext);
   // Components can render outside the provider (e.g. in isolated tests) — return safe no-op defaults.
-  return ctx || { unreadCount: 0, latestNotification: null, dashboardUpdateSignal: 0, markAllNotificationsRead: async () => {}, refreshUnreadNotifications: () => {}, socket: null, unreadMessageCount: 0, refreshUnreadMessages: () => {} };
+  return ctx || { unreadCount: 0, latestNotification: null, dashboardUpdateSignal: 0, staffSignal: 0, markAllNotificationsRead: async () => {}, refreshUnreadNotifications: () => {}, socket: null, unreadMessageCount: 0, refreshUnreadMessages: () => {} };
 }

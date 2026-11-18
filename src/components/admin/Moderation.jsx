@@ -1,6 +1,10 @@
 import { useEffect, useState } from 'react';
 import { apiRequest } from '../../api/client';
 import { showConfirm, showPrompt } from '../../utils/appDialog';
+import { openPrivateFile } from '../recruitment/files';
+
+// Verification documents open here too, not only in the verification queue (audit point 13).
+const docExt = (x) => (x.contentType === 'application/pdf' ? '.pdf' : x.contentType === 'image/png' ? '.png' : '.jpg');
 import '../../styles/moderation.css';
 
 // Super Admin moderation after automatic publishing: remove any fake or suspicious job,
@@ -108,13 +112,13 @@ export function AdminUsersPanel({ onFlash }) {
                 <td><button type="button" className="mod-link" onClick={() => setOpen(u._id)}>{u.fullName}</button></td>
                 <td className="text-xs">{u.email}{u.emailVerified ? ' ✓' : ''}</td>
                 <td className="text-xs">{u.phone ? <a href={`tel:${u.phone}`}>{u.phone}</a> : '–'}</td>
-                <td className="text-xs">{(u.requests.length ? u.requests.map((r) => `${label(r.role)} (${label(r.status)})`) : u.roles.map(label)).join(', ')}</td>
+                <td className="text-xs">{[...u.roles.map(label), ...u.requests.filter((r) => r.status !== 'approved' && !u.roles.includes(r.role)).map((r) => `${label(r.role)} (${label(r.status)})`)].join(', ') || '–'}</td>
                 <td className="text-xs">{u.city || '–'}</td>
-                <td><span className={`tag ${u.status === 'active' ? 'approved' : 'rejected'}`}>{u.status}</span></td>
+                <td><span className={`tag ${u.status === 'active' ? 'approved' : 'rejected'}`}>{u.status === 'deleted' ? 'deleted' : u.status}</span></td>
                 <td className="text-xs">{date(u.createdAt)}</td>
                 <td className="mod-row-actions">
                   <button type="button" className="btn btn-outline btn-sm" onClick={() => setOpen(u._id)}>Details</button>
-                  {!u.roles.includes('super_admin') && (u.status === 'active' ? <button type="button" className="btn btn-outline btn-sm" onClick={() => setStatus(u, 'suspended')}>Suspend</button> : <button type="button" className="btn btn-outline btn-sm" onClick={() => setStatus(u, 'active')}>Activate</button>)}
+                  {!u.roles.includes('super_admin') && u.status !== 'deleted' && (u.status === 'active' ? <button type="button" className="btn btn-outline btn-sm" onClick={() => setStatus(u, 'suspended')}>Suspend</button> : <button type="button" className="btn btn-outline btn-sm" onClick={() => setStatus(u, 'active')}>Activate</button>)}
                 </td>
               </tr>
             ))}</tbody>
@@ -129,6 +133,7 @@ export function AdminUsersPanel({ onFlash }) {
 
 function UserDetail({ id, onClose, onFlash }) {
   const [d, setD] = useState(null);
+  const openDoc = (x, download = false) => openPrivateFile(`/onboarding/documents/${x._id}/file`, { download, filename: `${x.documentType}${docExt(x)}` }).catch((e) => onFlash(e.message));
   useEffect(() => { apiRequest(`/admin/moderation/users/${id}`).then(setD).catch((e) => { onFlash(e.message); onClose(); }); }, [id]); // eslint-disable-line react-hooks/exhaustive-deps
   const u = d?.user;
   return (
@@ -153,7 +158,7 @@ function UserDetail({ id, onClose, onFlash }) {
             {d.profiles.filter((p) => Object.keys(p.fields).length).map((p) => (
               <section key={p.role}><h4>{label(p.role)} profile ({p.percent}%)</h4><dl className="mod-dl">{Object.entries(p.fields).map(([k, v]) => <div key={k}><dt>{label(k.replace(/([A-Z])/g, ' $1'))}</dt><dd>{String(v)}</dd></div>)}</dl></section>
             ))}
-            {d.documents.length > 0 && <section><h4>Documents ({d.documents.length})</h4><ul>{d.documents.map((x) => <li key={x._id}>{label(x.documentType)} · {x.originalName || x.contentType} · {date(x.createdAt)}</li>)}</ul><p className="text-xs text-muted">Open the files from User Verification &amp; Approval.</p></section>}
+            {d.documents.length > 0 && <section><h4>Documents ({d.documents.length})</h4><ul>{d.documents.map((x) => <li key={x._id}>{label(x.documentType)} · {x.originalName || x.contentType} · {date(x.createdAt)} <button type="button" className="btn btn-sm" onClick={() => openDoc(x)}>View</button> <button type="button" className="btn btn-sm" onClick={() => openDoc(x, true)}>Download</button></li>)}</ul></section>}
             {d.institutions.length > 0 && <section><h4>Institutes</h4><ul>{d.institutions.map((i) => <li key={i._id}>{i.name} ({label(i.type)}{i.city ? `, ${i.city}` : ''}) · {String(i.owner) === String(u._id) ? 'owner' : 'staff'} · {label(i.verificationStatus)}</li>)}</ul></section>}
             {d.children.length > 0 && <section><h4>Family links</h4><ul>{d.children.map((c) => <li key={c._id}>{c.parent?.fullName} → {c.student?.fullName} ({c.relationship}, {c.status})</li>)}</ul></section>}
             <section>

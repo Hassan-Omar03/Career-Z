@@ -30,6 +30,9 @@ export default function CareerZLiveClassroom({ session, user, role, observeStude
   const [remoteStreams, setRemoteStreams] = useState({});
   const [participants, setParticipants] = useState([]);
   const [messages, setMessages] = useState([]);
+  const [mediaNote, setMediaNote] = useState('');
+  // On a phone the chat starts closed and has its own Show/Hide button, so it never covers the class (audit point 18).
+  const [chatOpen, setChatOpen] = useState(() => typeof window === 'undefined' || !window.matchMedia?.('(max-width: 760px)').matches);
   const [message, setMessage] = useState('');
   const [status, setStatus] = useState('Connecting camera and microphone…');
   const [micOn, setMicOn] = useState(true);
@@ -60,7 +63,7 @@ export default function CareerZLiveClassroom({ session, user, role, observeStude
     const peer = new RTCPeerConnection(rtcConfigRef.current);
     if(role==='observer'){peer.addTransceiver('audio',{direction:'recvonly'});peer.addTransceiver('video',{direction:'recvonly'});}
     const outgoing = screenStreamRef.current ? new MediaStream([...screenStreamRef.current.getVideoTracks(), ...(localStreamRef.current?.getAudioTracks() || [])]) : localStreamRef.current;
-    outgoing?.getTracks().forEach((track) => peer.addTrack(track, outgoing));
+    outgoing?.getTracks().forEach((track) => { const sender = peer.addTrack(track, outgoing); if (screenStreamRef.current && track.kind === 'video') tuneSender(sender, true); });
     peer.onicecandidate = ({ candidate }) => candidate && sendSignal(member.userId, { candidate });
     peer.ontrack = ({ streams }) => setRemoteStreams((current) => ({ ...current, [member.userId]: streams[0] }));
     peer.onconnectionstatechange = () => {
@@ -163,8 +166,8 @@ export default function CareerZLiveClassroom({ session, user, role, observeStude
         let stream;
         if(role==='observer'){stream=new MediaStream();setCameraOn(false);setMicOn(false);}else try { stream = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: true }, video: { width: { ideal: 1280 }, height: { ideal: 720 } } }); }
         catch {
-          try { stream = await navigator.mediaDevices.getUserMedia({ audio: true, video: false }); setCameraOn(false); }
-          catch { stream = new MediaStream(); setCameraOn(false); setMicOn(false); }
+          try { stream = await navigator.mediaDevices.getUserMedia({ audio: true, video: false }); setCameraOn(false); setMediaNote('Your camera is not available or was blocked, so you joined with sound only.'); }
+          catch { stream = new MediaStream(); setCameraOn(false); setMicOn(false); setMediaNote('Your camera and microphone were blocked or are not available, so others cannot see or hear you. Click the lock icon next to the website address, allow both, then leave and join again.'); }
         }
         if (disposed) return stream.getTracks().forEach((track) => track.stop());
         if (role === 'student' && configuration.policy?.cameraRequired && !stream.getVideoTracks().length) { stream.getTracks().forEach(track => track.stop()); throw new Error('Your teacher requires a camera. Enable camera permission and rejoin.'); }
@@ -230,22 +233,51 @@ export default function CareerZLiveClassroom({ session, user, role, observeStude
     track.enabled = !track.enabled; setter(track.enabled);
   }
 
+  // Screen sharing (audit point 17, master 15B.8). In this classroom every student gets their own copy of
+  // the teacher's video, so the share is capped: text-friendly hint, at most 15 frames a second, keep
+  // the resolution sharp and split the upload between the students. A teacher who joined without a
+  // camera has no video to swap, so the screen is added and the connection renegotiated.
+  const screenSenders = useRef(new WeakMap());
+  async function tuneSender(sender, screen) {
+    try {
+      const params = sender.getParameters();
+      if (!params.encodings?.length) params.encodings = [{}];
+      const perPeer = Math.max(400000, Math.min(2500000, Math.round(4000000 / Math.max(1, peersRef.current.size))));
+      params.encodings.forEach((e) => { if (screen) { e.maxBitrate = perPeer; e.maxFramerate = 15; } else { delete e.maxBitrate; delete e.maxFramerate; } });
+      params.degradationPreference = screen ? 'maintain-resolution' : 'balanced';
+      await sender.setParameters(params);
+    } catch { /* older browsers ignore these settings */ }
+  }
+  function sendVideo(track, screen) {
+    peersRef.current.forEach((peer, userId) => {
+      let sender = peer.getSenders().find((s) => s.track?.kind === 'video') || screenSenders.current.get(peer);
+      if (sender) { sender.replaceTrack(track || null).then(() => track && tuneSender(sender, screen)).catch(() => {}); return; }
+      if (!track) return;
+      // Same stream as the teacher's sound, so students keep hearing the teacher with the shared screen.
+      sender = peer.addTrack(track, localStreamRef.current || new MediaStream([track]));
+      screenSenders.current.set(peer, sender);
+      tuneSender(sender, screen);
+      createOffer({ userId }).catch(onError);
+    });
+  }
+  function stopScreen() {
+    screenStreamRef.current?.getTracks().forEach((track) => track.stop());
+    screenStreamRef.current = null;
+    sendVideo(localStreamRef.current?.getVideoTracks()[0] || null, false);
+    setLocalStream(localStreamRef.current); setSharing(false);
+  }
   async function toggleScreen() {
-    if (sharing) { screenStreamRef.current?.getTracks().forEach(track => track.stop()); screenStreamRef.current = null; setLocalStream(localStreamRef.current); setSharing(false); const camera = localStreamRef.current?.getVideoTracks()[0]; peersRef.current.forEach(peer => peer.getSenders().find(sender => sender.track?.kind === 'video')?.replaceTrack(camera || null)); return; }
+    if (sharing) { stopScreen(); return; }
     if (role !== 'teacher' && !policy.screenShareAllowed) return;
     try {
-      const display = await navigator.mediaDevices.getDisplayMedia({ video: true });
+      const display = await navigator.mediaDevices.getDisplayMedia({ video: { frameRate: { ideal: 15, max: 30 }, width: { max: 1920 }, height: { max: 1080 } }, audio: false });
       screenStreamRef.current = display;
       const screenTrack = display.getVideoTracks()[0];
-      peersRef.current.forEach((peer) => peer.getSenders().find((sender) => sender.track?.kind === 'video')?.replaceTrack(screenTrack));
+      if ('contentHint' in screenTrack) screenTrack.contentHint = 'detail';
+      sendVideo(screenTrack, true);
       setLocalStream(new MediaStream([screenTrack, ...(localStreamRef.current?.getAudioTracks() || [])]));
       setSharing(true);
-      screenTrack.onended = () => {
-        screenStreamRef.current = null;
-        const camera = localStreamRef.current?.getVideoTracks()[0];
-        peersRef.current.forEach((peer) => peer.getSenders().find((sender) => sender.track?.kind === 'video')?.replaceTrack(camera));
-        setLocalStream(localStreamRef.current); setSharing(false);
-      };
+      screenTrack.onended = () => { if (screenStreamRef.current === display) stopScreen(); };
     } catch (error) { if (error.name !== 'NotAllowedError') onError?.(error); }
   }
 
@@ -278,9 +310,11 @@ export default function CareerZLiveClassroom({ session, user, role, observeStude
     <div className="card" style={{ overflow: 'hidden', padding: 0 }}>
       <div className="flex items-center justify-between" style={{ padding: 16, borderBottom: '1px solid var(--sand-line)', gap: 12 }}>
         <div><strong>{session.title}</strong><p className="text-xs" style={{ color: 'var(--ink-soft)' }}>{session.course?.title} · {status} · {participants.length + 1} connected</p></div>
+        <button type="button" className="btn lc-chat-toggle" onClick={() => setChatOpen((v) => !v)} aria-expanded={chatOpen}>{chatOpen ? 'Hide chat' : `Show chat${messages.length ? ` (${messages.length})` : ''}`}</button>
         <button type="button" className="btn" onClick={onLeave} style={{ color: 'var(--rose)' }}>{session.ptmId || session.privateRoom ? 'Leave Meeting' : 'Leave Classroom'}</button>
       </div>
-      <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 3fr) minmax(260px, 1fr)', gap: 14, padding: 14, background: '#0d1715' }}>
+      {mediaNote && <p role="alert" className="admin-notice" style={{ margin: 12 }}>{mediaNote}</p>}
+      <div className={`lc-grid${chatOpen ? '' : ' lc-chat-closed'}`} style={{ gap: 14, padding: 14, background: '#0d1715' }}>
         <div>
           <div style={{ display: 'grid', gridTemplateColumns: Object.keys(remoteStreams).length ? 'repeat(auto-fit,minmax(280px,1fr))' : '1fr', gap: 12 }}>
             <VideoTile stream={localStream} name={`${user?.fullName || 'You'} (You${role === 'teacher' ? ', Teacher' : ''})`} muted />
@@ -296,7 +330,7 @@ export default function CareerZLiveClassroom({ session, user, role, observeStude
             {myEnergy && <span style={{ color: myEnergy.attentive ? 'var(--emerald)' : 'var(--rose)' }}>{myEnergy.attentive ? 'Focused' : 'Distracted'}</span>}
           </div>
         </div>
-        <aside style={{ background: '#fff', borderRadius: 14, padding: 12, display: 'flex', flexDirection: 'column', minHeight: 430 }}>
+        {chatOpen && <aside className="lc-aside" style={{ background: '#fff', borderRadius: 14, padding: 12, display: 'flex', flexDirection: 'column' }}>
           <strong>In this class ({participants.length + 1})</strong>
           <ul className="text-xs" style={{ listStyle: 'none', padding: 0, margin: '6px 0 12px', display: 'grid', gap: 4, maxHeight: 140, overflowY: 'auto' }}>
             <li>{user?.fullName || 'You'} (you{role === 'teacher' ? ', teacher' : ''})</li>
@@ -311,7 +345,7 @@ export default function CareerZLiveClassroom({ session, user, role, observeStude
             {messages.map((item) => <p key={item.id} className="text-xs" style={{ marginBottom: 8 }}><strong>{item.name}:</strong> {item.text}</p>)}
           </div>
           <form onSubmit={sendMessage} className="flex gap-2"><input className="form-input" disabled={role !== 'teacher' && !policy.chatAllowed} value={message} onChange={(e) => setMessage(e.target.value)} placeholder="Ask or reply…" /><button className="btn btn-primary" disabled={role !== 'teacher' && !policy.chatAllowed} type="submit">Send</button></form>
-        </aside>
+        </aside>}
       </div>
       {!session.ptmId && !session.privateRoom && <LiveLearningTools session={session} role={role} localStream={localStream} onGroupChange={switchGroup} onPolicyChange={applyPolicy} onError={onError} />}
     </div>

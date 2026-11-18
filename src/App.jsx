@@ -19,6 +19,7 @@ function pageLoader(load) {
 }
 const SocialCallback = pageLoader(() => import('./pages/SocialCallback'));
 const PublicPage = pageLoader(() => import('./pages/PublicPage'));
+const PublicEvents = pageLoader(() => import('./pages/PublicEvents'));
 const Login = pageLoader(() => import('./pages/Login'));
 const Signup = pageLoader(() => import('./pages/Signup'));
 const ForgotPassword = pageLoader(() => import('./pages/ForgotPassword'));
@@ -174,6 +175,7 @@ export default function App() {
       <Route path="/visa" element={<VisaPage />} />
       <Route path="/invite/:token" element={<InvitePage />} />
       <Route path="/scholarships" element={<ListingPage kind="scholarships" />} />
+      <Route path="/events" element={<PublicEvents />} />
       <Route path="/scholarships/:id" element={<ScholarshipDetail />} />
       <Route path="/institutes" element={<ListingPage kind="institutes" />} />
       <Route path="/institutes/:id" element={<InstituteDetail />} />

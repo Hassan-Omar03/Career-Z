@@ -76,7 +76,7 @@ function PageEditor({ page, saved, onFlash, onBack }) {
       <label className="text-sm">Page text
         <textarea className="form-input" rows={18} value={f.text} onChange={(e) => setF({ ...f, text: e.target.value })} />
       </label>
-      <p className="text-xs text-muted">A blank line starts a new paragraph · start a line with <b>## </b> for a heading · start lines with <b>- </b> for bullet points.</p>
+      <p className="text-xs text-muted">A blank line starts a new paragraph · <b>## </b> heading · <b>### </b> smaller heading · <b>1. </b> numbered points · start lines with <b>- </b> for bullet points.</p>
       <div className="mod-row-actions">
         <button className="btn btn-primary btn-sm" disabled={busy}>{busy ? 'Saving…' : 'Save and publish'}</button>
         {saved && <button type="button" className="btn btn-outline btn-sm" onClick={reset}>Back to original</button>}

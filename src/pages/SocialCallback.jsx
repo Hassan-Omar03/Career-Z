@@ -19,7 +19,7 @@ export default function SocialCallback() {
     request.current.then(async data=>{
       if(!alive)return;
       if(data.linkRequired){navigate('/login',{replace:true,state:{socialLinkRequired:true}});return;}
-      if(data.twoFactorRequired){navigate('/login',{replace:true,state:{socialTwoFactorEmail:data.email}});return;}
+      if(data.twoFactorRequired){navigate('/login',{replace:true,state:{socialTwoFactorEmail:data.email,socialTwoFactorMethod:data.method}});return;}
       await refreshProfile();const pending=peekIntent();if(alive&&pending&&pending.path.startsWith('/invite/')){takeIntent();navigate(pending.path,{replace:true});return;}if(alive)navigate('/dashboard',{replace:true});
     }).catch(e=>{if(alive)setError(e.message);});
     return()=>{alive=false;};

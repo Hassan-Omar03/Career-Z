@@ -42,11 +42,25 @@ function ResourcePanel({ type, label, onFlash }) {
   return <div><form onSubmit={create} className="card" style={{ padding: 18, display: 'grid', gap: 10, marginBottom: 16 }}><h4>{label}</h4><div className="flex gap-2 flex-wrap"><input className="form-input" required placeholder="Title" value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })} /><input className="form-input" placeholder="Unique key (optional)" value={form.key} onChange={(e) => setForm({ ...form, key: e.target.value })} /></div><JsonEditor value={form.data} onChange={(data) => setForm({ ...form, data })} /><button className="btn btn-primary" type="submit" style={{ justifySelf: 'start' }}>Create</button></form>{rows === null ? <p role="status">Loading…</p> : <div className="space-y-2">{rows.map((row) => <div className="card flex items-center justify-between flex-wrap gap-2" style={{ padding: 12 }} key={row._id}><div><strong className="text-sm">{row.title}</strong><p className="text-xs" style={{ color: 'var(--ink-soft)' }}>{row.key || row._id} · {row.status}</p></div><div className="flex gap-2"><button className="btn" onClick={() => setStatus(row, row.status === 'active' ? 'disabled' : 'active')}>{row.status === 'active' ? 'Disable' : 'Activate'}</button>{['task', 'incident', 'compliance_request', 'settlement'].includes(type) && <button className="btn btn-primary" onClick={() => setStatus(row, 'completed')}>Complete</button>}</div></div>)}{rows.length === 0 && <p className="admin-notice">No records yet.</p>}</div>}</div>;
 }
 
+// Fraud & anomaly results in words: what was checked, and what was found (or that nothing was).
+function AnomalyView({ data }) {
+  const r = data.rules || {};
+  const block = (heading, rule, items, line) => <div className="card" style={{ padding: 14, marginBottom: 10 }}><strong>{heading}</strong><p className="text-xs" style={{ color: 'var(--ink-soft)', margin: '2px 0 8px' }}>{rule}</p>{items.length ? <ul className="text-sm" style={{ margin: 0, paddingInlineStart: 18 }}>{items.map((x, i) => <li key={i}>{line(x)}</li>)}</ul> : <p className="text-sm" style={{ margin: 0 }}>Nothing found in the last 24 hours.</p>}</div>;
+  return <div>
+    <p className="text-xs" style={{ color: 'var(--ink-soft)' }}>Checked {new Date(data.generatedAt).toLocaleString()} (last 24 hours).</p>
+    {block('Repeated failed sign-ins', `${r.failedLoginThreshold || 5} or more failed attempts from one IP address`, data.failedByIp || [], (x) => `${x._id || 'Unknown IP'}: ${x.count} failed attempts`)}
+    {block('Large wallet movements', `Single wallet transactions of ${r.largeAmount || 1000} or more`, data.largeTransfers || [], (x) => `${x.user?.fullName || 'Unknown user'} (${x.user?.email || ''}): ${x.type} ${x.currency || ''} ${x.amount}`)}
+    {block('Repeated refund requests', `${r.repeatedRefundThreshold || 3} or more fee refund requests by one person`, data.repeatedRefunds || [], (x) => `${x._id || 'Unknown'}: ${x.count} requests`)}
+  </div>;
+}
+
 function DataPanel({ endpoint, title, onFlash }) {
   const [data, setData] = useState(null);
-  const load = () => apiRequest(endpoint).then(setData).catch((e) => onFlash(e.message));
+  const [error, setError] = useState('');
+  // A failed request used to leave the panel blank or loading forever (audit N-24).
+  const load = () => { setError(''); apiRequest(endpoint).then(setData).catch((e) => { setError(e.message || 'Could not load.'); onFlash(e.message); }); };
   useEffect(load, [endpoint]);
-  return <div><div className="flex items-center justify-between mb-3"><h3>{title}</h3><button className="btn" onClick={load}>Refresh</button></div>{data ? <pre className="card text-xs" style={{ padding: 16, overflow: 'auto', maxHeight: 600, whiteSpace: 'pre-wrap' }}>{JSON.stringify(data, null, 2)}</pre> : <p role="status">Loading…</p>}</div>;
+  return <div><div className="flex items-center justify-between mb-3"><h3>{title}</h3><button className="btn" onClick={load}>Refresh</button></div>{error && !data ? <p role="alert" className="admin-notice">Could not load: {error} <button type="button" className="btn btn-sm" onClick={load}>Try again</button></p> : data && endpoint.endsWith('/anomalies') ? <AnomalyView data={data} /> : data ? <pre className="card text-xs" style={{ padding: 16, overflow: 'auto', maxHeight: 600, whiteSpace: 'pre-wrap' }}>{JSON.stringify(data, null, 2)}</pre> : <p role="status">Loading…</p>}</div>;
 }
 
 // Uploaded files captured by a backup: list, download one, or re-upload every lost file.

@@ -6,7 +6,7 @@ import { isPlatformUploadAvailable, uploadToPlatformStorage } from '../utils/pla
 
 // Richer whiteboard: LaTeX equations, lines/arrows, mind maps and images (incl. AI-generated).
 export const BOARD_TOOLS = [
-  ['stroke', 'Pen'], ['line', 'Line'], ['arrow', 'Arrow'], ['rect', 'Rectangle'], ['circle', 'Circle'],
+  ['stroke', 'Pen'], ['eraser', 'Eraser'], ['line', 'Line'], ['arrow', 'Arrow'], ['rect', 'Rectangle'], ['circle', 'Circle'],
   ['text', 'Text'], ['math', 'Equation (LaTeX)'], ['mindmap', 'Mind map'], ['image', 'Image']
 ];
 

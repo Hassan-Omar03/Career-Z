@@ -60,6 +60,11 @@
 .public-content-card,.public-related{background:var(--card,#fff);border:1px solid #dfdfce;border-radius:20px;padding:28px;box-shadow:0 4px 20px #173d2e05}
 .public-page-content{white-space:normal;line-height:1.85;font-size:15px}
 .public-page-content p{margin:0 0 20px}.public-page-content h2{font-size:22px;line-height:1.3;margin:26px 0 12px;color:var(--forest,#103f30)}
+/* Smaller headings and real lists with markers and hanging indent (audit point 10). */
+.public-page-content h3{font-size:18px;line-height:1.35;margin:20px 0 10px;color:var(--forest,#103f30)}
+.public-page-content ul,.public-page-content ol{margin:0 0 20px;padding-inline-start:1.5em}
+.public-page-content ul{list-style:disc}.public-page-content ol{list-style:decimal}
+.public-page-content li{margin:0 0 8px;padding-inline-start:.2em}
 .public-related h2{font-size:19px;margin:0 0 14px}.public-related a{display:block;padding:10px 0;border-bottom:1px solid #dfdfce;font-size:14px;color:var(--emerald,#168063)}
 .public-related p{font-size:14px;line-height:1.7;margin:18px 0}
 .public-page-links>a:not(.discovery-card){padding:16px;border:1px solid #d8e7db;border-radius:12px;background:var(--card,#fff);font-size:14px}

@@ -29,9 +29,11 @@ export function isPlatformUploadAvailable() {
 // `file` may also be a data: URL or an https link (AI media the browser only has that way):
 // Cloudinary fetches links itself, so provider downloads blocked by CORS still work. Pass
 // resourceType for those, since a string has no MIME type to infer it from.
-export async function uploadToPlatformStorage(file, folder, resourceTypeOverride) {
-  const { signature, timestamp, apiKey, cloudName, folder: signedFolder } = await apiRequest(
-    `/media/platform/signature${folder ? `?folder=${encodeURIComponent(folder)}` : ''}`,
+// `name` (optional) gives the file a readable address, e.g. the job title.
+export async function uploadToPlatformStorage(file, folder, resourceTypeOverride, name = '') {
+  const query = [folder && `folder=${encodeURIComponent(folder)}`, name && `name=${encodeURIComponent(name)}`].filter(Boolean).join('&');
+  const { signature, timestamp, apiKey, cloudName, folder: signedFolder, publicId } = await apiRequest(
+    `/media/platform/signature${query ? `?${query}` : ''}`,
     { method: 'POST' }
   );
 
@@ -41,6 +43,7 @@ export async function uploadToPlatformStorage(file, folder, resourceTypeOverride
   form.append('timestamp', timestamp);
   form.append('signature', signature);
   form.append('folder', signedFolder);
+  if (publicId) form.append('public_id', publicId);
 
   const mime = String(file?.type || '').toLowerCase();
   const resourceType = resourceTypeOverride || (mime.startsWith('image/') ? 'image' : (mime.startsWith('video/') || mime.startsWith('audio/')) ? 'video' : 'raw');

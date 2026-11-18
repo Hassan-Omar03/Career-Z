@@ -13,6 +13,7 @@ import { useAuth } from '../context/AuthContext';
 
 // Account kinds that change which documents and profile fields are mandatory.
 const SUBTYPES = {
+  institute: [['registered', 'Registered institute'], ['founder', 'New institute founder (no building or registration yet)']],
   agent: [['individual', 'Individual agent'], ['agency', 'Registered agency']],
   donor: [['individual', 'Individual donor'], ['organization', 'Organization']],
   marketplace: [['individual', 'Individual seller'], ['business', 'Business']],
@@ -88,7 +89,16 @@ export default function Signup() {
   async function handleSubmit(e) {
     e.preventDefault();
     setServerError('');
-    if (!validate()) return;
+    if (!validate()) {
+      // The message sits next to its field, which can be far above the button (e.g. a parent email equal to
+      // the student's own). Bring it into view so the form never looks like it failed silently (audit N-27).
+      requestAnimationFrame(() => {
+        const first = document.querySelector('.form-error.show');
+        first?.scrollIntoView({ block: 'center', behavior: 'smooth' });
+        first?.previousElementSibling?.focus?.();
+      });
+      return;
+    }
 
     setSubmitting(true);
     try {

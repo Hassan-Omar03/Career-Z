@@ -13,6 +13,7 @@ import './styles/teacher-ai.css';
 import './styles/teacher-support.css';
 import './styles/job-workspace-nav.css';
 import './styles/job-description.css';
+import './styles/live-classroom.css';
 import './components/recruitment/agent-search.css';
 import './components/dashboard/medical-health.css';
 import './components/dashboard/institution-events.css';

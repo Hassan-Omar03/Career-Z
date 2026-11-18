@@ -31,6 +31,9 @@ export default function DashboardSidebar({ open, onClose, onLogout, navItems = [
     title: group.title,
     items: navItems.filter((item) => (navGroups.find((g) => g.keys.includes(item.key)) || navGroups[0]) === navGroups[index])
   })).filter((group) => group.items.length);
+  // A workspace with its own Messages/Notifications item (agent, donor, seller, representative)
+  // does not get a second copy below (audit N-22).
+  const hasOwn = (label) => navItems.some((item) => item.label === label);
   return (
     <aside className={`dash-sidebar${open ? ' dash-sidebar-open' : ''}`} aria-label="Dashboard navigation">
       <div className="dash-sidebar-brand">
@@ -55,12 +58,12 @@ export default function DashboardSidebar({ open, onClose, onLogout, navItems = [
         <div className="dash-sidebar-divider"></div>
 
         {!grouped && showFreelance && <button type="button" className={`dash-nav-link${activeKey === 'freelance' ? ' active' : ''}`} style={{ width: '100%', textAlign: 'left', background: 'none', border: 'none', cursor: 'pointer' }} onClick={() => onSelect?.('freelance')}><FaLaptopCode size={17} aria-hidden /><span>Freelancer Hub</span></button>}
-        <button type="button" className={`dash-nav-link${activeKey === 'messages' ? ' active' : ''}`} style={{ width: '100%', textAlign: 'left', background: 'none', border: 'none', cursor: 'pointer' }} onClick={() => onSelect?.('messages')}>
+        {!hasOwn('Messages') && <button type="button" className={`dash-nav-link${activeKey === 'messages' ? ' active' : ''}`} style={{ width: '100%', textAlign: 'left', background: 'none', border: 'none', cursor: 'pointer' }} onClick={() => onSelect?.('messages')}>
           <FaEnvelope size={17} aria-hidden /><span>Messages</span>
-        </button>
-        <button type="button" className={`dash-nav-link${activeKey === 'notifications' ? ' active' : ''}`} style={{ width: '100%', textAlign: 'left', background: 'none', border: 'none', cursor: 'pointer' }} onClick={() => onSelect?.('notifications')}>
+        </button>}
+        {!hasOwn('Notifications') && <button type="button" className={`dash-nav-link${activeKey === 'notifications' ? ' active' : ''}`} style={{ width: '100%', textAlign: 'left', background: 'none', border: 'none', cursor: 'pointer' }} onClick={() => onSelect?.('notifications')}>
           <FaBell size={17} aria-hidden /><span>Notifications</span>
-        </button>
+        </button>}
         <button type="button" className={`dash-nav-link${activeKey === 'calendar' ? ' active' : ''}`} style={{ width: '100%', textAlign: 'left', background: 'none', border: 'none', cursor: 'pointer' }} onClick={() => onSelect?.('calendar')}>
           <FaCalendarDays size={17} aria-hidden /><span>Calendar</span>
         </button>
