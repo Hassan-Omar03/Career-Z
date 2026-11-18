@@ -90,6 +90,12 @@
 .about-information h2{font-size:26px;line-height:1.35;margin:10px 0 14px}
 .about-information p{font-size:15px;line-height:1.85;color:var(--ink-soft);margin:0}
 .about-pillars{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:20px}
+.about-company{display:grid;grid-template-columns:1.3fr 1fr;gap:28px;margin:28px 0;padding:26px;background:var(--paper-raised);border:1px solid var(--sand-line);border-radius:18px}
+.about-company h3,.about-status h3{font-size:15px;margin:18px 0 8px}.about-company div>h3:first-child{margin-top:0}
+.about-status{margin:0 0 28px}.about-status-grid{display:grid;grid-template-columns:1fr 1fr;gap:20px}
+.about-status-grid>div{padding:22px;border:1px solid var(--sand-line);border-radius:18px;background:var(--paper-raised)}
+.about-status ul{margin:0;padding-left:22px;list-style:disc;display:grid;gap:8px}.about-status li::marker{color:var(--forest)}.about-status li{padding-left:2px}
+@media(max-width:820px){.about-company,.about-status-grid{grid-template-columns:1fr}}
 .about-pillars section{padding:24px;background:var(--paper-raised);border:1px solid var(--sand-line);border-radius:18px}
 .about-pillars section>svg{color:var(--forest);font-size:22px;margin-bottom:10px}
 .about-pillars h2{font-size:21px}
