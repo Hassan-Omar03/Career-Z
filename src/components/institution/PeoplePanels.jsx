@@ -15,6 +15,7 @@ const pct = (n) => (n === null || n === undefined ? '—' : `${n}%`);
 export function ClassPromotionPanel({ onFlash }) {
   const institution = useMyInstitution(onFlash);
   const [sections, setSections] = useState([]), [from, setFrom] = useState(''), [to, setTo] = useState(''), [action, setAction] = useState('promote');
+  const [passPercent, setPassPercent] = useState(40);
   const [preview, setPreview] = useState(null), [held, setHeld] = useState({}), [note, setNote] = useState(''), [busy, setBusy] = useState(false), [history, setHistory] = useState([]);
   const [denied, setDenied] = useState(false);
   const loadHistory = (id) => apiRequest(`/institutions/${id}/promotions`).then(setHistory).catch((e) => { if (/permission/i.test(e.message)) setDenied(true); });
@@ -25,8 +26,12 @@ export function ClassPromotionPanel({ onFlash }) {
   }, [institution]);
   useEffect(() => {
     setPreview(null); setHeld({});
-    if (institution && from) apiRequest(`/institutions/${institution._id}/promotions/preview?fromSection=${from}`).then(setPreview).catch((e) => onFlash(e.message));
-  }, [from]);
+    // Fail / repeat: students under the pass mark are ticked to stay in the class (the owner can untick).
+    if (institution && from) apiRequest(`/institutions/${institution._id}/promotions/preview?fromSection=${from}&passPercent=${passPercent}`).then((pv) => {
+      setPreview(pv);
+      setHeld(Object.fromEntries((pv.students || []).filter((s) => s.suggestRepeat).map((s) => [s.studentId, { on: true, reason: `Below the pass mark (${pv.passPercent}%): repeat the class` }])));
+    }).catch((e) => onFlash(e.message));
+  }, [from, passPercent]);
 
   async function run() {
     const heldBack = Object.entries(held).filter(([, h]) => h.on).map(([student, h]) => ({ student, reason: h.reason || '' }));
@@ -48,6 +53,7 @@ export function ClassPromotionPanel({ onFlash }) {
     <section className="institution-ui people-panel">
       <div className="institution-card-heading"><h2>Class promotion</h2><p>Move a whole class up at the end of the year, keep anyone back with a reason, or graduate the final class. Course history and results are kept.</p></div>
       <div className="institution-form-grid">
+        <label className="institution-field"><span>Pass mark (%)</span><input className="form-input" type="number" min="0" max="100" value={passPercent} onChange={(e) => setPassPercent(Math.max(0, Math.min(100, Number(e.target.value) || 0)))} /></label>
         <label className="institution-field"><span>Action</span><select className="form-select" value={action} onChange={(e) => setAction(e.target.value)}><option value="promote">Promote to the next class</option><option value="graduate">Graduate (final class)</option></select></label>
         <label className="institution-field"><span>From class</span><select className="form-select" value={from} onChange={(e) => setFrom(e.target.value)}><option value="">Select class…</option>{sections.map((s) => <option key={s._id} value={s._id}>{s.name}{s.academicYear ? ` (${s.academicYear})` : ''}</option>)}</select></label>
         {action === 'promote' && <label className="institution-field"><span>To class</span><select className="form-select" value={to} onChange={(e) => setTo(e.target.value)}><option value="">Select class…</option>{sections.filter((s) => s._id !== from).map((s) => <option key={s._id} value={s._id}>{s.name}{s.academicYear ? ` (${s.academicYear})` : ''}</option>)}</select></label>}
@@ -57,7 +63,7 @@ export function ClassPromotionPanel({ onFlash }) {
           <thead><tr><th>Student</th><th>Roll no.</th><th>Average result</th><th>Attendance</th><th>Keep in this class</th></tr></thead>
           <tbody>{preview.students.map((s) => <tr key={s.studentId}>
             <td>{s.name}</td><td>{s.rollNumber || '—'}</td>
-            <td className={s.averagePercent !== null && s.averagePercent < 40 ? 'people-warn' : ''}>{pct(s.averagePercent)}</td>
+            <td className={s.averagePercent !== null && s.averagePercent < passPercent ? 'people-warn' : ''}>{pct(s.averagePercent)}</td>
             <td className={s.attendancePercent !== null && s.attendancePercent < 75 ? 'people-warn' : ''}>{pct(s.attendancePercent)}</td>
             <td><label className="flex items-center gap-2 text-xs"><input type="checkbox" checked={!!held[s.studentId]?.on} onChange={(e) => setHeld({ ...held, [s.studentId]: { ...held[s.studentId], on: e.target.checked } })} /> Keep back</label>
               {held[s.studentId]?.on && <input className="form-input" placeholder="Reason (shown to the family)" value={held[s.studentId]?.reason || ''} onChange={(e) => setHeld({ ...held, [s.studentId]: { ...held[s.studentId], reason: e.target.value } })} style={{ marginTop: 4 }} />}</td>

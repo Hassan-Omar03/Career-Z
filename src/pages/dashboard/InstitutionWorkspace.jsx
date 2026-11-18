@@ -3718,16 +3718,30 @@ function InstitutionClassesPanel({ onFlash }) {
       </form>
       <Table
         headers={['Course', 'Subject', 'Class / Section', 'Teacher', 'Credits', 'Semester / Term', 'Action']}
-        rows={courses.map((course) => {
+        // Audit N-15: only courses taught in a class belong here; academy courses run as batches are listed apart.
+        rows={courses.filter((c) => c.classSection).map((course) => {
           const edit = courseEdits[course._id] || { subject: course.subject || '', classSection: course.classSection?._id || '', teacher: course.teacher?._id || '', creditHours: course.creditHours || 3, academicTerm: course.academicTerm || '' };
           return [course.title, course.subject || '—', course.classSection?.name || '—', course.teacher?.fullName || '—', course.creditHours || 3, course.academicTerm || '—', <SavedForm key={course._id} showValues={false} value={edit} onRestore={value=>setCourseEdits(prev=>({...prev,[course._id]:value}))} onSubmit={()=>saveCourseAssignment(course)} style={{display:'grid',gap:10,minWidth:220}}><label>Subject<input className="form-input" value={edit.subject} onChange={e=>setCourseEdits(prev=>({...prev,[course._id]:{...edit,subject:e.target.value}}))}/></label><label>Class / Section<select className="form-select" value={edit.classSection} onChange={e=>setCourseEdits(prev=>({...prev,[course._id]:{...edit,classSection:e.target.value}}))}><option value="">Select class</option>{sections.map(row=><option key={row._id} value={row._id}>{row.name}</option>)}</select></label><label>Teacher<select className="form-select" value={edit.teacher} onChange={e=>setCourseEdits(prev=>({...prev,[course._id]:{...edit,teacher:e.target.value}}))}><option value="">Select teacher</option>{teachers.map(row=><option key={row.user._id} value={row.user._id}>{teacherOptionLabel(row)}</option>)}</select></label><label>Credits<input className="form-input" type="number" min="0.5" max="12" step="0.5" value={edit.creditHours} onChange={e=>setCourseEdits(prev=>({...prev,[course._id]:{...edit,creditHours:e.target.value}}))}/></label><label>Semester / Term<input className="form-input" value={edit.academicTerm} onChange={e=>setCourseEdits(prev=>({...prev,[course._id]:{...edit,academicTerm:e.target.value}}))}/></label><button type="submit" className="btn btn-primary">Save assignment</button></SavedForm>];
         })}
         empty="No institution courses yet. Add one above."
       />
-      {institution && <InstitutionCourseStudents institution={institution} courses={courses} teachers={teachers} onFlash={onFlash} />}
+      {(() => { const unlinked = courses.filter((c) => !c.classSection); return unlinked.length > 0 && (
+        <div className="admin-notice" style={{ marginTop: 12 }}>
+          <strong>Courses without a class ({unlinked.length})</strong>
+          <p style={{ margin: '4px 0 10px' }}>These are academy courses run as batches (managed in Courses &amp; Batches), or courses not yet given a class. They are kept out of the class timetable and student allotment. To teach one in a school class, choose the class and save.</p>
+          {unlinked.map((course) => { const edit = courseEdits[course._id] || { subject: course.subject || course.title, classSection: '', teacher: course.teacher?._id || '', creditHours: course.creditHours || 3, academicTerm: course.academicTerm || '' }; return (
+            <div key={course._id} className="flex flex-wrap items-center" style={{ gap: 8, marginTop: 6 }}>
+              <span style={{ minWidth: 200 }}>{course.title}{course.teacher?.fullName ? ` · ${course.teacher.fullName}` : ''}</span>
+              <select className="form-select" aria-label={`Class for ${course.title}`} value={edit.classSection} onChange={(e) => setCourseEdits((prev) => ({ ...prev, [course._id]: { ...edit, classSection: e.target.value } }))} style={{ maxWidth: 220 }}><option value="">Choose class</option>{sections.map((s) => <option key={s._id} value={s._id}>{s.name}</option>)}</select>
+              <button type="button" className="btn" disabled={!edit.classSection} onClick={() => saveCourseAssignment(course)}>Link to class</button>
+            </div>
+          ); })}
+        </div>
+      ); })()}
+      {institution && <InstitutionCourseStudents institution={institution} courses={courses.filter((c) => c.classSection)} teachers={teachers} onFlash={onFlash} />}
       </section><div className="institution-study-settings" style={{ marginTop: 16 }}><h3 className="institution-study-title">Course study settings and approvals</h3><LearningCenter workspace="institution" embedded onFlash={onFlash} renderLessonExtras={l => <LessonMetadata lessonId={l._id} canReview onFlash={onFlash} />} /></div>
 
-      {sections.length > 0 && <AutoTimetable institution={institution} sections={sections} courses={courses} onFlash={onFlash} onSaved={() => loadTimetable(timetableSection)} />}
+      {sections.length > 0 && <AutoTimetable institution={institution} sections={sections} courses={courses.filter((c) => c.classSection)} onFlash={onFlash} onSaved={() => loadTimetable(timetableSection)} />}
       {sections.length > 0 && (
         <>
           <section className="institution-class-section institution-timetable"><h3 className="font-semibold mb-2 mt-6">Timetable</h3>

@@ -21,6 +21,7 @@ import { AdSlot } from '../components/ads/Ads';
 import ShareBar from '../components/ShareBar';
 import JobDescription from '../components/discover/JobDescription';
 import ProposalPanel from '../components/freelance/ProposalPanel';
+import AdmissionChoice, { useAdmissionOptions, admissionChoiceReady, downloadSubjectGuide } from '../components/institution/AdmissionChoice';
 
 // Public "View All" pages (/jobs, /scholarships, /institutes, /marketplace, /donors) and their
 // detail pages. Filters are sent to the server, so they search every eligible record, not just
@@ -197,6 +198,8 @@ export function InstituteDetail() {
   const { id } = useParams(); const [params] = useSearchParams();
   const state = useDetail('institutes', id);
   const [program, setProgram] = useState('');
+  const [choice, setChoice] = useState({});
+  const admission = useAdmissionOptions(id);
   return <DetailShell kind="institutes" state={state}>{(i) => <article className="discover-detail">
     {i.coverImage && <img className="dp-cover" src={i.coverImage} alt="" />}
     <header className="dp-head">{i.logo && <img src={i.logo} alt="" className="dc-logo" />}<div><h1>{i.name}</h1><p className="dc-sub">{i.type.replace('_', ' ')} · {place(i.city, i.country)} · Verified institute</p></div></header>
@@ -214,13 +217,14 @@ export function InstituteDetail() {
       <iframe title={`Map of ${i.name}`} loading="lazy" style={{ width: '100%', height: 280, border: 0, borderRadius: 16 }} src={`https://www.openstreetmap.org/export/embed.html?bbox=${i.location.lng - 0.01}%2C${i.location.lat - 0.006}%2C${i.location.lng + 0.01}%2C${i.location.lat + 0.006}&layer=mapnik&marker=${i.location.lat}%2C${i.location.lng}`} />
       <p className="dp-note"><a href={`https://www.openstreetmap.org/?mlat=${i.location.lat}&mlon=${i.location.lng}#map=16/${i.location.lat}/${i.location.lng}`} target="_blank" rel="noreferrer noopener">Open larger map</a> · <a href={`https://www.google.com/maps/dir/?api=1&destination=${i.location.lat},${i.location.lng}`} target="_blank" rel="noreferrer noopener">Get directions</a></p></section>}
     {(i.website || i.website_page) && <p className="dc-actions">{i.website_page && <Link className="btn" to={i.website_page}>Institute website on CareerZ</Link>}{i.website && <a className="btn" href={i.website} target="_blank" rel="noreferrer">Official website</a>}</p>}
-    {i.programs.length > 0 && <section><h2>Programs</h2><ul className="dp-list">{i.programs.map((p) => <li key={p.name}><strong>{p.name}</strong>{p.department ? ` · ${p.department}` : ''}{p.durationTerms ? ` · ${p.durationTerms} terms` : ''}{p.tuition ? ` · tuition ${money(p.tuition, p.currency)}` : ''}{p.admissionFee ? ` · admission ${money(p.admissionFee, p.currency)}` : ''}</li>)}</ul></section>}
+    {i.programs.length > 0 && <section><h2>Programs</h2><ul className="dp-list">{i.programs.map((p) => <li key={p.name}><strong>{p.name}</strong>{p.department ? ` · ${p.department}` : ''}{p.durationTerms ? ` · ${p.durationTerms} terms` : ''}{p.tuition ? ` · tuition ${money(p.tuition, p.currency)}` : ''}{p.admissionFee ? ` · admission ${money(p.admissionFee, p.currency)}` : ''}{admission?.programs?.find((x) => x.name === p.name)?.levels.length > 0 && <> · <button type="button" className="btn" style={{ padding: '2px 10px' }} onClick={() => downloadSubjectGuide(admission, p.name).catch(() => window.alert('The guide could not be made. Try again.'))}>Subject guide (PDF)</button></>}</li>)}</ul></section>}
     {i.courses.length > 0 && <section><h2>Courses</h2><ul className="dp-list">{i.courses.map((c) => <li key={c._id}>{c.title}{c.subject && c.subject !== c.title ? ` · ${c.subject}` : ''}{c.level ? ` · ${c.level}` : ''}</li>)}</ul></section>}
     {i.jobs.length > 0 && <section><h2>Open jobs at {i.name}</h2><ul className="dp-list">{i.jobs.map((j) => <li key={j._id}><Link to={`/jobs/${j._id}`}>{j.title}</Link>{j.location ? ` · ${j.location}` : ''}</li>)}</ul></section>}
     {i.programs.length > 0
       ? <ActionPanel kind="institutes" item={i} autoOpen={params.get('action') === 'admission'} actionLabel="Apply for admission" eligibleRoles={['student']} signupType="student"
-          onSubmit={() => post('/institution-applications', { institution: i._id, program, submit: true })} successText="Admission application sent to the institute." trackLink={{ to: '/dashboard', label: 'Track it in your dashboard → Applications' }}>
-          <label>Program<select className="form-select" required value={program} onChange={(e) => setProgram(e.target.value)}><option value="">Select a program…</option>{i.programs.map((p) => <option key={p.name} value={p.name}>{p.name}</option>)}</select></label>
+          onSubmit={() => (admissionChoiceReady(admission, program, choice) ? post('/institution-applications', { institution: i._id, program, ...choice, submit: true }) : Promise.reject(new Error('Choose the class or semester, the subject group and the allowed number of electives.')))} successText="Admission application sent to the institute." trackLink={{ to: '/dashboard', label: 'Track it in your dashboard → Applications' }}>
+          <label>Program<select className="form-select" required value={program} onChange={(e) => { setProgram(e.target.value); setChoice({}); }}><option value="">Select a program…</option>{i.programs.map((p) => <option key={p.name} value={p.name}>{p.name}</option>)}</select></label>
+          {program && <AdmissionChoice options={admission} programName={program} value={choice} onChange={setChoice} />}
         </ActionPanel>
       : <p className="dp-note">This institute has not opened admissions on CareerZ yet.</p>}
   </article>}</DetailShell>;

@@ -30,6 +30,7 @@ import { getJazzCashConfig, getSafepayConfig, startJazzCashCheckout, startSafepa
 import LearningCenter from '../../components/dashboard/LearningCenter';
 import LessonMetadata from '../../components/dashboard/LessonMetadata';
 import CourseForum from '../../components/dashboard/CourseForum';
+import AdmissionChoice, { useAdmissionOptions, admissionChoiceReady } from '../../components/institution/AdmissionChoice';
 import { AI_PURPOSES, AddListingPanel, AiFeatureCard, AiSettingsPanel, COMPLETION_STATUS_LABEL, ComingSoon, CustomSelect, DOW_LABEL, JOB_APP_STATUS, LiveTransportMap, MyListingsPanel, PayFeeButton, ReceivedDonationsPanel, ScholarshipsPanel, SellerOrdersPanel, SellerWalletPanel, SlideDeckViewer, StudentJobsPanel, SummaryCard, Table, Tag, TeacherReputationWidget, TimetableView, downloadFeePdf, formatTime12h, nextDateForDow, resizeImageToDataUrl } from '../Dashboard';
 
 // Applications Overview mixes Job/Scholarship/Institution/Course rows under one status field —
@@ -354,6 +355,9 @@ function StudentInstitutionsPanel({ onFlash }) {
   const [selected, setSelected] = useState('');
   const [inquiryForm, setInquiryForm] = useState({ interestedProgram: '', qualification: '', country: '', message: '' });
   const [appForm, setAppForm] = useState({ program: '', hostel: false, mess: false, transport: false });
+  // Level, subject group and electives for programs that use them (Point 22).
+  const [admissionChoice, setAdmissionChoice] = useState({});
+  const admissionOptions = useAdmissionOptions(selected);
   const [institutionPrograms, setInstitutionPrograms] = useState([]);
   const [fairs, setFairs] = useState([]);
   const [registeredFairIds, setRegisteredFairIds] = useState([]);
@@ -417,9 +421,10 @@ function StudentInstitutionsPanel({ onFlash }) {
     e.preventDefault();
     if (!selected) return onFlash('Select an institution first.');
     try {
-      await apiRequest('/institution-applications', { method: 'POST', body: { institution: selected, program: appForm.program, requestedServices: { hostel: appForm.hostel, mess: appForm.mess, transport: appForm.transport }, submit: true } });
+      if (!admissionChoiceReady(admissionOptions, appForm.program, admissionChoice)) return onFlash('Choose the class or semester, the subject group and the allowed number of electives.');
+      await apiRequest('/institution-applications', { method: 'POST', body: { institution: selected, program: appForm.program, ...admissionChoice, requestedServices: { hostel: appForm.hostel, mess: appForm.mess, transport: appForm.transport }, submit: true } });
       onFlash('Application submitted.', 'success');
-      setAppForm({ program: '', hostel: false, mess: false, transport: false });
+      setAppForm({ program: '', hostel: false, mess: false, transport: false }); setAdmissionChoice({});
     } catch (err) { onFlash(err.message); }
   }
 
@@ -488,10 +493,11 @@ function StudentInstitutionsPanel({ onFlash }) {
 
       <h4 className="font-semibold mb-2">Apply to a Program</h4>
       <form onSubmit={submitApplication} className="flex gap-2 items-end mb-6 flex-wrap border border-[var(--sand-line)] rounded-xl p-3">
-        <select className="form-select" value={appForm.program} onChange={(e) => setAppForm({ program: e.target.value, hostel: false, mess: false, transport: false })} required style={{ flex: '1 1 280px', minWidth: 0 }} disabled={!selected}>
+        <select className="form-select" value={appForm.program} onChange={(e) => { setAppForm({ program: e.target.value, hostel: false, mess: false, transport: false }); setAdmissionChoice({}); }} required style={{ flex: '1 1 280px', minWidth: 0 }} disabled={!selected}>
           <option value="">{selected ? 'Select a published program' : 'Select an institution first'}</option>
           {institutionPrograms.map((program) => <option key={program._id} value={program.name}>{program.name} — {program.currency} {Number(program.admissionFee) + Number(program.totalTuitionFee) + Object.values(program.additionalFees || {}).filter((item) => item?.enabled).reduce((sum, item) => sum + Number(item.amount || 0), 0)}</option>)}
         </select>
+        {appForm.program && <div style={{ flex: '1 1 100%' }}><AdmissionChoice options={admissionOptions} programName={appForm.program} value={admissionChoice} onChange={setAdmissionChoice} /></div>}
         {(() => { const program = institutionPrograms.find((item) => item.name === appForm.program); return program?.additionalFees?.hostel?.enabled ? <label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={appForm.hostel} onChange={(e) => setAppForm({ ...appForm, hostel: e.target.checked })} />I need hostel (+{program.currency} {program.additionalFees.hostel.amount})</label> : null; })()}
         {(() => { const program = institutionPrograms.find((item) => item.name === appForm.program); return appForm.hostel && program?.additionalFees?.hostel?.messAvailable ? <label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={appForm.mess} onChange={(e) => setAppForm({ ...appForm, mess: e.target.checked })} />Include mess (+{program.currency} {program.additionalFees.hostel.messMonthlyAmount}/month)</label> : null; })()}
         {(() => { const program = institutionPrograms.find((item) => item.name === appForm.program); return program?.additionalFees?.transport?.enabled ? <label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={appForm.transport} onChange={(e) => setAppForm({ ...appForm, transport: e.target.checked })} />I need transport (+{program.currency} {program.additionalFees.transport.amount})</label> : null; })()}
