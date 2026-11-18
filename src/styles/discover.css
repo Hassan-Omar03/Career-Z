@@ -9,6 +9,9 @@
 .discover-filters label { display: grid; gap: 4px; font-size: 0.8rem; font-weight: 600; color: var(--ink-soft); min-width: 0; }
 .discover-filters .df-wide { grid-column: 1 / -1; }
 .discover-filters .df-buttons { display: flex; gap: 8px; flex-wrap: wrap; }
+.discover-filters .df-buttons { flex-wrap:nowrap;align-items:center;align-self:end;min-width:max-content; }
+.discover-filters .df-buttons > .btn { height:40px;min-height:40px;flex:none;white-space:nowrap;margin:0; }
+@media(max-width:600px){.discover-filters .df-buttons{grid-column:1/-1;justify-content:flex-start;}}
 .discover-count { margin: 14px 2px 8px; color: var(--ink-soft); font-size: 0.88rem; }
 .discover-error { color: var(--rose, #b42318); margin: 12px 0; }
 .discover-empty { text-align: center; padding: 40px 16px; border: 1px dashed var(--sand-line); border-radius: 16px; margin-top: 12px; }

@@ -66,7 +66,10 @@ export function TranslationProvider({ children }) {
 
 
   const collectTextNodes = useCallback((root) => {
-    if (root.nodeType === Node.TEXT_NODE) return root.nodeValue?.trim() ? [root] : [];
+    if (root.nodeType === Node.TEXT_NODE) {
+      const parent = root.parentElement;
+      return root.nodeValue?.trim() && parent && !SKIP_TAGS.has(parent.tagName) && !parent.closest('[data-no-translate]') ? [root] : [];
+    }
     const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT, {
       acceptNode(node) {
         if (!node.nodeValue || !node.nodeValue.trim()) return NodeFilter.FILTER_REJECT;

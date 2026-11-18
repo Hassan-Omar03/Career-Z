@@ -872,6 +872,7 @@ export default function Dashboard() {
         })();
   // Optional modules the Super Admin turned off leave the menus (admins keep everything).
   const ws = activeWorkspace === 'admin' ? wsBase : { ...wsBase, nav: wsBase.nav.filter((item) => modulesOn[NAV_MODULE[item.key]] !== false) };
+  useEffect(() => { document.title = `${ws.nav.find(item => item.key === activeTab)?.label || SHARED_TAB_LABELS[activeTab] || 'Dashboard'} | CareerZ.pk`; }, [activeTab, ws.label]);
   // A staff member whose access just shrank leaves a tab they may no longer open.
   const navKeys = ws.nav.map((n) => n.key).join(',');
   useEffect(() => {

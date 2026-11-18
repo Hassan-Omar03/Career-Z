@@ -1,0 +1,21 @@
+// Render interactive home content in the selected language before the first paint.
+export const HOME_URDU = {
+  Student:'طالب علم', Parent:'والدین', Teacher:'استاد', Institution:'ادارہ', Employer:'آجر', Agent:'ایجنٹ', Donor:'عطیہ دہندہ',
+  'Apply to institutions':'اداروں میں داخلے کی درخواست دیں', 'AI Tutor & study planner':'اے آئی ٹیوٹر اور مطالعے کا منصوبہ', 'Browse jobs & internships':'ملازمتیں اور انٹرن شپس تلاش کریں',
+  'Track child progress':'بچے کی تعلیمی پیش رفت دیکھیں', 'Performance reports':'کارکردگی کی رپورٹس', 'Direct teacher messaging':'استاد سے براہ راست رابطہ',
+  'AI lesson & quiz generator':'اے آئی سے سبق اور کوئز تیار کریں', 'Classroom management':'کلاس کا انتظام', 'Student insights':'طلبہ کی پیش رفت کا جائزہ',
+  'Admissions management':'داخلوں کا انتظام', 'Fee & finance tools':'فیس اور مالیاتی سہولتیں', 'Academic analytics':'تعلیمی کارکردگی کا تجزیہ',
+  'Post jobs & internships':'ملازمتیں اور انٹرن شپس شائع کریں', 'Search verified graduates':'تصدیق شدہ گریجویٹس تلاش کریں', 'Manage applicants':'درخواست گزاروں کا انتظام',
+  'Track referrals':'ریفرلز کی پیش رفت دیکھیں', 'Commission dashboard':'کمیشن ڈیش بورڈ', 'Withdraw earnings':'اپنی آمدنی نکلوائیں',
+  'Sponsor students directly':'طلبہ کی براہ راست کفالت کریں', 'Fund scholarship pools':'اسکالرشپس کے لیے تعاون کریں', 'Impact tracking':'اپنے تعاون کے نتائج دیکھیں',
+  'Teacher AI':'اساتذہ کے لیے اے آئی', 'Student AI':'طلبہ کے لیے اے آئی', 'Parent AI':'والدین کے لیے اے آئی', 'Institution AI':'اداروں کے لیے اے آئی',
+  'AI Lesson Planner':'اے آئی سے سبق کی منصوبہ بندی', 'AI Lecture Generator':'اے آئی سے لیکچر کی تیاری', 'AI Quiz Generator':'اے آئی سے کوئز کی تیاری',
+  'AI Assignment Generator':'اے آئی سے اسائنمنٹ کی تیاری', 'AI Homework Generator':'اے آئی سے ہوم ورک کی تیاری', 'AI MCQ Generator':'اے آئی سے کثیر الانتخابی سوالات',
+  'AI Exam Paper Generator':'اے آئی سے امتحانی پرچہ', 'AI Presentation Generator':'اے آئی سے پریزنٹیشن', 'AI Classroom Assistant':'اے آئی کلاس روم معاون',
+  'Ask AI Questions':'اے آئی سے سوال پوچھیں', 'AI Tutor':'اے آئی ٹیوٹر', 'Personalized Learning':'آپ کی ضرورت کے مطابق تعلیم', 'AI Study Planner':'اے آئی مطالعے کا منصوبہ',
+  'AI Practice Tests':'اے آئی مشق کے ٹیسٹ', 'AI Exam Preparation':'اے آئی سے امتحان کی تیاری', 'Child Progress Insights':'بچے کی پیش رفت کا جائزہ',
+  'Performance Reports':'کارکردگی کی رپورٹس', 'Improvement Suggestions':'بہتری کی تجاویز', 'Academic Analytics':'تعلیمی تجزیہ', 'Performance Dashboard':'کارکردگی کا ڈیش بورڈ',
+  'Teacher Insights':'اساتذہ کی کارکردگی کا جائزہ', 'Student Risk Detection':'طلبہ کی مشکلات کی نشاندہی', 'Smart Reports':'تفصیلی رپورٹس',
+  Students:'طلبہ', Teachers:'اساتذہ', Institutions:'ادارے', Courses:'کورسز', Jobs:'ملازمتیں', Scholarships:'اسکالرشپس', 'Verified Institutes':'تصدیق شدہ ادارے',
+  'Verified Institutions':'تصدیق شدہ ادارے', Employers:'آجر', 'Education Agents':'تعلیمی ایجنٹس', Cities:'شہر', 'Scholarships Awarded':'دی گئی اسکالرشپس',
+};

@@ -96,7 +96,7 @@ export function ListingPage({ kind }) {
           ? <select className="form-select" value={draft[key] || ''} onChange={(e) => setDraft({ ...draft, [key]: e.target.value })}><option value="">Any</option>{opts.map(([v, l]) => <option key={v} value={v}>{l}</option>)}</select>
           : <input className="form-input" type={opts === 'number' ? 'number' : opts === 'date' ? 'date' : 'text'} min={opts === 'number' ? 0 : undefined} value={draft[key] || ''} onChange={(e) => setDraft({ ...draft, [key]: e.target.value })} />}
       </label>)}
-      <div className="df-buttons"><button type="submit" className="btn btn-primary">Search</button>{query && <button type="button" className="btn" onClick={() => { setDraft({}); setParams({}); }}>Clear</button>}</div>
+      <div className="df-buttons" aria-label="Search actions"><button type="submit" className="btn btn-primary">Search</button>{query && <button type="button" className="btn" onClick={() => { setDraft({}); setParams({}); }}>Clear</button>}</div>
     </form>
     {state.error && <p className="discover-error" role="alert">{state.error} <button type="button" className="btn" onClick={() => setParams(Object.fromEntries(params.entries()))}>Retry</button></p>}
     {!state.error && <p className="discover-count" role="status">{state.loading ? 'Loading…' : `${state.data.total} ${state.data.total === 1 ? 'result' : 'results'}`}</p>}

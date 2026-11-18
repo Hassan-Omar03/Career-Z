@@ -18,7 +18,7 @@ export default function EmailVerifyCard() {
     <section className="vf-card" aria-labelledby="email-verify-title" style={{ marginBottom: 20 }}>
       <div className="vf-card-head"><div><h2 id="email-verify-title">Verify your email</h2><span className="vf-muted">We sent a 6-digit code to {user.email} when you signed up.</span></div></div>
       <form onSubmit={verify} className="flex flex-wrap items-center" style={{ gap: 10, marginTop: 12 }}>
-        <input className="form-input" inputMode="numeric" autoComplete="one-time-code" maxLength={6} placeholder="6-digit code" value={code} onChange={(e) => setCode(e.target.value.replace(/\D/g, ''))} style={{ maxWidth: 180 }} />
+        <input className="form-input" aria-label="Email verification code" inputMode="numeric" autoComplete="one-time-code" maxLength={6} placeholder="6-digit code" value={code} onChange={(e) => setCode(e.target.value.replace(/\D/g, ''))} style={{ maxWidth: 180 }} />
         <button type="submit" className="btn btn-primary" disabled={busy || code.length !== 6}>Verify</button>
         <button type="button" className="btn" disabled={busy} onClick={resend}>Send a new code</button>
       </form>

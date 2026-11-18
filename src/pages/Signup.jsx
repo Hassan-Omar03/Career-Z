@@ -73,7 +73,7 @@ export default function Signup() {
 
   function validate() {
     const next = {};
-    if (!form.fullName.trim()) next.fullName = 'Full name is required.';
+    if (!form.fullName.trim()) next.fullName = form.accountType === 'institute' ? 'Institute name is required.' : 'Full name is required.';
     if (!form.email.trim()) next.email = 'Email is required.';
     else if (!EMAIL_RE.test(form.email)) next.email = 'Enter a valid email address.';
     if(form.accountType==='student'){if(!form.parentName.trim())next.parentName='Parent / guardian name is required.';if(!['father','mother','guardian'].includes(form.parentRelationship))next.parentRelationship='Choose your relationship.';if(!EMAIL_RE.test(form.parentEmail.trim()))next.parentEmail='Enter your parent / guardian email.';else if(form.parentEmail.trim().toLowerCase()===form.email.trim().toLowerCase())next.parentEmail='Use your parent email, different from your own email.';}
@@ -154,9 +154,9 @@ export default function Signup() {
 
             <form noValidate onSubmit={handleSubmit}>
               <div className="form-group">
-                <label htmlFor="signup-name">Full name</label>
+                <label htmlFor="signup-name">{form.accountType === 'institute' ? 'Institute name' : 'Full name'}</label>
                 <input
-                  className="form-input" type="text" id="signup-name" placeholder="Your full name" autoComplete="name"
+                  className="form-input" type="text" id="signup-name" placeholder={form.accountType === 'institute' ? 'Your institute name' : 'Your full name'} autoComplete={form.accountType === 'institute' ? 'organization' : 'name'}
                   value={form.fullName} onChange={(e) => update('fullName', e.target.value)}
                 />
                 {errors.fullName && <div className="form-error show">{errors.fullName}</div>}
@@ -231,11 +231,11 @@ export default function Signup() {
               <div className="signup-consents">
                 <label className="form-check">
                   <input type="checkbox" id="signup-terms" name="terms" required aria-invalid={Boolean(errors.terms && !terms)} aria-describedby={errors.terms && !terms ? "consent-error" : undefined} checked={terms} onChange={(e) => setTerms(e.target.checked)} />
-                  <span>I agree to the <a href="/terms">Terms &amp; Conditions</a></span>
+                  <span>I agree to the <a href="/terms" target="_blank" rel="noopener noreferrer">Terms &amp; Conditions</a></span>
                 </label>
                 <label className="form-check">
                   <input type="checkbox" id="signup-privacy" name="privacy" required aria-invalid={Boolean(errors.terms && !privacy)} aria-describedby={errors.terms && !privacy ? "consent-error" : undefined} checked={privacy} onChange={(e) => setPrivacy(e.target.checked)} />
-                  <span>I agree to the <a href="/privacy">Privacy Policy</a></span>
+                  <span>I agree to the <a href="/privacy" target="_blank" rel="noopener noreferrer">Privacy Policy</a></span>
                 </label>
                 {errors.terms && (!terms || !privacy) && <div id="consent-error" role="alert" className="form-error show">{errors.terms}</div>}
               </div>

@@ -1,3 +1,5 @@
+import { useTranslation } from '../context/TranslationContext';
+import { HOME_URDU } from '../content/homeUrdu';
 import AuthNavbar from '../components/AuthNavbar';
 import SiteFooter from '../components/SiteFooter';
 import PageSeo from '../components/PageSeo';
@@ -218,6 +220,8 @@ function InstituteGrid({ items, empty, offset = 0 }) {
 }
 
 export default function Home() {
+  const { lang } = useTranslation();
+  const localText = text => lang === 'ur' ? HOME_URDU[text] || text : text;
   const [scrollPct, setScrollPct] = useState(0);
   const [data, setData] = useState(null), [loadError, setLoadError] = useState('');
   // Hero text the Super Admin edits in Content → Website Pages (built-in text until then).
@@ -268,7 +272,7 @@ export default function Home() {
             <h1>{h('titleStart', 'The Complete')} <em>{h('titleEmphasis', 'AI-Powered')}</em> {h('titleEnd', 'Education Ecosystem')}</h1>
             <p className="lead">{h('lead', 'CareerZ.pk connects students, parents, teachers, institutions, employers, agents and donors — guided by AI, from admission to career. Built for students, institutions and educators worldwide.')}</p>
             <div className="hero-actions">
-              <Link to="/signup" className="btn btn-primary">{h('primaryLabel', 'Explore CareerZ')}</Link>
+              <Link to="/about" className="btn btn-primary">{h('primaryLabel', 'Explore CareerZ')}</Link>
               <Link to="/signup?type=institute" className="btn btn-outline">{h('secondaryLabel', 'Register Your Institution')}</Link>
             </div>
             <div className="hero-roles">
@@ -289,8 +293,8 @@ export default function Home() {
             <div className="stat-grid">
               {STATS.map(([key, text, to]) => (
                 <Link key={key} to={to} className="stat-item reveal home-stat-link">
-                  <div className="num"><CountUp value={stats ? Number(stats[key] || 0) : null} /></div>
-                  <div className="label">{text}</div>
+                  <div className="num" data-no-translate><CountUp value={stats ? Number(stats[key] || 0) : null} /></div>
+                  <div className="label" data-no-translate={lang === 'ur' || undefined}>{localText(text)}</div>
                 </Link>
               ))}
             </div>
@@ -302,7 +306,7 @@ export default function Home() {
       <section className="section-pad" id="institutions">
         <div className="container">
           <AdSlot placement="home" />
-          <SectionHead eyebrow="Verified Network" title="Featured institutions across our global network" intro="Verified schools, colleges, universities and academies — all in one place." more={['/institutes', 'View All Institutes']} />
+          <SectionHead eyebrow="Verified Network" title="Featured institutions across our global network" intro="Verified schools, colleges, universities and academies — all in one place." more={data?.institutes?.length ? ['/institutes', 'View All Institutes'] : null} />
           <InstituteGrid items={data?.institutes} empty={<Empty to="/signup?type=institute" action="Register your institution">No verified institutions yet.</Empty>} />
         </div>
       </section>
@@ -317,9 +321,9 @@ export default function Home() {
       <section className="section-pad">
         <div className="container">
           <SectionHead eyebrow="Built For Everyone" title="A dedicated portal for every role" intro="Switch roles to see what CareerZ offers you specifically." />
-          <div className="portal-tabs" role="tablist">{PORTALS.map(([role], i) => <button key={role} type="button" role="tab" aria-selected={portal === i} className={portal === i ? 'active' : ''} onClick={() => setPortal(i)}>{role}</button>)}</div>
-          <div className="portal-panel grid g3 active">
-            {PORTALS[portal][2].map(([ic, t]) => <Link key={t} to={`/signup?type=${PORTALS[portal][1]}`} className="card feature-card reveal home-card-link"><div className="ic">{ic}</div><h4>{t}</h4></Link>)}
+          <div className="portal-tabs" role="tablist" aria-label="Account roles" data-no-translate={lang === 'ur' || undefined}>{PORTALS.map(([role], i) => <button key={role} type="button" role="tab" aria-selected={portal === i} className={portal === i ? 'active' : ''} onClick={() => setPortal(i)}>{localText(role)}</button>)}</div>
+          <div className="portal-panel grid g3 active" data-no-translate={lang === 'ur' || undefined}>
+            {PORTALS[portal][2].map(([ic, t]) => <Link key={t} to={`/signup?type=${PORTALS[portal][1]}`} className="card feature-card reveal home-card-link"><div className="ic">{ic}</div><h4>{localText(t)}</h4></Link>)}
           </div>
         </div>
       </section>
@@ -333,14 +337,14 @@ export default function Home() {
 
       <section className="section-pad">
         <div className="container">
-          <SectionHead eyebrow="Test Prep & Coaching" title="Featured academies" intro="Verified academies, tuition centres and training institutes." more={['/institutes?type=academy', 'View All Academies']} />
+          <SectionHead eyebrow="Test Prep & Coaching" title="Featured academies" intro="Verified academies, tuition centres and training institutes." more={sections?.academies?.length ? ['/institutes?type=academy', 'View All Academies'] : null} />
           <InstituteGrid items={sections?.academies} offset={2} empty={<Empty to="/signup?type=institute" action="Register your academy">No verified academies yet.</Empty>} />
         </div>
       </section>
 
       <section className="section-pad" id="jobs">
         <div className="container">
-          <SectionHead eyebrow="Career Opportunities" title="Jobs from verified employers" intro="Education and entry-level roles, posted directly by employers." more={['/jobs', 'View All Jobs']} />
+          <SectionHead eyebrow="Career Opportunities" title="Jobs from verified employers" intro="Education and entry-level roles, posted directly by employers." more={data?.jobs?.length ? ['/jobs', 'View All Jobs'] : null} />
           {!data ? <div className="grid g3"><Skeletons n={3} /></div> : data.jobs.length ? (
             <div className="grid g3">
               {data.jobs.slice(0, 6).map((j) => (
@@ -373,7 +377,7 @@ export default function Home() {
 
       <section className="section-pad" id="scholarships">
         <div className="container">
-          <SectionHead eyebrow="Funding Your Future" title="Active scholarships" intro="Need-based and merit-based scholarships from verified donors." more={['/scholarships', 'View All Scholarships']} />
+          <SectionHead eyebrow="Funding Your Future" title="Active scholarships" intro="Need-based and merit-based scholarships from verified donors." more={data?.scholarships?.length ? ['/scholarships', 'View All Scholarships'] : null} />
           {!data ? <div className="grid g3"><Skeletons n={3} /></div> : data.scholarships.length ? (
             <div className="grid g3">
               {data.scholarships.slice(0, 6).map((s) => {
@@ -393,7 +397,7 @@ export default function Home() {
 
       <section className="section-pad" id="marketplace">
         <div className="container">
-          <SectionHead eyebrow="From Verified Sellers" title="Educational marketplace preview" intro="Books, notes, past papers, equipment and services from verified sellers." more={['/marketplace', 'View All Listings']} />
+          <SectionHead eyebrow="From Verified Sellers" title="Educational marketplace preview" intro="Books, notes, past papers, equipment and services from verified sellers." more={data?.marketplace?.length ? ['/marketplace', 'View All Listings'] : null} />
           {!data ? <div className="grid g4"><Skeletons /></div> : data.marketplace.length ? (
             <div className="grid g4">
               {data.marketplace.slice(0, 8).map((m, i) => (
@@ -498,8 +502,8 @@ export default function Home() {
       <section className="section-pad home-eco" id="ai-ecosystem">
         <div className="container">
           <SectionHead dark center eyebrow="The Core Of CareerZ" title="AI-powered teaching & learning ecosystem" intro="A dedicated AI assistant for every role in the education journey. Preview only — full functionality lives inside each portal." />
-          <div className="ai-eco-tabs" role="tablist">{Object.keys(AI_ECO).map((k, i) => <button key={k} type="button" role="tab" aria-selected={eco === i} className={eco === i ? 'active' : ''} onClick={() => setEco(i)}>{k}</button>)}</div>
-          <div className="ai-eco-grid active">{AI_ECO[Object.keys(AI_ECO)[eco]].map((item) => <Link key={item} to="/signup" className="ai-chip">{item}</Link>)}</div>
+          <div className="ai-eco-tabs" role="tablist" aria-label="AI tools by role" data-no-translate={lang === 'ur' || undefined}>{Object.keys(AI_ECO).map((k, i) => <button key={k} type="button" role="tab" aria-selected={eco === i} className={eco === i ? 'active' : ''} onClick={() => setEco(i)}>{localText(k)}</button>)}</div>
+          <div className="ai-eco-grid active" data-no-translate={lang === 'ur' || undefined}>{AI_ECO[Object.keys(AI_ECO)[eco]].map((item) => <Link key={item} to="/signup" className="ai-chip">{localText(item)}</Link>)}</div>
         </div>
       </section>
 
@@ -531,9 +535,9 @@ export default function Home() {
           <SectionHead center eyebrow="Common Questions" title="Frequently asked questions" />
           <div>
             {FAQS.map(([q, a], i) => (
-              <div key={q} className={`faq-item reveal${faq === i ? ' open' : ''}`}>
-                <button type="button" className="faq-q" aria-expanded={faq === i} onClick={() => setFaq(faq === i ? -1 : i)}><span>{q}</span><span className="plus">+</span></button>
-                <div className="faq-a" style={{ maxHeight: faq === i ? 400 : null }}><p>{a}</p></div>
+              <div key={q} className={`faq-item${faq === i ? ' open' : ''}`}>
+                <button type="button" className="faq-q" aria-expanded={faq === i} aria-controls={`home-faq-answer-${i}`} onClick={() => setFaq(faq === i ? -1 : i)}><span>{q}</span><span className="plus">+</span></button>
+                <div id={`home-faq-answer-${i}`} className="faq-a" hidden={faq !== i}><p>{a}</p></div>
               </div>
             ))}
           </div>

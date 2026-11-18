@@ -44,6 +44,7 @@ export default function Login() {
   const [errors, setErrors] = useState({});
   const [serverError, setServerError] = useState(location.state?.socialLinkRequired ? 'Sign in with your existing password to connect your social account securely.' : '');
   const [success, setSuccess] = useState(false);
+  const [workspaceBlocked, setWorkspaceBlocked] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [twoFactorEmail, setTwoFactorEmail] = useState(location.state?.socialTwoFactorEmail || null);
   const [twoFactorMethod, setTwoFactorMethod] = useState(location.state?.socialTwoFactorMethod || 'email');
@@ -103,11 +104,26 @@ export default function Login() {
   async function completeLogin(user) {
     await linkPendingSocialAccount();
     const picked = LOGIN_AS_OPTIONS.find((o) => o.value === loginAs);
+    setWorkspaceBlocked(false);
+    if (picked?.value === 'institution_representative') {
+      let staffRoles = [];
+      if (user.roles.includes('institution_staff')) staffRoles = await apiRequest('/institutions/mine/staff-roles');
+      if (!staffRoles.some(row => row.role === 'representative')) {
+        setWorkspaceBlocked(true);
+        setServerError('You are signed in, but this account has no Institution Representative assignment. Ask your institution owner to add you as a representative, or open your available workspace below.');
+        setSubmitting(false);
+        return;
+      }
+    }
     if (picked?.role && !user.roles.includes(picked.role)) {
       try {
         await apiRequest('/roles/request', { method: 'POST', body: { requestedRole: picked.role } });
         await refreshProfile();
-      } catch { /* non-fatal — user can request it again from Profile > My Roles */ }
+      } catch (error) {
+        setSubmitting(false); setWorkspaceBlocked(true);
+        setServerError(error.message || 'This workspace could not be requested. Open your available workspace to manage your roles.');
+        return;
+      }
     }
 
     setSuccess(true);
@@ -154,6 +170,7 @@ export default function Login() {
               </div>
             )}
 
+            {workspaceBlocked && <button type="button" className="btn btn-primary" style={{ marginBottom: 16 }} onClick={() => navigate('/dashboard')}>Open my available workspace</button>}
             {twoFactorEmail ? (
               <form id="login-2fa-form" noValidate onSubmit={handleVerifyTwoFactor}>
                 <p style={{ fontSize: 13.5, color: 'var(--ink-soft, #6b7280)', marginBottom: 16, lineHeight: 1.6 }}>

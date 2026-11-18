@@ -13,24 +13,38 @@ const ago = (d) => {
 
 export default function LiveActivityToasts() {
   const [items, setItems] = useState([]), [i, setI] = useState(-1), [show, setShow] = useState(false), [off, setOff] = useState(false);
-  const timers = useRef([]);
+  const timer = useRef(null), task = useRef(null), dueAt = useRef(0), remaining = useRef(0);
+  const paused = useRef({ mouse: false, focus: false });
+  const schedule = (fn, delay) => {
+    clearTimeout(timer.current); task.current = fn; remaining.current = delay;
+    if (paused.current.mouse || paused.current.focus) return;
+    dueAt.current = Date.now() + delay;
+    timer.current = setTimeout(fn, delay);
+  };
+  function pause(kind) {
+    if (!paused.current.mouse && !paused.current.focus) remaining.current = Math.max(0, dueAt.current - Date.now());
+    paused.current[kind] = true; clearTimeout(timer.current);
+  }
+  function resume(kind) {
+    paused.current[kind] = false;
+    if (!paused.current.mouse && !paused.current.focus && task.current) schedule(task.current, remaining.current);
+  }
   useEffect(() => { apiRequest('/public/activity', { auth: false }).then((r) => setItems(Array.isArray(r) ? r : [])).catch(() => {}); }, []);
   useEffect(() => {
     if (!items.length || off) return undefined;
     const showNext = () => {
       setI((n) => (n + 1) % items.length);
       setShow(true);
-      timers.current.push(setTimeout(() => setShow(false), 4800));
+      schedule(() => { setShow(false); schedule(showNext, 3200); }, 4800);
     };
-    timers.current.push(setTimeout(showNext, 2500));
-    const every = setInterval(showNext, 8000);
-    return () => { clearInterval(every); timers.current.forEach(clearTimeout); timers.current = []; };
+    schedule(showNext, 2500);
+    return () => { clearTimeout(timer.current); task.current = null; };
   }, [items, off]);
   if (!items.length || off || i < 0) return null;
   const it = items[i];
   return (
     <div className="toast-stack" aria-live="polite">
-      <div className={`toast live-toast${show ? ' show' : ''}`} role="status">
+      <div className={`toast live-toast${show ? ' show' : ''}`} role="status" onMouseEnter={() => pause('mouse')} onMouseLeave={() => resume('mouse')} onFocusCapture={() => pause('focus')} onBlurCapture={e => { if (!e.currentTarget.contains(e.relatedTarget)) resume('focus'); }}>
         <span className="dot" aria-hidden="true" />
         <Link to={it.link} className="live-toast-text"><strong>{it.label}</strong> {it.text}{it.at && <small> · {ago(it.at)}</small>}</Link>
         <button type="button" className="live-toast-close" aria-label="Stop these notifications" onClick={() => setOff(true)}>×</button>

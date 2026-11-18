@@ -1,3 +1,4 @@
+import PageSeo from '../components/PageSeo';
 import { useEffect, useState } from 'react';
 import BrandLogo from '../components/BrandLogo';
 import { Link, useNavigate } from 'react-router-dom';
@@ -22,7 +23,7 @@ export function VerificationShell({ title, subtitle, children }) {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
   return (
-    <div className="vf-page">
+    <div className="vf-page"><PageSeo title={title} description={subtitle || title} path={window.location.pathname} noindex custom />
       <header className="vf-topbar">
         <BrandLogo className="vf-brand" />
         <div className="vf-topbar-user">
