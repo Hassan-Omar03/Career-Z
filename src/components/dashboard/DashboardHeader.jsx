@@ -5,6 +5,7 @@ import { useTheme } from '../../hooks/useTheme';
 import LanguageSelector from '../LanguageSelector';
 import VoiceNavButton from '../VoiceNavButton';
 import { useRealtime } from '../../context/RealtimeContext';
+import { apiRequest } from '../../api/client';
 import { FaShieldHalved, FaRightFromBracket, FaBars, FaMagnifyingGlass, FaPlus, FaWallet, FaCommentDots, FaBell, FaChevronDown } from 'react-icons/fa6';
 
 function useDropdown() {
@@ -26,6 +27,19 @@ export default function DashboardHeader({ user, onSidebarToggle, onLogout, onNav
   const { theme, toggleTheme } = useTheme();
   const { unreadCount, markAllNotificationsRead, unreadMessageCount } = useRealtime();
   const { open: quickActionsOpen, setOpen: setQuickActionsOpen, ref: quickActionsRef } = useDropdown();
+  // Issue CZ-0023: the header shows the real available balance (PKR 0.00 when empty), refreshed when the
+  // wallet changes or the person comes back to the tab.
+  const [balance, setBalance] = useState(null);
+  const { dashboardUpdateSignal } = useRealtime();
+  useEffect(() => {
+    if (!user?._id) return undefined;
+    let alive = true;
+    const load = () => apiRequest('/wallet/me').then((w) => { if (alive) setBalance({ currency: w.currency || 'PKR', amount: Number(w.available) || 0 }); }).catch(() => { if (alive) setBalance(null); });
+    load();
+    window.addEventListener('focus', load);
+    window.addEventListener('careerz:wallet-changed', load);
+    return () => { alive = false; window.removeEventListener('focus', load); window.removeEventListener('careerz:wallet-changed', load); };
+  }, [user?._id, dashboardUpdateSignal]);
   const { open: profileMenuOpen, setOpen: setProfileMenuOpen, ref: profileMenuRef } = useDropdown();
   const [search, setSearch] = useState('');
 
@@ -89,8 +103,8 @@ export default function DashboardHeader({ user, onSidebarToggle, onLogout, onNav
         <button type="button" className="dash-wallet-chip"  onClick={() => onNavigate?.('wallet')}>
           <FaWallet size={17} />
           <span className="w-text">
-            <span className="w-label">Balance</span>
-            <span className="w-amount">View Wallet</span>
+            <span className="w-label">{balance ? 'Balance' : 'Wallet'}</span>
+            <span className="w-amount">{balance ? `${balance.currency} ${balance.amount.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : 'View Wallet'}</span>
           </span>
         </button>
 

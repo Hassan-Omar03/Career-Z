@@ -16,6 +16,8 @@ export default function DashboardLayout({ children, trail = ['Dashboard'], activ
   }
 
   const isAdmin = activeRole === 'admin';
+  // Issue CZ-0030: Student, Parent and Institute reach My Profile from the header menu, so the sidebar does not repeat it.
+  const sidebarItems = navItems.filter((item) => !(item.key === 'profile' && ['student', 'parent', 'institution'].includes(activeRole)));
 
   // The page behind the open phone menu must not scroll.
   useEffect(() => {
@@ -34,7 +36,8 @@ export default function DashboardLayout({ children, trail = ['Dashboard'], activ
           open={sidebarOpen}
           onClose={() => setSidebarOpen(false)}
           onLogout={handleLogout}
-          navItems={navItems}
+          navItems={sidebarItems}
+          isAdmin={isAdmin}
           navGroups={isAdmin ? navGroups : null}
           showFreelance={showFreelance}
           activeKey={activeKey}

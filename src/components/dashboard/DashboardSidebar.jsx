@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import BrandLogo from '../BrandLogo';
 import {
-  FaEnvelope, FaBell, FaGear, FaCircleQuestion, FaRightFromBracket, FaXmark, FaCalendarDays, FaChevronDown, FaReceipt, FaLaptopCode
+  FaEnvelope, FaBell, FaCircleQuestion, FaXmark, FaCalendarDays, FaChevronDown, FaReceipt, FaLaptopCode
 } from 'react-icons/fa6';
 
 // The nav items themselves come from the active workspace (see Dashboard.jsx)
@@ -25,7 +25,7 @@ function NavGroup({ title, items, activeKey, onSelect }) {
   );
 }
 
-export default function DashboardSidebar({ open, onClose, onLogout, navItems = [], navGroups = null, showFreelance = true, activeKey, onSelect }) {
+export default function DashboardSidebar({ open, onClose, onLogout, isAdmin = false, navItems = [], navGroups = null, showFreelance = true, activeKey, onSelect }) {
   // Groups list every item once; anything not named in a group stays visible in the first one.
   const grouped = navGroups && navGroups.map((group, index) => ({
     title: group.title,
@@ -58,30 +58,22 @@ export default function DashboardSidebar({ open, onClose, onLogout, navItems = [
         <div className="dash-sidebar-divider"></div>
 
         {!grouped && showFreelance && <button type="button" className={`dash-nav-link${activeKey === 'freelance' ? ' active' : ''}`} style={{ width: '100%', textAlign: 'left', background: 'none', border: 'none', cursor: 'pointer' }} onClick={() => onSelect?.('freelance')}><FaLaptopCode size={17} aria-hidden /><span>Freelancer Hub</span></button>}
-        {!hasOwn('Messages') && <button type="button" className={`dash-nav-link${activeKey === 'messages' ? ' active' : ''}`} style={{ width: '100%', textAlign: 'left', background: 'none', border: 'none', cursor: 'pointer' }} onClick={() => onSelect?.('messages')}>
+        {/* Issues CZ-0032, 0033, 0038: members reach Messages and Notifications from the header icons and Settings, Help Center and Logout from the profile menu, so the sidebar does not repeat them. The admin header has no such icons, so admins keep Messages, Notifications and Help Center here; their Logout stays in the admin header only. */}
+        {isAdmin && !hasOwn('Messages') && <button type="button" className={`dash-nav-link${activeKey === 'messages' ? ' active' : ''}`} style={{ width: '100%', textAlign: 'left', background: 'none', border: 'none', cursor: 'pointer' }} onClick={() => onSelect?.('messages')}>
           <FaEnvelope size={17} aria-hidden /><span>Messages</span>
         </button>}
-        {!hasOwn('Notifications') && <button type="button" className={`dash-nav-link${activeKey === 'notifications' ? ' active' : ''}`} style={{ width: '100%', textAlign: 'left', background: 'none', border: 'none', cursor: 'pointer' }} onClick={() => onSelect?.('notifications')}>
+        {isAdmin && !hasOwn('Notifications') && <button type="button" className={`dash-nav-link${activeKey === 'notifications' ? ' active' : ''}`} style={{ width: '100%', textAlign: 'left', background: 'none', border: 'none', cursor: 'pointer' }} onClick={() => onSelect?.('notifications')}>
           <FaBell size={17} aria-hidden /><span>Notifications</span>
         </button>}
         <button type="button" className={`dash-nav-link${activeKey === 'calendar' ? ' active' : ''}`} style={{ width: '100%', textAlign: 'left', background: 'none', border: 'none', cursor: 'pointer' }} onClick={() => onSelect?.('calendar')}>
           <FaCalendarDays size={17} aria-hidden /><span>Calendar</span>
         </button>
         {!grouped && <button type="button" className={`dash-nav-link${activeKey === 'receipts' ? ' active' : ''}`} style={{ width: '100%', textAlign: 'left', background: 'none', border: 'none', cursor: 'pointer' }} onClick={() => onSelect?.('receipts')}><FaReceipt size={17} aria-hidden /><span>My Receipts</span></button>}
-        {!grouped && <button type="button" className={`dash-nav-link${activeKey === 'settings' ? ' active' : ''}`} style={{ width: '100%', textAlign: 'left', background: 'none', border: 'none', cursor: 'pointer' }} onClick={() => onSelect?.('settings')}>
-          <FaGear size={17} aria-hidden /><span>Settings</span>
-        </button>}
-        <button type="button" className={`dash-nav-link${activeKey === 'help' ? ' active' : ''}`} style={{ width: '100%', textAlign: 'left', background: 'none', border: 'none', cursor: 'pointer' }} onClick={() => onSelect?.('help')}>
+        {isAdmin && <button type="button" className={`dash-nav-link${activeKey === 'help' ? ' active' : ''}`} style={{ width: '100%', textAlign: 'left', background: 'none', border: 'none', cursor: 'pointer' }} onClick={() => onSelect?.('help')}>
           <FaCircleQuestion size={17} aria-hidden /><span>Help Center</span>
-        </button>
+        </button>}
       </nav>
 
-      <div className="dash-sidebar-foot">
-        <div className="dash-sidebar-divider" style={{ marginTop: 0 }}></div>
-        <button type="button" className="dash-nav-link" style={{ width: '100%', textAlign: 'left', background: 'none', border: 'none', cursor: 'pointer' }} onClick={onLogout}>
-          <FaRightFromBracket size={17} aria-hidden /><span>Logout</span>
-        </button>
-      </div>
     </aside>
   );
 }

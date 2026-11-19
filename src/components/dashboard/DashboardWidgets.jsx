@@ -75,7 +75,7 @@ export function WalletCard({ onFlash }) {
   const [walletError, setWalletError] = useState('');
 
   function load() {
-    apiRequest(`/wallet/me${currency ? `?currency=${currency}` : ''}`).then((w) => { setWalletError(''); setWallet(w); if (!currency) setCurrency(w.currency); }).catch((err) => { setWallet(null); setWalletError(err.message || 'Your wallet could not be loaded.'); });
+    apiRequest(`/wallet/me${currency ? `?currency=${currency}` : ''}`).then((w) => { setWalletError(''); setWallet(w); if (!currency) setCurrency(w.currency); window.dispatchEvent(new Event('careerz:wallet-changed')); }).catch((err) => { setWallet(null); setWalletError(err.message || 'Your wallet could not be loaded.'); });
   }
   useEffect(load, [currency]);
   useEffect(() => {

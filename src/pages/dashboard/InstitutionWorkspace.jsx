@@ -3908,14 +3908,16 @@ function InstitutionPanel({ onFlash, onChanged }) {
   return (
     <div className="institution-ui institution-profile-ui">
       {!mine && (
-        <form onSubmit={submit} className="space-y-3 mb-6 max-w-md">
-          <input className="form-input" placeholder="Name" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} />
-          <select className="form-select" value={form.type} onChange={(e) => setForm({ ...form, type: e.target.value })}>
-            {['school', 'college', 'university', 'academy', 'madrasa', 'tuition_center'].map((t) => <option key={t} value={t}>{t}</option>)}
-          </select>
-          <input className="form-input" placeholder="Country code (e.g. PK)" value={form.country} onChange={(e) => setForm({ ...form, country: e.target.value })} />
-          <input className="form-input" placeholder="City" value={form.city} onChange={(e) => setForm({ ...form, city: e.target.value })} />
-          <button type="submit" className="btn btn-primary">Register</button>
+        <form onSubmit={submit} className="institution-register-form card" aria-labelledby="register-institution-title">
+          <h3 id="register-institution-title">Register your institution</h3>
+          <p className="text-xs" style={{ color: 'var(--ink-soft)', margin: '0 0 6px' }}>Fields marked * are required. You add the full details and documents after this step.</p>
+          <label className="institution-field" htmlFor="reg-inst-name"><span>Institution name *</span><input id="reg-inst-name" className="form-input" required placeholder="e.g. Bright Future School" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} /></label>
+          <label className="institution-field" htmlFor="reg-inst-type"><span>Institution type *</span><select id="reg-inst-type" className="form-select" value={form.type} onChange={(e) => setForm({ ...form, type: e.target.value })}>
+            {['school', 'college', 'university', 'academy', 'madrasa', 'tuition_center'].map((t) => <option key={t} value={t}>{t.replace('_', ' ')}</option>)}
+          </select></label>
+          <label className="institution-field" htmlFor="reg-inst-country"><span>Country code *</span><input id="reg-inst-country" className="form-input" required maxLength={3} placeholder="e.g. PK" value={form.country} onChange={(e) => setForm({ ...form, country: e.target.value })} /><small className="text-xs" style={{ color: 'var(--ink-soft)' }}>Two-letter country code, for example PK for Pakistan.</small></label>
+          <label className="institution-field" htmlFor="reg-inst-city"><span>City *</span><input id="reg-inst-city" className="form-input" required placeholder="e.g. Peshawar" value={form.city} onChange={(e) => setForm({ ...form, city: e.target.value })} /></label>
+          <button type="submit" className="btn btn-primary">Register institution</button>
         </form>
       )}
       <Table headers={['Name', 'Type', 'Verification']} rows={list.map((i) => [i.name, i.type, <Tag status={i.verificationStatus} />])} empty="No institutions yet." />

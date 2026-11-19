@@ -38,7 +38,9 @@ const Chip = ({ tone = '', children }) => <span className={`emp-chip ${tone}`}>{
 export function EmployerDashboardFull({ employer = null }) {
   const [d, setD] = useState(null);
   useEffect(() => { apiRequest(`/jobs/mine/employer-dashboard${q(employer)}`).then(setD).catch(() => setD({})); }, [employer]);
-  const VER = { approved: 'Verified', pending: 'Waiting for review', rejected: 'Not approved', suspended: 'Suspended', none: 'Not submitted' };
+  // Issue CZ-0040: every verification state reads as plain words (never a raw value like awaiting_documents).
+  const VER = { approved: 'Verified', pending: 'Waiting for review', under_review: 'Under review', awaiting_documents: 'Awaiting documents', documents_required: 'Documents required', needs_more_documents: 'More documents needed', rejected: 'Not approved', suspended: 'Suspended', none: 'Not submitted' };
+  const verLabel = (v) => VER[v] || (v ? String(v).replace(/_/g, ' ').replace(/^./, (c) => c.toUpperCase()) : 'Not submitted');
   return (
     <Section title="Company overview" text="Every number comes from your real jobs, applicants and messages.">
       <Tiles items={[
@@ -47,7 +49,7 @@ export function EmployerDashboardFull({ employer = null }) {
         { label: 'Applications', value: d?.applications }, { label: 'Shortlisted', value: d?.shortlisted, detail: 'And further stages' },
         { label: 'Upcoming interviews', value: d?.interviews }, { label: 'Hired', value: d?.hired },
         { label: 'Active employees', value: d?.employees }, { label: 'Unread messages', value: d?.unreadMessages },
-        { label: 'Unread notifications', value: d?.unreadNotifications }, { label: 'Verification', value: d ? VER[d.verification] || d.verification : null },
+        { label: 'Unread notifications', value: d?.unreadNotifications }, { label: 'Verification', value: d ? verLabel(d.verification) : null },
         { label: 'Rating', value: d?.rating != null ? `${d.rating} / 5` : d ? 'No reviews' : null, detail: d ? `${d.reviewCount} review${d.reviewCount === 1 ? '' : 's'}` : '' },
         { label: 'Trust score', value: d ? (d.trustScore == null ? 'New' : `${d.trustScore} / 100`) : null, detail: d?.trustScore == null && d ? 'Not enough hiring activity yet' : d?.trustLevel }
       ]} />

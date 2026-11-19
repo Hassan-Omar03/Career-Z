@@ -745,9 +745,12 @@ table.u-table tbody tr.is-selected{background:rgba(27,138,99,0.08);}
 .live-attendance form .form-input { flex: 1 1 220px; }
 .live-attendance details > summary { margin-top: 4px; }
 
-/* Phones and tablets: the menu opens as its own full screen above the header, and only the list scrolls. */
+/* Phones and tablets (issue CZ-0034): the menu opens as a side drawer over a backdrop, so the page stays visible; only the list scrolls. */
 @media (max-width: 980px) {
-  .dash-sidebar { z-index: 1000; width: 100%; height: 100dvh; max-height: 100dvh; box-shadow: none; }
+  .dash-sidebar { z-index: 1000; width: min(320px, 86vw); height: 100dvh; max-height: 100dvh; box-shadow: 8px 0 32px rgba(0,0,0,.28); }
+  [dir="rtl"] .dash-sidebar { box-shadow: -8px 0 32px rgba(0,0,0,.28); }
+  .dash-overlay.show { z-index: 999; }
+  .dash-sidebar .dash-sidebar-brand { padding-inline-end: 52px; }
   .dash-sidebar-nav { min-height: 0; overscroll-behavior: contain; -webkit-overflow-scrolling: touch; }
   .dash-sidebar-foot { padding-block-end: env(safe-area-inset-bottom, 0px); }
 }
@@ -827,3 +830,26 @@ table.u-table tbody tr.is-selected{background:rgba(27,138,99,0.08);}
 .admin-ui td.mod-row-actions .btn { margin: 3px 5px 3px 0; }
 .admin-ui .fl-table td:last-child:has(button, a) { text-align: end; white-space: nowrap; }
 .admin-ui .mod-table td:nth-child(3) a, .admin-ui .mod-table td:nth-child(3) { white-space: nowrap; }
+
+/* Issue CZ-0035: the close button is a light circle, so its icon must be dark to be seen (selector is deliberately specific: older rules force a white icon). */
+.dash-sidebar .dash-sidebar-brand .dash-sidebar-close-btn,.dash-body .dash-sidebar .dash-sidebar-brand button.dash-sidebar-close-btn{background:#f4f1e6 !important;color:#123c2f !important;border:1px solid #d8d0b8;width:38px;height:38px;border-radius:50%;align-items:center;justify-content:center}
+.dash-sidebar .dash-sidebar-brand .dash-sidebar-close-btn svg{color:#123c2f !important;fill:currentColor}
+.dash-sidebar .dash-sidebar-brand .dash-sidebar-close-btn:hover,.dash-sidebar .dash-sidebar-brand .dash-sidebar-close-btn:focus-visible{background:#fff !important;outline:2px solid #e3a23c;outline-offset:2px}
+
+/* Issue CZ-0037: cafeteria form actions in their own row; Menu and Paid orders as separate sections. */
+.cafeteria-panel form{padding:20px;margin:16px 0 8px;background:var(--paper-raised,#fff)}
+.cafeteria-panel form>h3{margin:0 0 14px}
+.cafeteria-panel form label{display:grid;gap:6px;font-size:13px;font-weight:600}
+.cafeteria-actions{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:14px;margin-top:20px;padding-top:16px;border-top:1px solid var(--sand-line,#e4dcc8)}
+.cafeteria-actions .cafeteria-check{display:flex;align-items:center;gap:8px;font-weight:500}
+.cafeteria-buttons{display:flex;gap:10px;flex-wrap:wrap}
+.cafeteria-block{margin-top:22px;padding:18px 20px;border:1px solid var(--sand-line,#e4dcc8);border-radius:16px;background:var(--paper-raised,#fff)}
+.cafeteria-block>h3{margin:0 0 12px;padding-bottom:10px;border-bottom:1px solid var(--sand-line,#e4dcc8)}
+.cafeteria-empty{margin:0;color:var(--ink-soft)}
+
+/* Issue CZ-0036: the institution registration form has titled, spaced, labelled fields. */
+.institution-register-form{display:grid;gap:16px;max-width:520px;padding:22px 24px;margin:0 0 24px}
+.institution-register-form h3{margin:0;font-size:18px}
+.institution-register-form .institution-field{display:grid;gap:6px}
+.institution-register-form .institution-field>span{font-size:13px;font-weight:600}
+.institution-register-form .btn{justify-self:start;margin-top:6px}
